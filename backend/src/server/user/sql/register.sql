@@ -10,7 +10,6 @@ VALUES
 RETURNING
     u.id,
     u.full_name,
-    u.password_hash,
     u.email,
     u.created_at,
     u.is_active;

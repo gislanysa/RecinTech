@@ -133,7 +133,6 @@ pub type GetMembersRow {
     id: Uuid,
     full_name: String,
     email: String,
-    password_hash: String,
     created_at: Timestamp,
     is_active: Bool,
   )
@@ -152,14 +151,12 @@ pub fn get_members(
     use id <- decode.field(0, uuid_decoder())
     use full_name <- decode.field(1, decode.string)
     use email <- decode.field(2, decode.string)
-    use password_hash <- decode.field(3, decode.string)
-    use created_at <- decode.field(4, pog.timestamp_decoder())
-    use is_active <- decode.field(5, decode.bool)
+    use created_at <- decode.field(3, pog.timestamp_decoder())
+    use is_active <- decode.field(4, decode.bool)
     decode.success(GetMembersRow(
       id:,
       full_name:,
       email:,
-      password_hash:,
       created_at:,
       is_active:,
     ))
@@ -170,7 +167,6 @@ SELECT
     u.id,
     u.full_name,
     u.email,
-    u.password_hash,
     u.created_at,
     u.is_active
 FROM

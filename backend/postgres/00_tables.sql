@@ -8,6 +8,8 @@ CREATE TABLE user_account (
     PRIMARY KEY (id)
 );
 
+CREATE INDEX user_account_email_idx ON user_account (email);
+
 CREATE TABLE segment (
     id uuid UNIQUE NOT NULL DEFAULT uuidv7(),
     name text NOT NULL,
@@ -26,11 +28,19 @@ CREATE TABLE startup (
     PRIMARY KEY (id)
 );
 
+CREATE INDEX startup_segment_id_idx ON startup (segment_id);
+
+CREATE INDEX startup_cnpj_idx ON startup (cnpj);
+
 CREATE TABLE startup_membership (
     user_id uuid REFERENCES user_account (id) ON DELETE CASCADE,
     startup_id uuid REFERENCES startup (id) ON DELETE CASCADE,
     PRIMARY KEY (user_id, startup_id)
 );
+
+CREATE INDEX startup_membership_user_account_id_idx ON startup_membership (user_id);
+
+CREATE INDEX startup_membership_startup_id_idx ON startup_membership (startup_id);
 
 CREATE TYPE investor_kind AS enum (
     'angel',
@@ -47,3 +57,7 @@ CREATE TABLE investor (
     public_profile boolean NOT NULL DEFAULT TRUE,
     PRIMARY KEY (id)
 );
+
+CREATE INDEX investor_user_id_idx ON investor (user_id);
+
+CREATE INDEX investor_segment_id_idx ON investor (segment_id);

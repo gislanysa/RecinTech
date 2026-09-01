@@ -20,7 +20,6 @@ pub type GetRow {
     id: Uuid,
     full_name: String,
     email: String,
-    password_hash: String,
     created_at: Timestamp,
     is_active: Bool,
   )
@@ -39,17 +38,9 @@ pub fn get(
     use id <- decode.field(0, uuid_decoder())
     use full_name <- decode.field(1, decode.string)
     use email <- decode.field(2, decode.string)
-    use password_hash <- decode.field(3, decode.string)
-    use created_at <- decode.field(4, pog.timestamp_decoder())
-    use is_active <- decode.field(5, decode.bool)
-    decode.success(GetRow(
-      id:,
-      full_name:,
-      email:,
-      password_hash:,
-      created_at:,
-      is_active:,
-    ))
+    use created_at <- decode.field(3, pog.timestamp_decoder())
+    use is_active <- decode.field(4, decode.bool)
+    decode.success(GetRow(id:, full_name:, email:, created_at:, is_active:))
   }
 
   "-- select an user;
@@ -57,7 +48,6 @@ SELECT
     u.id,
     u.full_name,
     u.email,
-    u.password_hash,
     u.created_at,
     u.is_active
 FROM
@@ -67,6 +57,46 @@ WHERE
 "
   |> pog.query
   |> pog.parameter(pog.text(uuid.to_string(arg_1)))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
+/// A row you get from running the `get_credentials` query
+/// defined in `./src/server/user/sql/get_credentials.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v4.7.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type GetCredentialsRow {
+  GetCredentialsRow(id: Uuid, password_hash: String)
+}
+
+/// select user id and credentials
+///
+/// > 🐿️ This function was generated automatically using v4.7.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn get_credentials(
+  db: pog.Connection,
+  arg_1: String,
+) -> Result(pog.Returned(GetCredentialsRow), pog.QueryError) {
+  let decoder = {
+    use id <- decode.field(0, uuid_decoder())
+    use password_hash <- decode.field(1, decode.string)
+    decode.success(GetCredentialsRow(id:, password_hash:))
+  }
+
+  "-- select user id and credentials
+SELECT
+    u.id,
+    u.password_hash
+FROM
+    public.user_account AS u
+WHERE
+    u.email = $1;
+"
+  |> pog.query
+  |> pog.parameter(pog.text(arg_1))
   |> pog.returning(decoder)
   |> pog.execute(db)
 }
@@ -81,7 +111,6 @@ pub type RegisterRow {
   RegisterRow(
     id: Uuid,
     full_name: String,
-    password_hash: String,
     email: String,
     created_at: Timestamp,
     is_active: Bool,
@@ -102,18 +131,10 @@ pub fn register(
   let decoder = {
     use id <- decode.field(0, uuid_decoder())
     use full_name <- decode.field(1, decode.string)
-    use password_hash <- decode.field(2, decode.string)
-    use email <- decode.field(3, decode.string)
-    use created_at <- decode.field(4, pog.timestamp_decoder())
-    use is_active <- decode.field(5, decode.bool)
-    decode.success(RegisterRow(
-      id:,
-      full_name:,
-      password_hash:,
-      email:,
-      created_at:,
-      is_active:,
-    ))
+    use email <- decode.field(2, decode.string)
+    use created_at <- decode.field(3, pog.timestamp_decoder())
+    use is_active <- decode.field(4, decode.bool)
+    decode.success(RegisterRow(id:, full_name:, email:, created_at:, is_active:))
   }
 
   "-- register a new user
@@ -128,7 +149,6 @@ VALUES
 RETURNING
     u.id,
     u.full_name,
-    u.password_hash,
     u.email,
     u.created_at,
     u.is_active;
