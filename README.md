@@ -132,8 +132,8 @@ Cliente (React)
 ### Passos
 
 ```bash
-git clone https://github.com/gislanysa/startai.git
-cd startai
+git clone https://github.com/gislanysa/RecinTech.git
+cd RecinTech
 cp .env.example .env
 docker compose up -d
 ```
