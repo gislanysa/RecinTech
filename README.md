@@ -19,7 +19,7 @@ O produto é entregue como SaaS.
 
 - **Frontend:** React, Vite, TypeScript, Tailwind CSS, Axios.
 - **Backend:** Gleam, BEAM VM, árvore de supervisão OTP.
-- **Database:** PostgreSQL 16.
+- **Database:** PostgreSQL 18.
 - **Orquestração:** Docker Compose.
 
 ### Atores
