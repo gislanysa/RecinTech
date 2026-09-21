@@ -1,7 +1,10 @@
 import gleam/bool
+import gleam/dynamic/decode
+import gleam/json
 import gleam/list
 import gleam/result
 import gleam/string
+import gleam/time/calendar
 import gleam/time/timestamp
 import pog
 import server/startup/sql
@@ -40,6 +43,79 @@ pub type Startup {
     /// When the startup was created
     created_at: timestamp.Timestamp,
   )
+}
+
+pub fn decoder() -> decode.Decoder(Startup) {
+  use id <- decode.field("id", uuid_decoder())
+  use segment_id <- decode.field("segment_id", uuid_decoder())
+  use name <- decode.field("name", decode.string)
+  use cnpj <- decode.field("cnpj", decode.string)
+  use description <- decode.field("description", decode.string)
+  use city <- decode.field("city", decode.string)
+  use state <- decode.field("state", decode.string)
+  use created_at <- decode.field("created_at", timestamp_decoder())
+
+  decode.success(Startup(
+    id:,
+    segment_id:,
+    name:,
+    cnpj:,
+    description:,
+    city:,
+    state:,
+    created_at:,
+  ))
+}
+
+pub fn to_json(startup: Startup) -> json.Json {
+  let Startup(
+    id:,
+    segment_id:,
+    name:,
+    cnpj:,
+    description:,
+    city:,
+    state:,
+    created_at:,
+  ) = startup
+
+  json.object([
+    #("id", uuid_to_json(id)),
+    #("segment_id", uuid_to_json(segment_id)),
+    #("name", json.string(name)),
+    #("cnpj", json.string(cnpj)),
+    #("description", json.string(description)),
+    #("city", json.string(city)),
+    #("state", json.string(state)),
+    #("created_at", timestamp_to_json(created_at)),
+  ])
+}
+
+fn uuid_to_json(id: uuid.Uuid) -> json.Json {
+  uuid.to_string(id)
+  |> json.string
+}
+
+fn uuid_decoder() {
+  use text <- decode.then(decode.string)
+  case uuid.from_string(text) {
+    Ok(id) -> decode.success(id)
+    Error(_) -> decode.failure(uuid.v7(), "uuid")
+  }
+}
+
+fn timestamp_to_json(timestamp: timestamp.Timestamp) -> json.Json {
+  timestamp.to_rfc3339(timestamp, calendar.utc_offset)
+  |> json.string()
+}
+
+fn timestamp_decoder() -> decode.Decoder(timestamp.Timestamp) {
+  use text <- decode.then(decode.string)
+
+  case timestamp.parse_rfc3339(text) {
+    Ok(data) -> decode.success(data)
+    Error(_) -> decode.failure(timestamp.system_time(), "rfc3339")
+  }
 }
 
 /// Register an empty startup in the Database
@@ -189,7 +265,6 @@ pub fn get_members(
       id: row.id,
       full_name: row.full_name,
       email: row.email,
-      password_hash: row.password_hash,
       created_at: row.created_at,
       is_active: row.is_active,
     )

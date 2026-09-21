@@ -1,4 +1,3 @@
-import argus
 import server/user
 import server_test
 import youid/uuid
@@ -13,7 +12,6 @@ pub fn register_user_test() -> Nil {
   let assert Ok(user) = user.register(context.database, name, email, password)
   assert user.full_name == name
   assert user.email == email
-  let assert Ok(True) = argus.verify(user.password_hash, password)
 
   Nil
 }
@@ -36,6 +34,45 @@ pub fn register_invalid_email_test() -> Nil {
   let email = "invalid-email"
   let assert Error(user.InvalidEmailFormat) =
     user.register(context.database, "", email, "wibble")
+
+  Nil
+}
+
+pub fn verify_user_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let email = "user@email.com"
+  let password = "password"
+
+  let assert Ok(user) = user.register(context.database, "me", email, password)
+  let assert Ok(found) = user.verify(context.database, email, password)
+
+  assert found == user
+
+  Nil
+}
+
+pub fn verify_user_incorrect_password_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let email = "user@email.com"
+  let password = "password"
+
+  let assert Ok(_) = user.register(context.database, "me", email, password)
+  let assert Error(user.WrongPassword) =
+    user.verify(context.database, email, "pswd")
+
+  Nil
+}
+
+pub fn verify_missing_user_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let email = "user@email.com"
+  let password = "password"
+
+  let assert Error(user.NotFound) =
+    user.verify(context.database, email, password)
 
   Nil
 }
