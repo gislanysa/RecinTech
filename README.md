@@ -1,4 +1,4 @@
-# Startai
+# RecInTech
 
 - **Disciplina:** `Projeto Integrador Multidisciplinar`
 - **Instituição:** `Faculdade Senac de Pernambuco`
@@ -6,10 +6,12 @@
 
 ## O que é o projeto
 
-Plataforma de matchmaking que conecta startups nascentes do Porto Digital (Recife/PE) a
-mentores e investidores anjo. O sistema permite cadastro de startups por segmento, perfis
-de mentor e investidor, vínculo de membros por startup, busca com filtros e registro de
-interesse entre as partes.
+RecInTech — **Rec**ife + **In**terconexão + **Tech** — é uma plataforma que conecta
+startups do Porto Digital (Recife/PE) a empresas que precisam de soluções.
+
+O produto resolve duas dores ao mesmo tempo: a dificuldade das startups de ganharem
+visibilidade e serem encontradas, e a dificuldade das empresas de encontrarem
+fornecedores adequados à sua necessidade.
 
 O produto é entregue como SaaS.
 
@@ -20,19 +22,52 @@ O produto é entregue como SaaS.
 - **Database:** PostgreSQL 18.
 - **Orquestração:** Docker Compose.
 
+### Atores
+
+| Ator | O que pode fazer |
+| --- | --- |
+| Startup cadastrada | Cria perfil com serviços, tecnologias, especialidades, portfólio e segmentos; fica disponível para busca e para recomendação |
+| Empresa cadastrada | Pesquisa startups, cadastra demandas e recebe recomendações personalizadas |
+| Visitante sem cadastro | Pesquisa e visualiza perfis de startups; não participa do matchmaking |
+
 ### O que o MVP faz
 
-- Cadastro e autenticação de usuários (startup, mentor, investidor)
-- Perfil público de startup, mentor e investidor
-- Busca de startups com filtro por área de atuação e estágio
-- Registro de interesse entre perfis, com status (`pendente`, `aceito`, `recusado`)
+- Cadastro e autenticação de usuários (startup e empresa)
+- Perfil público de startup com nome e descrição, área de atuação, serviços e soluções
+  oferecidos, tecnologias utilizadas, especialidades e competências, portfólio de
+  projetos realizados, segmentos de mercado atendidos e informações de contato
+- Catálogo e busca pública, sem necessidade de login, com filtros por área de atuação,
+  serviço, tecnologia e segmento de mercado
+- Cadastro de demandas pela empresa (campos estruturados + descrição em texto livre)
+- Recomendação de startups compatíveis com a demanda, ordenada por score e com os
+  motivos da compatibilidade
+- Registro de interesse entre empresa e startup, com status (`pendente`, `aceito`, `recusado`)
 - Exportação de dados pessoais e registro de consentimento (LGPD)
+
+### Como funciona o matching
+
+A empresa descreve o que precisa — por exemplo: *"Precisamos desenvolver um aplicativo
+para gerenciamento de pedidos e buscamos uma startup especializada em desenvolvimento
+mobile."*
+
+O sistema calcula um **score de compatibilidade** entre a demanda e cada perfil de
+startup, considerando:
+
+- sobreposição de serviços oferecidos, tecnologias, área de atuação, segmento e especialidades;
+- correspondência do texto livre da demanda com a descrição e o portfólio da startup,
+  via full-text search do PostgreSQL.
+
+O resultado é uma lista das startups mais compatíveis, acompanhada dos motivos do match
+(ex.: *"compatível em: desenvolvimento mobile, React Native, varejo"*).
+
+> O matching da v1 é **recomendação por compatibilidade**, calculada em SQL — não é
+> machine learning. Refinamento de pesos e aprendizado por feedback ficam para a Entrega 2.
 
 ### O que o MVP não faz
 
-- Não há algoritmo de recomendação. O "match" da v1 é manifestação de interesse com
-  acompanhamento de status, não score automático.
 - Não há chat interno, notificação por e-mail ou upload de documentos.
+- Não há perfis de mentor ou investidor anjo.
+- Não há modelo de machine learning por trás da recomendação.
 
 ---
 
@@ -136,6 +171,8 @@ Endpoints previstos para o MVP:
 | POST | `/auth/refresh` | 200 / 401 |
 | POST | `/auth/logout` | 204 |
 
+O `signup` recebe o papel do usuário (`startup` ou `empresa`).
+
 ### Usuários
 
 | Método | Rota | Retorno |
@@ -144,28 +181,45 @@ Endpoints previstos para o MVP:
 | PUT | `/users/me` | 200 |
 | DELETE | `/users/me` | 204 |
 
-### Startups
+### Startups — leitura pública
 
 | Método | Rota | Retorno |
 | --- | --- | --- |
 | GET | `/startups` | 200 |
 | GET | `/startups/:id` | 200 / 404 |
+| GET | `/search?area=&servico=&tecnologia=&segmento=` | 200 |
+
+### Startups — escrita (autenticado, role `startup`)
+
+| Método | Rota | Retorno |
+| --- | --- | --- |
 | POST | `/startups` | 201 |
 | PUT | `/startups/:id` | 200 |
 | DELETE | `/startups/:id` | 204 |
 
-### Mentores e investidores
+### Empresas (autenticado, role `empresa`)
 
 | Método | Rota | Retorno |
 | --- | --- | --- |
-| GET | `/mentors` | 200 |
-| GET | `/investors` | 200 |
+| POST | `/companies` | 201 |
+| GET | `/companies/:id` | 200 / 404 |
+| PUT | `/companies/:id` | 200 |
 
-### Busca e interesse
+### Demandas e matching (autenticado, role `empresa`)
 
 | Método | Rota | Retorno |
 | --- | --- | --- |
-| GET | `/search?area=&estagio=` | 200 |
+| POST | `/demands` | 201 |
+| GET | `/demands` | 200 |
+| GET | `/demands/:id` | 200 / 404 |
+| PATCH | `/demands/:id` | 200 |
+| DELETE | `/demands/:id` | 204 |
+| GET | `/demands/:id/matches` | 200 |
+
+### Interesse
+
+| Método | Rota | Retorno |
+| --- | --- | --- |
 | POST | `/interests` | 201 |
 | GET | `/interests` | 200 |
 | PATCH | `/interests/:id` | 200 |
@@ -183,14 +237,15 @@ Endpoints previstos para o MVP:
 `403` Forbidden · `404` Not Found · `409` Conflict · `422` Unprocessable
 `429` Too Many Requests · `500` Server Error
 
-Autenticação via header `Authorization: Bearer <token>`.
+Autenticação via header `Authorization: Bearer <token>`. As rotas de catálogo e busca
+(`GET /startups`, `GET /startups/:id`, `GET /search`) são públicas e dispensam token.
 
 ---
 
 ## Privacidade e LGPD
 
-A plataforma trata dados pessoais de fundadores, mentores e investidores. As medidas
-previstas desde o início do desenvolvimento:
+A plataforma trata dados pessoais de fundadores de startups e de representantes de
+empresas. As medidas previstas desde o início do desenvolvimento:
 
 - Registro explícito de consentimento no cadastro, com data e versão dos termos
 - Endpoint de exportação dos dados do titular (`GET /users/me/export`)
@@ -207,7 +262,7 @@ já nasce com esses pontos considerados.
 
 | Entrega | Escopo | Prazo |
 | --- | --- | --- |
-| Entrega 1 — MVP | Auth, perfis, busca, interesse, LGPD básico | 15/10/2026 |
+| Entrega 1 — MVP | Auth, perfis, busca pública, demandas, matching por score, LGPD básico | 15/10/2026 |
 | Entrega 2 — SaaS | Backlog completo (ver Trello) | 11/12/2026 |
 
 ---
@@ -218,6 +273,7 @@ já nasce com esses pontos considerados.
 
 ```
 main            # código estável
+develop         # integração
 feat/<nome>     # nova funcionalidade
 fix/<nome>      # correção
 docs/<nome>     # documentação
@@ -225,7 +281,7 @@ docs/<nome>     # documentação
 
 ### Pull requests
 
-Toda alteração em `main` passa por PR com pelo menos uma revisão de outro membro do time.
+Toda alteração em `develop` passa por PR com pelo menos uma revisão de outro membro do time.
 
 ---
 
