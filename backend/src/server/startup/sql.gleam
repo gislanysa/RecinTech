@@ -9,14 +9,55 @@ import gleam/time/timestamp.{type Timestamp}
 import pog
 import youid/uuid.{type Uuid}
 
-/// A row you get from running the `assign_members` query
-/// defined in `./src/server/startup/sql/assign_members.sql`.
+/// A row you get from running the `assign_expertise` query
+/// defined in `./src/server/startup/sql/assign_expertise.sql`.
 ///
 /// > 🐿️ This type definition was generated automatically using v4.7.0 of the
 /// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
 ///
-pub type AssignMembersRow {
-  AssignMembersRow(user_id: Uuid)
+pub type AssignExpertiseRow {
+  AssignExpertiseRow(expertise_id: Uuid)
+}
+
+/// Assign an expertise to a startup
+///
+/// > 🐿️ This function was generated automatically using v4.7.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn assign_expertise(
+  db: pog.Connection,
+  arg_1: Uuid,
+  arg_2: Uuid,
+) -> Result(pog.Returned(AssignExpertiseRow), pog.QueryError) {
+  let decoder = {
+    use expertise_id <- decode.field(0, uuid_decoder())
+    decode.success(AssignExpertiseRow(expertise_id:))
+  }
+
+  "-- Assign an expertise to a startup
+INSERT INTO
+    public.startup_expertise (startup_id, expertise_id)
+SELECT
+    $1::uuid AS startup_id,
+    $2::uuid AS expertise_id
+RETURNING
+    expertise_id;
+"
+  |> pog.query
+  |> pog.parameter(pog.text(uuid.to_string(arg_1)))
+  |> pog.parameter(pog.text(uuid.to_string(arg_2)))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
+/// A row you get from running the `assign_member` query
+/// defined in `./src/server/startup/sql/assign_member.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v4.7.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type AssignMemberRow {
+  AssignMemberRow(user_id: Uuid)
 }
 
 /// Assign members to a startup
@@ -24,30 +65,151 @@ pub type AssignMembersRow {
 /// > 🐿️ This function was generated automatically using v4.7.0 of
 /// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
 ///
-pub fn assign_members(
+pub fn assign_member(
   db: pog.Connection,
   arg_1: Uuid,
-  arg_2: List(Uuid),
-) -> Result(pog.Returned(AssignMembersRow), pog.QueryError) {
+  arg_2: Uuid,
+) -> Result(pog.Returned(AssignMemberRow), pog.QueryError) {
   let decoder = {
     use user_id <- decode.field(0, uuid_decoder())
-    decode.success(AssignMembersRow(user_id:))
+    decode.success(AssignMemberRow(user_id:))
   }
 
   "-- Assign members to a startup
 INSERT INTO
     public.startup_membership (startup_id, user_id)
 SELECT
-    $1 AS startup_id,
-    unnest($2::uuid []) AS user_id ON conflict (startup_id, user_id) DO nothing
+    $1::uuid AS startup_id,
+    $2::uuid AS user_id
 RETURNING
     user_id;
 "
   |> pog.query
   |> pog.parameter(pog.text(uuid.to_string(arg_1)))
-  |> pog.parameter(
-    pog.array(fn(value) { pog.text(uuid.to_string(value)) }, arg_2),
-  )
+  |> pog.parameter(pog.text(uuid.to_string(arg_2)))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
+/// A row you get from running the `assign_segment` query
+/// defined in `./src/server/startup/sql/assign_segment.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v4.7.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type AssignSegmentRow {
+  AssignSegmentRow(segment_id: Uuid)
+}
+
+/// assign a given Segment to a Startup
+///
+/// > 🐿️ This function was generated automatically using v4.7.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn assign_segment(
+  db: pog.Connection,
+  arg_1: Uuid,
+  arg_2: Uuid,
+  arg_3: Bool,
+) -> Result(pog.Returned(AssignSegmentRow), pog.QueryError) {
+  let decoder = {
+    use segment_id <- decode.field(0, uuid_decoder())
+    decode.success(AssignSegmentRow(segment_id:))
+  }
+
+  "-- assign a given Segment to a Startup
+INSERT INTO
+    public.startup_segment (startup_id, segment_id, is_main_segment)
+SELECT
+    $1::uuid AS startup_id,
+    $2::uuid AS segment_id,
+    $3::boolean AS is_main_segment
+RETURNING
+    segment_id;
+"
+  |> pog.query
+  |> pog.parameter(pog.text(uuid.to_string(arg_1)))
+  |> pog.parameter(pog.text(uuid.to_string(arg_2)))
+  |> pog.parameter(pog.bool(arg_3))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
+/// A row you get from running the `assign_service` query
+/// defined in `./src/server/startup/sql/assign_service.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v4.7.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type AssignServiceRow {
+  AssignServiceRow(service_id: Uuid)
+}
+
+/// Assign a service to a Startup
+///
+/// > 🐿️ This function was generated automatically using v4.7.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn assign_service(
+  db: pog.Connection,
+  arg_1: Uuid,
+  arg_2: Uuid,
+) -> Result(pog.Returned(AssignServiceRow), pog.QueryError) {
+  let decoder = {
+    use service_id <- decode.field(0, uuid_decoder())
+    decode.success(AssignServiceRow(service_id:))
+  }
+
+  "-- Assign a service to a Startup
+INSERT INTO
+    public.startup_service (startup_id, service_id)
+SELECT
+    $1::uuid AS startup_id,
+    $2::uuid AS service_id
+RETURNING
+    service_id;
+"
+  |> pog.query
+  |> pog.parameter(pog.text(uuid.to_string(arg_1)))
+  |> pog.parameter(pog.text(uuid.to_string(arg_2)))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
+/// A row you get from running the `ensure_exists` query
+/// defined in `./src/server/startup/sql/ensure_exists.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v4.7.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type EnsureExistsRow {
+  EnsureExistsRow(found: Int)
+}
+
+/// return a single column if the given startup exists
+///
+/// > 🐿️ This function was generated automatically using v4.7.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn ensure_exists(
+  db: pog.Connection,
+  arg_1: Uuid,
+) -> Result(pog.Returned(EnsureExistsRow), pog.QueryError) {
+  let decoder = {
+    use found <- decode.field(0, decode.int)
+    decode.success(EnsureExistsRow(found:))
+  }
+
+  "-- return a single column if the given startup exists
+SELECT
+    1 AS found
+FROM
+    startup AS s
+WHERE
+    s.id = $1::uuid;
+"
+  |> pog.query
+  |> pog.parameter(pog.text(uuid.to_string(arg_1)))
   |> pog.returning(decoder)
   |> pog.execute(db)
 }
@@ -61,8 +223,8 @@ RETURNING
 pub type GetRow {
   GetRow(
     id: Uuid,
-    segment_id: Uuid,
     name: String,
+    stage: StartupStage,
     cnpj: String,
     description: String,
     city: String,
@@ -82,8 +244,8 @@ pub fn get(
 ) -> Result(pog.Returned(GetRow), pog.QueryError) {
   let decoder = {
     use id <- decode.field(0, uuid_decoder())
-    use segment_id <- decode.field(1, uuid_decoder())
-    use name <- decode.field(2, decode.string)
+    use name <- decode.field(1, decode.string)
+    use stage <- decode.field(2, startup_stage_decoder())
     use cnpj <- decode.field(3, decode.string)
     use description <- decode.field(4, decode.string)
     use city <- decode.field(5, decode.string)
@@ -91,8 +253,8 @@ pub fn get(
     use created_at <- decode.field(7, pog.timestamp_decoder())
     decode.success(GetRow(
       id:,
-      segment_id:,
       name:,
+      stage:,
       cnpj:,
       description:,
       city:,
@@ -104,8 +266,8 @@ pub fn get(
   "-- select an startup;
 SELECT
     s.id,
-    s.segment_id,
     s.name,
+    s.stage,
     s.cnpj,
     s.description,
     s.city,
@@ -114,7 +276,50 @@ SELECT
 FROM
     public.startup AS s
 WHERE
-    s.id = $1;
+    s.id = $1::uuid;
+"
+  |> pog.query
+  |> pog.parameter(pog.text(uuid.to_string(arg_1)))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
+/// A row you get from running the `get_expertises` query
+/// defined in `./src/server/startup/sql/get_expertises.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v4.7.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type GetExpertisesRow {
+  GetExpertisesRow(id: Uuid, name: String, description: String)
+}
+
+/// get all expertises that a given startup is assigned to
+///
+/// > 🐿️ This function was generated automatically using v4.7.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn get_expertises(
+  db: pog.Connection,
+  arg_1: Uuid,
+) -> Result(pog.Returned(GetExpertisesRow), pog.QueryError) {
+  let decoder = {
+    use id <- decode.field(0, uuid_decoder())
+    use name <- decode.field(1, decode.string)
+    use description <- decode.field(2, decode.string)
+    decode.success(GetExpertisesRow(id:, name:, description:))
+  }
+
+  "-- get all expertises that a given startup is assigned to
+SELECT
+    e.id,
+    e.name,
+    e.description
+FROM
+    public.expertise AS e
+    INNER JOIN public.startup_expertise AS se ON se.expertise_id = e.id
+WHERE
+    se.startup_id = $1::uuid;
 "
   |> pog.query
   |> pog.parameter(pog.text(uuid.to_string(arg_1)))
@@ -173,7 +378,50 @@ FROM
     public.user_account AS u
     INNER JOIN public.startup_membership AS sm ON sm.user_id = u.id
 WHERE
-    sm.startup_id = $1;
+    sm.startup_id = $1::uuid;
+"
+  |> pog.query
+  |> pog.parameter(pog.text(uuid.to_string(arg_1)))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
+/// A row you get from running the `get_segments` query
+/// defined in `./src/server/startup/sql/get_segments.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v4.7.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type GetSegmentsRow {
+  GetSegmentsRow(id: Uuid, name: String, description: String)
+}
+
+/// select all segments from a startup
+///
+/// > 🐿️ This function was generated automatically using v4.7.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn get_segments(
+  db: pog.Connection,
+  arg_1: Uuid,
+) -> Result(pog.Returned(GetSegmentsRow), pog.QueryError) {
+  let decoder = {
+    use id <- decode.field(0, uuid_decoder())
+    use name <- decode.field(1, decode.string)
+    use description <- decode.field(2, decode.string)
+    decode.success(GetSegmentsRow(id:, name:, description:))
+  }
+
+  "-- select all segments from a startup
+SELECT
+    s.id,
+    s.name,
+    s.description
+FROM
+    segment AS s
+    INNER JOIN startup_segment AS ss ON ss.segment_id = s.id
+WHERE
+    ss.startup_id = $1::uuid;
 "
   |> pog.query
   |> pog.parameter(pog.text(uuid.to_string(arg_1)))
@@ -190,8 +438,8 @@ WHERE
 pub type RegisterRow {
   RegisterRow(
     id: Uuid,
-    segment_id: Uuid,
     name: String,
+    stage: StartupStage,
     cnpj: String,
     description: String,
     city: String,
@@ -207,8 +455,8 @@ pub type RegisterRow {
 ///
 pub fn register(
   db: pog.Connection,
-  arg_1: Uuid,
-  arg_2: String,
+  arg_1: String,
+  arg_2: StartupStage,
   arg_3: String,
   arg_4: String,
   arg_5: String,
@@ -216,8 +464,8 @@ pub fn register(
 ) -> Result(pog.Returned(RegisterRow), pog.QueryError) {
   let decoder = {
     use id <- decode.field(0, uuid_decoder())
-    use segment_id <- decode.field(1, uuid_decoder())
-    use name <- decode.field(2, decode.string)
+    use name <- decode.field(1, decode.string)
+    use stage <- decode.field(2, startup_stage_decoder())
     use cnpj <- decode.field(3, decode.string)
     use description <- decode.field(4, decode.string)
     use city <- decode.field(5, decode.string)
@@ -225,8 +473,8 @@ pub fn register(
     use created_at <- decode.field(7, pog.timestamp_decoder())
     decode.success(RegisterRow(
       id:,
-      segment_id:,
       name:,
+      stage:,
       cnpj:,
       description:,
       city:,
@@ -238,19 +486,26 @@ pub fn register(
   "-- register a new startup on the database
 INSERT INTO
     public.startup (
-        segment_id,
         name,
+        stage,
         cnpj,
         description,
         city,
         state
     )
 VALUES
-    ($1, $2, $3, $4, $5, $6)
+    (
+        $1::text,
+        $2::startup_stage,
+        $3::text,
+        $4::text,
+        $5::text,
+        $6::text
+    )
 RETURNING
     id,
-    segment_id,
     name,
+    stage,
     cnpj,
     description,
     city,
@@ -258,14 +513,52 @@ RETURNING
     created_at;
 "
   |> pog.query
-  |> pog.parameter(pog.text(uuid.to_string(arg_1)))
-  |> pog.parameter(pog.text(arg_2))
+  |> pog.parameter(pog.text(arg_1))
+  |> pog.parameter(startup_stage_encoder(arg_2))
   |> pog.parameter(pog.text(arg_3))
   |> pog.parameter(pog.text(arg_4))
   |> pog.parameter(pog.text(arg_5))
   |> pog.parameter(pog.text(arg_6))
   |> pog.returning(decoder)
   |> pog.execute(db)
+}
+
+// --- Enums -------------------------------------------------------------------
+
+/// Corresponds to the Postgres `startup_stage` enum.
+///
+/// > 🐿️ This type definition was generated automatically using v4.7.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type StartupStage {
+  LateStage
+  Growth
+  Seed
+  PreSeed
+  IdeaStage
+}
+
+fn startup_stage_decoder() -> decode.Decoder(StartupStage) {
+  use startup_stage <- decode.then(decode.string)
+  case startup_stage {
+    "late_stage" -> decode.success(LateStage)
+    "growth" -> decode.success(Growth)
+    "seed" -> decode.success(Seed)
+    "pre_seed" -> decode.success(PreSeed)
+    "idea_stage" -> decode.success(IdeaStage)
+    _ -> decode.failure(LateStage, "StartupStage")
+  }
+}
+
+fn startup_stage_encoder(startup_stage) -> pog.Value {
+  case startup_stage {
+    LateStage -> "late_stage"
+    Growth -> "growth"
+    Seed -> "seed"
+    PreSeed -> "pre_seed"
+    IdeaStage -> "idea_stage"
+  }
+  |> pog.text
 }
 
 // --- Encoding/decoding utils -------------------------------------------------

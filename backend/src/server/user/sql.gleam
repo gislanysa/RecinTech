@@ -53,7 +53,7 @@ SELECT
 FROM
     public.user_account AS u
 WHERE
-    u.id = $1;
+    u.id = $1::uuid;
 "
   |> pog.query
   |> pog.parameter(pog.text(uuid.to_string(arg_1)))
@@ -93,7 +93,7 @@ SELECT
 FROM
     public.user_account AS u
 WHERE
-    u.email = $1;
+    u.email = $1::text;
 "
   |> pog.query
   |> pog.parameter(pog.text(arg_1))
@@ -145,7 +145,7 @@ INSERT INTO
         password_hash
     )
 VALUES
-    ($1, $2, $3)
+    ($1::text, $2::text, $3::text)
 RETURNING
     u.id,
     u.full_name,

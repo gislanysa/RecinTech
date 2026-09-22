@@ -1,5 +1,5 @@
 //// This module contains the code to run the sql queries defined in
-//// `./src/server/segment/sql`.
+//// `./src/server/startup/service/sql`.
 //// > 🐿️ This module was generated automatically using v4.7.0 of
 //// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
 ////
@@ -9,7 +9,7 @@ import pog
 import youid/uuid.{type Uuid}
 
 /// A row you get from running the `get` query
-/// defined in `./src/server/segment/sql/get.sql`.
+/// defined in `./src/server/startup/service/sql/get.sql`.
 ///
 /// > 🐿️ This type definition was generated automatically using v4.7.0 of the
 /// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
@@ -18,7 +18,7 @@ pub type GetRow {
   GetRow(id: Uuid, name: String, description: String)
 }
 
-/// get a segment from the database
+/// find a service by its id
 ///
 /// > 🐿️ This function was generated automatically using v4.7.0 of
 /// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
@@ -34,13 +34,13 @@ pub fn get(
     decode.success(GetRow(id:, name:, description:))
   }
 
-  "-- get a segment from the database
+  "-- find a service by its id
 SELECT
     s.id,
     s.name,
     s.description
 FROM
-    public.segment AS s
+    public.service AS s
 WHERE
     s.id = $1::uuid;
 "
@@ -51,7 +51,7 @@ WHERE
 }
 
 /// A row you get from running the `register` query
-/// defined in `./src/server/segment/sql/register.sql`.
+/// defined in `./src/server/startup/service/sql/register.sql`.
 ///
 /// > 🐿️ This type definition was generated automatically using v4.7.0 of the
 /// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
@@ -60,7 +60,7 @@ pub type RegisterRow {
   RegisterRow(id: Uuid, name: String, description: String)
 }
 
-/// register a new segment for startups and investors
+/// register a new startup service
 ///
 /// > 🐿️ This function was generated automatically using v4.7.0 of
 /// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
@@ -77,9 +77,9 @@ pub fn register(
     decode.success(RegisterRow(id:, name:, description:))
   }
 
-  "-- register a new segment for startups and investors
+  "-- register a new startup service
 INSERT INTO
-    public.segment(name, description)
+    public.service (name, description)
 VALUES
     ($1::text, $2::text)
 RETURNING
