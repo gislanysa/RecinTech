@@ -6,4 +6,4 @@ SELECT
 FROM
     public.segment AS s
 WHERE
-    s.id = $1;
+    s.id = $1::uuid;

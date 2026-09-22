@@ -19,18 +19,24 @@ pub fn register_segment_test() -> Nil {
 pub fn get_segment_test() -> Nil {
   use context <- server_test.with_context()
 
-  let assert Ok(dummy) =
+  let assert Ok(want) =
     segment.register(context.database, name: "wibble", description: "wobble")
 
-  let assert Ok(found) = segment.get(context.database, dummy.id)
-  assert dummy == found
+  let assert Ok(got) = segment.get(context.database, want.id)
+
+  assert got == want
 
   Nil
 }
 
 pub fn get_missing_segment_test() -> Nil {
   use context <- server_test.with_context()
-  let assert Error(segment.NotFound) = segment.get(context.database, uuid.v7())
+
+  let id = uuid.v7()
+  let assert Error(segment.NotFound(returned)) =
+    segment.get(context.database, id)
+
+  assert id == returned
 
   Nil
 }

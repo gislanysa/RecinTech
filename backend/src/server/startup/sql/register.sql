@@ -1,19 +1,26 @@
 -- register a new startup on the database
 INSERT INTO
     public.startup (
-        segment_id,
         name,
+        stage,
         cnpj,
         description,
         city,
         state
     )
 VALUES
-    ($1, $2, $3, $4, $5, $6)
+    (
+        $1::text,
+        $2::startup_stage,
+        $3::text,
+        $4::text,
+        $5::text,
+        $6::text
+    )
 RETURNING
     id,
-    segment_id,
     name,
+    stage,
     cnpj,
     description,
     city,

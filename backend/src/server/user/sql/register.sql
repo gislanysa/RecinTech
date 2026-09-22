@@ -6,7 +6,7 @@ INSERT INTO
         password_hash
     )
 VALUES
-    ($1, $2, $3)
+    ($1::text, $2::text, $3::text)
 RETURNING
     u.id,
     u.full_name,

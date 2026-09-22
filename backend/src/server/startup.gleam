@@ -1,39 +1,88 @@
-import gleam/bool
+//// Types and functions for working with [Startups](#Startup)
+
 import gleam/dynamic/decode
 import gleam/json
 import gleam/list
 import gleam/result
-import gleam/string
 import gleam/time/calendar
 import gleam/time/timestamp
 import pog
+import server/cnpj
+import server/email
+import server/segment
+import server/startup/expertise
 import server/startup/sql
 import server/user
 import youid/uuid
 
 pub type StartupError {
   /// Failed to connect to the Database
-  DatabaseError(pog.QueryError)
+  DatabaseError(error: pog.QueryError)
   /// Something went wrong when registering a Startup
   FailedToRegisterStartup
   /// Startup was not found in the Database
-  NotFound
-  /// Invalid CNPJ format
-  InvalidCnpjFormat
+  NotFound(id: uuid.Uuid)
+  /// Member's email has invalid format
+  InvalidMemberEmail(id: uuid.Uuid, value: String)
+  /// Failed to assign a member, expertise, segment, etc.
+  AssignmentFailure(error: AssignmentError)
+
+  /// CPNJ should have 14 characters
+  InvalidCnpj(value: String)
   /// Startup CNPJ must be unique
-  CnpjConflict
+  CnpjConflict(value: cnpj.Cnpj)
+  /// Failed to parse a String into a [Stage](#Stage) type
+  InvalidStage(value: String)
+}
+
+pub type AssignmentError {
+  //  User Assignment errors ---------------------------------------------------
+  //
+  /// Assigned a non-registred User as member of a Startup
+  AssignedMissingUser(id: uuid.Uuid)
+  /// Tried to assign an User that is already assigned
+  MemberAssignmentConflict(id: uuid.Uuid)
+  /// Failed to assign a given User to a Startup
+  FailedToAssignMember(id: uuid.Uuid)
+
+  //  Segment Assignment errors ------------------------------------------------
+  //
+  /// Tried to assign an Segment that is already assigned
+  SegmentAssignmentConflict(id: uuid.Uuid)
+  /// Assigned a non-registred Segment to a Startup
+  AssignedMissingSegment(id: uuid.Uuid)
+  /// Failed to assign a given Segment to a Startup
+  FailedToAssignSegment(id: uuid.Uuid)
+
+  //  Expertise Assignment errors ----------------------------------------------
+  //
+  /// Tried to assign an Expertise that is not registered
+  AssignedMissingExpertise(id: uuid.Uuid)
+  /// Tried to assign an Expertise that is already assigned
+  ExpertiseAssignmentConflict(id: uuid.Uuid)
+  /// Failed to assign a given expertise to a Startup
+  FailedToAssignExpertise(id: uuid.Uuid)
+
+  //  Service Assignment errors ------------------------------------------------
+  //
+  /// Tried to assign a Service that is not registered
+  AssignedMissingService(id: uuid.Uuid)
+  /// Tried to assign a Service that is already assigned
+  ServiceAssignmentConflict(id: uuid.Uuid)
+  /// Failed to assign a given Service to a Startup
+  FailedToAssignService(id: uuid.Uuid)
 }
 
 pub type Startup {
   Startup(
     /// Startup ID
     id: uuid.Uuid,
-    /// Startup's segment.
-    segment_id: uuid.Uuid,
     /// Their name
     name: String,
+    /// The stage that they are currently on
+    stage: Stage,
     /// Their CPNJ, it must be exactly 14 digits
-    cnpj: String,
+    cnpj: cnpj.Cnpj,
     /// A description
     description: String,
     /// The city where it is located
@@ -45,57 +94,101 @@ pub type Startup {
   )
 }
 
+/// Tracks a startup's progress from an idea to a business
+pub type Stage {
+  /// Brainstorming and checking if the idea makes sense
+  IdeaStage
+  /// Creating the first draft
+  PreSeed
+  /// Finding out if people will actually buy what you built
+  Seed
+  /// Expanding operations
+  Growth
+  /// Becoming a stable company
+  LateStage
+}
+
+fn stage_to_json(stage: Stage) -> json.Json {
+  case stage {
+    IdeaStage -> json.string("idea_stage")
+    PreSeed -> json.string("pre_seed")
+    Seed -> json.string("seed")
+    Growth -> json.string("growth")
+    LateStage -> json.string("late_stage")
+  }
+}
+
+fn stage_decoder() -> decode.Decoder(Stage) {
+  use variant <- decode.then(decode.string)
+  case variant {
+    "idea_stage" -> decode.success(IdeaStage)
+    "pre_seed" -> decode.success(PreSeed)
+    "seed" -> decode.success(Seed)
+    "growth" -> decode.success(Growth)
+    "late_stage" -> decode.success(LateStage)
+    _ -> decode.failure(IdeaStage, "Stage")
+  }
+}
+
+/// Parse a String into a valid [Stage](#Stage) type
+///
+/// ## Examples
+///
+/// ```gleam
+/// let assert Ok(stage) = startup.stage_from_string("late_stage")
+/// assert stage == startup.LateStage
+///
+/// let assert Error(startup.InvalidStage(_)) =
+///   startup.stage_from_string("wibble")
+/// ```
+pub fn stage_from_string(value: String) -> Result(Stage, StartupError) {
+  case value {
+    "idea_stage" -> Ok(IdeaStage)
+    "pre_seed" -> Ok(PreSeed)
+    "seed" -> Ok(Seed)
+    "growth" -> Ok(Growth)
+    "late_stage" -> Ok(LateStage)
+
+    _ -> Error(InvalidStage(value))
+  }
+}
+
+/// A decoder that decodes `Startup` values.
 pub fn decoder() -> decode.Decoder(Startup) {
   use id <- decode.field("id", uuid_decoder())
-  use segment_id <- decode.field("segment_id", uuid_decoder())
   use name <- decode.field("name", decode.string)
-  use cnpj <- decode.field("cnpj", decode.string)
+  use stage <- decode.field("stage", stage_decoder())
+  use cnpj <- decode.field("cnpj", cnpj.decoder())
   use description <- decode.field("description", decode.string)
   use city <- decode.field("city", decode.string)
   use state <- decode.field("state", decode.string)
   use created_at <- decode.field("created_at", timestamp_decoder())
 
-  decode.success(Startup(
-    id:,
-    segment_id:,
-    name:,
-    cnpj:,
-    description:,
-    city:,
-    state:,
-    created_at:,
-  ))
+  Startup(id:, name:, stage:, cnpj:, description:, city:, state:, created_at:)
+  |> decode.success
 }
 
+/// Encode a Startup into a JSON object.
 pub fn to_json(startup: Startup) -> json.Json {
-  let Startup(
-    id:,
-    segment_id:,
-    name:,
-    cnpj:,
-    description:,
-    city:,
-    state:,
-    created_at:,
-  ) = startup
-
   json.object([
-    #("id", uuid_to_json(id)),
-    #("segment_id", uuid_to_json(segment_id)),
-    #("name", json.string(name)),
-    #("cnpj", json.string(cnpj)),
-    #("description", json.string(description)),
-    #("city", json.string(city)),
-    #("state", json.string(state)),
-    #("created_at", timestamp_to_json(created_at)),
+    #("id", uuid_to_json(startup.id)),
+    #("name", json.string(startup.name)),
+    #("stage", stage_to_json(startup.stage)),
+    #("cnpj", json.string(cnpj.to_string(startup.cnpj))),
+    #("description", json.string(startup.description)),
+    #("city", json.string(startup.city)),
+    #("state", json.string(startup.state)),
+    #("created_at", timestamp_to_json(startup.created_at)),
   ])
 }
 
+/// Encode a `uuid.Uuid` into a json string.
 fn uuid_to_json(id: uuid.Uuid) -> json.Json {
   uuid.to_string(id)
   |> json.string
 }
 
+/// A decoder that decodes `uuid.Uuid` values.
 fn uuid_decoder() {
   use text <- decode.then(decode.string)
   case uuid.from_string(text) {
@@ -104,15 +197,16 @@ fn uuid_decoder() {
   }
 }
 
+/// Encode a `timestamp.Timestamp` into a rfc3339 JSON string.
 fn timestamp_to_json(timestamp: timestamp.Timestamp) -> json.Json {
   timestamp.to_rfc3339(timestamp, calendar.utc_offset)
   |> json.string()
 }
 
+/// A decoder that decodes `timestamp.Timestamp` rfc3339 values.
 fn timestamp_decoder() -> decode.Decoder(timestamp.Timestamp) {
-  use text <- decode.then(decode.string)
-
-  case timestamp.parse_rfc3339(text) {
+  use string <- decode.then(decode.string)
+  case timestamp.parse_rfc3339(string) {
     Ok(data) -> decode.success(data)
     Error(_) -> decode.failure(timestamp.system_time(), "rfc3339")
   }
@@ -125,53 +219,88 @@ fn timestamp_decoder() -> decode.Decoder(timestamp.Timestamp) {
 /// ```gleam
 /// let result = startup.register(
 ///   context.database,
-///   id,
-///   "Critic Level",
-///   "12345678901234",
-///   "startup muito maneira",
-///   "Recife",
-///   "Pernambuco",
+///   name: "Critic Level",
+///   stage: startup.Growth,
+///   cnpj: cnpj,
+///   description: "startup muito maneira",
+///   city: "Recife",
+///   state: "Pernambuco",
 /// )
 ///
 /// case result {
 ///   Ok(data) -> todo as "send response"
+///   Error(startup.CnpjConflict) -> wisp.response(409)
 ///   Error(_) -> wisp.internal_server_error()
 /// }
 /// ```
 pub fn register(
   database: pog.Connection,
-  segment_id segment: uuid.Uuid,
   name name: String,
-  cnpj cnpj: String,
+  stage stage: Stage,
+  cnpj cnpj: cnpj.Cnpj,
   description description: String,
   city city: String,
   state state: String,
 ) -> Result(Startup, StartupError) {
-  use <- bool.guard(string.length(cnpj) != 14, Error(InvalidCnpjFormat))
+  let s_cnpj = cnpj.to_string(cnpj)
+  let stage = stage_to_enum(stage)
 
   use returned <- result.try(
-    case sql.register(database, segment, name, cnpj, description, city, state) {
+    case sql.register(database, name, stage, s_cnpj, description, city, state) {
+      // Every Startup CNPJ needs to be unique.
       Error(pog.ConstraintViolated(constraint: "startup_cnpj_key", ..)) ->
-        Error(CnpjConflict)
+        Error(CnpjConflict(value: cnpj))
+
+      // A CNPJ needs to have exactly 14 digits.
+      Error(pog.ConstraintViolated(constraint: "startup_cnpj_check", ..)) ->
+        Error(InvalidCnpj(value: s_cnpj))
 
       Ok(data) -> Ok(data)
-      Error(err) -> Error(DatabaseError(err))
+      Error(error) -> Error(DatabaseError(error))
     },
   )
 
-  case returned.rows {
-    [] -> Error(FailedToRegisterStartup)
-    [row, ..] ->
-      Ok(Startup(
-        id: row.id,
-        segment_id: row.segment_id,
-        name: row.name,
-        cnpj: row.cnpj,
-        description: row.description,
-        city: row.city,
-        state: row.state,
-        created_at: row.created_at,
-      ))
+  use row <- result.try(
+    list.first(returned.rows)
+    |> result.replace_error(FailedToRegisterStartup),
+  )
+
+  use cnpj <- result.map(
+    cnpj.parse(row.cnpj)
+    |> result.replace_error(InvalidCnpj(value: row.cnpj)),
+  )
+
+  Startup(
+    id: row.id,
+    name: row.name,
+    stage: stage_from_enum(row.stage),
+    cnpj: cnpj,
+    description: row.description,
+    city: row.city,
+    state: row.state,
+    created_at: row.created_at,
+  )
+}
+
+/// Convert the sql-generated StartupStage enum to a valid [Stage](#Stage) type.
+fn stage_from_enum(enum: sql.StartupStage) -> Stage {
+  case enum {
+    sql.IdeaStage -> IdeaStage
+    sql.PreSeed -> PreSeed
+    sql.Seed -> Seed
+    sql.Growth -> Growth
+    sql.LateStage -> LateStage
+  }
+}
+
+/// Convert a [Stage](#Stage) to its sql-generated counterpart.
+fn stage_to_enum(stage: Stage) -> sql.StartupStage {
+  case stage {
+    IdeaStage -> sql.IdeaStage
+    PreSeed -> sql.PreSeed
+    Seed -> sql.Seed
+    Growth -> sql.Growth
+    LateStage -> sql.LateStage
   }
 }
 
@@ -184,7 +313,7 @@ pub fn register(
 ///
 /// case result {
 ///   Ok(data) -> todo as "send response"
-///   Error(startup.NotFound) -> wisp.not_found()
+///   Error(startup.NotFound(_)) -> wisp.not_found()
 ///   Error(_) -> wisp.internal_server_error()
 /// }
 /// ```
@@ -197,46 +326,80 @@ pub fn get(
     |> result.map_error(DatabaseError),
   )
 
-  case returned.rows {
-    [] -> Error(NotFound)
-    [row, ..] ->
-      Ok(Startup(
-        id: row.id,
-        segment_id: row.segment_id,
-        name: row.name,
-        cnpj: row.cnpj,
-        description: row.description,
-        city: row.city,
-        state: row.state,
-        created_at: row.created_at,
-      ))
-  }
+  use row <- result.try(
+    list.first(returned.rows)
+    |> result.replace_error(NotFound(id:)),
+  )
+
+  use cnpj <- result.map(
+    cnpj.parse(row.cnpj)
+    |> result.replace_error(InvalidCnpj(value: row.cnpj)),
+  )
+
+  Startup(
+    id: row.id,
+    name: row.name,
+    stage: stage_from_enum(row.stage),
+    cnpj: cnpj,
+    description: row.description,
+    city: row.city,
+    state: row.state,
+    created_at: row.created_at,
+  )
 }
 
-/// Assign a list of members to a Startup and returns
-/// the ID of all successfully assigned Users.
+/// Assign a member to a Startup and returns the ID of the user if successful.
+/// You cannot assign a member to a startup more than once.
 ///
 /// ## Examples
 ///
 /// ```gleam
-/// let result = startup.assign_members(context.database, id, [member])
+/// let result = startup.assign_member(context.database, id, assign: member)
 ///
 /// case result {
-///   Ok(assigned) -> todo as "send response"
+///   Ok(assigned_user_id) -> todo as "send response"
+///   Error(startup.NotFound(_)) -> wisp.not_found()
 ///   Error(_) -> wisp.internal_server_error()
 /// }
 /// ```
-pub fn assign_members(
+pub fn assign_member(
   database: pog.Connection,
   id: uuid.Uuid,
-  assign members: List(uuid.Uuid),
-) -> Result(List(uuid.Uuid), StartupError) {
-  use returned <- result.map(
-    sql.assign_members(database, id, members)
-    |> result.map_error(DatabaseError),
+  assign member: uuid.Uuid,
+) -> Result(uuid.Uuid, StartupError) {
+  use returned <- result.try(case sql.assign_member(database, id, member) {
+    // Tried to assign an User to a Startup that is not registered.
+    Error(pog.ConstraintViolated(
+      constraint: "startup_membership_startup_id_fkey",
+      ..,
+    )) -> Error(NotFound(id:))
+
+    // Tried to assign an User that is not registered.
+    Error(pog.ConstraintViolated(
+      constraint: "startup_membership_user_id_fkey",
+      ..,
+    )) ->
+      AssignedMissingUser(id: member)
+      |> AssignmentFailure
+      |> Error
+
+    // Tried to assign an User that is already assigned
+    Error(pog.ConstraintViolated(constraint: "startup_membership_pkey", ..)) ->
+      MemberAssignmentConflict(id: member)
+      |> AssignmentFailure
+      |> Error
+
+    Ok(rows) -> Ok(rows)
+    Error(error) -> Error(DatabaseError(error:))
+  })
+
+  use row <- result.map(
+    FailedToAssignMember(id: member)
+    |> AssignmentFailure
+    |> result.replace_error(list.first(returned.rows), _),
   )
 
-  list.map(returned.rows, fn(row) { row.user_id })
+  row.user_id
 }
 
 /// Get all members assigned to a given Startup.
@@ -255,18 +418,300 @@ pub fn get_members(
   database: pog.Connection,
   id: uuid.Uuid,
 ) -> Result(List(user.User), StartupError) {
-  use returned <- result.map(
+  use <- ensure_exists(database, id)
+
+  use returned <- result.try(
     sql.get_members(database, id)
     |> result.map_error(DatabaseError),
   )
 
-  list.map(returned.rows, fn(row) {
+  list.try_map(returned.rows, fn(row) {
+    use email <- result.map(
+      email.parse(row.email)
+      |> result.replace_error(InvalidMemberEmail(id: row.id, value: row.email)),
+    )
+
     user.User(
       id: row.id,
       full_name: row.full_name,
-      email: row.email,
+      email: email,
       created_at: row.created_at,
       is_active: row.is_active,
     )
   })
+}
+
+/// Get all segments that a Startup is assigned to.
+///
+/// ## Examples
+///
+/// ```gleam
+/// let result = startup.get_segments(context.database, id)
+///
+/// case result {
+///   Ok(segments) -> todo as "send response"
+///   Error(startup.NotFound(_)) -> wisp.not_found()
+///   Error(_) -> wisp.internal_server_error()
+/// }
+/// ```
+pub fn get_segments(
+  database: pog.Connection,
+  from id: uuid.Uuid,
+) -> Result(List(segment.Segment), StartupError) {
+  use <- ensure_exists(database, id)
+
+  use returned <- result.map(
+    sql.get_segments(database, id)
+    |> result.map_error(DatabaseError),
+  )
+
+  list.map(returned.rows, fn(row) {
+    segment.Segment(id: row.id, name: row.name, description: row.description)
+  })
+}
+
+/// Sometime it can be a good idea to check if a Startup exists before
+/// performing a query. This middleware returns `Error(NotFound(_))`
+/// if a Startup is not registered.
+///
+/// ## Examples
+///
+/// ```gleam
+/// use <- ensure_exists(database, id)
+///
+/// use returned <- result.map(
+///   sql.get_members(database, id)
+///   |> result.map_error(DatabaseError),
+/// )
+/// ```
+pub fn ensure_exists(
+  database: pog.Connection,
+  id: uuid.Uuid,
+  next: fn() -> Result(a, StartupError),
+) -> Result(a, StartupError) {
+  use returned <- result.try(
+    sql.ensure_exists(database, id)
+    |> result.map_error(DatabaseError),
+  )
+
+  use _found <- result.try(
+    list.first(returned.rows)
+    |> result.replace_error(NotFound(id:)),
+  )
+
+  next()
+}
+
+/// Assign a Segment to a Startup and returns the ID of the segment if successful.
+/// You cannot assign a segment to a startup more than once.
+///
+/// ## Examples
+///
+/// ```gleam
+/// let result = startup.assign_segment(
+///   context.database,
+///   startup_id,
+///   assign: segment_id,
+///   as_main_segment: True,
+///   )
+///
+/// case result {
+///   Ok(assigned) -> todo as "send response"
+///   Error(startup.NotFound(_)) -> wisp.not_found()
+///   Error(_) -> wisp.internal_server_error()
+/// }
+/// ```
+pub fn assign_segment(
+  database: pog.Connection,
+  id: uuid.Uuid,
+  assign segment: uuid.Uuid,
+  as_main_segment as_main_segment: Bool,
+) -> Result(uuid.Uuid, StartupError) {
+  use returned <- result.try(
+    case sql.assign_segment(database, id, segment, as_main_segment) {
+      // Tried to assign an Segment to a Startup that is not registered.
+      Error(pog.ConstraintViolated(
+        constraint: "startup_segment_startup_id_fkey",
+        ..,
+      )) -> Error(NotFound(id:))
+
+      // Tried to assign an Segment that is not registered.
+      Error(pog.ConstraintViolated(
+        constraint: "startup_segment_segment_id_fkey",
+        ..,
+      )) ->
+        AssignedMissingSegment(id: segment)
+        |> AssignmentFailure
+        |> Error
+
+      // Segment has already been assigned to the given Startup
+      Error(pog.ConstraintViolated(constraint: "startup_segment_pkey", ..)) ->
+        SegmentAssignmentConflict(id: segment)
+        |> AssignmentFailure
+        |> Error
+
+      Ok(rows) -> Ok(rows)
+      Error(error) -> Error(DatabaseError(error))
+    },
+  )
+
+  use row <- result.map(
+    FailedToAssignSegment(id: segment)
+    |> AssignmentFailure
+    |> result.replace_error(list.first(returned.rows), _),
+  )
+
+  row.segment_id
+}
+
+/// Assign an Expertise to a Startup and returns the ID of the expertise
+/// if successful. You cannot assign the same expertise to a startup more
+/// than once.
+///
+/// ## Examples
+///
+/// ```gleam
+/// let result = startup.assign_expertise(
+///   context.database,
+///   startup_id,
+///   assign: expertise_id,
+///   )
+///
+/// case result {
+///   Ok(assigned) -> todo as "send response"
+///   Error(startup.NotFound(_)) -> wisp.not_found()
+///   Error(_) -> wisp.internal_server_error()
+/// }
+/// ```
+pub fn assign_expertise(
+  database: pog.Connection,
+  id: uuid.Uuid,
+  assign expertise: uuid.Uuid,
+) -> Result(uuid.Uuid, StartupError) {
+  use returned <- result.try(
+    case sql.assign_expertise(database, id, expertise) {
+      // Tried to assign an Segment to a Startup that is not registered.
+      Error(pog.ConstraintViolated(
+        constraint: "startup_expertise_startup_id_fkey",
+        ..,
+      )) -> Error(NotFound(id:))
+
+      // Tried to assign an Expertise that is not registered.
+      Error(pog.ConstraintViolated(
+        constraint: "startup_expertise_expertise_id_fkey",
+        ..,
+      )) ->
+        AssignedMissingExpertise(id: expertise)
+        |> AssignmentFailure
+        |> Error
+
+      // Expertise has already been assigned to the given Startup
+      Error(pog.ConstraintViolated(constraint: "startup_expertise_pkey", ..)) ->
+        ExpertiseAssignmentConflict(id: expertise)
+        |> AssignmentFailure
+        |> Error
+
+      Ok(rows) -> Ok(rows)
+      Error(error) -> Error(DatabaseError(error))
+    },
+  )
+
+  use row <- result.map(
+    FailedToAssignExpertise(id:)
+    |> AssignmentFailure
+    |> result.replace_error(list.first(returned.rows), _),
+  )
+
+  row.expertise_id
+}
+
+/// Get all expertises that a Startup is assigned to
+///
+/// ## Examples
+///
+/// ```gleam
+/// let result = startup.get_expertises(context.database, id)
+///
+/// case result {
+///   Ok(segments) -> todo as "send response"
+///   Error(startup.NotFound(_)) -> wisp.not_found()
+///   Error(_) -> wisp.internal_server_error()
+/// }
+/// ```
+pub fn get_expertises(
+  database: pog.Connection,
+  id: uuid.Uuid,
+) -> Result(List(expertise.Expertise), StartupError) {
+  use <- ensure_exists(database, id)
+
+  use returned <- result.map(
+    sql.get_expertises(database, id)
+    |> result.map_error(DatabaseError),
+  )
+
+  list.map(returned.rows, fn(row) {
+    expertise.Expertise(
+      id: row.id,
+      name: row.name,
+      description: row.description,
+    )
+  })
+}
+
+/// Assign a Service to a Startup and returns the ID of the service
+/// if successful. You cannot assign a service to a startup more than once.
+///
+/// ## Examples
+///
+/// ```gleam
+/// let result = startup.assign_service(
+///   context.database,
+///   startup_id,
+///   assign: service_id,
+///   )
+///
+/// case result {
+///   Ok(assigned) -> todo as "send response"
+///   Error(startup.NotFound(_)) -> wisp.not_found()
+///   Error(_) -> wisp.internal_server_error()
+/// }
+/// ```
+pub fn assign_service(
+  database: pog.Connection,
+  id: uuid.Uuid,
+  assign service: uuid.Uuid,
+) -> Result(uuid.Uuid, StartupError) {
+  use returned <- result.try(case sql.assign_service(database, id, service) {
+    // Tried to assign a Service to a Startup that is not registered.
+    Error(pog.ConstraintViolated(
+      constraint: "startup_service_startup_id_fkey",
+      ..,
+    )) -> Error(NotFound(id:))
+
+    // Tried to assign an Expertise that is not registered.
+    Error(pog.ConstraintViolated(
+      constraint: "startup_service_service_id_fkey",
+      ..,
+    )) ->
+      AssignedMissingService(id: service)
+      |> AssignmentFailure
+      |> Error
+
+    // Expertise has already been assigned to the given Startup
+    Error(pog.ConstraintViolated(constraint: "startup_service_pkey", ..)) ->
+      ServiceAssignmentConflict(id: service)
+      |> AssignmentFailure
+      |> Error
+
+    Ok(rows) -> Ok(rows)
+    Error(error) -> Error(DatabaseError(error))
+  })
+
+  use row <- result.map(
+    FailedToAssignService(id: service)
+    |> AssignmentFailure
+    |> result.replace_error(list.first(returned.rows), _),
+  )
+
+  row.service_id
 }

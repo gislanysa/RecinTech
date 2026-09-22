@@ -4,7 +4,7 @@ import gleeunit
 import global_value
 import pog
 import server
-import server/context
+import server/web/context
 
 pub fn main() -> Nil {
   gleeunit.main()

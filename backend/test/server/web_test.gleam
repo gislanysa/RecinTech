@@ -2,10 +2,11 @@ import gleam/http
 import gleam/http/response
 import gleam/json
 import gleam/list
-import server/router
-import server/segment
+import server/cnpj
+import server/email
 import server/startup
 import server/user
+import server/web
 import server_test
 import wisp/simulate
 import youid/uuid
@@ -15,7 +16,7 @@ pub fn html_document_test() -> Nil {
 
   let response =
     simulate.browser_request(http.Get, "/")
-    |> router.handle_request(context)
+    |> web.handle_request(context)
 
   assert response.status == 200
   assert list.key_find(response.headers, "content-type")
@@ -28,8 +29,8 @@ pub fn not_found_test() -> Nil {
   use context <- server_test.with_context()
 
   let response =
-    simulate.browser_request(http.Post, "/api/healthcheck")
-    |> router.handle_request(context)
+    simulate.browser_request(http.Get, "/api/wibble")
+    |> web.handle_request(context)
 
   assert response.status == 404
 }
@@ -39,7 +40,7 @@ pub fn healthcheck_test() -> Nil {
 
   let response =
     simulate.browser_request(http.Get, "/api/healthcheck")
-    |> router.handle_request(context)
+    |> web.handle_request(context)
 
   assert response.status == 200
 }
@@ -47,11 +48,13 @@ pub fn healthcheck_test() -> Nil {
 pub fn get_user_by_id_test() -> Nil {
   use context <- server_test.with_context()
 
+  let assert Ok(email) = email.parse("user@email.com")
+
   let assert Ok(user) =
     user.register(
       context.database,
       full_name: "wibble",
-      email: "wibble@email.com",
+      email: email,
       password: "12345678",
     )
 
@@ -59,7 +62,7 @@ pub fn get_user_by_id_test() -> Nil {
 
   let response =
     simulate.browser_request(http.Get, endpoint)
-    |> router.handle_request(context)
+    |> web.handle_request(context)
 
   assert response.status == 200
   assert response.get_header(response, "content-type")
@@ -73,28 +76,54 @@ pub fn get_user_by_id_test() -> Nil {
   Nil
 }
 
-pub fn get_startup_by_id_test() -> Nil {
+/// Querying a missing User should return 404 Not Found
+pub fn get_missing_user_by_id_test() -> Nil {
   use context <- server_test.with_context()
 
-  let assert Ok(segment) =
-    segment.register(context.database, "gaming", "videogames are cool")
+  let user_id = uuid.v7_string()
+
+  let response =
+    simulate.browser_request(http.Get, "/api/user/" <> user_id)
+    |> web.handle_request(context)
+
+  assert response.status == 404
+
+  Nil
+}
+
+/// Path paramether needs to be a valid UUID V7
+pub fn get_user_by_invalid_id_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let response =
+    //                                                  vvvvvv
+    simulate.browser_request(http.Get, "/api/user/" <> "wibble")
+    |> web.handle_request(context)
+
+  assert response.status == 400
+
+  Nil
+}
+
+pub fn get_startup_by_id_test() -> Nil {
+  use context <- server_test.with_context()
+  let assert Ok(cnpj) = cnpj.parse("12345678901234")
 
   let assert Ok(startup) =
     startup.register(
       context.database,
-      segment.id,
-      "Critic Level",
-      "12345678901234",
-      "startup muito maneira",
-      "Recife",
-      "Pernambuco",
+      name: "Critic Level",
+      stage: startup.IdeaStage,
+      cnpj: cnpj,
+      description: "startup muito maneira",
+      city: "Recife",
+      state: "Pernambuco",
     )
 
-  let endpoint = "/api/startup/" <> uuid.to_string(startup.id)
-
+  let id = uuid.to_string(startup.id)
   let response =
-    simulate.browser_request(http.Get, endpoint)
-    |> router.handle_request(context)
+    simulate.browser_request(http.Get, "/api/startup/" <> id)
+    |> web.handle_request(context)
 
   assert response.status == 200
   assert response.get_header(response, "content-type")
@@ -108,16 +137,30 @@ pub fn get_startup_by_id_test() -> Nil {
   Nil
 }
 
+/// Querying a missing Startup should return 404 Not Found
 pub fn get_missing_startup_by_id_test() -> Nil {
   use context <- server_test.with_context()
 
-  let endpoint = "/api/startup/" <> uuid.to_string(uuid.v7())
-
+  let id = uuid.v7_string()
   let response =
-    simulate.browser_request(http.Get, endpoint)
-    |> router.handle_request(context)
+    simulate.browser_request(http.Get, "/api/startup/" <> id)
+    |> web.handle_request(context)
 
   assert response.status == 404
+
+  Nil
+}
+
+/// Path paramether needs to be a valid UUID V7
+pub fn get_startup_by_invalid_id_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let response =
+    //                                                     vvvvvv
+    simulate.browser_request(http.Get, "/api/startup/" <> "wibble")
+    |> web.handle_request(context)
+
+  assert response.status == 400
 
   Nil
 }

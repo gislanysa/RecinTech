@@ -42,7 +42,7 @@ SELECT
 FROM
     public.segment AS s
 WHERE
-    s.id = $1;
+    s.id = $1::uuid;
 "
   |> pog.query
   |> pog.parameter(pog.text(uuid.to_string(arg_1)))
@@ -81,7 +81,7 @@ pub fn register(
 INSERT INTO
     public.segment(name, description)
 VALUES
-    ($1, $2)
+    ($1::text, $2::text)
 RETURNING
     id,
     name,

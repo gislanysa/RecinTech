@@ -5,4 +5,4 @@ SELECT
 FROM
     public.user_account AS u
 WHERE
-    u.email = $1;
+    u.email = $1::text;
