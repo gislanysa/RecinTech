@@ -12,10 +12,10 @@ export default defineConfig({
     },
   },
   server: {
-    // A API em Gleam roda na 8080 (ver PORT no .env). O proxy evita CORS no dev.
+    // A API em Gleam roda na porta 8000 (ver server.gleam). O proxy evita CORS no dev.
     proxy: {
       '/api': {
-        target: 'http://localhost:8080',
+        target: 'http://localhost:8000',
         changeOrigin: true,
       },
     },
