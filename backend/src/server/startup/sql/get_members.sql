@@ -9,4 +9,4 @@ FROM
     public.user_account AS u
     INNER JOIN public.startup_membership AS sm ON sm.user_id = u.id
 WHERE
-    sm.startup_id = $1;
+    sm.startup_id = $1::uuid;

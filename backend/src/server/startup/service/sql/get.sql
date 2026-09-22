@@ -1,9 +1,9 @@
--- get a segment from the database
+-- find a service by its id
 SELECT
     s.id,
     s.name,
     s.description
 FROM
-    public.segment AS s
+    public.service AS s
 WHERE
     s.id = $1::uuid;

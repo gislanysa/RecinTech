@@ -1,4 +1,4 @@
-# SENAC PI 2026
+# REC IN TECH
 
 ```mermaid
 ---
@@ -6,46 +6,84 @@ config:
   layout: elk
 ---
 erDiagram
-USER_ACCOUNT {
+  USER_ACCOUNT {
     uuid id PK
     text full_name
     text password_hash
     text email UK
     timestamp created_at
     bool is_active
-}
+  }
 
-SEGMENT {
+  SEGMENT {
     uuid id PK
     text name
     text description
-}
+  }
 
-STARTUP }o..|| SEGMENT : is_from
-STARTUP {
+  STARTUP {
     uuid id PK
-    uuid segment_id FK
     text name
+    startup_stage_enum stage
     text cnpj UK
     text description
     text city
     text state
     timestamp created_at
-}
+  }
 
-STARTUP_MEMBERSHIP }o..o{ USER_ACCOUNT : has_member
-STARTUP_MEMBERSHIP }o..o{ STARTUP : member_of
-STARTUP_MEMBERSHIP {
+  STARTUP_MEMBERSHIP }o..o{ USER_ACCOUNT : has_member
+  STARTUP_MEMBERSHIP }o..o{ STARTUP : member_of
+  STARTUP_MEMBERSHIP {
     uuid user_id PK, FK
     uuid startup_id PK, FK
-}
+  }
 
-INVESTOR |o--|| USER_ACCOUNT : is_a
-INVESTOR {
-    uuid id PK
-    uuid user_id FK
-    uuid segment_id FK
+  INVESTOR |o--|| USER_ACCOUNT : is_a
+  INVESTOR {
+    uuid id PK, FK
     investor_kind_enum kind
     bool public_profile
-}
+  }
+
+  STARTUP_SEGMENT }o..o{ STARTUP : has
+  STARTUP_SEGMENT }o..o{ SEGMENT : has
+  STARTUP_SEGMENT {
+    uuid startup_id PK, FK
+    uuid segment_id PK, FK
+    bool is_main_segment
+  }
+
+  INVESTOR_SEGMENT }o..o{ INVESTOR : has
+  INVESTOR_SEGMENT }o..o{ SEGMENT : has
+  INVESTOR_SEGMENT {
+    uuid investor_id PK, FK
+    uuid segment_id PK, FK
+  }
+
+  EXPERTISE {
+    uuid id PK
+    text name
+    text description
+  }
+
+  STARTUP_EXPERTISE }o..o{ STARTUP : has
+  STARTUP_EXPERTISE }o..o{ EXPERTISE : has
+  STARTUP_EXPERTISE {
+    uuid startup_id PK, FK
+    uuid expertise_id PK, FK
+  }
+
+  SERVICE {
+    uuid id PK
+    text name
+    text description
+  }
+
+  STARTUP_SERVICE }o..o{ STARTUP : has
+  STARTUP_SERVICE }o..o{ SERVICE : has
+  STARTUP_SERVICE {
+    uuid startup_id PK, FK
+    uuid service_id PK, FK
+  }
 ```

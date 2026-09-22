@@ -8,4 +8,4 @@ SELECT
 FROM
     public.user_account AS u
 WHERE
-    u.id = $1;
+    u.id = $1::uuid;

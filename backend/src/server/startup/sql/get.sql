@@ -1,8 +1,8 @@
 -- select an startup;
 SELECT
     s.id,
-    s.segment_id,
     s.name,
+    s.stage,
     s.cnpj,
     s.description,
     s.city,
@@ -11,4 +11,4 @@ SELECT
 FROM
     public.startup AS s
 WHERE
-    s.id = $1;
+    s.id = $1::uuid;

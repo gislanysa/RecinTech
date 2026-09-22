@@ -1,3 +1,4 @@
+import gleam/list
 import gleam/result
 import pog
 import server/segment/sql
@@ -5,11 +6,11 @@ import youid/uuid
 
 pub type SegmentError {
   /// Failed to connect to the Database
-  DatabaseError(pog.QueryError)
+  DatabaseError(error: pog.QueryError)
   /// Something went wrong when registering a Startup
   FailedToRegisterSegment
   /// Segment was not found in the Database
-  NotFound
+  NotFound(id: uuid.Uuid)
 }
 
 pub type Segment {
@@ -32,6 +33,7 @@ pub type Segment {
 ///
 /// case result {
 ///   Ok(data) -> todo as "send response"
+///   Error(segment.NotFound) -> wisp.not_found()
 ///   Error(_) -> wisp.internal_server_error()
 /// }
 /// ```
@@ -45,11 +47,12 @@ pub fn register(
     |> result.map_error(DatabaseError),
   )
 
-  case returned.rows {
-    [] -> Error(FailedToRegisterSegment)
-    [row, ..] ->
-      Ok(Segment(id: row.id, name: row.name, description: row.description))
-  }
+  use row <- result.map(
+    list.first(returned.rows)
+    |> result.replace_error(FailedToRegisterSegment),
+  )
+
+  Segment(id: row.id, name: row.name, description: row.description)
 }
 
 /// Search a segment in the Database using their ID.
@@ -74,9 +77,10 @@ pub fn get(
     |> result.map_error(DatabaseError),
   )
 
-  case returned.rows {
-    [] -> Error(NotFound)
-    [row, ..] ->
-      Ok(Segment(id: row.id, name: row.name, description: row.description))
-  }
+  use row <- result.map(
+    list.first(returned.rows)
+    |> result.replace_error(NotFound(id:)),
+  )
+
+  Segment(id: row.id, name: row.name, description: row.description)
 }

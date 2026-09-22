@@ -4,6 +4,12 @@ database_container_name := "server_postgres"
 export DATABASE_URL := "postgres://aluno:123@localhost:5432/senac"
 export SECRET_KEY := "senac"
 
+#   Erlang-related variables
+node_name := "wibble@127.0.0.1"
+erlang_cookie := "wibble"
+
+debounce := "500ms"
+
 set quiet
 
 [private]
@@ -15,10 +21,37 @@ default:
 test: require-database
     gleam test
 
+# Build documentation
+[group("dev")]
+docs-build:
+    echo {{ MAGENTA }}"  Building documentation.."{{ NORMAL }}
+    gleam docs build
+    echo {{ GREEN }}"  Click the link to open it in your browser."{{ NORMAL }}
+
 # Run application
 [group("dev")]
 run: require-database
-    gleam run
+    ERL_FLAGS="-name {{ node_name }} -setcookie {{ erlang_cookie }}" gleam run
+
+# Open erlang observer
+[group("dev")]
+observer: require-server
+    erl -name wobble@127.0.0.1 -setcookie {{ erlang_cookie }} \
+      -hidden -run observer start '{{ node_name }}'
+
+# Watch and run application
+[group("dev")]
+watch-run:
+    watchexec --restart --verbose --wrap-process=session \
+       --stop-signal SIGTERM --exts gleam --debounce {{ debounce }} --clear \
+       --watch src/ -- just run
+
+# Watch and run unit tests
+[group("dev")]
+watch-test:
+    watchexec --restart --verbose --wrap-process=session \
+       --stop-signal SIGTERM --exts gleam --debounce {{ debounce }} --clear \
+       --watch src/ -- just test
 
 # Build container
 [group("docker")]
@@ -31,18 +64,21 @@ up:
     docker compose up -d
 
 # Stop containers
+[confirm("Stop containers and clean resources? [y/N]")]
 [group("docker")]
 down:
     docker compose down -v
 
 # Generate SQL queries
 [group("dev")]
-generate-sql:
+generate-sql: require-database
+    echo {{ GREEN }}"  Generating SQL queries"{{ NORMAL }}
     gleam run -m squirrel
 
 # Start the database container
 [group("database")]
 start-database:
+    docker rm -f {{ database_container_name }} >/dev/null 2>&1 || true
     docker run --rm -d --name {{ database_container_name }} \
       -e POSTGRES_USER="aluno" \
       -e POSTGRES_PASSWORD="123" \
@@ -50,20 +86,32 @@ start-database:
       -v "./postgres:/docker-entrypoint-initdb.d" \
       -p "5432:5432" \
       docker.io/postgres:18-alpine
+    just wait-for-database
     echo {{ GREEN }}"  PostgreSQL is now running"{{ NORMAL }}
 
 # Restart the database container
 [group("database")]
-restart-database:
-    just stop-database
-    echo {{ GREEN }}"󰜉  Rebuilding PostgreSQL database"{{ NORMAL }}
-    just start-database
+restart-database: stop-database && start-database
+    echo {{ GREEN }}"󱎫  Rebuilding PostgreSQL database"{{ NORMAL }}
 
 # Stop the database container
 [group("database")]
-stop-database: require-database
+stop-database:
     docker container stop {{ database_container_name }}
     echo {{ GREEN }}"  Stopped the database container"{{ NORMAL }}
+
+# Wait until PostgreSQL accepts connections
+[private]
+wait-for-database:
+    #!/usr/bin/env bash
+    echo {{ YELLOW }}"󱎫  Waiting for PostgreSQL to be ready..."{{ NORMAL }}
+    for i in $(seq 1 30); do
+        docker exec {{ database_container_name }} \
+          pg_isready -U aluno -d senac >/dev/null 2>&1 && exit 0
+        sleep 1
+    done
+    echo "PostgreSQL did not become ready in time" >&2
+    exit 1
 
 # Check if the database is active
 [no-exit-message]
@@ -71,5 +119,14 @@ stop-database: require-database
 require-database:
     docker container exists {{ database_container_name }} \
     || ( echo {{ YELLOW }}"  Database container needs to be running"{{ NORMAL }} \
-    && just --usage start-database \
-    && exit 1 )
+    && echo {{ GREEN }}"󱎫  Starting it automatically"{{ NORMAL }} \
+    && just start-database )
+    just wait-for-database
+
+# Check if the server is active
+[no-exit-message]
+[private]
+require-server:
+    curl -sf http://localhost:8000/api/healthcheck \
+    || ( echo {{ YELLOW }}"  HTTP Server needs to be running"{{ NORMAL }} \
+    && just --usage run && exit 1 )
