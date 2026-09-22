@@ -1,0 +1,92 @@
+@import "tailwindcss";
+
+/* ---------------------------------------------------------------------------
+   Tokens de design do RecInTech.
+
+   Tailwind v4 é CSS-first: tudo que é declarado em @theme vira utilitário
+   automaticamente (--color-brand-600 → bg-brand-600, text-brand-600, ...).
+   Não existe tailwind.config.js — mexa aqui.
+
+   As cores estão em OKLCH e foram escolhidas dentro do gamut do sRGB, para o
+   navegador não recortar o tom. Todos os pares de texto usados na interface
+   passam em WCAG AA (≥ 4.5:1).
+--------------------------------------------------------------------------- */
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Space Grotesk", "Inter", ui-sans-serif, system-ui, sans-serif;
+
+  /* Azul azulejo — os casarões do Recife Antigo e o mar.
+     Substitui o índigo padrão do shadcn que vinha do protótipo. */
+  --color-brand-50: oklch(97% 0.014 243);
+  --color-brand-100: oklch(94% 0.028 243);
+  --color-brand-200: oklch(88% 0.058 243);
+  --color-brand-300: oklch(79% 0.105 243);
+  --color-brand-400: oklch(67% 0.15 243);
+  --color-brand-500: oklch(56% 0.13 243);
+  --color-brand-600: oklch(47% 0.11 243);
+  --color-brand-700: oklch(39% 0.092 243);
+  --color-brand-800: oklch(31% 0.075 243);
+  --color-brand-900: oklch(24% 0.06 243);
+  --color-brand-950: oklch(17% 0.048 243);
+
+  /* Coral frevo — o acento quente. Usado com parcimônia: destaque de match,
+     número que importa, estado ativo. Nunca como cor de fundo de seção. */
+  --color-accent-100: oklch(95% 0.022 42);
+  --color-accent-300: oklch(85% 0.08 40);
+  --color-accent-500: oklch(71% 0.175 38);
+  --color-accent-600: oklch(63% 0.19 36);
+  --color-accent-700: oklch(53% 0.168 34);
+
+  /* Tinta e superfícies — cinzas com leve viés azul, para casarem com a marca */
+  /* 53% e nao 55%: em 55% o token reprova em AA sobre o canvas (4,29:1). */
+  --color-ink-500: oklch(53% 0.022 245);
+  --color-ink-700: oklch(40% 0.028 245);
+  --color-ink-900: oklch(24% 0.03 245);
+  --color-surface: oklch(100% 0 0);
+  --color-surface-2: oklch(97.92% 0.0041 271.4);
+  /* Moldura da página, o tom mais escuro dos três: #EEF2F4. */
+  --color-canvas: oklch(95.87% 0.0051 228.8);
+
+  --radius-card: 1rem;
+
+  /* Entrada de cada exemplo do card rotativo. */
+  --animate-entra: entra 450ms ease-out;
+
+  @keyframes entra {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
+  body {
+    @apply bg-surface text-ink-700 antialiased;
+  }
+
+  h1,
+  h2,
+  h3 {
+    @apply font-display text-ink-900;
+  }
+}
