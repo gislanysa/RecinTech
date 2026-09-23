@@ -5,10 +5,14 @@ import axios from 'axios'
  *
  * No dev o Vite faz proxy de `/api` para `http://localhost:8000` (ver
  * `vite.config.ts`), então não há CORS. Em produção defina `VITE_API_URL`.
+ *
+ * `withCredentials: true` garante que o browser envie e receba o cookie
+ * de sessão automaticamente em todas as requisições.
  */
 export const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL ?? '/api',
   headers: { 'Content-Type': 'application/json' },
+  withCredentials: true,
 })
 
 // ---------------------------------------------------------------------------
@@ -34,11 +38,6 @@ export type Startup = {
   created_at: string
 }
 
-export type RespostaAuth = {
-  token: string
-  usuario: Usuario
-}
-
 // ---------------------------------------------------------------------------
 // Auth
 // ---------------------------------------------------------------------------
@@ -46,7 +45,8 @@ export type RespostaAuth = {
 /**
  * POST /auth/login
  *
- * Autentica um usuário e retorna o token de sessão.
+ * Autentica um usuário. O backend deve definir um cookie de sessão
+ * (Set-Cookie) na resposta — o browser cuida do resto.
  *
  * Body:
  * ```json
@@ -54,12 +54,41 @@ export type RespostaAuth = {
  * ```
  *
  * Respostas:
- * - 200 OK → { token, usuario }
- * - 401 Unauthorized → "Wrong email or password"
+ * - 200 OK - Usuario (cookie de sessão definido pelo backend)
+ * - 401 Unauthorized - "Wrong email or password"
  */
-export async function login(email: string, password: string): Promise<RespostaAuth> {
-  const { data } = await api.post<RespostaAuth>('/auth/login', { email, password })
+export async function login(email: string, password: string): Promise<Usuario> {
+  const { data } = await api.post<Usuario>('/auth/login', { email, password })
   return data
+}
+
+/**
+ * POST /auth/logout
+ *
+ * Encerra a sessão. O backend deve invalidar o cookie.
+ */
+export async function logout(): Promise<void> {
+  await api.post('/auth/logout')
+}
+
+/**
+ * GET /auth/restore
+ *
+ * Restaura a sessão ao abrir/recarregar o site. O cookie de sessão é
+ * enviado automaticamente pelo browser. Se o cookie ainda for válido,
+ * o backend retorna os dados do usuário. Senão retorna 401.
+ *
+ * Respostas:
+ * - 200 OK → Usuario
+ * - 401 Unauthorized → sessão expirada
+ */
+export async function restaurarSessao(): Promise<Usuario | null> {
+  try {
+    const { data } = await api.get<Usuario>('/auth/restore')
+    return data
+  } catch {
+    return null
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -127,9 +156,9 @@ export type BodyRegistroStartup = {
  * ```
  *
  * Respostas:
- * - 201 Created → Startup
- * - 409 Conflict → "CNPJ ... is already in use"
- * - 400 Bad Request → "Invalid CNPJ format: ..."
+ * - 201 Created - Startup
+ * - 409 Conflict - "CNPJ ... is already in use"
+ * - 400 Bad Request - "Invalid CNPJ format: ..."
  */
 export async function registrarStartup(body: BodyRegistroStartup): Promise<Startup> {
   const { data } = await api.post<Startup>('/startup', {
@@ -137,26 +166,4 @@ export async function registrarStartup(body: BodyRegistroStartup): Promise<Start
     cnpj: body.cnpj.replace(/\D/g, ''), // garante que chega sem máscara (só dígitos)
   })
   return data
-}
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-/** Salva o token JWT no localStorage para reuso nas próximas requisições. */
-export function salvarToken(token: string) {
-  localStorage.setItem('token', token)
-  api.defaults.headers.common['Authorization'] = `Bearer ${token}`
-}
-
-/** Remove o token (logout). */
-export function removerToken() {
-  localStorage.removeItem('token')
-  delete api.defaults.headers.common['Authorization']
-}
-
-/** Restaura o token salvo ao inicializar o app (ex.: ao recarregar a página). */
-export function restaurarToken() {
-  const token = localStorage.getItem('token')
-  if (token) api.defaults.headers.common['Authorization'] = `Bearer ${token}`
 }

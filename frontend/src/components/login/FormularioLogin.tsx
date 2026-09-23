@@ -1,5 +1,5 @@
 import { ArrowRightIcon } from '@/components/icons.tsx'
-import { login, salvarToken } from '@/lib/api.ts'
+import { login } from '@/lib/api.ts'
 import axios from 'axios'
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
@@ -142,8 +142,7 @@ export default function FormularioLogin() {
     }
     setEnviando(true)
     try {
-      const { token } = await login(campos.email, campos.senha)
-      salvarToken(token)
+      await login(campos.email, campos.senha)
       navigate('/dashboard/startup')
     } catch (err) {
       if (axios.isAxiosError(err) && err.response?.status === 401) {
