@@ -1,5 +1,5 @@
 import { ArrowRightIcon } from '@/components/icons.tsx'
-import { registrarStartup, registrarUsuario, salvarToken } from '@/lib/api.ts'
+import { registrarStartup, registrarUsuario } from '@/lib/api.ts'
 import { UFS } from '@/lib/ufs.ts'
 import axios from 'axios'
 import { useState } from 'react'
@@ -134,16 +134,13 @@ export default function FormularioStartup({ onVoltar }: FormularioStartupProps) 
       // 2. Cria a startup vinculada ao usuário
       await registrarStartup({
         name: campos.nomeStartup,
-        cnpj: campos.cnpj, // máscara removida automaticamente em registrarStartup()
+        cnpj: campos.cnpj,
         stage: campos.estagio,
         description: '',
         city: campos.cidade,
         state: campos.estado,
         site: campos.site || undefined,
       })
-
-      // 3. Salva o token retornado pelo registro do usuário
-      if ('token' in usuario) salvarToken((usuario as { token: string }).token)
 
       navigate('/dashboard/startup')
     } catch (err) {

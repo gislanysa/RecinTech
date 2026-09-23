@@ -33,3 +33,12 @@ services:
     environment:
       DATABASE_URL: postgres://aluno:123@postgres:5432/senac
       SECRET_KEY: senac
+  # frontend
+  frontend:
+    build: ../frontend
+    container_name: server_frontend
+    restart: unless-stopped
+    ports: ["80:80"]
+    depends_on:
+      backend:
+        condition: service_healthy

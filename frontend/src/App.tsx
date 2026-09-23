@@ -1,3 +1,4 @@
+import RotaProtegida from '@/components/RotaProtegida.tsx'
 import CriarConta from '@/pages/CriarConta.tsx'
 import DashboardEmpresa from '@/pages/DashboardEmpresa.tsx'
 import DashboardStartup from '@/pages/DashboardStartup.tsx'
@@ -20,9 +21,11 @@ export default function App() {
         {/* Cadastro de usuário */}
         <Route path="/criar-conta" element={<CriarConta />} />
 
-        {/* Dashboards cada tipo de conta tem a sua própria visão */}
-        <Route path="/dashboard/startup" element={<DashboardStartup />} />
-        <Route path="/dashboard/empresa" element={<DashboardEmpresa />} />
+        {/* Dashboards — sessão validada via cookie antes de renderizar */}
+        <Route element={<RotaProtegida />}>
+          <Route path="/dashboard/startup" element={<DashboardStartup />} />
+          <Route path="/dashboard/empresa" element={<DashboardEmpresa />} />
+        </Route>
 
         <Route path="*" element={<EmConstrucao titulo="Página não encontrada" />} />
       </Routes>

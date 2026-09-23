@@ -1,5 +1,5 @@
 import { ArrowRightIcon } from '@/components/icons.tsx'
-import { registrarUsuario, salvarToken } from '@/lib/api.ts'
+import { registrarUsuario } from '@/lib/api.ts'
 import { UFS } from '@/lib/ufs.ts'
 import axios from 'axios'
 import { useState } from 'react'
@@ -128,14 +128,11 @@ export default function FormularioEmpresa({ onVoltar }: FormularioEmpresaProps) 
       // Registra o usuário responsável pela empresa.
       //     Backend: quando houver um model de Investor/Empresa, criar
       //     também POST /investor com os dados abaixo.
-      const usuario = await registrarUsuario({
+      await registrarUsuario({
         full_name: campos.nomeResponsavel,
         email: campos.email,
         password: campos.senha,
       })
-
-      // Salva o token caso o endpoint de registro já o retorne
-      if ('token' in usuario) salvarToken((usuario as { token: string }).token)
 
       navigate('/dashboard/empresa')
     } catch (err) {
