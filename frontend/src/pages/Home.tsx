@@ -1,4 +1,3 @@
-import ComoFunciona from '@/components/home/ComoFunciona.tsx'
 import Hero from '@/components/home/Hero.tsx'
 import StartupsEmDestaque from '@/components/home/StartupsEmDestaque.tsx'
 import Footer from '@/components/layout/Footer.tsx'
@@ -10,7 +9,6 @@ export default function Home() {
       <Header overlay />
       <main>
         <Hero />
-        <ComoFunciona />
         <StartupsEmDestaque />
         {/* Falta o bloco de matchmaking, entre os destaques e o rodapé. */}
       </main>

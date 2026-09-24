@@ -9,7 +9,6 @@ import gleam/result
 import mist
 import pog
 import server/web
-import server/web/context
 import wisp
 import wisp/wisp_mist
 
@@ -26,7 +25,7 @@ pub fn main() -> Nil {
   // others
   let assert Ok(static_directory) = static_directory()
   let assert Ok(secret_key) = envoy.get("SECRET_KEY")
-  let context = context.Context(database:, static_directory:)
+  let context = web.Context(database:, static_directory:)
   let handler = web.handle_request(_, context)
 
   // start supervision tree
