@@ -260,6 +260,20 @@ fn handle_startup_assignment_error(
     startup.FailedToAssignService(id) ->
       wisp.internal_server_error()
       |> wisp.string_body("Failed to assign Expertise " <> uuid.to_string(id))
+
+    startup.AssignedMissingTechnology(id:) ->
+      wisp.not_found()
+      |> wisp.string_body("Technology " <> uuid.to_string(id) <> " not found")
+
+    startup.TechnologyAssignmentConflict(id:) ->
+      wisp.response(409)
+      |> wisp.string_body(
+        "Technology " <> uuid.to_string(id) <> " already assigned",
+      )
+
+    startup.FailedToAssignTechnology(id:) ->
+      wisp.internal_server_error()
+      |> wisp.string_body("Failed to assign Technology " <> uuid.to_string(id))
   }
 }
 
