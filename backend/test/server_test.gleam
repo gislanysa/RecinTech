@@ -4,13 +4,13 @@ import gleeunit
 import global_value
 import pog
 import server
-import server/web/context
+import server/web
 
 pub fn main() -> Nil {
   gleeunit.main()
 }
 
-fn global_context() -> context.Context {
+fn global_context() -> web.Context {
   global_value.create_with_unique_name("server_test.global.data", fn() {
     let db_process_name = process.new_name("database_connection")
     let assert Ok(database_url) = envoy.get("DATABASE_URL")
@@ -21,7 +21,7 @@ fn global_context() -> context.Context {
     let assert Ok(static_directory) = server.static_directory()
     let assert Ok(_db_process) = pog.start(pog_config)
 
-    context.Context(static_directory:, database:)
+    web.Context(static_directory:, database:)
   })
 }
 
@@ -41,10 +41,10 @@ fn global_context() -> context.Context {
 ///   }
 /// }
 /// ```
-pub fn with_context(next: fn(context.Context) -> a) -> Nil {
+pub fn with_context(next: fn(web.Context) -> a) -> Nil {
   let context = global_context()
   let transaction = fn(database) {
-    next(context.Context(..context, database:))
+    next(web.Context(..context, database:))
     Error(Nil)
   }
 

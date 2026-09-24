@@ -12,9 +12,17 @@ import server/cnpj
 import server/email
 import server/startup
 import server/user
-import server/web/context
 import wisp
 import youid/uuid
+
+pub type Context {
+  Context(
+    /// PostgreSQL connection pool
+    database: pog.Connection,
+    /// Path to the application's priv directory
+    static_directory: String,
+  )
+}
 
 /// Handle incoming HTTP requests
 ///
@@ -28,7 +36,7 @@ import youid/uuid
 /// ```
 pub fn handle_request(
   request: wisp.Request,
-  context: context.Context,
+  context: Context,
 ) -> wisp.Response {
   use request <- middleware(request, context)
 
@@ -63,7 +71,7 @@ pub fn get_root_document() -> wisp.Response {
 
 fn middleware(
   request: request.Request(wisp.Connection),
-  context: context.Context,
+  context: Context,
   next: fn(wisp.Request) -> wisp.Response,
 ) -> wisp.Response {
   let request = wisp.method_override(request)
@@ -327,10 +335,7 @@ fn login_decoder() -> decode.Decoder(Login) {
 /// - 401 if email or password is incorrect.
 /// - 400 if email is not a valid format.
 ///
-pub fn handle_login(
-  request: wisp.Request,
-  context: context.Context,
-) -> wisp.Response {
+pub fn handle_login(request: wisp.Request, context: Context) -> wisp.Response {
   use body <- wisp.require_json(request)
 
   case decode.run(body, login_decoder()) {
