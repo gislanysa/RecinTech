@@ -176,6 +176,47 @@ RETURNING
   |> pog.execute(db)
 }
 
+/// A row you get from running the `assign_technology` query
+/// defined in `./src/server/startup/sql/assign_technology.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v4.7.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type AssignTechnologyRow {
+  AssignTechnologyRow(technology_id: Uuid)
+}
+
+/// Assign a startup to a technology
+///
+/// > 🐿️ This function was generated automatically using v4.7.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn assign_technology(
+  db: pog.Connection,
+  arg_1: Uuid,
+  arg_2: Uuid,
+) -> Result(pog.Returned(AssignTechnologyRow), pog.QueryError) {
+  let decoder = {
+    use technology_id <- decode.field(0, uuid_decoder())
+    decode.success(AssignTechnologyRow(technology_id:))
+  }
+
+  "-- Assign a startup to a technology
+INSERT INTO
+    public.startup_technology (startup_id, technology_id)
+SELECT
+    $1::uuid AS startup_id,
+    $2::uuid AS technology_id
+RETURNING
+    technology_id;
+"
+  |> pog.query
+  |> pog.parameter(pog.text(uuid.to_string(arg_1)))
+  |> pog.parameter(pog.text(uuid.to_string(arg_2)))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
 /// A row you get from running the `ensure_exists` query
 /// defined in `./src/server/startup/sql/ensure_exists.sql`.
 ///
