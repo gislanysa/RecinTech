@@ -1,3 +1,4 @@
+import Botao from '@/components/Botao.tsx'
 import { CloseIcon, MenuIcon } from '@/components/icons.tsx'
 import Logo from '@/components/Logo.tsx'
 import { useEffect, useState } from 'react'
@@ -61,25 +62,15 @@ export default function Header({ overlay = false }: HeaderProps) {
           ))}
         </nav>
 
-        <div className="ml-auto flex items-center gap-2">
-          <Link
-            to="/entrar"
-            className={[
-              'hidden rounded-lg px-3.5 py-2 text-sm font-medium transition-colors sm:inline-flex',
-              'text-ink-700 hover:text-brand-700',
-            ].join(' ')}
-          >
-            Acessar
-          </Link>
-          <Link
-            to="/criar-conta"
-            className={[
-              'inline-flex items-center rounded-lg px-4 py-2 text-sm font-semibold transition-colors',
-              'bg-brand-600 text-white hover:bg-brand-700',
-            ].join(' ')}
-          >
-            Criar conta
-          </Link>
+        <div className="ml-auto flex items-center gap-3">
+          {/* O span existe só para esconder o "Acessar" no mobile sem brigar com o
+              display do próprio botão. */}
+          <span className="hidden sm:block">
+            <Botao to="/entrar">
+              Acessar
+            </Botao>
+          </span>
+          <Botao to="/criar-conta">Criar conta</Botao>
 
           <button
             type="button"
