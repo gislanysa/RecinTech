@@ -1,7 +1,4 @@
-/**
- * Marca da plataforma. `sobreEscuro` diz em que fundo ela está — o cabeçalho
- * alterna conforme fica transparente sobre o topo ou sólido ao rolar.
- */
+
 export default function Logo({ sobreEscuro = false }: { sobreEscuro?: boolean }) {
   return (
     <span

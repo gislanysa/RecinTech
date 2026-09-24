@@ -27,7 +27,7 @@ const PASSOS: Passo[] = [
 
 export default function ComoFunciona() {
   return (
-    <section id="como-funciona" className="scroll-mt-16 bg-surface py-20 lg:py-24">
+    <section id="como-funciona" className="scroll-mt-16 bg-surface-2 py-20 lg:py-24">
       <div className="mx-auto max-w-7xl px-4 sm:px-6">
         <div className="max-w-2xl">
           <h2 className="text-4xl font-bold tracking-tight sm:text-5xl">Como funciona</h2>
@@ -36,32 +36,32 @@ export default function ComoFunciona() {
           </p>
         </div>
 
-        <div className="relative mt-14">
-          {/* Liga os três passos: a leitura é uma sequência, não três caixas soltas.
-              Fica atrás dos cards, então só aparece nos vãos entre eles. */}
-          <div
-            aria-hidden="true"
-            className="absolute inset-x-0 top-[3rem] hidden h-px bg-gradient-to-r from-transparent via-brand-200 to-transparent lg:block"
-          />
-
-          <ol className="relative grid gap-6 lg:grid-cols-3">
-            {PASSOS.map(({ numero, titulo, descricao }) => (
-              <li
-                key={numero}
-                className="rounded-card border border-brand-100 bg-surface p-6 shadow-sm transition-shadow hover:shadow-md"
-              >
-                {/* O número é o destaque do card. Coral em 48px bold passa em
-                    AA para texto grande (3,78:1, mínimo 3:1). */}
-                <span className="block font-display text-5xl font-bold leading-none text-accent-600">
+        <ol className="mt-14 grid gap-6 lg:grid-cols-3">
+          {PASSOS.map(({ numero, titulo, descricao }) => (
+            <li key={numero} className="group relative h-72 overflow-hidden rounded-card">
+              {/* bloco da marca, com o número em destaque */}
+              <div className="absolute inset-0 bg-brand-600 p-6">
+                <span className="font-display text-7xl font-bold leading-none text-accent-300">
                   {numero}
                 </span>
+              </div>
 
-                <h3 className="mt-6 text-xl font-semibold">{titulo}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-ink-500">{descricao}</p>
-              </li>
-            ))}
-          </ol>
-        </div>
+              {/*
+                Painel que sobe. No desktop ele começa abaixado, mostrando só o
+                rótulo e o título, e revela a descrição no hover.
+                No mobile fica sempre aberto: sem mouse não há hover, e a
+                descrição não pode depender de um gesto que não existe.
+              */}
+              <div className="absolute inset-x-0 bottom-0 flex h-44 flex-col gap-1 bg-surface p-5 transition-transform duration-500 ease-out lg:translate-y-[6.5rem] lg:group-hover:translate-y-0">
+                <span className="text-xs font-bold uppercase tracking-wider text-brand-600">
+                  Passo {numero}
+                </span>
+                <span className="font-display text-2xl font-bold text-ink-900">{titulo}</span>
+                <p className="text-sm leading-relaxed text-ink-500">{descricao}</p>
+              </div>
+            </li>
+          ))}
+        </ol>
       </div>
     </section>
   )

@@ -10,8 +10,8 @@ export default function Home() {
       <Header overlay />
       <main>
         <Hero />
-        <ComoFunciona />
         <StartupsEmDestaque />
+        <ComoFunciona />
         {/* Falta o bloco de matchmaking, entre os destaques e o rodapé. */}
       </main>
       <Footer />
