@@ -531,32 +531,23 @@ RETURNING
 /// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
 ///
 pub type StartupStage {
-  LateStage
   Growth
   Seed
-  PreSeed
-  IdeaStage
 }
 
 fn startup_stage_decoder() -> decode.Decoder(StartupStage) {
   use startup_stage <- decode.then(decode.string)
   case startup_stage {
-    "late_stage" -> decode.success(LateStage)
     "growth" -> decode.success(Growth)
     "seed" -> decode.success(Seed)
-    "pre_seed" -> decode.success(PreSeed)
-    "idea_stage" -> decode.success(IdeaStage)
-    _ -> decode.failure(LateStage, "StartupStage")
+    _ -> decode.failure(Growth, "StartupStage")
   }
 }
 
 fn startup_stage_encoder(startup_stage) -> pog.Value {
   case startup_stage {
-    LateStage -> "late_stage"
     Growth -> "growth"
     Seed -> "seed"
-    PreSeed -> "pre_seed"
-    IdeaStage -> "idea_stage"
   }
   |> pog.text
 }

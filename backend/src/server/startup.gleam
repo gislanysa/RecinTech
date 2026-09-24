@@ -96,37 +96,25 @@ pub type Startup {
 
 /// Tracks a startup's progress from an idea to a business
 pub type Stage {
-  /// Brainstorming and checking if the idea makes sense
-  IdeaStage
-  /// Creating the first draft
-  PreSeed
   /// Finding out if people will actually buy what you built
   Seed
   /// Expanding operations
   Growth
-  /// Becoming a stable company
-  LateStage
 }
 
 fn stage_to_json(stage: Stage) -> json.Json {
   case stage {
-    IdeaStage -> json.string("idea_stage")
-    PreSeed -> json.string("pre_seed")
     Seed -> json.string("seed")
     Growth -> json.string("growth")
-    LateStage -> json.string("late_stage")
   }
 }
 
 fn stage_decoder() -> decode.Decoder(Stage) {
   use variant <- decode.then(decode.string)
   case variant {
-    "idea_stage" -> decode.success(IdeaStage)
-    "pre_seed" -> decode.success(PreSeed)
     "seed" -> decode.success(Seed)
     "growth" -> decode.success(Growth)
-    "late_stage" -> decode.success(LateStage)
-    _ -> decode.failure(IdeaStage, "Stage")
+    _ -> decode.failure(Seed, "Stage")
   }
 }
 
@@ -135,19 +123,16 @@ fn stage_decoder() -> decode.Decoder(Stage) {
 /// ## Examples
 ///
 /// ```gleam
-/// let assert Ok(stage) = startup.stage_from_string("late_stage")
-/// assert stage == startup.LateStage
+/// let assert Ok(stage) = startup.stage_from_string("seed")
+/// assert stage == startup.Seed
 ///
 /// let assert Error(startup.InvalidStage(_)) =
 ///   startup.stage_from_string("wibble")
 /// ```
 pub fn stage_from_string(value: String) -> Result(Stage, StartupError) {
   case value {
-    "idea_stage" -> Ok(IdeaStage)
-    "pre_seed" -> Ok(PreSeed)
     "seed" -> Ok(Seed)
     "growth" -> Ok(Growth)
-    "late_stage" -> Ok(LateStage)
 
     _ -> Error(InvalidStage(value))
   }
@@ -220,7 +205,7 @@ fn timestamp_decoder() -> decode.Decoder(timestamp.Timestamp) {
 /// let result = startup.register(
 ///   context.database,
 ///   name: "Critic Level",
-///   stage: startup.Growth,
+///   stage: startup.Seed,
 ///   cnpj: cnpj,
 ///   description: "startup muito maneira",
 ///   city: "Recife",
@@ -285,22 +270,16 @@ pub fn register(
 /// Convert the sql-generated StartupStage enum to a valid [Stage](#Stage) type.
 fn stage_from_enum(enum: sql.StartupStage) -> Stage {
   case enum {
-    sql.IdeaStage -> IdeaStage
-    sql.PreSeed -> PreSeed
     sql.Seed -> Seed
     sql.Growth -> Growth
-    sql.LateStage -> LateStage
   }
 }
 
 /// Convert a [Stage](#Stage) to its sql-generated counterpart.
 fn stage_to_enum(stage: Stage) -> sql.StartupStage {
   case stage {
-    IdeaStage -> sql.IdeaStage
-    PreSeed -> sql.PreSeed
     Seed -> sql.Seed
     Growth -> sql.Growth
-    LateStage -> sql.LateStage
   }
 }
 
