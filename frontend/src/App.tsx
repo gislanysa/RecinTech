@@ -5,6 +5,7 @@ import DashboardStartup from '@/pages/DashboardStartup.tsx'
 import EmConstrucao from '@/pages/EmConstrucao.tsx'
 import ComoFunciona from '@/pages/ComoFunciona.tsx'
 import ExplorarStartups from '@/pages/ExplorarStartups.tsx'
+import ParaStartups from '@/pages/ParaStartups.tsx'
 import Entrar from '@/pages/Entrar.tsx'
 import Home from '@/pages/Home.tsx'
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
@@ -18,7 +19,7 @@ export default function App() {
         {/* Telas de outras branches trocar o marcador pelo componente real. */}
         <Route path="/startups" element={<ExplorarStartups />} />
         <Route path="/startups/:slug" element={<EmConstrucao titulo="Perfil da startup" />} />
-        <Route path="/para-startups" element={<EmConstrucao titulo="Para startups" />} />
+        <Route path="/para-startups" element={<ParaStartups />} />
         <Route path="/como-funciona" element={<ComoFunciona />} />
         <Route path="/entrar" element={<Entrar />} />
 
