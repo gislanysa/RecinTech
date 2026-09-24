@@ -1,4 +1,4 @@
-import { ArrowRightIcon } from '@/components/icons.tsx'
+import Botao from '@/components/Botao.tsx'
 import { login } from '@/lib/api.ts'
 import axios from 'axios'
 import { useState } from 'react'
@@ -214,32 +214,22 @@ export default function FormularioLogin() {
           </a>
         </div>
 
-        <button
-          id="btn-entrar"
-          type="submit"
-          disabled={enviando}
-          className={[
-            'mt-1 inline-flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3',
-            'bg-brand-600 text-sm font-semibold text-white shadow-sm',
-            'transition-all duration-200 hover:bg-brand-700 hover:-translate-y-px hover:shadow-md',
-            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2',
-            'disabled:cursor-not-allowed disabled:opacity-60',
-          ].join(' ')}
-        >
-          {enviando ? (
-            <>
-              <svg className="size-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" strokeLinecap="round" />
-              </svg>
-              Entrando…
-            </>
-          ) : (
-            <>
-              Entrar
-              <ArrowRightIcon className="size-4" />
-            </>
-          )}
-        </button>
+        <div className="mt-2">
+          <Botao id="btn-entrar" type="submit" disabled={enviando} bloco>
+            {enviando ? (
+              <>
+                <svg className="size-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                  <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" strokeLinecap="round" />
+                </svg>
+                Entrando…
+              </>
+            ) : (
+              <>
+                Entrar
+              </>
+            )}
+          </Botao>
+        </div>
       </form>
 
       <p className="mt-6 text-center text-sm text-ink-500">

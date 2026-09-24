@@ -1,4 +1,4 @@
-import { ArrowRightIcon } from '@/components/icons.tsx'
+import Botao from '@/components/Botao.tsx'
 import { Link } from 'react-router-dom'
 
 type TipoConta = 'startup' | 'empresa'
@@ -90,20 +90,11 @@ export default function EscolhaTipo({ onEscolher }: EscolhaTipoProps) {
                 ))}
               </ul>
 
-              <button
-                id={`tipo-${opcao.tipo}`}
-                type="button"
-                onClick={() => onEscolher(opcao.tipo)}
-                className={[
-                  'relative mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3',
-                  'bg-brand-600 text-sm font-semibold text-white shadow-sm',
-                  'transition-all duration-200 hover:bg-brand-700 hover:-translate-y-px hover:shadow-md',
-                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2',
-                ].join(' ')}
-              >
-                Começar
-                <ArrowRightIcon className="size-4" />
-              </button>
+              <div className="mt-6">
+                <Botao id={`tipo-${opcao.tipo}`} onClick={() => onEscolher(opcao.tipo)} bloco>
+                  Começar
+                </Botao>
+              </div>
             </div>
           </div>
         ))}

@@ -49,6 +49,27 @@
 
   --radius-card: 1rem;
 
+  /* Máquina de escrever do h1 de "Como funciona".
+     O steps() é o número de caracteres do h1 — se o texto mudar, ajuste aqui.
+     A largura anima até 100% do invólucro, que tem a largura do texto;
+     sem esse invólucro o cursor pararia lá na margem da seção. */
+  --animate-digitando: digitando 1.6s steps(14) 300ms both, cursor 700ms step-end infinite;
+
+  @keyframes digitando {
+    from {
+      width: 0;
+    }
+    to {
+      width: 100%;
+    }
+  }
+
+  @keyframes cursor {
+    50% {
+      border-color: transparent;
+    }
+  }
+
   /* Entrada de cada exemplo do card rotativo. */
   --animate-entra: entra 450ms ease-out;
 
