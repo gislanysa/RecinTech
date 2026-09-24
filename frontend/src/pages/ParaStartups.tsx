@@ -78,12 +78,7 @@ export default function ParaStartups() {
               Publique um perfil completo, apareça nas buscas por serviços e tecnologias e entre nas
               recomendações de matchmaking das empresas cadastradas.
             </p>
-            <Link
-              to="/criar-conta?tipo=startup"
-              className="mt-8 inline-flex items-center justify-center rounded-xl bg-brand-600 px-6 py-3.5 text-base font-semibold text-white transition-colors hover:bg-brand-700"
-            >
-              Cadastrar minha startup
-            </Link>
+
           </div>
         </section>
 
@@ -141,7 +136,7 @@ export default function ParaStartups() {
                 to="/criar-conta?tipo=startup"
                 className="mt-6 inline-flex items-center justify-center rounded-xl bg-white px-5 py-2.5 text-sm font-semibold text-brand-700 transition-colors hover:bg-white/90"
               >
-                Começar agora
+                Cadastrar minha Startup
               </Link>
             </div>
           </div>
