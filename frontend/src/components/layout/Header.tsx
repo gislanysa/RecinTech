@@ -5,7 +5,7 @@ import { Link, NavLink } from 'react-router-dom'
 
 const NAV = [
   { label: 'Explorar startups', to: '/startups' },
-  { label: 'Como funciona', to: '/#como-funciona' },
+  { label: 'Como funciona', to: '/como-funciona' },
   { label: 'Para startups', to: '/para-startups' },
 ]
 
