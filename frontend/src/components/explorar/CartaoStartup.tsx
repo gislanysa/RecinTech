@@ -28,13 +28,28 @@ export function AvatarStartup({ startup, tamanho = 'md' }: { startup: StartupCat
   )
 }
 
-export default function CartaoStartup({ startup }: { startup: StartupCatalogo }) {
+export default function CartaoStartup({
+  startup,
+  isAutenticado = false,
+}: {
+  startup: StartupCatalogo
+  isAutenticado?: boolean
+}) {
   return (
     <article className="flex h-full flex-col gap-4 rounded-card border border-brand-100 bg-surface p-5 transition-all hover:-translate-y-0.5 hover:border-brand-300 hover:shadow-md">
       <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-3">
         <AvatarStartup startup={startup} />
         <div className="min-w-0">
-          <h3 className="truncate text-base font-semibold text-ink-900">{startup.name}</h3>
+          {/* Nome: borrado + não selecionável para visitantes */}
+          <h3
+            className={[
+              'truncate text-base font-semibold text-ink-900 transition-[filter]',
+              !isAutenticado ? 'select-none blur-[5px]' : '',
+            ].join(' ')}
+            aria-hidden={!isAutenticado}
+          >
+            {startup.name}
+          </h3>
           <p className="truncate text-xs text-ink-500">{startup.area}</p>
         </div>
       </div>
@@ -69,12 +84,25 @@ export default function CartaoStartup({ startup }: { startup: StartupCatalogo })
           {startup.city}, {startup.state}
           {startup.remote ? ' · Atende remoto' : ''}
         </p>
-        <Link
-          to={`/startups/${startup.slug}`}
-          className="block rounded-xl bg-brand-600 py-2.5 text-center text-sm font-semibold text-white transition-colors hover:bg-brand-700"
-        >
-          Ver perfil
-        </Link>
+
+        {isAutenticado ? (
+          <Link
+            to={`/startups/${startup.slug}`}
+            className="block rounded-xl bg-brand-600 py-2.5 text-center text-sm font-semibold text-white transition-colors hover:bg-brand-700"
+          >
+            Ver perfil
+          </Link>
+        ) : (
+          <Link
+            to="/criar-conta"
+            className="flex items-center justify-center gap-2 rounded-xl border border-brand-200 bg-brand-50 py-2.5 text-sm font-semibold text-brand-700 transition-colors hover:bg-brand-100"
+          >
+            <svg viewBox="0 0 24 24" fill="currentColor" className="size-4 shrink-0" aria-hidden="true">
+              <path d="M12 1C8.676 1 6 3.676 6 7v1H4v15h16V8h-2V7c0-3.324-2.676-6-6-6zm0 2c2.276 0 4 1.724 4 4v1H8V7c0-2.276 1.724-4 4-4zm0 9a2 2 0 1 1 0 4 2 2 0 0 1 0-4z" />
+            </svg>
+            Cadastre-se para ver
+          </Link>
+        )}
       </div>
     </article>
   )

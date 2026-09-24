@@ -8,6 +8,7 @@ import PainelDeFiltros, {
 import { SearchIcon } from '@/components/icons.tsx'
 import Footer from '@/components/layout/Footer.tsx'
 import Header from '@/components/layout/Header.tsx'
+import { restaurarSessao } from '@/lib/api.ts'
 import { listarStartups, type StartupCatalogo } from '@/lib/startups.ts'
 import { useEffect, useMemo, useState } from 'react'
 
@@ -43,6 +44,7 @@ function combina(startup: StartupCatalogo, busca: string, f: Filtros): boolean {
 export default function ExplorarStartups() {
   const [todas, setTodas] = useState<StartupCatalogo[]>([])
   const [carregando, setCarregando] = useState(true)
+  const [isAutenticado, setIsAutenticado] = useState(false)
 
   const [buscaDigitada, setBuscaDigitada] = useState('')
   const [busca, setBusca] = useState('')
@@ -55,6 +57,9 @@ export default function ExplorarStartups() {
     listarStartups().then((dados) => {
       setTodas(dados)
       setCarregando(false)
+    })
+    restaurarSessao().then((usuario) => {
+      setIsAutenticado(!!usuario)
     })
   }, [])
 
@@ -196,7 +201,7 @@ export default function ExplorarStartups() {
                 ) : (
                   <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
                     {resultados.map((startup) => (
-                      <CartaoStartup key={startup.slug} startup={startup} />
+                      <CartaoStartup key={startup.slug} startup={startup} isAutenticado={isAutenticado} />
                     ))}
                   </div>
                 )}
