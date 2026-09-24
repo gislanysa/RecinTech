@@ -1,4 +1,4 @@
-import { ArrowRightIcon } from '@/components/icons.tsx'
+import Botao from '@/components/Botao.tsx'
 import { registrarUsuario } from '@/lib/api.ts'
 import { UFS } from '@/lib/ufs.ts'
 import axios from 'axios'
@@ -306,33 +306,23 @@ export default function FormularioEmpresa({ onVoltar }: FormularioEmpresaProps) 
           </div>
         </fieldset>
 
-        <button
-          id="btn-cadastrar-empresa"
-          type="submit"
-          disabled={enviando}
-          className={[
-            'mt-1 inline-flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3',
-            'bg-brand-600 text-sm font-semibold text-white shadow-sm',
-            'transition-all duration-200 hover:bg-brand-700 hover:-translate-y-px hover:shadow-md',
-            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2',
-            'disabled:cursor-not-allowed disabled:opacity-60',
-          ].join(' ')}
-        >
-          {enviando ? (
-            <>
-              <svg className="size-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
-              </svg>
-              Criando conta…
-            </>
-          ) : (
-            <>
-              Criar minha conta
-              <ArrowRightIcon className="size-4" />
-            </>
-          )}
-        </button>
+        <div className="mt-2">
+          <Botao id="btn-cadastrar-empresa" type="submit" disabled={enviando} bloco>
+            {enviando ? (
+              <>
+                <svg className="size-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                </svg>
+                Criando conta…
+              </>
+            ) : (
+              <>
+                Criar minha conta
+              </>
+            )}
+          </Botao>
+        </div>
       </form>
     </div>
   )
