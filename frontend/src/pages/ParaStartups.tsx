@@ -1,7 +1,26 @@
-import { CheckIcon, HandshakeIcon, RocketIcon, TrendingUpIcon } from '@/components/icons.tsx'
+import { BuildingIcon, CheckIcon, ChevronRightIcon, HandshakeIcon, LinkIcon, RocketIcon, SearchIcon, TrendingUpIcon } from '@/components/icons.tsx'
 import Footer from '@/components/layout/Footer.tsx'
 import Header from '@/components/layout/Header.tsx'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
+
+const PASSOS = [
+  {
+    icon: BuildingIcon,
+    titulo: '1. Cadastre seu perfil',
+    texto: 'Conte o que sua startup faz: serviços, tecnologias, segmentos de atuação e cases.',
+  },
+  {
+    icon: SearchIcon,
+    titulo: '2. Apareça nas buscas',
+    texto: 'Seu perfil fica público e pesquisável — qualquer empresa encontra você sem precisar de login.',
+  },
+  {
+    icon: LinkIcon,
+    titulo: '3. Receba recomendações',
+    texto: 'Quando uma empresa descreve uma necessidade compatível com seu perfil, você entra no matchmaking dela.',
+  },
+]
 
 const BENEFICIOS = [
   {
@@ -29,6 +48,22 @@ const CHECKLIST = [
   'Localização e modalidade de atendimento',
 ]
 
+const PERGUNTAS = [
+  {
+    pergunta: 'Preciso ter CNPJ pra me cadastrar?',
+    resposta: 'Sim. Hoje o cadastro exige um CNPJ válido (14 dígitos) — é um campo obrigatório no formulário.',
+  },
+  {
+    pergunta: 'O cadastro é pago?',
+    resposta: 'Não. O cadastro é gratuito e seu perfil aparece normalmente nas buscas, sem nenhuma cobrança.',
+  },
+  {
+    pergunta: 'Como funciona a recomendação pra empresas?',
+    resposta:
+      'Quando uma empresa cadastra uma necessidade, comparamos com o que está no seu perfil — serviços, tecnologias e segmentos — e sua startup pode aparecer nas recomendações dela.',
+  },
+]
+
 export default function ParaStartups() {
   return (
     <>
@@ -53,7 +88,21 @@ export default function ParaStartups() {
         </section>
 
         <section className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:py-20">
+          {/* Como funciona, do ponto de vista da startup. */}
           <ol className="grid gap-5 md:grid-cols-3">
+            {PASSOS.map(({ icon: Icon, titulo, texto }) => (
+              <li key={titulo} className="rounded-card border border-brand-100 bg-surface p-6">
+                <span className="grid size-11 place-items-center rounded-xl bg-brand-50 text-brand-600">
+                  <Icon className="size-5" />
+                </span>
+                <h2 className="mt-4 text-lg font-semibold">{titulo}</h2>
+                <p className="mt-2 text-sm leading-relaxed text-ink-500">{texto}</p>
+              </li>
+            ))}
+          </ol>
+
+          {/* Benefícios. */}
+          <ol className="mt-10 grid gap-5 md:grid-cols-3">
             {BENEFICIOS.map(({ icon: Icon, titulo, texto }) => (
               <li key={titulo} className="rounded-card border border-brand-100 bg-surface p-6">
                 <span className="grid size-11 place-items-center rounded-xl bg-brand-50 text-brand-600">
@@ -65,6 +114,7 @@ export default function ParaStartups() {
             ))}
           </ol>
 
+          {/* Checklist + cadastro gratuito. */}
           <div className="mt-10 grid gap-8 rounded-card border border-brand-100 bg-surface p-8 md:grid-cols-2">
             <div>
               <h2 className="text-xl font-semibold">Checklist do perfil ideal</h2>
@@ -82,7 +132,7 @@ export default function ParaStartups() {
             </div>
 
             <div className="rounded-card bg-gradient-to-br from-brand-700 via-brand-600 to-accent-600 p-7 text-white">
-              <h3 className="text-xl font-semibold">Cadastro gratuito</h3>
+              <h3 className="text-xl font-semibold text-white">Cadastro gratuito</h3>
               <p className="mt-3 text-sm text-white/80">
                 Leva poucos minutos: dados da startup, serviços, tecnologias, segmentos e cases. Depois
                 disso, é só manter atualizado.
@@ -95,9 +145,50 @@ export default function ParaStartups() {
               </Link>
             </div>
           </div>
+
+          <FAQ />
         </section>
       </main>
       <Footer />
     </>
+  )
+}
+
+/**
+ * Sanfona simples com <button> + estado local — mesmo padrão usado em
+ * `ComoFunciona.tsx` (sem lib de UI). Duplicado por enquanto; se aparecer
+ * uma terceira página com FAQ, vale extrair um componente compartilhado.
+ */
+function FAQ() {
+  const [aberta, setAberta] = useState<number | null>(null)
+
+  return (
+    <div className="mt-10">
+      <h2 className="text-xl font-semibold">Perguntas frequentes</h2>
+      <div className="mt-4 divide-y divide-brand-100 border-t border-b border-brand-100">
+        {PERGUNTAS.map(({ pergunta, resposta }, indice) => {
+          const expandida = aberta === indice
+          return (
+            <div key={pergunta}>
+              <button
+                type="button"
+                onClick={() => setAberta(expandida ? null : indice)}
+                aria-expanded={expandida}
+                className="flex w-full items-center justify-between gap-4 py-4 text-left text-sm font-semibold text-ink-900"
+              >
+                {pergunta}
+                <ChevronRightIcon
+                  className={[
+                    'size-4 shrink-0 text-ink-500 transition-transform',
+                    expandida ? '-rotate-90' : 'rotate-90',
+                  ].join(' ')}
+                />
+              </button>
+              {expandida && <p className="pb-4 text-sm leading-relaxed text-ink-500">{resposta}</p>}
+            </div>
+          )
+        })}
+      </div>
+    </div>
   )
 }
