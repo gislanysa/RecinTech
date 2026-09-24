@@ -113,7 +113,7 @@ pub fn get_startup_by_id_test() -> Nil {
     startup.register(
       context.database,
       name: "Critic Level",
-      stage: startup.IdeaStage,
+      stage: startup.Seed,
       cnpj: cnpj,
       description: "startup muito maneira",
       city: "Recife",
@@ -161,6 +161,54 @@ pub fn get_startup_by_invalid_id_test() -> Nil {
     |> web.handle_request(context)
 
   assert response.status == 400
+
+  Nil
+}
+
+pub fn handle_login_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let assert Ok(email) = email.parse("wibble@email.com")
+  let password = "12345678"
+  let assert Ok(user) =
+    user.register(context.database, full_name: "wibble", email:, password:)
+
+  let body =
+    json.object([
+      #("email", json.string(email.to_string(user.email))),
+      #("password", json.string(password)),
+    ])
+
+  let response =
+    simulate.browser_request(http.Post, "/api/auth/login")
+    |> simulate.json_body(body)
+    |> web.handle_request(context)
+
+  assert response.status == 200
+  let assert Ok(_) =
+    response.get_cookies(response)
+    |> list.key_find(web.session_cookie)
+
+  Nil
+}
+
+pub fn handle_login_missing_user_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let body =
+    json.object([
+      #("email", json.string("user@email.com")),
+      #("password", json.string("wibble123")),
+    ])
+
+  let response =
+    simulate.browser_request(http.Post, "/api/auth/login")
+    |> simulate.json_body(body)
+    |> web.handle_request(context)
+
+  // We return 401 instead of 404, because we dont want an attacker to know that
+  // an email is registered in the database.
+  assert response.status == 401
 
   Nil
 }

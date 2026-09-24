@@ -21,7 +21,7 @@ pub fn register_startup_test() -> Nil {
     startup.register(
       context.database,
       name: name,
-      stage: startup.IdeaStage,
+      stage: startup.Seed,
       cnpj: cnpj,
       description: description,
       city: city,
@@ -45,7 +45,7 @@ pub fn register_cnpj_conflict_test() -> Nil {
     startup.register(
       context.database,
       name: "startup",
-      stage: startup.IdeaStage,
+      stage: startup.Seed,
       cnpj: want,
       description: "description",
       city: "Recife",
@@ -56,7 +56,7 @@ pub fn register_cnpj_conflict_test() -> Nil {
     startup.register(
       context.database,
       name: "startup",
-      stage: startup.IdeaStage,
+      stage: startup.Seed,
       cnpj: want,
       description: "description",
       city: "Recife",
@@ -76,7 +76,7 @@ pub fn get_startup_test() -> Nil {
     startup.register(
       context.database,
       name: "Critic Level",
-      stage: startup.IdeaStage,
+      stage: startup.Seed,
       cnpj:,
       description: "startup muito maneira",
       city: "Recife",
@@ -112,7 +112,7 @@ pub fn assign_members_to_startup_test() -> Nil {
     startup.register(
       context.database,
       name: "startup",
-      stage: startup.IdeaStage,
+      stage: startup.Seed,
       cnpj: cnpj,
       description: "description",
       city: "Recife",
@@ -146,7 +146,7 @@ pub fn member_assignment_conflict_test() -> Nil {
     startup.register(
       context.database,
       name: "startup",
-      stage: startup.IdeaStage,
+      stage: startup.Seed,
       cnpj: cnpj,
       description: "description",
       city: "Recife",
@@ -203,7 +203,7 @@ pub fn assign_missing_users_to_startup_test() -> Nil {
     startup.register(
       context.database,
       name: "startup",
-      stage: startup.IdeaStage,
+      stage: startup.Seed,
       cnpj: cnpj,
       description: "some description",
       city: "Recife",
@@ -237,7 +237,7 @@ pub fn assign_segment_to_startup_test() -> Nil {
     startup.register(
       context.database,
       name: "cool iot startup",
-      stage: startup.IdeaStage,
+      stage: startup.Seed,
       cnpj: cnpj,
       description: "really cool",
       city: "Recife",
@@ -275,7 +275,7 @@ pub fn segment_assignment_conflict_test() -> Nil {
     startup.register(
       context.database,
       name: "cool iot startup",
-      stage: startup.IdeaStage,
+      stage: startup.Seed,
       cnpj: cnpj,
       description: "really cool",
       city: "Recife",
@@ -336,7 +336,7 @@ pub fn assign_missing_segment_to_startup_test() -> Nil {
     startup.register(
       context.database,
       name: "startup",
-      stage: startup.IdeaStage,
+      stage: startup.Seed,
       cnpj: cnpj,
       description: "some description",
       city: "Recife",
@@ -383,7 +383,7 @@ pub fn get_startup_segments_test() -> Nil {
     startup.register(
       context.database,
       name: "startup",
-      stage: startup.IdeaStage,
+      stage: startup.Seed,
       cnpj: cnpj,
       description: "some description",
       city: "Recife",
@@ -425,7 +425,7 @@ pub fn get_startup_members_test() -> Nil {
     startup.register(
       context.database,
       name: "startup",
-      stage: startup.IdeaStage,
+      stage: startup.Seed,
       cnpj: cnpj,
       description: "some description",
       city: "Recife",

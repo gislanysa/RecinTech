@@ -1,5 +1,6 @@
 //// Http handlers and middlewares
 
+import gleam/dynamic/decode
 import gleam/http
 import gleam/http/request
 import gleam/json
@@ -39,6 +40,7 @@ pub fn handle_request(
     http.Get, [] -> get_root_document()
 
     // API
+    http.Post, ["api", "auth", "login"] -> handle_login(request, context)
     http.Get, ["api", "startup", id] -> get_startup_by_id(context.database, id)
     http.Get, ["api", "user", id] -> get_user_by_id(context.database, id)
 
@@ -290,5 +292,70 @@ fn handle_database_error(error: pog.QueryError) -> wisp.Response {
     | pog.UnexpectedArgumentCount(..)
     | pog.UnexpectedArgumentType(..)
     | pog.UnexpectedResultType(..) -> wisp.internal_server_error()
+  }
+}
+
+/// Cookie storing the user session.
+pub const session_cookie = "SESSION"
+
+type Login {
+  Login(email: email.Email, password: String)
+}
+
+fn login_decoder() -> decode.Decoder(Login) {
+  use email <- decode.field("email", email.decoder())
+  use password <- decode.field("password", decode.string)
+  decode.success(Login(email:, password:))
+}
+
+/// **GET /api/auth/login**
+///
+/// Sets a session cookie if successful, it will last exactly one hour.
+///
+/// ## Request
+///
+/// ```json
+/// {
+///   "email": "wibble@email.com",
+///   "password": "12345678"
+/// }
+/// ```
+///
+/// ## Response
+///
+/// - 200 OK if successful.
+/// - 401 if email or password is incorrect.
+/// - 400 if email is not a valid format.
+///
+pub fn handle_login(
+  request: wisp.Request,
+  context: context.Context,
+) -> wisp.Response {
+  use body <- wisp.require_json(request)
+
+  case decode.run(body, login_decoder()) {
+    Error(_errors) -> wisp.bad_request("Invalid JSON format")
+    Ok(login) -> {
+      let result =
+        user.verify(
+          context.database,
+          email: login.email,
+          password: login.password,
+        )
+
+      case result {
+        Error(error) -> handle_user_error(error)
+        Ok(user) ->
+          wisp.set_cookie(
+            response: wisp.ok(),
+            request:,
+            name: session_cookie,
+            value: uuid.to_string(user.id),
+            security: wisp.Signed,
+            // One hour
+            max_age: 60 * 60,
+          )
+      }
+    }
   }
 }
