@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react'
 import { Link, NavLink } from 'react-router-dom'
 
 const NAV = [
+  { label: 'Home', to: '/' },
   { label: 'Explorar startups', to: '/startups' },
   { label: 'Como funciona', to: '/como-funciona' },
   { label: 'Para startups', to: '/para-startups' },
