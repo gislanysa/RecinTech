@@ -18,7 +18,7 @@ export function AvatarStartup({ startup, tamanho = 'md' }: { startup: StartupCat
   return (
     <span
       className={[
-        'grid shrink-0 place-items-center rounded-full font-display font-bold text-white',
+        'grid shrink-0 place-items-center rounded-xl font-display font-bold text-white',
         corAvatar(startup.slug),
         tamanho === 'lg' ? 'size-16 text-xl' : 'size-12 text-sm',
       ].join(' ')}
@@ -28,28 +28,13 @@ export function AvatarStartup({ startup, tamanho = 'md' }: { startup: StartupCat
   )
 }
 
-export default function CartaoStartup({
-  startup,
-  isAutenticado = false,
-}: {
-  startup: StartupCatalogo
-  isAutenticado?: boolean
-}) {
+export default function CartaoStartup({ startup }: { startup: StartupCatalogo }) {
   return (
-    <article className="flex h-full flex-col gap-4 rounded-card border border-gray-200 bg-surface p-5 transition-all hover:-translate-y-0.5 hover:border-gray-300 hover:shadow-sm">
+    <article className="flex h-full flex-col gap-4 rounded-card border border-brand-100 bg-surface p-5 transition-all hover:-translate-y-0.5 hover:border-brand-300 hover:shadow-md">
       <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-3">
         <AvatarStartup startup={startup} />
         <div className="min-w-0">
-          {/* Nome: borrado + não selecionável para visitantes */}
-          <h3
-            className={[
-              'truncate text-base font-semibold text-ink-900 transition-[filter]',
-              !isAutenticado ? 'select-none blur-[5px]' : '',
-            ].join(' ')}
-            aria-hidden={!isAutenticado}
-          >
-            {startup.name}
-          </h3>
+          <h3 className="truncate text-base font-semibold text-ink-900">{startup.name}</h3>
           <p className="truncate text-xs text-ink-500">{startup.area}</p>
         </div>
       </div>
@@ -63,7 +48,7 @@ export default function CartaoStartup({
           </span>
         ))}
         {startup.technologies.slice(0, 2).map((t) => (
-          <span key={t} className="rounded-lg border border-gray-200 px-2 py-1 text-xs text-ink-500">
+          <span key={t} className="rounded-lg border border-brand-200 px-2 py-1 text-xs text-ink-500">
             {t}
           </span>
         ))}
@@ -84,35 +69,12 @@ export default function CartaoStartup({
           {startup.city}, {startup.state}
           {startup.remote ? ' · Atende remoto' : ''}
         </p>
-
-        {isAutenticado ? (
-          <Link
-            to={`/startups/${startup.slug}`}
-            className="block rounded-xl bg-brand-600 py-2.5 text-center text-sm font-semibold text-white transition-colors hover:bg-brand-700"
-          >
-            Ver perfil
-          </Link>
-        ) : (
-          <Link
-            to="/criar-conta"
-            className="group relative mx-auto flex items-center justify-start overflow-hidden rounded-full bg-gray-200 shadow-md transition-all duration-300 hover:bg-brand-700 active:translate-x-0.5 active:translate-y-0.5"
-            style={{ width: '45px', height: '45px' }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLAnchorElement).style.width = '210px'; (e.currentTarget as HTMLAnchorElement).style.borderRadius = '40px' }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLAnchorElement).style.width = '45px'; (e.currentTarget as HTMLAnchorElement).style.borderRadius = '9999px' }}
-            aria-label="Cadastre-se para ver"
-          >
-            {/* Ícone de cadeado */}
-            <span className="flex w-full shrink-0 items-center justify-center transition-all duration-300 group-hover:w-[25%] group-hover:pl-3">
-              <svg viewBox="0 0 24 24" fill="currentColor" className="size-[18px] text-gray-500 transition-colors duration-300 group-hover:text-white" aria-hidden="true">
-                <path d="M12 1C8.676 1 6 3.676 6 7v1H4v15h16V8h-2V7c0-3.324-2.676-6-6-6zm0 2c2.276 0 4 1.724 4 4v1H8V7c0-2.276 1.724-4 4-4zm0 9a2 2 0 1 1 0 4 2 2 0 0 1 0-4z" />
-              </svg>
-            </span>
-            {/* Texto */}
-            <span className="absolute right-0 w-0 overflow-hidden whitespace-nowrap pr-0 text-[0.8rem] font-semibold text-white opacity-0 transition-all duration-300 group-hover:w-[75%] group-hover:pr-4 group-hover:opacity-100">
-              Cadastre-se para ver
-            </span>
-          </Link>
-        )}
+        <Link
+          to={`/startups/${startup.slug}`}
+          className="block rounded-xl bg-brand-600 py-2.5 text-center text-sm font-semibold text-white transition-colors hover:bg-brand-700"
+        >
+          Ver perfil
+        </Link>
       </div>
     </article>
   )
@@ -120,7 +82,7 @@ export default function CartaoStartup({
 
 export function CartaoStartupCarregando() {
   return (
-    <div className="h-full animate-pulse rounded-card border border-gray-200 bg-surface p-5">
+    <div className="h-full animate-pulse rounded-card border border-brand-100 bg-surface p-5">
       <div className="flex items-center gap-3">
         <div className="size-12 rounded-xl bg-brand-100" />
         <div className="flex-1 space-y-2">
