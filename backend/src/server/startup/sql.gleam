@@ -274,7 +274,7 @@ pub type GetRow {
   )
 }
 
-/// select an startup;
+/// get an startup
 ///
 /// > 🐿️ This function was generated automatically using v4.7.0 of
 /// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
@@ -304,7 +304,7 @@ pub fn get(
     ))
   }
 
-  "-- select an startup;
+  "-- get an startup
 SELECT
     s.id,
     s.name,
@@ -364,6 +364,78 @@ WHERE
 "
   |> pog.query
   |> pog.parameter(pog.text(uuid.to_string(arg_1)))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
+/// A row you get from running the `get_many` query
+/// defined in `./src/server/startup/sql/get_many.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v4.7.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type GetManyRow {
+  GetManyRow(
+    id: Uuid,
+    name: String,
+    stage: StartupStage,
+    cnpj: String,
+    description: String,
+    city: String,
+    state: String,
+    created_at: Timestamp,
+  )
+}
+
+/// get a maximum of $2 startups from the database
+///
+/// > 🐿️ This function was generated automatically using v4.7.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn get_many(
+  db: pog.Connection,
+  arg_1: Int,
+  arg_2: Int,
+) -> Result(pog.Returned(GetManyRow), pog.QueryError) {
+  let decoder = {
+    use id <- decode.field(0, uuid_decoder())
+    use name <- decode.field(1, decode.string)
+    use stage <- decode.field(2, startup_stage_decoder())
+    use cnpj <- decode.field(3, decode.string)
+    use description <- decode.field(4, decode.string)
+    use city <- decode.field(5, decode.string)
+    use state <- decode.field(6, decode.string)
+    use created_at <- decode.field(7, pog.timestamp_decoder())
+    decode.success(GetManyRow(
+      id:,
+      name:,
+      stage:,
+      cnpj:,
+      description:,
+      city:,
+      state:,
+      created_at:,
+    ))
+  }
+
+  "-- get a maximum of $2 startups from the database
+SELECT
+    s.id,
+    s.name,
+    s.stage,
+    s.cnpj,
+    s.description,
+    s.city,
+    s.state,
+    s.created_at
+FROM
+    public.startup AS s
+LIMIT
+    $1::int OFFSET $2::int;
+"
+  |> pog.query
+  |> pog.parameter(pog.int(arg_1))
+  |> pog.parameter(pog.int(arg_2))
   |> pog.returning(decoder)
   |> pog.execute(db)
 }

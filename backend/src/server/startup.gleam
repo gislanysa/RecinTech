@@ -680,3 +680,46 @@ pub fn assign_technology(
     Error(_) -> Error(AssignmentFailure(id: technology))
   }
 }
+
+/// Fetch many Startups from the database, specifying the max number of
+/// returned rows, and how many to skip.
+///
+/// ## Examples
+///
+/// ```gleam
+/// let result =
+///   startup.get_many(context.database, limit: 3, offset: 6)
+///
+/// case result {
+///   Ok(data) -> todo as "send response"
+///   Error(_) -> wisp.internal_server_error()
+/// }
+/// ```
+pub fn get_many(
+  database: pog.Connection,
+  limit limit: Int,
+  offset offset: Int,
+) -> Result(List(Startup), StartupError) {
+  use returned <- result.try(
+    sql.get_many(database, limit, offset)
+    |> result.map_error(DatabaseError),
+  )
+
+  list.try_map(returned.rows, fn(row) {
+    use cnpj <- result.map(
+      cnpj.parse(row.cnpj)
+      |> result.replace_error(InvalidCnpj(value: row.cnpj)),
+    )
+
+    Startup(
+      id: row.id,
+      name: row.name,
+      stage: stage_from_enum(row.stage),
+      cnpj: cnpj,
+      description: row.description,
+      city: row.city,
+      state: row.state,
+      created_at: row.created_at,
+    )
+  })
+}
