@@ -3,7 +3,10 @@
 import gleam/dynamic/decode
 import gleam/http
 import gleam/http/request
+import gleam/int
 import gleam/json
+import gleam/list
+import gleam/result
 import lustre/attribute
 import lustre/element
 import lustre/element/html
@@ -48,12 +51,56 @@ pub fn handle_request(
     http.Get, [] -> get_root_document()
 
     // API
-    http.Post, ["api", "auth", "login"] -> handle_login(request, context)
+    http.Post, ["api", "auth", "login"] -> login(request, context.database)
+
+    http.Get, ["api", "startup"] -> get_many_startups(request, context.database)
     http.Get, ["api", "startup", id] -> get_startup_by_id(context.database, id)
+
     http.Get, ["api", "user", id] -> get_user_by_id(context.database, id)
 
     // fallback
     _, _ -> wisp.not_found()
+  }
+}
+
+/// TODO:
+pub fn get_many_startups(
+  request: wisp.Request,
+  database: pog.Connection,
+) -> wisp.Response {
+  // Get a query from the request, return bad request if missing or
+  // if value is not a valid Int.
+  let require_int = fn(query, key) {
+    use value <- result.try(
+      list.key_find(query, key)
+      |> result.replace_error(wisp.bad_request("Missing " <> key)),
+    )
+
+    int.parse(value)
+    |> result.replace_error(wisp.bad_request("Invalid " <> key))
+  }
+
+  let query_result = {
+    use query <- result.try(
+      request.get_query(request)
+      |> result.replace_error(wisp.bad_request("Missing query")),
+    )
+
+    use limit <- result.try(require_int(query, "limit"))
+    use offset <- result.try(require_int(query, "offset"))
+
+    use data <- result.map(
+      startup.get_many(database, limit:, offset:)
+      |> result.map_error(handle_startup_error),
+    )
+
+    json.array(data, startup.to_json)
+    |> json.to_string
+    |> wisp.json_response(200)
+  }
+
+  case query_result {
+    Ok(response) | Error(response) -> response
   }
 }
 
@@ -280,18 +327,14 @@ fn login_decoder() -> decode.Decoder(Login) {
 /// - 401 if email or password is incorrect.
 /// - 400 if email is not a valid format.
 ///
-pub fn handle_login(request: wisp.Request, context: Context) -> wisp.Response {
+pub fn login(request: wisp.Request, database: pog.Connection) -> wisp.Response {
   use body <- wisp.require_json(request)
 
   case decode.run(body, login_decoder()) {
     Error(_errors) -> wisp.bad_request("Invalid JSON format")
     Ok(login) -> {
       let result =
-        user.verify(
-          context.database,
-          email: login.email,
-          password: login.password,
-        )
+        user.verify(database, email: login.email, password: login.password)
 
       case result {
         Error(error) -> handle_user_error(error)
