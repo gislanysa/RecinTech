@@ -125,7 +125,7 @@ export default function FormularioStartup({ onVoltar }: FormularioStartupProps) 
 
     try {
       // 1. Cria o usuário responsável
-      await registrarUsuario({
+      const usuario = await registrarUsuario({
         full_name: campos.nomeResponsavel,
         email: campos.email,
         password: campos.senha,

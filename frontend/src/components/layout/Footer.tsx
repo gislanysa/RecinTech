@@ -6,7 +6,7 @@ const COLUNAS = [
     titulo: 'Plataforma',
     links: [
       { label: 'Explorar startups', to: '/startups' },
-      { label: 'Para empresas', to: '/para-empresas' },
+      { label: 'Como funciona', to: '/como-funciona' },
       { label: 'Para startups', to: '/para-startups' },
     ],
   },

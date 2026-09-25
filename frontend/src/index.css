@@ -50,14 +50,15 @@
   --radius-card: 1rem;
 
   /* Máquina de escrever do h1 de "Como funciona".
-     O steps() é o número de caracteres do h1 */
-  --animate-digitando: digitando 1.6s steps(13) 300ms both, cursor 700ms step-end infinite;
+     O steps() é o número de caracteres do h1 — se o texto mudar, ajuste aqui.
+     A largura anima até 100% do invólucro, que tem a largura do texto;
+     sem esse invólucro o cursor pararia lá na margem da seção. */
+  --animate-digitando: digitando 1.6s steps(14) 300ms both, cursor 700ms step-end infinite;
 
   @keyframes digitando {
     from {
       width: 0;
     }
-
     to {
       width: 100%;
     }
@@ -77,7 +78,6 @@
       opacity: 0;
       transform: translateY(6px);
     }
-
     to {
       opacity: 1;
       transform: translateY(0);
@@ -91,7 +91,6 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-
     *,
     *::before,
     *::after {
@@ -110,40 +109,5 @@
   h2,
   h3 {
     @apply font-display text-ink-900;
-  }
-}
-
-/* Cards "bolha" */
-@layer components {
-
-  /* Badge circular */
-  .passos-bolha__badge {
-    position: absolute;
-    top: -70px;
-    right: -70px;
-    padding: 85px 85px 20px 20px;
-    background-color: var(--color-brand-600);
-    border-radius: 9999px;
-    z-index: 5;
-  }
-
-  .passos-bolha__badge::after {
-    content: "";
-    width: 50px;
-    height: 50px;
-    background-color: var(--color-brand-600);
-    position: absolute;
-    border-radius: 9999px;
-    top: 50%;
-    right: 50%;
-    transform: translateX(50%) translateY(-50%);
-    transition: width 0.5s ease-in-out, height 0.5s ease-in-out;
-    z-index: -1;
-  }
-
-  /* No hover do card (group), a bolha explode */
-  .passos-bolha:hover .passos-bolha__badge::after {
-    width: 900px;
-    height: 900px;
   }
 }
