@@ -13,20 +13,16 @@ const PERGUNTAS = [
   {
     pergunta: 'Preciso criar conta para pesquisar startups?',
     resposta:
-      'Não. Home, busca com filtros avançados, ordenação e perfis públicos completos são abertos a qualquer visitante.',
+      'Não. A busca e os filtros avançados por tecnologias, serviços e segmentos são abertos para qualquer visitante. O cadastro gratuito é necessário para visualizar os nomes e perfis completos das startups.',
   },
   {
     pergunta: 'O que exige cadastro?',
-    resposta: 'Salvar startups, cadastrar necessidades, solicitar matchmaking e acessar o painel da empresa.',
-  },
-  {
-    pergunta: 'Startups pagam para aparecer?',
     resposta:
-      'Não. A ordenação considera relevância do perfil, atualização recente e compatibilidade com a necessidade descrita.',
+      'Visualizar os dados e perfis completos das startups, salvar favoritas, cadastrar necessidades e solicitar matchmaking.',
   },
 ]
 
-export default function ComoFunciona() {
+export default function ParaEmpresas() {
   return (
     <>
       <Header />
@@ -36,7 +32,7 @@ export default function ComoFunciona() {
               animação se resolve, então o cursor para junto da última letra. */}
           <div className="mx-auto w-fit">
             <h1 className="animate-digitando inline-block overflow-hidden whitespace-nowrap border-r-2 border-brand-600 pb-1.5 text-4xl font-bold tracking-tight sm:text-5xl">
-              Como funciona?  
+              Como funciona?
             </h1>
           </div>
           <p className="mx-auto mt-4 max-w-2xl text-lg leading-relaxed text-ink-500">
@@ -49,7 +45,7 @@ export default function ComoFunciona() {
           {/* Os três passos. */}
           <PassosComoFunciona />
 
-          <h2 className="mt-16 text-2xl font-bold tracking-tight">FAQ</h2>
+          <h2 className="mt-16 text-xl font-semibold tracking-tight">Perguntas Frequentes</h2>
 
           <FAQ />
 
