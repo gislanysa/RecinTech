@@ -71,6 +71,9 @@ pub type AssignmentError {
   ServiceAssignmentConflict(id: uuid.Uuid)
   /// Failed to assign a given Service to a Startup
   FailedToAssignService(id: uuid.Uuid)
+  AssignedMissingTechnology(id: uuid.Uuid)
+  TechnologyAssignmentConflict(id: uuid.Uuid)
+  FailedToAssignTechnology(id: uuid.Uuid)
 }
 
 pub type Startup {
@@ -693,4 +696,64 @@ pub fn assign_service(
   )
 
   row.service_id
+}
+
+/// Assign a Technology to a Startup and returns the ID of the technology
+/// if successful. You cannot assign a technology to a startup more than once.
+///
+/// ## Examples
+///
+/// ```gleam
+/// let result = startup.assign_technology(
+///   context.database,
+///   startup_id,
+///   assign: technology_id,
+///   )
+///
+/// case result {
+///   Ok(assigned) -> todo as "send response"
+///   Error(startup.NotFound(_)) -> wisp.not_found()
+///   Error(_) -> wisp.internal_server_error()
+/// }
+/// ```
+pub fn assign_technology(
+  database: pog.Connection,
+  id: uuid.Uuid,
+  assign technology: uuid.Uuid,
+) -> Result(uuid.Uuid, StartupError) {
+  use returned <- result.try(
+    case sql.assign_technology(database, id, technology) {
+      // Tried to assign a Technology to a Startup that is not registered.
+      Error(pog.ConstraintViolated(
+        constraint: "startup_technology_startup_id_fkey",
+        ..,
+      )) -> Error(NotFound(id:))
+
+      // Tried to assign a Technology that is not registered.
+      Error(pog.ConstraintViolated(
+        constraint: "startup_technology_technology_id_fkey",
+        ..,
+      )) ->
+        AssignedMissingTechnology(id: technology)
+        |> AssignmentFailure
+        |> Error
+
+      // Technology has already been assigned to the given Startup
+      Error(pog.ConstraintViolated(constraint: "startup_technology_pkey", ..)) ->
+        TechnologyAssignmentConflict(id: technology)
+        |> AssignmentFailure
+        |> Error
+
+      Ok(rows) -> Ok(rows)
+      Error(error) -> Error(DatabaseError(error))
+    },
+  )
+
+  use row <- result.map(
+    FailedToAssignTechnology(id: technology)
+    |> AssignmentFailure
+    |> result.replace_error(list.first(returned.rows), _),
+  )
+
+  row.technology_id
 }

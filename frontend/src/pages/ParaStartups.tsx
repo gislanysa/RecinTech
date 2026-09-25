@@ -70,11 +70,11 @@ export default function ParaStartups() {
       <Header />
       <main>
         <section className="border-b border-brand-100 bg-surface-2">
-          <div className="mx-auto max-w-5xl px-4 py-16 sm:px-6 lg:py-20">
-            <h1 className="max-w-3xl text-4xl font-bold tracking-tight sm:text-5xl">
-              Sua startup encontrada por quem realmente precisa dela.
+          <div className="mx-auto max-w-5xl px-4 py-16 text-center sm:px-6 lg:py-20">
+            <h1 className="mx-auto max-w-3xl text-4xl font-bold tracking-tight sm:text-5xl">
+              Sua startup encontrada por quem realmente precisa dela
             </h1>
-            <p className="mt-5 max-w-2xl text-lg leading-relaxed text-ink-500">
+            <p className="mx-auto mt-5 max-w-2xl text-lg leading-relaxed text-ink-500">
               Publique um perfil completo, apareça nas buscas por serviços e tecnologias e entre nas
               recomendações de matchmaking das empresas cadastradas.
             </p>
