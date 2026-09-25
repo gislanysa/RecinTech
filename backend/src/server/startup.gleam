@@ -24,8 +24,12 @@ pub type StartupError {
   NotFound(id: uuid.Uuid)
   /// Member's email has invalid format
   InvalidMemberEmail(id: uuid.Uuid, value: String)
-  /// Failed to assign a member, expertise, segment, etc.
-  AssignmentFailure(error: AssignmentError)
+  /// User, segment, technology, etc is already assigned
+  AssignmentConflict(id: uuid.Uuid)
+  /// Tried to assign an entity that is not registered
+  AssignedMissingEntity(id: uuid.Uuid)
+  /// Failed to assign entity to a startup for unknown reasons
+  AssignmentFailure(id: uuid.Uuid)
 
   /// CPNJ should have 14 characters
   InvalidCnpj(value: String)
@@ -33,47 +37,6 @@ pub type StartupError {
   CnpjConflict(value: cnpj.Cnpj)
   /// Failed to parse a String into a [Stage](#Stage) type
   InvalidStage(value: String)
-}
-
-pub type AssignmentError {
-  //  User Assignment errors ---------------------------------------------------
-  //
-  /// Assigned a non-registred User as member of a Startup
-  AssignedMissingUser(id: uuid.Uuid)
-  /// Tried to assign an User that is already assigned
-  MemberAssignmentConflict(id: uuid.Uuid)
-  /// Failed to assign a given User to a Startup
-  FailedToAssignMember(id: uuid.Uuid)
-
-  //  Segment Assignment errors ------------------------------------------------
-  //
-  /// Tried to assign an Segment that is already assigned
-  SegmentAssignmentConflict(id: uuid.Uuid)
-  /// Assigned a non-registred Segment to a Startup
-  AssignedMissingSegment(id: uuid.Uuid)
-  /// Failed to assign a given Segment to a Startup
-  FailedToAssignSegment(id: uuid.Uuid)
-
-  //  Expertise Assignment errors ----------------------------------------------
-  //
-  /// Tried to assign an Expertise that is not registered
-  AssignedMissingExpertise(id: uuid.Uuid)
-  /// Tried to assign an Expertise that is already assigned
-  ExpertiseAssignmentConflict(id: uuid.Uuid)
-  /// Failed to assign a given expertise to a Startup
-  FailedToAssignExpertise(id: uuid.Uuid)
-
-  //  Service Assignment errors ------------------------------------------------
-  //
-  /// Tried to assign a Service that is not registered
-  AssignedMissingService(id: uuid.Uuid)
-  /// Tried to assign a Service that is already assigned
-  ServiceAssignmentConflict(id: uuid.Uuid)
-  /// Failed to assign a given Service to a Startup
-  FailedToAssignService(id: uuid.Uuid)
-  AssignedMissingTechnology(id: uuid.Uuid)
-  TechnologyAssignmentConflict(id: uuid.Uuid)
-  FailedToAssignTechnology(id: uuid.Uuid)
 }
 
 pub type Startup {
@@ -360,28 +323,20 @@ pub fn assign_member(
     Error(pog.ConstraintViolated(
       constraint: "startup_membership_user_id_fkey",
       ..,
-    )) ->
-      AssignedMissingUser(id: member)
-      |> AssignmentFailure
-      |> Error
+    )) -> Error(AssignedMissingEntity(id: member))
 
     // Tried to assign an User that is already assigned
     Error(pog.ConstraintViolated(constraint: "startup_membership_pkey", ..)) ->
-      MemberAssignmentConflict(id: member)
-      |> AssignmentFailure
-      |> Error
+      Error(AssignmentConflict(id: member))
 
     Ok(rows) -> Ok(rows)
     Error(error) -> Error(DatabaseError(error:))
   })
 
-  use row <- result.map(
-    FailedToAssignMember(id: member)
-    |> AssignmentFailure
-    |> result.replace_error(list.first(returned.rows), _),
-  )
-
-  row.user_id
+  case list.first(returned.rows) {
+    Ok(row) -> Ok(row.user_id)
+    Error(_) -> Error(AssignmentFailure(id: member))
+  }
 }
 
 /// Get all members assigned to a given Startup.
@@ -521,29 +476,21 @@ pub fn assign_segment(
       Error(pog.ConstraintViolated(
         constraint: "startup_segment_segment_id_fkey",
         ..,
-      )) ->
-        AssignedMissingSegment(id: segment)
-        |> AssignmentFailure
-        |> Error
+      )) -> Error(AssignedMissingEntity(id: segment))
 
       // Segment has already been assigned to the given Startup
       Error(pog.ConstraintViolated(constraint: "startup_segment_pkey", ..)) ->
-        SegmentAssignmentConflict(id: segment)
-        |> AssignmentFailure
-        |> Error
+        Error(AssignmentConflict(id: segment))
 
       Ok(rows) -> Ok(rows)
       Error(error) -> Error(DatabaseError(error))
     },
   )
 
-  use row <- result.map(
-    FailedToAssignSegment(id: segment)
-    |> AssignmentFailure
-    |> result.replace_error(list.first(returned.rows), _),
-  )
-
-  row.segment_id
+  case list.first(returned.rows) {
+    Ok(row) -> Ok(row.segment_id)
+    Error(_) -> Error(AssignmentFailure(id: segment))
+  }
 }
 
 /// Assign an Expertise to a Startup and returns the ID of the expertise
@@ -582,29 +529,21 @@ pub fn assign_expertise(
       Error(pog.ConstraintViolated(
         constraint: "startup_expertise_expertise_id_fkey",
         ..,
-      )) ->
-        AssignedMissingExpertise(id: expertise)
-        |> AssignmentFailure
-        |> Error
+      )) -> Error(AssignedMissingEntity(id: expertise))
 
       // Expertise has already been assigned to the given Startup
       Error(pog.ConstraintViolated(constraint: "startup_expertise_pkey", ..)) ->
-        ExpertiseAssignmentConflict(id: expertise)
-        |> AssignmentFailure
-        |> Error
+        Error(AssignmentConflict(id: expertise))
 
       Ok(rows) -> Ok(rows)
       Error(error) -> Error(DatabaseError(error))
     },
   )
 
-  use row <- result.map(
-    FailedToAssignExpertise(id:)
-    |> AssignmentFailure
-    |> result.replace_error(list.first(returned.rows), _),
-  )
-
-  row.expertise_id
+  case list.first(returned.rows) {
+    Ok(row) -> Ok(row.expertise_id)
+    Error(_) -> Error(AssignmentFailure(id: expertise))
+  }
 }
 
 /// Get all expertises that a Startup is assigned to
@@ -674,28 +613,20 @@ pub fn assign_service(
     Error(pog.ConstraintViolated(
       constraint: "startup_service_service_id_fkey",
       ..,
-    )) ->
-      AssignedMissingService(id: service)
-      |> AssignmentFailure
-      |> Error
+    )) -> Error(AssignedMissingEntity(id: service))
 
     // Expertise has already been assigned to the given Startup
     Error(pog.ConstraintViolated(constraint: "startup_service_pkey", ..)) ->
-      ServiceAssignmentConflict(id: service)
-      |> AssignmentFailure
-      |> Error
+      Error(AssignmentConflict(id: service))
 
     Ok(rows) -> Ok(rows)
     Error(error) -> Error(DatabaseError(error))
   })
 
-  use row <- result.map(
-    FailedToAssignService(id: service)
-    |> AssignmentFailure
-    |> result.replace_error(list.first(returned.rows), _),
-  )
-
-  row.service_id
+  case list.first(returned.rows) {
+    Ok(row) -> Ok(row.service_id)
+    Error(_) -> Error(AssignmentFailure(id: service))
+  }
 }
 
 /// Assign a Technology to a Startup and returns the ID of the technology
@@ -733,27 +664,19 @@ pub fn assign_technology(
       Error(pog.ConstraintViolated(
         constraint: "startup_technology_technology_id_fkey",
         ..,
-      )) ->
-        AssignedMissingTechnology(id: technology)
-        |> AssignmentFailure
-        |> Error
+      )) -> Error(AssignedMissingEntity(id: technology))
 
       // Technology has already been assigned to the given Startup
       Error(pog.ConstraintViolated(constraint: "startup_technology_pkey", ..)) ->
-        TechnologyAssignmentConflict(id: technology)
-        |> AssignmentFailure
-        |> Error
+        Error(AssignmentConflict(id: technology))
 
       Ok(rows) -> Ok(rows)
       Error(error) -> Error(DatabaseError(error))
     },
   )
 
-  use row <- result.map(
-    FailedToAssignTechnology(id: technology)
-    |> AssignmentFailure
-    |> result.replace_error(list.first(returned.rows), _),
-  )
-
-  row.technology_id
+  case list.first(returned.rows) {
+    Ok(row) -> Ok(row.technology_id)
+    Error(_) -> Error(AssignmentFailure(id: technology))
+  }
 }
