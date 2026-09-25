@@ -168,11 +168,10 @@ pub fn member_assignment_conflict_test() -> Nil {
     startup.assign_member(context.database, startup.id, assign: member.id)
 
   // Assigning twice, this should return an Error
-  let assert Error(startup.AssignmentFailure(startup.MemberAssignmentConflict(
-    conflicted_id,
-  ))) = startup.assign_member(context.database, startup.id, assign: member.id)
+  let assert Error(startup.AssignmentConflict(id)) =
+    startup.assign_member(context.database, startup.id, assign: member.id)
 
-  assert conflicted_id == member.id as "returned conflicted user id"
+  assert id == member.id as "returned conflicted user id"
 
   Nil
 }
@@ -211,9 +210,8 @@ pub fn assign_missing_users_to_startup_test() -> Nil {
     )
 
   let id = uuid.v7()
-  let assert Error(startup.AssignmentFailure(startup.AssignedMissingUser(
-    returned,
-  ))) = startup.assign_member(context.database, startup.id, assign: id)
+  let assert Error(startup.AssignedMissingEntity(returned)) =
+    startup.assign_member(context.database, startup.id, assign: id)
 
   assert id == returned
 
@@ -292,9 +290,7 @@ pub fn segment_assignment_conflict_test() -> Nil {
     )
 
   // Assigning twice, this one must return an Error.
-  let assert Error(startup.AssignmentFailure(startup.SegmentAssignmentConflict(
-    conflicted,
-  ))) =
+  let assert Error(startup.AssignmentConflict(returned)) =
     startup.assign_segment(
       context.database,
       startup.id,
@@ -302,7 +298,7 @@ pub fn segment_assignment_conflict_test() -> Nil {
       as_main_segment: True,
     )
 
-  assert conflicted == want.id as "returned conflicted segment"
+  assert returned == want.id as "returned conflicted segment"
 
   Nil
 }
@@ -344,9 +340,7 @@ pub fn assign_missing_segment_to_startup_test() -> Nil {
     )
 
   let id = uuid.v7()
-  let assert Error(startup.AssignmentFailure(startup.AssignedMissingSegment(
-    returned,
-  ))) =
+  let assert Error(startup.AssignedMissingEntity(returned)) =
     startup.assign_segment(
       context.database,
       startup.id,
@@ -552,9 +546,8 @@ pub fn assign_startup_to_missing_expertise_test() -> Nil {
     )
 
   let id = uuid.v7()
-  let assert Error(startup.AssignmentFailure(startup.AssignedMissingExpertise(
-    returned,
-  ))) = startup.assign_expertise(context.database, startup.id, assign: id)
+  let assert Error(startup.AssignedMissingEntity(returned)) =
+    startup.assign_expertise(context.database, startup.id, assign: id)
 
   assert returned == id as "returned id of the missing expertise"
 
@@ -589,9 +582,7 @@ pub fn expertise_assignment_conflict() -> Nil {
   assert returned == expertise.id
 
   // You can not assign the same expertise twice
-  let assert Error(startup.AssignmentFailure(startup.ExpertiseAssignmentConflict(
-    returned,
-  ))) =
+  let assert Error(startup.AssignmentConflict(returned)) =
     startup.assign_expertise(context.database, startup.id, assign: expertise.id)
 
   assert returned == expertise.id

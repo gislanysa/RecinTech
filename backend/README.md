@@ -86,4 +86,17 @@ erDiagram
     uuid startup_id PK, FK
     uuid service_id PK, FK
   }
+
+  TECHNOLOGY {
+    uuid id PK
+    text name
+    text description
+  }
+
+  STARTUP_TECHNOLOGY }o..o{ STARTUP : has
+  STARTUP_TECHNOLOGY }o..o{ TECHNOLOGY : has
+  STARTUP_TECHNOLOGY {
+    uuid startup_id PK, FK
+    uuid technology_id PK, FK
+  }
 ```

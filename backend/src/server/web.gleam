@@ -194,72 +194,17 @@ fn handle_startup_error(error: startup.StartupError) -> wisp.Response {
         <> value,
       )
 
-    startup.AssignmentFailure(error) -> handle_startup_assignment_error(error)
-  }
-}
-
-/// Handle startup.AssignmentError errors
-fn handle_startup_assignment_error(
-  error: startup.AssignmentError,
-) -> wisp.Response {
-  case error {
-    // user errors -------------------------------------------------------------
-    startup.FailedToAssignMember(id) ->
+    startup.AssignmentFailure(id:) ->
       wisp.internal_server_error()
-      |> wisp.string_body("Failed to assign User " <> uuid.to_string(id))
+      |> wisp.string_body("Failed to assign " <> uuid.to_string(id))
 
-    startup.MemberAssignmentConflict(id) ->
+    startup.AssignmentConflict(id:) ->
       wisp.response(409)
-      |> wisp.string_body("User " <> uuid.to_string(id) <> " already assigned")
+      |> wisp.string_body(uuid.to_string(id) <> " is already assigned")
 
-    startup.AssignedMissingUser(id) ->
+    startup.AssignedMissingEntity(id:) ->
       wisp.not_found()
-      |> wisp.string_body("User " <> uuid.to_string(id) <> " not found")
-
-    startup.AssignedMissingSegment(id) ->
-      wisp.not_found()
-      |> wisp.string_body("Segment " <> uuid.to_string(id) <> " not found")
-
-    // segment errors ----------------------------------------------------------
-    startup.FailedToAssignSegment(id) ->
-      wisp.internal_server_error()
-      |> wisp.string_body("Failed to assign Segment " <> uuid.to_string(id))
-
-    startup.SegmentAssignmentConflict(id) ->
-      wisp.response(409)
-      |> wisp.string_body(
-        "Segment " <> uuid.to_string(id) <> " already assigned",
-      )
-
-    // expertise errors --------------------------------------------------------
-    startup.AssignedMissingExpertise(id) ->
-      wisp.not_found()
-      |> wisp.string_body("Expertise " <> uuid.to_string(id) <> " not found")
-
-    startup.ExpertiseAssignmentConflict(id) ->
-      wisp.response(409)
-      |> wisp.string_body(
-        "Expertise " <> uuid.to_string(id) <> " already assigned",
-      )
-
-    startup.FailedToAssignExpertise(id) ->
-      wisp.internal_server_error()
-      |> wisp.string_body("Failed to assign Expertise " <> uuid.to_string(id))
-
-    // service errors ----------------------------------------------------------
-    startup.AssignedMissingService(id) ->
-      wisp.not_found()
-      |> wisp.string_body("Service " <> uuid.to_string(id) <> " not found")
-
-    startup.ServiceAssignmentConflict(id) ->
-      wisp.response(409)
-      |> wisp.string_body(
-        "Service " <> uuid.to_string(id) <> " already assigned",
-      )
-
-    startup.FailedToAssignService(id) ->
-      wisp.internal_server_error()
-      |> wisp.string_body("Failed to assign Expertise " <> uuid.to_string(id))
+      |> wisp.string_body("Entity " <> uuid.to_string(id) <> " was not found")
   }
 }
 

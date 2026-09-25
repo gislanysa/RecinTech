@@ -1,10 +1,4 @@
-CREATE TYPE startup_stage AS enum (
-    'idea_stage',
-    'pre_seed',
-    'seed',
-    'growth',
-    'late_stage'
-);
+CREATE TYPE startup_stage AS enum ('seed', 'growth');
 
 CREATE TYPE investor_kind AS enum (
     'angel',
@@ -35,7 +29,7 @@ CREATE TABLE segment (
 CREATE TABLE startup (
     id uuid DEFAULT uuidv7(),
     name text NOT NULL,
-    stage startup_stage NOT NULL DEFAULT 'idea_stage',
+    stage startup_stage NOT NULL DEFAULT 'seed',
     cnpj text UNIQUE NOT NULL CHECK (length(cnpj) = 14),
     description text NOT NULL,
     city text NOT NULL,
@@ -119,3 +113,20 @@ CREATE TABLE startup_service (
 CREATE INDEX idx_startup_service_startup_id ON startup_service (startup_id);
 
 CREATE INDEX idx_startup_service_service_id ON startup_service (service_id);
+
+CREATE TABLE technology(
+    id uuid DEFAULT uuidv7(),
+    name text NOT NULL,
+    description text NOT NULL,
+    PRIMARY KEY(id)
+);
+
+CREATE TABLE startup_technology (
+    startup_id uuid NOT NULL REFERENCES startup (id) ON DELETE CASCADE,
+    technology_id uuid NOT NULL REFERENCES technology (id) ON DELETE CASCADE,
+    PRIMARY KEY(startup_id, technology_id)
+);
+
+CREATE INDEX idx_startup_technology_startup_id ON startup_technology (startup_id);
+
+CREATE INDEX idx_startup_technology_technology_id ON startup_technology (technology_id);
