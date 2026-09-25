@@ -83,7 +83,7 @@ export default function ParaStartups() {
         </section>
 
         <section className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:py-20">
-          {/* Como funciona, do ponto de vista da startup. */}
+          {/* Como funciona (ponto de vista da startup.) */}
           <ol className="grid gap-5 md:grid-cols-3">
             {PASSOS.map(({ icon: Icon, titulo, texto }) => (
               <li key={titulo} className="rounded-card border border-brand-100 bg-surface p-6">
@@ -109,7 +109,7 @@ export default function ParaStartups() {
             ))}
           </ol>
 
-          {/* Checklist + cadastro gratuito. */}
+          {/* Checklist + cadastro. */}
           <div className="mt-10 grid gap-8 rounded-card border border-brand-100 bg-surface p-8 md:grid-cols-2">
             <div>
               <h2 className="text-xl font-semibold">Checklist do perfil ideal</h2>
@@ -150,9 +150,8 @@ export default function ParaStartups() {
 }
 
 /**
- * Sanfona simples com <button> + estado local — mesmo padrão usado em
- * `ComoFunciona.tsx` (sem lib de UI). Duplicado por enquanto; se aparecer
- * uma terceira página com FAQ, vale extrair um componente compartilhado.
+ * Sanfona simples sem lib de UI. (Duplicado por enquanto; se aparecer
+ * uma terceira página com FAQ, vale extrair um componente compartilhado.)
  */
 function FAQ() {
   const [aberta, setAberta] = useState<number | null>(null)
