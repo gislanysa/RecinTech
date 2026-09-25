@@ -3,14 +3,21 @@ import FormularioEmpresa from '@/components/signup/FormularioEmpresa.tsx'
 import FormularioStartup from '@/components/signup/FormularioStartup.tsx'
 import Logo from '@/components/Logo.tsx'
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 
 type TipoConta = 'startup' | 'empresa'
 type Step = 'escolha' | 'formulario'
 
+function tipoDaUrl(valor: string | null): TipoConta | null {
+  return valor === 'startup' || valor === 'empresa' ? valor : null
+}
+
 export default function CriarConta() {
-  const [step, setStep] = useState<Step>('escolha')
-  const [tipo, setTipo] = useState<TipoConta | null>(null)
+  const [params] = useSearchParams()
+  const tipoPreSelecionado = tipoDaUrl(params.get('tipo'))
+
+  const [step, setStep] = useState<Step>(tipoPreSelecionado ? 'formulario' : 'escolha')
+  const [tipo, setTipo] = useState<TipoConta | null>(tipoPreSelecionado)
 
   function handleEscolher(t: TipoConta) {
     setTipo(t)
