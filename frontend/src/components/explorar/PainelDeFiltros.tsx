@@ -44,9 +44,10 @@ export function cidadesDisponiveis(startups: StartupCatalogo[]): string[] {
 type Chave = 'areas' | 'services' | 'technologies' | 'segments' | 'states' | 'cities'
 
 type PainelDeFiltrosProps = {
-  filtros: Filtros
-  setFiltros: (f: Filtros) => void
+  rascunho: Filtros
+  setRascunho: (f: Filtros) => void
   cidades: string[]
+  onAplicar: () => void
   onLimpar: () => void
 }
 
@@ -55,11 +56,11 @@ type PainelDeFiltrosProps = {
  * projeto — ver `icons.tsx`). "Área de atuação" e "Serviços" abrem por
  * padrão, o resto começa fechado, igual ao protótipo.
  */
-export default function PainelDeFiltros({ filtros, setFiltros, cidades, onLimpar }: PainelDeFiltrosProps) {
+export default function PainelDeFiltros({ rascunho, setRascunho, cidades, onAplicar, onLimpar }: PainelDeFiltrosProps) {
   function alternar(chave: Chave, opcao: string) {
-    const atual = filtros[chave]
+    const atual = rascunho[chave]
     const proximo = atual.includes(opcao) ? atual.filter((o) => o !== opcao) : [...atual, opcao]
-    setFiltros({ ...filtros, [chave]: proximo })
+    setRascunho({ ...rascunho, [chave]: proximo })
   }
 
   return (
@@ -67,26 +68,26 @@ export default function PainelDeFiltros({ filtros, setFiltros, cidades, onLimpar
       <Grupo
         titulo="Área de atuação"
         opcoes={AREAS}
-        valor={filtros.areas}
+        valor={rascunho.areas}
         aoAlternar={(o) => alternar('areas', o)}
         abertoPorPadrao
       />
       <Grupo
         titulo="Serviços"
         opcoes={SERVICES}
-        valor={filtros.services}
+        valor={rascunho.services}
         aoAlternar={(o) => alternar('services', o)}
         abertoPorPadrao
       />
-      <Grupo titulo="Tecnologias" opcoes={TECHNOLOGIES} valor={filtros.technologies} aoAlternar={(o) => alternar('technologies', o)} />
-      <Grupo titulo="Segmento" opcoes={SEGMENTS} valor={filtros.segments} aoAlternar={(o) => alternar('segments', o)} />
+      <Grupo titulo="Tecnologias" opcoes={TECHNOLOGIES} valor={rascunho.technologies} aoAlternar={(o) => alternar('technologies', o)} />
+      <Grupo titulo="Segmento" opcoes={SEGMENTS} valor={rascunho.segments} aoAlternar={(o) => alternar('segments', o)} />
 
       <GrupoAberto titulo="Localização">
         <div className="space-y-3">
           <p className="text-xs font-medium uppercase tracking-wide text-ink-500">Estado</p>
           <div className="flex flex-wrap gap-1.5">
             {STATES.map((uf) => (
-              <ChipFiltro key={uf} ativo={filtros.states.includes(uf)} onClick={() => alternar('states', uf)}>
+              <ChipFiltro key={uf} ativo={rascunho.states.includes(uf)} onClick={() => alternar('states', uf)}>
                 {uf}
               </ChipFiltro>
             ))}
@@ -97,7 +98,7 @@ export default function PainelDeFiltros({ filtros, setFiltros, cidades, onLimpar
           <p className="text-xs font-medium uppercase tracking-wide text-ink-500">Cidade</p>
           <div className="flex flex-wrap gap-1.5">
             {cidades.map((cidade) => (
-              <ChipFiltro key={cidade} ativo={filtros.cities.includes(cidade)} onClick={() => alternar('cities', cidade)}>
+              <ChipFiltro key={cidade} ativo={rascunho.cities.includes(cidade)} onClick={() => alternar('cities', cidade)}>
                 {cidade}
               </ChipFiltro>
             ))}
@@ -107,22 +108,29 @@ export default function PainelDeFiltros({ filtros, setFiltros, cidades, onLimpar
         <div className="mt-4 space-y-2.5 border-t border-brand-100 pt-4">
           <ToggleLinha
             rotulo="Atendimento remoto"
-            marcado={filtros.remote}
-            onChange={(v) => setFiltros({ ...filtros, remote: v })}
+            marcado={rascunho.remote}
+            onChange={(v) => setRascunho({ ...rascunho, remote: v })}
           />
           <ToggleLinha
             rotulo="Atendimento presencial"
-            marcado={filtros.onsite}
-            onChange={(v) => setFiltros({ ...filtros, onsite: v })}
+            marcado={rascunho.onsite}
+            onChange={(v) => setRascunho({ ...rascunho, onsite: v })}
           />
         </div>
       </GrupoAberto>
 
-      <div className="pt-4">
+      <div className="flex flex-col gap-2 pt-4">
+        <button
+          type="button"
+          onClick={onAplicar}
+          className="rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-700"
+        >
+          Aplicar filtros
+        </button>
         <button
           type="button"
           onClick={onLimpar}
-          className="w-full rounded-xl px-4 py-2.5 text-sm font-medium text-ink-500 transition-colors hover:bg-brand-50 hover:text-ink-700"
+          className="rounded-xl px-4 py-2.5 text-sm font-medium text-ink-500 transition-colors hover:bg-brand-50 hover:text-ink-700"
         >
           Limpar filtros
         </button>
