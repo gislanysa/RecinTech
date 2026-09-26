@@ -82,7 +82,6 @@ pub fn handle_request(
 /// [
 ///   {
 ///    "id": "01a058ae-057f-73e8-b2a0-50986559767b",
-///    "segment_id": "01a058ae-057c-717a-ad81-f36b3be5c737",
 ///    "name": "Critic Level",
 ///    "stage": "seed",
 ///    "cnpj": "12345678901234",
@@ -93,7 +92,6 @@ pub fn handle_request(
 ///   },
 ///   {
 ///    "id": "01a0dbb3-153a-7b84-8c3d-631788972d4a",
-///    "segment_id": "01a058ae-057c-717a-ad81-f36b3be5c737",
 ///    "name": "Virada no Cafe",
 ///    "stage": "growth",
 ///    "cnpj": "12345678901234",
