@@ -245,12 +245,7 @@ pub fn assign_segment_to_startup_test() -> Nil {
 
   // We can assign more than one but in this test we are using a single ID
   let assert Ok(got) =
-    startup.assign_segment(
-      context.database,
-      startup.id,
-      assign: want.id,
-      as_main_segment: False,
-    )
+    startup.assign_segment(context.database, startup.id, assign: want.id)
 
   assert got == want.id as "should return a successfully assigned segment"
 
@@ -283,21 +278,11 @@ pub fn segment_assignment_conflict_test() -> Nil {
 
   // Assigning once
   let assert Ok(_) =
-    startup.assign_segment(
-      context.database,
-      startup.id,
-      assign: want.id,
-      as_main_segment: False,
-    )
+    startup.assign_segment(context.database, startup.id, assign: want.id)
 
   // Assigning twice, this one must return an Error.
   let assert Error(startup.AssignmentConflict(returned)) =
-    startup.assign_segment(
-      context.database,
-      startup.id,
-      assign: want.id,
-      as_main_segment: True,
-    )
+    startup.assign_segment(context.database, startup.id, assign: want.id)
 
   assert returned == want.id as "returned conflicted segment"
 
@@ -312,12 +297,7 @@ pub fn assign_segment_to_missing_startup_test() -> Nil {
     segment.register(context.database, name: "gaming", description: "yes")
 
   let assert Error(startup.NotFound(returned)) =
-    startup.assign_segment(
-      context.database,
-      want,
-      assign: segment.id,
-      as_main_segment: True,
-    )
+    startup.assign_segment(context.database, want, assign: segment.id)
 
   assert returned == want as "returned missing startup id"
 
@@ -342,12 +322,7 @@ pub fn assign_missing_segment_to_startup_test() -> Nil {
 
   let id = uuid.v7()
   let assert Error(startup.AssignedMissingEntity(returned)) =
-    startup.assign_segment(
-      context.database,
-      startup.id,
-      assign: id,
-      as_main_segment: True,
-    )
+    startup.assign_segment(context.database, startup.id, assign: id)
 
   assert returned == id
 
@@ -387,12 +362,7 @@ pub fn get_startup_segments_test() -> Nil {
 
   // Assigning first segment
   let assert Ok(_) =
-    startup.assign_segment(
-      context.database,
-      startup.id,
-      assign: segment_iot.id,
-      as_main_segment: True,
-    )
+    startup.assign_segment(context.database, startup.id, assign: segment_iot.id)
 
   // Assigning a second segment
   let assert Ok(_) =
@@ -400,7 +370,6 @@ pub fn get_startup_segments_test() -> Nil {
       context.database,
       startup.id,
       assign: segment_cloud.id,
-      as_main_segment: False,
     )
 
   let assert Ok(got) = startup.get_segments(context.database, from: startup.id)
