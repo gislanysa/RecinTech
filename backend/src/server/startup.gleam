@@ -11,6 +11,7 @@ import server/cnpj
 import server/email
 import server/segment
 import server/startup/expertise
+import server/startup/service
 import server/startup/sql
 import server/user
 import youid/uuid
@@ -576,6 +577,35 @@ pub fn get_expertises(
       name: row.name,
       description: row.description,
     )
+  })
+}
+
+/// Get all services that a Startup is assigned to
+///
+/// ## Examples
+///
+/// ```gleam
+/// let result = startup.get_services(context.database, id)
+///
+/// case result {
+///   Ok(services) -> todo as "send response"
+///   Error(startup.NotFound(_)) -> wisp.not_found()
+///   Error(_) -> wisp.internal_server_error()
+/// }
+/// ```
+pub fn get_services(
+  database: pog.Connection,
+  id: uuid.Uuid,
+) -> Result(List(service.Service), StartupError) {
+  use <- ensure_exists(database, id)
+
+  use returned <- result.map(
+    sql.get_services(database, id)
+    |> result.map_error(DatabaseError),
+  )
+
+  list.map(returned.rows, fn(row) {
+    service.Service(id: row.id, name: row.name, description: row.description)
   })
 }
 

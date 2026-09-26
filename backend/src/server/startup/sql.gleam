@@ -542,6 +542,49 @@ WHERE
   |> pog.execute(db)
 }
 
+/// A row you get from running the `get_services` query
+/// defined in `./src/server/startup/sql/get_services.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v4.7.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type GetServicesRow {
+  GetServicesRow(id: Uuid, name: String, description: String)
+}
+
+/// select all services from a startup
+///
+/// > 🐿️ This function was generated automatically using v4.7.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn get_services(
+  db: pog.Connection,
+  arg_1: Uuid,
+) -> Result(pog.Returned(GetServicesRow), pog.QueryError) {
+  let decoder = {
+    use id <- decode.field(0, uuid_decoder())
+    use name <- decode.field(1, decode.string)
+    use description <- decode.field(2, decode.string)
+    decode.success(GetServicesRow(id:, name:, description:))
+  }
+
+  "-- select all services from a startup
+SELECT
+    s.id,
+    s.name,
+    s.description
+FROM
+    service AS s
+    INNER JOIN startup_service AS ss ON ss.service_id = s.id
+WHERE
+    ss.startup_id = $1::uuid;
+"
+  |> pog.query
+  |> pog.parameter(pog.text(uuid.to_string(arg_1)))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
 /// A row you get from running the `register` query
 /// defined in `./src/server/startup/sql/register.sql`.
 ///
