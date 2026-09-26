@@ -15,6 +15,7 @@ import server/cnpj
 import server/email
 import server/segment
 import server/startup
+import server/startup/expertise
 import server/startup/service
 import server/startup/technology
 import server/user
@@ -80,6 +81,9 @@ pub fn handle_request(
     http.Get, ["api", "startup", "service", id] ->
       get_startup_services(context.database, id)
 
+    http.Get, ["api", "startup", "expertise", id] ->
+      get_startup_expertises(context.database, id)
+
     http.Get, ["api", "startup", "technology", id] ->
       get_startup_technologies(context.database, id)
 
@@ -88,6 +92,40 @@ pub fn handle_request(
 
     // fallback ----------------------------------------------------------------
     _, _ -> wisp.not_found()
+  }
+}
+
+/// **GET /api/startup/expertise/:id**
+///
+/// 200 OK
+///
+/// ```json
+/// [
+///   {
+///    "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+///    "name": "Education",
+///    "description": "",
+///   },
+///   {
+///    "id": "01a0dbb3-153a-7b84-8c3d-631788972d4a",
+///    "name": "Health",
+///    "description": "Medical stuff",
+///   },
+/// ]
+/// ```
+pub fn get_startup_expertises(
+  database: pog.Connection,
+  id: String,
+) -> wisp.Response {
+  use id <- require_valid_uuid(id)
+
+  case startup.get_expertises(database, id) {
+    Ok(data) ->
+      json.array(data, expertise.to_json)
+      |> json.to_string()
+      |> wisp.json_response(200)
+
+    Error(error) -> handle_startup_error(error)
   }
 }
 
@@ -133,13 +171,13 @@ pub fn get_startup_services(
 /// [
 ///   {
 ///    "id": "01a058ae-057f-73e8-b2a0-50986559767b",
-///    "name": "Health",
-///    "description": "Medic stuff",
+///    "name": "Tech",
+///    "description": "",
 ///   },
 ///   {
 ///    "id": "01a0dbb3-153a-7b84-8c3d-631788972d4a",
-///    "name": "Iot",
-///    "description": "Embedded devices",
+///    "name": "Biotech",
+///    "description": "",
 ///   },
 /// ]
 /// ```

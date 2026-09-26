@@ -1,3 +1,5 @@
+//// Startup segments like technology, finances, biotechnology.
+
 import gleam/dynamic/decode
 import gleam/json
 import gleam/list

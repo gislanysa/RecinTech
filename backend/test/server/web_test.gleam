@@ -7,6 +7,7 @@ import server/cnpj
 import server/email
 import server/segment
 import server/startup
+import server/startup/expertise
 import server/startup/service
 import server/startup/technology
 import server/user
@@ -362,6 +363,61 @@ pub fn get_startup_technologies_test() -> Nil {
   // Both need to be present
   assert list.contains(returned, technology_a)
   assert list.contains(returned, technology_b)
+
+  Nil
+}
+
+pub fn get_startup_expertises_test() -> Nil {
+  use context <- server_test.with_context()
+
+  // Startup
+  let assert Ok(cnpj) = cnpj.parse("12345678901234")
+  let assert Ok(startup) =
+    startup.register(
+      context.database,
+      name: "Bio AI",
+      stage: startup.Seed,
+      cnpj: cnpj,
+      description: "",
+      city: "Recife",
+      state: "Pernambuco",
+    )
+
+  // First expertise
+  let assert Ok(expertise_a) =
+    expertise.register(context.database, name: "Tech", description: "")
+
+  let assert Ok(_) =
+    startup.assign_expertise(
+      context.database,
+      startup.id,
+      assign: expertise_a.id,
+    )
+
+  // Second expertise
+  let assert Ok(expertise_b) =
+    expertise.register(context.database, name: "BioTech", description: "")
+
+  let assert Ok(_) =
+    startup.assign_expertise(
+      context.database,
+      startup.id,
+      assign: expertise_b.id,
+    )
+
+  // Request
+  let id = uuid.to_string(startup.id)
+  let response =
+    simulate.browser_request(http.Get, "/api/startup/expertise/" <> id)
+    |> web.handle_request(context)
+
+  assert response.status == 200
+  let body = simulate.read_body(response)
+  let assert Ok(returned) = json.parse(body, decode.list(expertise.decoder()))
+
+  // Both need to be present
+  assert list.contains(returned, expertise_a)
+  assert list.contains(returned, expertise_b)
 
   Nil
 }
