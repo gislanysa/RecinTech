@@ -13,6 +13,7 @@ import lustre/element/html
 import pog
 import server/cnpj
 import server/email
+import server/segment
 import server/startup
 import server/user
 import wisp
@@ -67,10 +68,47 @@ pub fn handle_request(
     http.Get, ["api", "startup"] -> get_many_startups(request, context.database)
     http.Get, ["api", "startup", id] -> get_startup_by_id(context.database, id)
 
+    http.Get, ["api", "startup", "segment", id] ->
+      get_startup_segments(context.database, id)
+
     http.Get, ["api", "user", id] -> get_user_by_id(context.database, id)
 
     // fallback
     _, _ -> wisp.not_found()
+  }
+}
+
+/// **GET /api/startup/segment/:id**
+///
+/// 200 OK
+///
+/// ```json
+/// [
+///   {
+///    "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+///    "name": "Health",
+///    "description": "Medic stuff",
+///   },
+///   {
+///    "id": "01a0dbb3-153a-7b84-8c3d-631788972d4a",
+///    "name": "Iot",
+///    "description": "Embedded devices",
+///   },
+/// ]
+/// ```
+pub fn get_startup_segments(
+  database: pog.Connection,
+  id: String,
+) -> wisp.Response {
+  use id <- require_valid_uuid(id)
+
+  case startup.get_segments(database, id) {
+    Ok(data) ->
+      json.array(data, segment.to_json)
+      |> json.to_string()
+      |> wisp.json_response(200)
+
+    Error(error) -> handle_startup_error(error)
   }
 }
 
