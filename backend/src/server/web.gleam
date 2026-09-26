@@ -47,9 +47,7 @@ type WebError {
 /// ## Examples
 ///
 /// ```gleam
-/// let assert Ok(request) = request.to("http://localhost/api/users")
 /// let response = web.handle_request(request, context)
-///
 /// assert response.status == 200
 /// ```
 pub fn handle_request(
@@ -59,22 +57,29 @@ pub fn handle_request(
   use request <- middleware(request, context)
 
   case request.method, request.path_segments(request) {
-    // healthcheck -------------------------------------------------------------
+    // ## HEALTHCHECK
+    //
+    // Check if the HTTP server is running correctly.
     http.Get, ["api", "healthcheck"] -> wisp.ok()
 
-    // Client ------------------------------------------------------------------
+    // ## CLIENT
+    //
+    // Send the HTML to the client.
     http.Get, [] -> get_root_document()
 
-    // API ---------------------------------------------------------------------
+    // ## AUTH
     //
-    // Auth
+    // Authorization / Authentication related routes.
     http.Post, ["api", "auth", "login"] -> login(request, context.database)
 
-    // Fetch startups
+    // ## STARTUP
+    //
+    // Querying, registering and assigning entities to startups.
     http.Get, ["api", "startup"] -> get_many_startups(request, context.database)
     http.Get, ["api", "startup", id] -> get_startup_by_id(context.database, id)
 
     // Fetching specific information about startups
+    //
     http.Get, ["api", "startup", "segment", id] ->
       get_startup_segments(context.database, id)
 
@@ -87,17 +92,21 @@ pub fn handle_request(
     http.Get, ["api", "startup", "technology", id] ->
       get_startup_technologies(context.database, id)
 
-    // Fetch users
+    // ## USER
+    //
+    // Querying, and registering users.
     http.Get, ["api", "user", id] -> get_user_by_id(context.database, id)
 
-    // fallback ----------------------------------------------------------------
+    // ## Fallback routes
     _, _ -> wisp.not_found()
   }
 }
 
 /// **GET /api/startup/expertise/:id**
 ///
-/// 200 OK
+/// Fetch all Expertises that a Startup is assigned to.
+///
+/// ## Response
 ///
 /// ```json
 /// [
@@ -113,6 +122,11 @@ pub fn handle_request(
 ///   },
 /// ]
 /// ```
+///
+/// - 200 If successful.
+/// - 400 if ID is not a valid UUID.
+/// - 404 If Startup is not found.
+///
 pub fn get_startup_expertises(
   database: pog.Connection,
   id: String,
@@ -131,7 +145,9 @@ pub fn get_startup_expertises(
 
 /// **GET /api/startup/service/:id**
 ///
-/// 200 OK
+/// Fetch all Services that a Startup is assigned to.
+///
+/// ## Response
 ///
 /// ```json
 /// [
@@ -147,6 +163,11 @@ pub fn get_startup_expertises(
 ///   }
 /// ]
 /// ```
+///
+/// - 200 If successful.
+/// - 400 if ID is not a valid UUID.
+/// - 404 If Startup is not found.
+///
 pub fn get_startup_services(
   database: pog.Connection,
   id: String,
@@ -165,7 +186,9 @@ pub fn get_startup_services(
 
 /// **GET /api/startup/segment/:id**
 ///
-/// 200 OK
+/// Fetch all Segments that a Startup is assigned to.
+///
+/// ## Response
 ///
 /// ```json
 /// [
@@ -181,6 +204,11 @@ pub fn get_startup_services(
 ///   }
 /// ]
 /// ```
+///
+/// - 200 If successful.
+/// - 400 if ID is not a valid UUID.
+/// - 404 If Startup is not found.
+///
 pub fn get_startup_segments(
   database: pog.Connection,
   id: String,
@@ -199,7 +227,9 @@ pub fn get_startup_segments(
 
 /// **GET /api/startup/technology/:id**
 ///
-/// 200 OK
+/// Fetch all Technologies that a Startup is assigned to.
+///
+/// ## Response
 ///
 /// ```json
 /// [
@@ -215,6 +245,11 @@ pub fn get_startup_segments(
 ///   }
 /// ]
 /// ```
+///
+/// - 200 If successful.
+/// - 400 if ID is not a valid UUID.
+/// - 404 If Startup is not found.
+///
 pub fn get_startup_technologies(
   database: pog.Connection,
   id: String,
@@ -233,7 +268,13 @@ pub fn get_startup_technologies(
 
 /// **GET /api/startup**
 ///
-/// 200 OK
+/// Fetch a list of registered Startups, pagination is available.
+///
+/// Required parameters:
+/// - limit: Int
+/// - offset: Int
+///
+/// ## Response
 ///
 /// ```json
 /// [
@@ -305,7 +346,8 @@ fn handle_error(error: WebError) -> wisp.Response {
   }
 }
 
-/// Send the necessary HTML for the client-side application.
+/// Send the necessary HTML for the client-side application. The user will
+/// use it to communicate with the Server.
 pub fn get_root_document() -> wisp.Response {
   let body =
     html.html([], [
@@ -358,7 +400,9 @@ pub fn require_valid_uuid(
 
 /// **GET /api/user/:id**
 ///
-/// 200 OK
+/// Fetch information about an User.
+///
+/// ## Response
 ///
 /// ```json
 /// {
@@ -369,6 +413,10 @@ pub fn require_valid_uuid(
 ///  "is_active": true
 /// }
 /// ```
+///
+/// - 200 If successful.
+/// - 404 If User is not found.
+///
 pub fn get_user_by_id(database: pog.Connection, id: String) -> wisp.Response {
   use id <- require_valid_uuid(id)
 
@@ -384,7 +432,7 @@ pub fn get_user_by_id(database: pog.Connection, id: String) -> wisp.Response {
 
 /// **GET /api/startup/:id**
 ///
-/// 200 OK
+/// Fetch information about a Startup.
 ///
 /// ```json
 /// {
@@ -397,6 +445,10 @@ pub fn get_user_by_id(database: pog.Connection, id: String) -> wisp.Response {
 ///  "created_at": "2026-09-14T20:08:02.000Z"
 /// }
 /// ```
+///
+/// - 200 If successful.
+/// - 404 If Startup is not found.
+///
 pub fn get_startup_by_id(
   database: pog.Connection,
   id: String,
@@ -508,7 +560,7 @@ fn login_decoder() -> decode.Decoder(Login) {
   decode.success(Login(email:, password:))
 }
 
-/// **GET /api/auth/login**
+/// **POST /api/auth/login**
 ///
 /// Sets a session cookie if successful, it will last exactly one hour.
 ///
@@ -523,9 +575,9 @@ fn login_decoder() -> decode.Decoder(Login) {
 ///
 /// ## Response
 ///
-/// - 200 OK if successful.
-/// - 401 if email or password is incorrect.
-/// - 400 if email is not a valid format.
+/// - 200 If successful.
+/// - 401 If email or password is incorrect.
+/// - 400 If email is not a valid format.
 ///
 pub fn login(request: wisp.Request, database: pog.Connection) -> wisp.Response {
   use body <- wisp.require_json(request)
