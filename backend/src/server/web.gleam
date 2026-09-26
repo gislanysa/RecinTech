@@ -16,6 +16,7 @@ import server/email
 import server/segment
 import server/startup
 import server/startup/service
+import server/startup/technology
 import server/user
 import wisp
 import youid/uuid
@@ -74,6 +75,9 @@ pub fn handle_request(
 
     http.Get, ["api", "startup", "service", id] ->
       get_startup_services(context.database, id)
+
+    http.Get, ["api", "startup", "technology", id] ->
+      get_startup_technologies(context.database, id)
 
     http.Get, ["api", "user", id] -> get_user_by_id(context.database, id)
 
@@ -143,6 +147,40 @@ pub fn get_startup_segments(
   case startup.get_segments(database, id) {
     Ok(data) ->
       json.array(data, segment.to_json)
+      |> json.to_string()
+      |> wisp.json_response(200)
+
+    Error(error) -> handle_startup_error(error)
+  }
+}
+
+/// **GET /api/startup/technology/:id**
+///
+/// 200 OK
+///
+/// ```json
+/// [
+///   {
+///    "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+///    "name": "Javascript",
+///    "description": "dont",
+///   },
+///   {
+///    "id": "01a0dbb3-153a-7b84-8c3d-631788972d4a",
+///    "name": "Python",
+///    "description": "Please dont",
+///   },
+/// ]
+/// ```
+pub fn get_startup_technologies(
+  database: pog.Connection,
+  id: String,
+) -> wisp.Response {
+  use id <- require_valid_uuid(id)
+
+  case startup.get_technologies(database, id) {
+    Ok(data) ->
+      json.array(data, technology.to_json)
       |> json.to_string()
       |> wisp.json_response(200)
 

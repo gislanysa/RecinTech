@@ -8,6 +8,7 @@ import server/email
 import server/segment
 import server/startup
 import server/startup/service
+import server/startup/technology
 import server/user
 import server/web
 import server_test
@@ -316,6 +317,61 @@ pub fn get_startup_services_test() -> Nil {
   // Both need to be present
   assert list.contains(returned, service_a)
   assert list.contains(returned, service_b)
+
+  Nil
+}
+
+pub fn get_startup_technologies_test() -> Nil {
+  use context <- server_test.with_context()
+
+  // Startup
+  let assert Ok(cnpj) = cnpj.parse("12345678901234")
+  let assert Ok(startup) =
+    startup.register(
+      context.database,
+      name: "Critic Level",
+      stage: startup.Seed,
+      cnpj: cnpj,
+      description: "startup muito maneira",
+      city: "Recife",
+      state: "Pernambuco",
+    )
+
+  // First technology
+  let assert Ok(technology_a) =
+    technology.register(context.database, name: "gleam", description: ":)")
+
+  let assert Ok(_) =
+    startup.assign_technology(
+      context.database,
+      startup.id,
+      assign: technology_a.id,
+    )
+
+  // Second technology
+  let assert Ok(technology_b) =
+    technology.register(context.database, name: "OTP", description: ":)")
+
+  let assert Ok(_) =
+    startup.assign_technology(
+      context.database,
+      startup.id,
+      assign: technology_b.id,
+    )
+
+  // Request
+  let id = uuid.to_string(startup.id)
+  let response =
+    simulate.browser_request(http.Get, "/api/startup/technology/" <> id)
+    |> web.handle_request(context)
+
+  assert response.status == 200
+  let body = simulate.read_body(response)
+  let assert Ok(returned) = json.parse(body, decode.list(technology.decoder()))
+
+  // Both need to be present
+  assert list.contains(returned, technology_a)
+  assert list.contains(returned, technology_b)
 
   Nil
 }
