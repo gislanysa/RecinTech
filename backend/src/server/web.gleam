@@ -58,18 +58,22 @@ pub fn handle_request(
   use request <- middleware(request, context)
 
   case request.method, request.path_segments(request) {
-    // healthcheck
+    // healthcheck -------------------------------------------------------------
     http.Get, ["api", "healthcheck"] -> wisp.ok()
 
-    // Client
+    // Client ------------------------------------------------------------------
     http.Get, [] -> get_root_document()
 
-    // API
+    // API ---------------------------------------------------------------------
+    //
+    // Auth
     http.Post, ["api", "auth", "login"] -> login(request, context.database)
 
+    // Fetch startups
     http.Get, ["api", "startup"] -> get_many_startups(request, context.database)
     http.Get, ["api", "startup", id] -> get_startup_by_id(context.database, id)
 
+    // Fetching specific information about startups
     http.Get, ["api", "startup", "segment", id] ->
       get_startup_segments(context.database, id)
 
@@ -79,9 +83,10 @@ pub fn handle_request(
     http.Get, ["api", "startup", "technology", id] ->
       get_startup_technologies(context.database, id)
 
+    // Fetch users
     http.Get, ["api", "user", id] -> get_user_by_id(context.database, id)
 
-    // fallback
+    // fallback ----------------------------------------------------------------
     _, _ -> wisp.not_found()
   }
 }

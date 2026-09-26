@@ -110,7 +110,6 @@ pub fn assign_segment(
   db: pog.Connection,
   arg_1: Uuid,
   arg_2: Uuid,
-  arg_3: Bool,
 ) -> Result(pog.Returned(AssignSegmentRow), pog.QueryError) {
   let decoder = {
     use segment_id <- decode.field(0, uuid_decoder())
@@ -119,18 +118,16 @@ pub fn assign_segment(
 
   "-- assign a given Segment to a Startup
 INSERT INTO
-    public.startup_segment (startup_id, segment_id, is_main_segment)
+    public.startup_segment (startup_id, segment_id)
 SELECT
     $1::uuid AS startup_id,
-    $2::uuid AS segment_id,
-    $3::boolean AS is_main_segment
+    $2::uuid AS segment_id
 RETURNING
     segment_id;
 "
   |> pog.query
   |> pog.parameter(pog.text(uuid.to_string(arg_1)))
   |> pog.parameter(pog.text(uuid.to_string(arg_2)))
-  |> pog.parameter(pog.bool(arg_3))
   |> pog.returning(decoder)
   |> pog.execute(db)
 }

@@ -464,30 +464,27 @@ pub fn assign_segment(
   database: pog.Connection,
   id: uuid.Uuid,
   assign segment: uuid.Uuid,
-  as_main_segment as_main_segment: Bool,
 ) -> Result(uuid.Uuid, StartupError) {
-  use returned <- result.try(
-    case sql.assign_segment(database, id, segment, as_main_segment) {
-      // Tried to assign an Segment to a Startup that is not registered.
-      Error(pog.ConstraintViolated(
-        constraint: "startup_segment_startup_id_fkey",
-        ..,
-      )) -> Error(NotFound(id:))
+  use returned <- result.try(case sql.assign_segment(database, id, segment) {
+    // Tried to assign an Segment to a Startup that is not registered.
+    Error(pog.ConstraintViolated(
+      constraint: "startup_segment_startup_id_fkey",
+      ..,
+    )) -> Error(NotFound(id:))
 
-      // Tried to assign an Segment that is not registered.
-      Error(pog.ConstraintViolated(
-        constraint: "startup_segment_segment_id_fkey",
-        ..,
-      )) -> Error(AssignedMissingEntity(id: segment))
+    // Tried to assign an Segment that is not registered.
+    Error(pog.ConstraintViolated(
+      constraint: "startup_segment_segment_id_fkey",
+      ..,
+    )) -> Error(AssignedMissingEntity(id: segment))
 
-      // Segment has already been assigned to the given Startup
-      Error(pog.ConstraintViolated(constraint: "startup_segment_pkey", ..)) ->
-        Error(AssignmentConflict(id: segment))
+    // Segment has already been assigned to the given Startup
+    Error(pog.ConstraintViolated(constraint: "startup_segment_pkey", ..)) ->
+      Error(AssignmentConflict(id: segment))
 
-      Ok(rows) -> Ok(rows)
-      Error(error) -> Error(DatabaseError(error))
-    },
-  )
+    Ok(rows) -> Ok(rows)
+    Error(error) -> Error(DatabaseError(error))
+  })
 
   case list.first(returned.rows) {
     Ok(row) -> Ok(row.segment_id)

@@ -238,24 +238,14 @@ pub fn get_startup_segments_test() -> Nil {
     segment.register(context.database, name: "health", description: "")
 
   let assert Ok(_) =
-    startup.assign_segment(
-      context.database,
-      startup.id,
-      assign: segment_a.id,
-      as_main_segment: True,
-    )
+    startup.assign_segment(context.database, startup.id, assign: segment_a.id)
 
   // Second segment
   let assert Ok(segment_b) =
     segment.register(context.database, name: "iot", description: "")
 
   let assert Ok(_) =
-    startup.assign_segment(
-      context.database,
-      startup.id,
-      assign: segment_b.id,
-      as_main_segment: True,
-    )
+    startup.assign_segment(context.database, startup.id, assign: segment_b.id)
 
   // Request
   let id = uuid.to_string(startup.id)
