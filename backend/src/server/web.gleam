@@ -27,6 +27,17 @@ pub type Context {
   )
 }
 
+type WebError {
+  /// User related errors
+  UserError(user.UserError)
+  /// Startup related errors
+  StartupError(startup.StartupError)
+  /// Missing request query
+  MissingQuery
+  /// Invalid query parameter
+  InvalidQueryParameter(key: String)
+}
+
 /// Handle incoming HTTP requests
 ///
 /// ## Examples
@@ -63,44 +74,79 @@ pub fn handle_request(
   }
 }
 
-/// TODO:
+/// **GET /api/startup**
+///
+/// 200 OK
+///
+/// ```json
+/// [
+///   {
+///    "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+///    "segment_id": "01a058ae-057c-717a-ad81-f36b3be5c737",
+///    "name": "Critic Level",
+///    "stage": "seed",
+///    "cnpj": "12345678901234",
+///    "description": "startup muito maneira",
+///    "city": "Recife",
+///    "state": "Pernambuco",
+///    "created_at": "2026-09-14T20:08:02.000Z"
+///   },
+///   {
+///    "id": "01a0dbb3-153a-7b84-8c3d-631788972d4a",
+///    "segment_id": "01a058ae-057c-717a-ad81-f36b3be5c737",
+///    "name": "Virada no Cafe",
+///    "stage": "growth",
+///    "cnpj": "12345678901234",
+///    "description": "bem legal",
+///    "city": "Recife",
+///    "state": "Pernambuco",
+///    "created_at": "2025-09-14T20:08:02.000Z"
+///   },
+/// ]
+/// ```
 pub fn get_many_startups(
   request: wisp.Request,
   database: pog.Connection,
 ) -> wisp.Response {
-  // Get a query from the request, return bad request if missing or
-  // if value is not a valid Int.
-  let require_int = fn(query, key) {
-    use value <- result.try(
-      list.key_find(query, key)
-      |> result.replace_error(wisp.bad_request("Missing " <> key)),
-    )
-
-    int.parse(value)
-    |> result.replace_error(wisp.bad_request("Invalid " <> key))
-  }
-
-  let query_result = {
+  let result = {
     use query <- result.try(
       request.get_query(request)
-      |> result.replace_error(wisp.bad_request("Missing query")),
+      |> result.replace_error(MissingQuery),
     )
 
-    use limit <- result.try(require_int(query, "limit"))
-    use offset <- result.try(require_int(query, "offset"))
-
-    use data <- result.map(
-      startup.get_many(database, limit:, offset:)
-      |> result.map_error(handle_startup_error),
+    use limit <- result.try(
+      list.key_find(query, "limit")
+      |> result.try(int.parse)
+      |> result.replace_error(InvalidQueryParameter("limit")),
     )
 
-    json.array(data, startup.to_json)
-    |> json.to_string
-    |> wisp.json_response(200)
+    use offset <- result.try(
+      list.key_find(query, "offset")
+      |> result.try(int.parse)
+      |> result.replace_error(InvalidQueryParameter("offset")),
+    )
+
+    startup.get_many(database, limit:, offset:)
+    |> result.map_error(StartupError)
   }
 
-  case query_result {
-    Ok(response) | Error(response) -> response
+  case result {
+    Ok(data) ->
+      json.array(data, startup.to_json)
+      |> json.to_string
+      |> wisp.json_response(200)
+
+    Error(error) -> handle_error(error)
+  }
+}
+
+/// Handle WebError
+fn handle_error(error: WebError) -> wisp.Response {
+  case error {
+    UserError(error) -> handle_user_error(error)
+    StartupError(error) -> handle_startup_error(error)
+    MissingQuery -> wisp.bad_request("Missing query")
+    InvalidQueryParameter(key:) -> wisp.bad_request("Invalid " <> key)
   }
 }
 
