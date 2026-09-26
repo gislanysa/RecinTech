@@ -7,6 +7,7 @@ import server/cnpj
 import server/email
 import server/segment
 import server/startup
+import server/startup/service
 import server/user
 import server/web
 import server_test
@@ -268,6 +269,53 @@ pub fn get_startup_segments_test() -> Nil {
   // Both need to be present
   assert list.contains(returned, segment_a)
   assert list.contains(returned, segment_b)
+
+  Nil
+}
+
+pub fn get_startup_services_test() -> Nil {
+  use context <- server_test.with_context()
+
+  // Startup
+  let assert Ok(cnpj) = cnpj.parse("12345678901234")
+  let assert Ok(startup) =
+    startup.register(
+      context.database,
+      name: "Critic Level",
+      stage: startup.Seed,
+      cnpj: cnpj,
+      description: "startup muito maneira",
+      city: "Recife",
+      state: "Pernambuco",
+    )
+
+  // First service
+  let assert Ok(service_a) =
+    service.register(context.database, name: "web development", description: "")
+
+  let assert Ok(_) =
+    startup.assign_service(context.database, startup.id, assign: service_a.id)
+
+  // Second service
+  let assert Ok(service_b) =
+    service.register(context.database, name: "mobile", description: "")
+
+  let assert Ok(_) =
+    startup.assign_service(context.database, startup.id, assign: service_b.id)
+
+  // Request
+  let id = uuid.to_string(startup.id)
+  let response =
+    simulate.browser_request(http.Get, "/api/startup/service/" <> id)
+    |> web.handle_request(context)
+
+  assert response.status == 200
+  let body = simulate.read_body(response)
+  let assert Ok(returned) = json.parse(body, decode.list(service.decoder()))
+
+  // Both need to be present
+  assert list.contains(returned, service_a)
+  assert list.contains(returned, service_b)
 
   Nil
 }
