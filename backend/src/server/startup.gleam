@@ -13,6 +13,7 @@ import server/segment
 import server/startup/expertise
 import server/startup/service
 import server/startup/sql
+import server/startup/technology
 import server/user
 import youid/uuid
 
@@ -573,6 +574,39 @@ pub fn get_expertises(
 
   list.map(returned.rows, fn(row) {
     expertise.Expertise(
+      id: row.id,
+      name: row.name,
+      description: row.description,
+    )
+  })
+}
+
+/// Get all technologies that a Startup is assigned to
+///
+/// ## Examples
+///
+/// ```gleam
+/// let result = startup.get_technologies(context.database, id)
+///
+/// case result {
+///   Ok(technologies) -> todo as "send response"
+///   Error(startup.NotFound(_)) -> wisp.not_found()
+///   Error(_) -> wisp.internal_server_error()
+/// }
+/// ```
+pub fn get_technologies(
+  database: pog.Connection,
+  id: uuid.Uuid,
+) -> Result(List(technology.Technology), StartupError) {
+  use <- ensure_exists(database, id)
+
+  use returned <- result.map(
+    sql.get_technologies(database, id)
+    |> result.map_error(DatabaseError),
+  )
+
+  list.map(returned.rows, fn(row) {
+    technology.Technology(
       id: row.id,
       name: row.name,
       description: row.description,

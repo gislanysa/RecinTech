@@ -585,6 +585,49 @@ WHERE
   |> pog.execute(db)
 }
 
+/// A row you get from running the `get_technologies` query
+/// defined in `./src/server/startup/sql/get_technologies.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v4.7.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type GetTechnologiesRow {
+  GetTechnologiesRow(id: Uuid, name: String, description: String)
+}
+
+/// get all technologies that a given startup is assigned to
+///
+/// > 🐿️ This function was generated automatically using v4.7.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn get_technologies(
+  db: pog.Connection,
+  arg_1: Uuid,
+) -> Result(pog.Returned(GetTechnologiesRow), pog.QueryError) {
+  let decoder = {
+    use id <- decode.field(0, uuid_decoder())
+    use name <- decode.field(1, decode.string)
+    use description <- decode.field(2, decode.string)
+    decode.success(GetTechnologiesRow(id:, name:, description:))
+  }
+
+  "-- get all technologies that a given startup is assigned to
+SELECT
+    t.id,
+    t.name,
+    t.description
+FROM
+    public.technology AS t
+    INNER JOIN public.startup_technology AS st ON st.technology_id = t.id
+WHERE
+    st.startup_id = $1::uuid;
+"
+  |> pog.query
+  |> pog.parameter(pog.text(uuid.to_string(arg_1)))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
 /// A row you get from running the `register` query
 /// defined in `./src/server/startup/sql/register.sql`.
 ///
