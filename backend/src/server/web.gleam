@@ -138,13 +138,13 @@ pub fn get_startup_expertises(
 ///   {
 ///    "id": "01a058ae-057f-73e8-b2a0-50986559767b",
 ///    "name": "UI/UX",
-///    "description": "user experience",
+///    "description": "user experience"
 ///   },
 ///   {
 ///    "id": "01a0dbb3-153a-7b84-8c3d-631788972d4a",
 ///    "name": "Web development",
-///    "description": "sites and stuff",
-///   },
+///    "description": "Websites and http servers"
+///   }
 /// ]
 /// ```
 pub fn get_startup_services(
@@ -172,13 +172,13 @@ pub fn get_startup_services(
 ///   {
 ///    "id": "01a058ae-057f-73e8-b2a0-50986559767b",
 ///    "name": "Tech",
-///    "description": "",
+///    "description": ""
 ///   },
 ///   {
 ///    "id": "01a0dbb3-153a-7b84-8c3d-631788972d4a",
 ///    "name": "Biotech",
-///    "description": "",
-///   },
+///    "description": ""
+///   }
 /// ]
 /// ```
 pub fn get_startup_segments(
@@ -211,8 +211,8 @@ pub fn get_startup_segments(
 ///   {
 ///    "id": "01a0dbb3-153a-7b84-8c3d-631788972d4a",
 ///    "name": "Python",
-///    "description": "Please dont",
-///   },
+///    "description": "Please dont"
+///   }
 /// ]
 /// ```
 pub fn get_startup_technologies(
@@ -256,7 +256,7 @@ pub fn get_startup_technologies(
 ///    "city": "Recife",
 ///    "state": "Pernambuco",
 ///    "created_at": "2025-09-14T20:08:02.000Z"
-///   },
+///   }
 /// ]
 /// ```
 pub fn get_many_startups(
@@ -389,7 +389,6 @@ pub fn get_user_by_id(database: pog.Connection, id: String) -> wisp.Response {
 /// ```json
 /// {
 ///  "id": "01a058ae-057f-73e8-b2a0-50986559767b",
-///  "segment_id": "01a058ae-057c-717a-ad81-f36b3be5c737",
 ///  "name": "Critic Level",
 ///  "cnpj": "12345678901234",
 ///  "description": "startup muito maneira",
