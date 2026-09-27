@@ -326,7 +326,7 @@ export async function carregarTagsDaStartup(id: string): Promise<Tags> {
   ) as Record<(typeof RECURSOS_DE_TAG)[keyof typeof RECURSOS_DE_TAG], string[]>
 
   return {
-    area: porRecurso.expertises[0] ?? '',
+    area: porRecurso.expertises[0] ?? [],
     services: porRecurso.services,
     technologies: porRecurso.technologies,
     segments: porRecurso.segments,
