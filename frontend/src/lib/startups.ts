@@ -238,7 +238,7 @@ const RECURSOS_DE_TAG = {
 } as const
 
 type Tags = {
-  area: string
+  area: []string
   services: string[]
   technologies: string[]
   segments: string[]
