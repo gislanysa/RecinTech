@@ -244,7 +244,7 @@ type Tags = {
   segments: string[]
 }
 
-const SEM_TAGS: Tags = { area: '', services: [], technologies: [], segments: [] }
+const SEM_TAGS: Tags = { area: [], services: [], technologies: [], segments: [] }
 
 /** Iniciais para o avatar do card: "Mobilize Labs" -> "ML". */
 function iniciais(nome: string): string {
