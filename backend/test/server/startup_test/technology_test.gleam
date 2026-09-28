@@ -8,10 +8,11 @@ pub fn register_technology_test() -> Nil {
 
   let name = "Javascript"
   let description = "don't"
-  let assert Ok(got) =
+  let assert Ok(returned) =
     technology.register(context.database, name:, description:)
 
-  assert got == technology.Technology(id: got.id, name:, description:)
+  assert uuid.version(returned.id) == uuid.V7
+  assert returned == technology.Technology(id: returned.id, name:, description:)
 
   Nil
 }

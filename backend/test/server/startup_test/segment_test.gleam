@@ -8,11 +8,11 @@ pub fn register_segment_test() -> Nil {
   let name = "tech"
   let description = "modern technology"
 
-  let assert Ok(segment) =
+  let assert Ok(returned) =
     segment.register(context.database, name:, description:)
 
-  assert segment.name == name
-  assert segment.description == description
+  assert uuid.version(returned.id) == uuid.V7
+  assert returned == segment.Segment(id: returned.id, name:, description:)
 
   Nil
 }
