@@ -35,7 +35,7 @@ fn global_context() -> web.Context {
 ///   use context <- server_test.with_context()
 ///
 ///   // resources will be cleaned up
-///   case user.register(context.database, todo) {
+///   case startup.register(context.database, todo) {
 ///     Ok(_data) -> todo as "handle data"
 ///     Error(_error) -> todo as "handle error"
 ///   }

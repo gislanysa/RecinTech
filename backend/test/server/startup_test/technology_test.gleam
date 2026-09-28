@@ -1,3 +1,4 @@
+import server/dummy
 import server/startup/technology
 import server_test
 import youid/uuid
@@ -18,15 +19,10 @@ pub fn register_technology_test() -> Nil {
 pub fn get_technology_test() -> Nil {
   use context <- server_test.with_context()
 
-  let assert Ok(want) =
-    technology.register(
-      context.database,
-      name: "Go",
-      description: "this one is cool sometimes",
-    )
+  let technology = dummy.new_technology(context.database)
+  let assert Ok(returned) = technology.get(context.database, technology.id)
 
-  let assert Ok(returned) = technology.get(context.database, want.id)
-  assert returned == want as "returned correct technology"
+  assert returned == technology
 
   Nil
 }
@@ -38,7 +34,7 @@ pub fn get_missing_technology_test() -> Nil {
   let assert Error(technology.NotFound(returned)) =
     technology.get(context.database, id)
 
-  assert returned == id as "returned missing technology"
+  assert returned == id
 
   Nil
 }

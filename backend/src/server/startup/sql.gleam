@@ -364,7 +364,9 @@ FROM
     public.expertise AS e
     INNER JOIN public.startup_expertise AS se ON se.expertise_id = e.id
 WHERE
-    se.startup_id = $1::uuid;
+    se.startup_id = $1::uuid
+ORDER BY
+    e.id;
 "
   |> pog.query
   |> pog.parameter(pog.text(uuid.to_string(arg_1)))
@@ -489,7 +491,9 @@ FROM
     segment AS s
     INNER JOIN startup_segment AS ss ON ss.segment_id = s.id
 WHERE
-    ss.startup_id = $1::uuid;
+    ss.startup_id = $1::uuid
+ORDER BY
+    s.id;
 "
   |> pog.query
   |> pog.parameter(pog.text(uuid.to_string(arg_1)))
@@ -532,7 +536,9 @@ FROM
     service AS s
     INNER JOIN startup_service AS ss ON ss.service_id = s.id
 WHERE
-    ss.startup_id = $1::uuid;
+    ss.startup_id = $1::uuid
+ORDER BY
+    s.id;
 "
   |> pog.query
   |> pog.parameter(pog.text(uuid.to_string(arg_1)))
@@ -575,7 +581,9 @@ FROM
     public.technology AS t
     INNER JOIN public.startup_technology AS st ON st.technology_id = t.id
 WHERE
-    st.startup_id = $1::uuid;
+    st.startup_id = $1::uuid
+ORDER BY
+    t.id;
 "
   |> pog.query
   |> pog.parameter(pog.text(uuid.to_string(arg_1)))

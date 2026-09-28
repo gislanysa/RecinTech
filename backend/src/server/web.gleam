@@ -285,22 +285,26 @@ pub fn get_startup_technologies(
 ///   {
 ///    "id": "01a058ae-057f-73e8-b2a0-50986559767b",
 ///    "name": "Critic Level",
+///    "email": "wibble@email.com",
 ///    "stage": "seed",
 ///    "cnpj": "12345678901234",
 ///    "description": "startup muito maneira",
 ///    "city": "Recife",
 ///    "state": "Pernambuco",
 ///    "created_at": "2026-09-14T20:08:02.000Z"
+///    "is_active": true
 ///   },
 ///   {
 ///    "id": "01a0dbb3-153a-7b84-8c3d-631788972d4a",
 ///    "name": "Virada no Cafe",
+///    "email": "wobble@email.com",
 ///    "stage": "growth",
 ///    "cnpj": "12345678901234",
 ///    "description": "bem legal",
 ///    "city": "Recife",
 ///    "state": "Pernambuco",
 ///    "created_at": "2025-09-14T20:08:02.000Z"
+///    "is_active": true
 ///   }
 /// ]
 /// ```
@@ -391,7 +395,7 @@ fn middleware(
 /// pub fn handle_request(request, context, id) -> wisp.Response {
 ///   use id <- require_valid_uuid(id)
 ///
-///   case user.get(database, id) {
+///   case startup.get(database, id) {
 ///     Ok(data) -> todo as "send response"
 ///     Error(error) -> todo as "handle error"
 ///   }

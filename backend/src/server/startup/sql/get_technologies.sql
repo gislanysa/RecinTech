@@ -7,4 +7,6 @@ FROM
     public.technology AS t
     INNER JOIN public.startup_technology AS st ON st.technology_id = t.id
 WHERE
-    st.startup_id = $1::uuid;
+    st.startup_id = $1::uuid
+ORDER BY
+    t.id;

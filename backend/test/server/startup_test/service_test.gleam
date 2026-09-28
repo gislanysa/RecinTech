@@ -1,3 +1,4 @@
+import server/dummy
 import server/startup/service
 import server_test
 import youid/uuid
@@ -19,15 +20,10 @@ pub fn register_service_test() -> Nil {
 pub fn get_service_test() -> Nil {
   use context <- server_test.with_context()
 
-  let assert Ok(want) =
-    service.register(
-      context.database,
-      name: "Web Development",
-      description: "Pretty good with websites",
-    )
+  let service = dummy.new_service(context.database)
+  let assert Ok(returned) = service.get(context.database, service.id)
 
-  let assert Ok(returned) = service.get(context.database, want.id)
-  assert returned == want
+  assert returned == service
 
   Nil
 }
@@ -39,7 +35,7 @@ pub fn get_missing_service_test() -> Nil {
   let assert Error(service.NotFound(returned)) =
     service.get(context.database, id)
 
-  assert returned == id as "returned missing service id"
+  assert returned == id
 
   Nil
 }

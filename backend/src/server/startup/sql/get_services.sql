@@ -7,4 +7,6 @@ FROM
     service AS s
     INNER JOIN startup_service AS ss ON ss.service_id = s.id
 WHERE
-    ss.startup_id = $1::uuid;
+    ss.startup_id = $1::uuid
+ORDER BY
+    s.id;

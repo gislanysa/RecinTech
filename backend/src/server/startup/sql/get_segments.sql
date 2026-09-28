@@ -7,4 +7,6 @@ FROM
     segment AS s
     INNER JOIN startup_segment AS ss ON ss.segment_id = s.id
 WHERE
-    ss.startup_id = $1::uuid;
+    ss.startup_id = $1::uuid
+ORDER BY
+    s.id;
