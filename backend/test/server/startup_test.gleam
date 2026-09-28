@@ -1,8 +1,6 @@
 import gleam/int
 import gleam/list
-import server/cnpj
 import server/dummy
-import server/email
 import server/startup
 import server_test
 import youid/uuid
@@ -11,8 +9,8 @@ pub fn register_startup_test() -> Nil {
   use context <- server_test.with_context()
 
   let name = "Critic Level"
-  let assert Ok(email) = email.parse("wibble@email.com")
-  let assert Ok(cnpj) = cnpj.parse("12345678901234")
+  let email = dummy.new_email()
+  let cnpj = dummy.new_cnpj()
   let description = "startup muito maneira"
   let city = "Recife"
   let state = "Pernambuco"
@@ -43,8 +41,8 @@ pub fn register_startup_test() -> Nil {
 pub fn register_cnpj_conflict_test() -> Nil {
   use context <- server_test.with_context()
 
-  let assert Ok(cnpj) = cnpj.parse("12345678901234")
-  let assert Ok(email) = email.parse("wibble@email.com")
+  let email = dummy.new_email()
+  let cnpj = dummy.new_cnpj()
   let assert Ok(_startup) =
     startup.register(
       context.database,
@@ -58,7 +56,7 @@ pub fn register_cnpj_conflict_test() -> Nil {
       state: "PE",
     )
 
-  let assert Ok(email) = email.parse("wobble@email.com")
+  let email = dummy.new_email()
   let assert Error(startup.CnpjConflict(returned)) =
     startup.register(
       context.database,
@@ -80,8 +78,8 @@ pub fn register_cnpj_conflict_test() -> Nil {
 pub fn register_email_conflict_test() -> Nil {
   use context <- server_test.with_context()
 
-  let assert Ok(cnpj) = cnpj.parse("12345678901234")
-  let assert Ok(email) = email.parse("wibble@email.com")
+  let email = dummy.new_email()
+  let cnpj = dummy.new_cnpj()
   let assert Ok(_startup) =
     startup.register(
       context.database,
@@ -95,7 +93,7 @@ pub fn register_email_conflict_test() -> Nil {
       state: "PE",
     )
 
-  let assert Ok(cnpj) = cnpj.parse("00000000000000")
+  let cnpj = dummy.new_cnpj()
   let assert Error(startup.EmailConflict(returned)) =
     startup.register(
       context.database,
@@ -110,6 +108,48 @@ pub fn register_email_conflict_test() -> Nil {
     )
 
   assert returned == email as "returned conflicted Email"
+
+  Nil
+}
+
+pub fn verify_startup_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+  let assert Ok(returned) =
+    startup.verify(
+      context.database,
+      email: startup.email,
+      password: dummy.password,
+    )
+
+  assert returned == startup
+
+  Nil
+}
+
+pub fn verify_startup_wrong_password_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+  let assert Error(startup.WrongPassword) =
+    startup.verify(
+      context.database,
+      email: startup.email,
+      password: "not-the-password",
+    )
+
+  Nil
+}
+
+pub fn verify_startup_missing_email_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let email = dummy.new_email()
+  let assert Error(startup.EmailNotFound(returned)) =
+    startup.verify(context.database, email: email, password: "not-the-password")
+
+  assert returned == email
 
   Nil
 }
