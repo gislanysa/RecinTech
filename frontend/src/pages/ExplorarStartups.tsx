@@ -61,6 +61,8 @@ export default function ExplorarStartups() {
     })
   }, [])
 
+
+     {/* JOAO MARCOS NAO MUDE MAIS NADA */}
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === 'Escape' && filtrosAbertos) {
