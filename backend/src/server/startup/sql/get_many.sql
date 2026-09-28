@@ -12,5 +12,7 @@ SELECT
     s.is_active
 FROM
     public.startup AS s
+ORDER BY
+    id
 LIMIT
     $1::int OFFSET $2::int;
