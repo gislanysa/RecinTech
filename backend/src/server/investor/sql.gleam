@@ -18,10 +18,10 @@ import youid/uuid.{type Uuid}
 pub type GetRow {
   GetRow(
     id: Uuid,
+    name: String,
+    email: String,
     kind: InvestorKind,
     public_profile: Bool,
-    full_name: String,
-    email: String,
     created_at: Timestamp,
     is_active: Bool,
   )
@@ -38,18 +38,18 @@ pub fn get(
 ) -> Result(pog.Returned(GetRow), pog.QueryError) {
   let decoder = {
     use id <- decode.field(0, uuid_decoder())
-    use kind <- decode.field(1, investor_kind_decoder())
-    use public_profile <- decode.field(2, decode.bool)
-    use full_name <- decode.field(3, decode.string)
-    use email <- decode.field(4, decode.string)
+    use name <- decode.field(1, decode.string)
+    use email <- decode.field(2, decode.string)
+    use kind <- decode.field(3, investor_kind_decoder())
+    use public_profile <- decode.field(4, decode.bool)
     use created_at <- decode.field(5, pog.timestamp_decoder())
     use is_active <- decode.field(6, decode.bool)
     decode.success(GetRow(
       id:,
+      name:,
+      email:,
       kind:,
       public_profile:,
-      full_name:,
-      email:,
       created_at:,
       is_active:,
     ))
@@ -58,15 +58,14 @@ pub fn get(
   "-- select an investor from the database
 SELECT
     i.id,
+    i.name,
+    i.email,
     i.kind,
     i.public_profile,
-    u.full_name,
-    u.email,
-    u.created_at,
-    u.is_active
+    i.created_at,
+    i.is_active
 FROM
     investor AS i
-    INNER JOIN user_account AS u ON i.id = u.id
 WHERE
     i.id = $1::uuid;
 "

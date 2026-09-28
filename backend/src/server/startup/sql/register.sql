@@ -3,6 +3,8 @@ INSERT INTO
     public.startup (
         name,
         stage,
+        email,
+        password_hash,
         cnpj,
         description,
         city,
@@ -15,14 +17,18 @@ VALUES
         $3::text,
         $4::text,
         $5::text,
-        $6::text
+        $6::text,
+        $7::text,
+        $8::text
     )
 RETURNING
     id,
     name,
+    email,
     stage,
     cnpj,
     description,
     city,
     state,
-    created_at;
+    created_at,
+    is_active;

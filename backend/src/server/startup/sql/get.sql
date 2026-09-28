@@ -2,12 +2,14 @@
 SELECT
     s.id,
     s.name,
+    s.email,
     s.stage,
     s.cnpj,
     s.description,
     s.city,
     s.state,
-    s.created_at
+    s.created_at,
+    s.is_active
 FROM
     public.startup AS s
 WHERE

@@ -10,7 +10,6 @@ import server/startup
 import server/startup/expertise
 import server/startup/service
 import server/startup/technology
-import server/user
 import server/web
 import server_test
 import wisp/simulate
@@ -50,76 +49,19 @@ pub fn healthcheck_test() -> Nil {
   assert response.status == 200
 }
 
-pub fn get_user_by_id_test() -> Nil {
-  use context <- server_test.with_context()
-
-  let assert Ok(email) = email.parse("user@email.com")
-
-  let assert Ok(user) =
-    user.register(
-      context.database,
-      full_name: "wibble",
-      email: email,
-      password: "12345678",
-    )
-
-  let endpoint = "/api/user/" <> uuid.to_string(user.id)
-
-  let response =
-    simulate.browser_request(http.Get, endpoint)
-    |> web.handle_request(context)
-
-  assert response.status == 200
-  assert response.get_header(response, "content-type")
-    == Ok("application/json; charset=utf-8")
-
-  let body = simulate.read_body(response)
-  let assert Ok(found) = json.parse(body, user.decoder())
-
-  assert user == found as "return correct user"
-
-  Nil
-}
-
-/// Querying a missing User should return 404 Not Found
-pub fn get_missing_user_by_id_test() -> Nil {
-  use context <- server_test.with_context()
-
-  let user_id = uuid.v7_string()
-
-  let response =
-    simulate.browser_request(http.Get, "/api/user/" <> user_id)
-    |> web.handle_request(context)
-
-  assert response.status == 404
-
-  Nil
-}
-
-/// Path paramether needs to be a valid UUID V7
-pub fn get_user_by_invalid_id_test() -> Nil {
-  use context <- server_test.with_context()
-
-  let response =
-    //                                                  vvvvvv
-    simulate.browser_request(http.Get, "/api/user/" <> "wibble")
-    |> web.handle_request(context)
-
-  assert response.status == 400
-
-  Nil
-}
-
 pub fn get_startup_by_id_test() -> Nil {
   use context <- server_test.with_context()
 
   let assert Ok(cnpj) = cnpj.parse("12345678901234")
+  let assert Ok(email) = email.parse("wibble@email.com")
   let assert Ok(startup) =
     startup.register(
       context.database,
       name: "Critic Level",
       stage: startup.Seed,
-      cnpj: cnpj,
+      email:,
+      password: "wibble",
+      cnpj:,
       description: "startup muito maneira",
       city: "Recife",
       state: "Pernambuco",
@@ -174,13 +116,24 @@ pub fn handle_login_test() -> Nil {
   use context <- server_test.with_context()
 
   let assert Ok(email) = email.parse("wibble@email.com")
+  let assert Ok(cnpj) = cnpj.parse("12345678901234")
   let password = "12345678"
-  let assert Ok(user) =
-    user.register(context.database, full_name: "wibble", email:, password:)
+  let assert Ok(startup) =
+    startup.register(
+      context.database,
+      name: "Critic Level",
+      stage: startup.Seed,
+      email:,
+      password:,
+      cnpj:,
+      description: "startup muito maneira",
+      city: "Recife",
+      state: "Pernambuco",
+    )
 
   let body =
     json.object([
-      #("email", json.string(email.to_string(user.email))),
+      #("email", json.string(email.to_string(startup.email))),
       #("password", json.string(password)),
     ])
 
@@ -196,12 +149,12 @@ pub fn handle_login_test() -> Nil {
 
   // response must contain user data
   let body = simulate.read_body(response)
-  let assert Ok(returned) = json.parse(body, user.decoder())
+  let assert Ok(returned) = json.parse(body, startup.decoder())
 
   // return correct user
-  assert returned.id == user.id
-  assert returned.full_name == user.full_name
-  assert returned.email == user.email
+  assert returned.id == startup.id
+  assert returned.name == startup.name
+  assert returned.email == startup.email
 
   Nil
 }
@@ -231,13 +184,16 @@ pub fn get_startup_segments_test() -> Nil {
   use context <- server_test.with_context()
 
   // Startup
+  let assert Ok(email) = email.parse("wibble@email.com")
   let assert Ok(cnpj) = cnpj.parse("12345678901234")
   let assert Ok(startup) =
     startup.register(
       context.database,
       name: "Critic Level",
       stage: startup.Seed,
-      cnpj: cnpj,
+      email:,
+      password: "wibble",
+      cnpj:,
       description: "startup muito maneira",
       city: "Recife",
       state: "Pernambuco",
@@ -279,10 +235,13 @@ pub fn get_startup_services_test() -> Nil {
 
   // Startup
   let assert Ok(cnpj) = cnpj.parse("12345678901234")
+  let assert Ok(email) = email.parse("wibble@email.com")
   let assert Ok(startup) =
     startup.register(
       context.database,
       name: "Critic Level",
+      email:,
+      password: "wibble",
       stage: startup.Seed,
       cnpj: cnpj,
       description: "startup muito maneira",
@@ -326,10 +285,13 @@ pub fn get_startup_technologies_test() -> Nil {
 
   // Startup
   let assert Ok(cnpj) = cnpj.parse("12345678901234")
+  let assert Ok(email) = email.parse("wibble@email.com")
   let assert Ok(startup) =
     startup.register(
       context.database,
       name: "Critic Level",
+      email:,
+      password: "wibble",
       stage: startup.Seed,
       cnpj: cnpj,
       description: "startup muito maneira",
@@ -381,13 +343,16 @@ pub fn get_startup_expertises_test() -> Nil {
 
   // Startup
   let assert Ok(cnpj) = cnpj.parse("12345678901234")
+  let assert Ok(email) = email.parse("wibble@email.com")
   let assert Ok(startup) =
     startup.register(
       context.database,
-      name: "Bio AI",
+      name: "Critic Level",
+      email:,
+      password: "wibble",
       stage: startup.Seed,
       cnpj: cnpj,
-      description: "",
+      description: "startup muito maneira",
       city: "Recife",
       state: "Pernambuco",
     )
