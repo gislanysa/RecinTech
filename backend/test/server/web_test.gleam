@@ -3,7 +3,7 @@ import gleam/http
 import gleam/http/response
 import gleam/json
 import gleam/list
-import server/cnpj
+import server/dummy
 import server/email
 import server/segment
 import server/startup
@@ -52,22 +52,9 @@ pub fn healthcheck_test() -> Nil {
 pub fn get_startup_by_id_test() -> Nil {
   use context <- server_test.with_context()
 
-  let assert Ok(cnpj) = cnpj.parse("12345678901234")
-  let assert Ok(email) = email.parse("wibble@email.com")
-  let assert Ok(startup) =
-    startup.register(
-      context.database,
-      name: "Critic Level",
-      stage: startup.Seed,
-      email:,
-      password: "wibble",
-      cnpj:,
-      description: "startup muito maneira",
-      city: "Recife",
-      state: "Pernambuco",
-    )
-
+  let startup = dummy.new_startup(context.database)
   let id = uuid.to_string(startup.id)
+
   let response =
     simulate.browser_request(http.Get, "/api/startup/" <> id)
     |> web.handle_request(context)
@@ -115,26 +102,12 @@ pub fn get_startup_by_invalid_id_test() -> Nil {
 pub fn handle_login_test() -> Nil {
   use context <- server_test.with_context()
 
-  let assert Ok(email) = email.parse("wibble@email.com")
-  let assert Ok(cnpj) = cnpj.parse("12345678901234")
-  let password = "12345678"
-  let assert Ok(startup) =
-    startup.register(
-      context.database,
-      name: "Critic Level",
-      stage: startup.Seed,
-      email:,
-      password:,
-      cnpj:,
-      description: "startup muito maneira",
-      city: "Recife",
-      state: "Pernambuco",
-    )
+  let startup = dummy.new_startup(context.database)
 
   let body =
     json.object([
       #("email", json.string(email.to_string(startup.email))),
-      #("password", json.string(password)),
+      #("password", json.string(dummy.password)),
     ])
 
   let response =
@@ -147,11 +120,11 @@ pub fn handle_login_test() -> Nil {
     response.get_cookies(response)
     |> list.key_find(web.session_cookie)
 
-  // response must contain user data
+  // response must contain startup data
   let body = simulate.read_body(response)
   let assert Ok(returned) = json.parse(body, startup.decoder())
 
-  // return correct user
+  // return correct startup
   assert returned.id == startup.id
   assert returned.name == startup.name
   assert returned.email == startup.email
@@ -159,13 +132,13 @@ pub fn handle_login_test() -> Nil {
   Nil
 }
 
-pub fn handle_login_missing_user_test() -> Nil {
+pub fn handle_login_missing_startup_test() -> Nil {
   use context <- server_test.with_context()
 
   let body =
     json.object([
       #("email", json.string("user@email.com")),
-      #("password", json.string("wibble123")),
+      #("password", json.string(dummy.password)),
     ])
 
   let response =
@@ -184,31 +157,16 @@ pub fn get_startup_segments_test() -> Nil {
   use context <- server_test.with_context()
 
   // Startup
-  let assert Ok(email) = email.parse("wibble@email.com")
-  let assert Ok(cnpj) = cnpj.parse("12345678901234")
-  let assert Ok(startup) =
-    startup.register(
-      context.database,
-      name: "Critic Level",
-      stage: startup.Seed,
-      email:,
-      password: "wibble",
-      cnpj:,
-      description: "startup muito maneira",
-      city: "Recife",
-      state: "Pernambuco",
-    )
+  let startup = dummy.new_startup(context.database)
 
   // First segment
-  let assert Ok(segment_a) =
-    segment.register(context.database, name: "health", description: "")
+  let segment_a = dummy.new_segment(context.database)
 
   let assert Ok(_) =
     startup.assign_segment(context.database, startup.id, assign: segment_a.id)
 
   // Second segment
-  let assert Ok(segment_b) =
-    segment.register(context.database, name: "iot", description: "")
+  let segment_b = dummy.new_segment(context.database)
 
   let assert Ok(_) =
     startup.assign_segment(context.database, startup.id, assign: segment_b.id)
@@ -221,11 +179,9 @@ pub fn get_startup_segments_test() -> Nil {
 
   assert response.status == 200
   let body = simulate.read_body(response)
-  let assert Ok(returned) = json.parse(body, decode.list(segment.decoder()))
 
-  // Both need to be present
-  assert list.contains(returned, segment_a)
-  assert list.contains(returned, segment_b)
+  let assert Ok(returned) = json.parse(body, decode.list(segment.decoder()))
+  assert returned == [segment_a, segment_b]
 
   Nil
 }
@@ -234,32 +190,15 @@ pub fn get_startup_services_test() -> Nil {
   use context <- server_test.with_context()
 
   // Startup
-  let assert Ok(cnpj) = cnpj.parse("12345678901234")
-  let assert Ok(email) = email.parse("wibble@email.com")
-  let assert Ok(startup) =
-    startup.register(
-      context.database,
-      name: "Critic Level",
-      email:,
-      password: "wibble",
-      stage: startup.Seed,
-      cnpj: cnpj,
-      description: "startup muito maneira",
-      city: "Recife",
-      state: "Pernambuco",
-    )
+  let startup = dummy.new_startup(context.database)
 
   // First service
-  let assert Ok(service_a) =
-    service.register(context.database, name: "web development", description: "")
-
+  let service_a = dummy.new_service(context.database)
   let assert Ok(_) =
     startup.assign_service(context.database, startup.id, assign: service_a.id)
 
   // Second service
-  let assert Ok(service_b) =
-    service.register(context.database, name: "mobile", description: "")
-
+  let service_b = dummy.new_service(context.database)
   let assert Ok(_) =
     startup.assign_service(context.database, startup.id, assign: service_b.id)
 
@@ -271,11 +210,9 @@ pub fn get_startup_services_test() -> Nil {
 
   assert response.status == 200
   let body = simulate.read_body(response)
-  let assert Ok(returned) = json.parse(body, decode.list(service.decoder()))
 
-  // Both need to be present
-  assert list.contains(returned, service_a)
-  assert list.contains(returned, service_b)
+  let assert Ok(returned) = json.parse(body, decode.list(service.decoder()))
+  assert returned == [service_a, service_b]
 
   Nil
 }
@@ -284,24 +221,10 @@ pub fn get_startup_technologies_test() -> Nil {
   use context <- server_test.with_context()
 
   // Startup
-  let assert Ok(cnpj) = cnpj.parse("12345678901234")
-  let assert Ok(email) = email.parse("wibble@email.com")
-  let assert Ok(startup) =
-    startup.register(
-      context.database,
-      name: "Critic Level",
-      email:,
-      password: "wibble",
-      stage: startup.Seed,
-      cnpj: cnpj,
-      description: "startup muito maneira",
-      city: "Recife",
-      state: "Pernambuco",
-    )
+  let startup = dummy.new_startup(context.database)
 
   // First technology
-  let assert Ok(technology_a) =
-    technology.register(context.database, name: "gleam", description: ":)")
+  let technology_a = dummy.new_technology(context.database)
 
   let assert Ok(_) =
     startup.assign_technology(
@@ -311,8 +234,7 @@ pub fn get_startup_technologies_test() -> Nil {
     )
 
   // Second technology
-  let assert Ok(technology_b) =
-    technology.register(context.database, name: "OTP", description: ":)")
+  let technology_b = dummy.new_technology(context.database)
 
   let assert Ok(_) =
     startup.assign_technology(
@@ -329,11 +251,9 @@ pub fn get_startup_technologies_test() -> Nil {
 
   assert response.status == 200
   let body = simulate.read_body(response)
-  let assert Ok(returned) = json.parse(body, decode.list(technology.decoder()))
 
-  // Both need to be present
-  assert list.contains(returned, technology_a)
-  assert list.contains(returned, technology_b)
+  let assert Ok(returned) = json.parse(body, decode.list(technology.decoder()))
+  assert returned == [technology_a, technology_b]
 
   Nil
 }
@@ -342,24 +262,10 @@ pub fn get_startup_expertises_test() -> Nil {
   use context <- server_test.with_context()
 
   // Startup
-  let assert Ok(cnpj) = cnpj.parse("12345678901234")
-  let assert Ok(email) = email.parse("wibble@email.com")
-  let assert Ok(startup) =
-    startup.register(
-      context.database,
-      name: "Critic Level",
-      email:,
-      password: "wibble",
-      stage: startup.Seed,
-      cnpj: cnpj,
-      description: "startup muito maneira",
-      city: "Recife",
-      state: "Pernambuco",
-    )
+  let startup = dummy.new_startup(context.database)
 
   // First expertise
-  let assert Ok(expertise_a) =
-    expertise.register(context.database, name: "Tech", description: "")
+  let expertise_a = dummy.new_expertise(context.database)
 
   let assert Ok(_) =
     startup.assign_expertise(
@@ -369,8 +275,7 @@ pub fn get_startup_expertises_test() -> Nil {
     )
 
   // Second expertise
-  let assert Ok(expertise_b) =
-    expertise.register(context.database, name: "BioTech", description: "")
+  let expertise_b = dummy.new_expertise(context.database)
 
   let assert Ok(_) =
     startup.assign_expertise(
@@ -387,11 +292,9 @@ pub fn get_startup_expertises_test() -> Nil {
 
   assert response.status == 200
   let body = simulate.read_body(response)
-  let assert Ok(returned) = json.parse(body, decode.list(expertise.decoder()))
 
-  // Both need to be present
-  assert list.contains(returned, expertise_a)
-  assert list.contains(returned, expertise_b)
+  let assert Ok(returned) = json.parse(body, decode.list(expertise.decoder()))
+  assert returned == [expertise_a, expertise_b]
 
   Nil
 }

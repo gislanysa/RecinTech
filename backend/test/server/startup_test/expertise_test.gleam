@@ -1,3 +1,4 @@
+import server/dummy
 import server/startup/expertise
 import server_test
 import youid/uuid
@@ -17,15 +18,10 @@ pub fn register_expertise_test() -> Nil {
 pub fn get_expertise_test() -> Nil {
   use context <- server_test.with_context()
 
-  let assert Ok(want) =
-    expertise.register(
-      context.database,
-      name: "Health",
-      description: "Medic stuff",
-    )
+  let expertise = dummy.new_expertise(context.database)
+  let assert Ok(returned) = expertise.get(context.database, expertise.id)
 
-  let assert Ok(returned) = expertise.get(context.database, want.id)
-  assert returned == want as "returned correct expertise"
+  assert returned == expertise
 
   Nil
 }
@@ -36,6 +32,7 @@ pub fn get_missing_expertise_test() -> Nil {
   let id = uuid.v7()
   let assert Error(expertise.NotFound(returned)) =
     expertise.get(context.database, id)
+
   assert returned == id as "returned missing expertise"
 
   Nil

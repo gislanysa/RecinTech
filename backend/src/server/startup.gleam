@@ -42,7 +42,7 @@ pub type StartupError {
 
   // Email related errors -----------------------------------------------------
   //
-  /// Email doesn't belong to a registered User
+  /// Email doesn't belong to a registered Startup
   EmailNotFound(email: email.Email)
   /// Startup emails need to be unique
   EmailConflict(value: email.Email)
