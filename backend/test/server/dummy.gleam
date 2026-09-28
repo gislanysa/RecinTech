@@ -14,18 +14,25 @@ import youid/uuid
 /// Default password for all entities
 pub const password = "root"
 
-pub fn new_startup(database: pog.Connection) -> startup.Startup {
+pub fn new_email() -> email.Email {
   let assert Ok(email) = email.parse(uuid.v7_string() <> "@email.com")
-  let assert Ok(cnpj) = cnpj.parse(string.slice(uuid.v7_string(), 0, 14))
+  email
+}
 
+pub fn new_cnpj() -> cnpj.Cnpj {
+  let assert Ok(cnpj) = cnpj.parse(string.slice(uuid.v7_string(), 0, 14))
+  cnpj
+}
+
+pub fn new_startup(database: pog.Connection) -> startup.Startup {
   let assert Ok(startup) =
     startup.register(
       database,
       name: "dummy",
-      email: email,
+      email: new_email(),
       password:,
       stage: startup.Seed,
-      cnpj: cnpj,
+      cnpj: new_cnpj(),
       description: "useful for tests",
       city: "Recife",
       state: "PE",
