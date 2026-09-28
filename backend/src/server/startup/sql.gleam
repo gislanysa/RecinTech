@@ -50,47 +50,6 @@ RETURNING
   |> pog.execute(db)
 }
 
-/// A row you get from running the `assign_member` query
-/// defined in `./src/server/startup/sql/assign_member.sql`.
-///
-/// > 🐿️ This type definition was generated automatically using v4.7.0 of the
-/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
-///
-pub type AssignMemberRow {
-  AssignMemberRow(user_id: Uuid)
-}
-
-/// Assign members to a startup
-///
-/// > 🐿️ This function was generated automatically using v4.7.0 of
-/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
-///
-pub fn assign_member(
-  db: pog.Connection,
-  arg_1: Uuid,
-  arg_2: Uuid,
-) -> Result(pog.Returned(AssignMemberRow), pog.QueryError) {
-  let decoder = {
-    use user_id <- decode.field(0, uuid_decoder())
-    decode.success(AssignMemberRow(user_id:))
-  }
-
-  "-- Assign members to a startup
-INSERT INTO
-    public.startup_membership (startup_id, user_id)
-SELECT
-    $1::uuid AS startup_id,
-    $2::uuid AS user_id
-RETURNING
-    user_id;
-"
-  |> pog.query
-  |> pog.parameter(pog.text(uuid.to_string(arg_1)))
-  |> pog.parameter(pog.text(uuid.to_string(arg_2)))
-  |> pog.returning(decoder)
-  |> pog.execute(db)
-}
-
 /// A row you get from running the `assign_segment` query
 /// defined in `./src/server/startup/sql/assign_segment.sql`.
 ///
@@ -262,12 +221,14 @@ pub type GetRow {
   GetRow(
     id: Uuid,
     name: String,
+    email: String,
     stage: StartupStage,
     cnpj: String,
     description: String,
     city: String,
     state: String,
     created_at: Timestamp,
+    is_active: Bool,
   )
 }
 
@@ -283,21 +244,25 @@ pub fn get(
   let decoder = {
     use id <- decode.field(0, uuid_decoder())
     use name <- decode.field(1, decode.string)
-    use stage <- decode.field(2, startup_stage_decoder())
-    use cnpj <- decode.field(3, decode.string)
-    use description <- decode.field(4, decode.string)
-    use city <- decode.field(5, decode.string)
-    use state <- decode.field(6, decode.string)
-    use created_at <- decode.field(7, pog.timestamp_decoder())
+    use email <- decode.field(2, decode.string)
+    use stage <- decode.field(3, startup_stage_decoder())
+    use cnpj <- decode.field(4, decode.string)
+    use description <- decode.field(5, decode.string)
+    use city <- decode.field(6, decode.string)
+    use state <- decode.field(7, decode.string)
+    use created_at <- decode.field(8, pog.timestamp_decoder())
+    use is_active <- decode.field(9, decode.bool)
     decode.success(GetRow(
       id:,
       name:,
+      email:,
       stage:,
       cnpj:,
       description:,
       city:,
       state:,
       created_at:,
+      is_active:,
     ))
   }
 
@@ -305,12 +270,14 @@ pub fn get(
 SELECT
     s.id,
     s.name,
+    s.email,
     s.stage,
     s.cnpj,
     s.description,
     s.city,
     s.state,
-    s.created_at
+    s.created_at,
+    s.is_active
 FROM
     public.startup AS s
 WHERE
@@ -318,6 +285,46 @@ WHERE
 "
   |> pog.query
   |> pog.parameter(pog.text(uuid.to_string(arg_1)))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
+/// A row you get from running the `get_credentials` query
+/// defined in `./src/server/startup/sql/get_credentials.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v4.7.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type GetCredentialsRow {
+  GetCredentialsRow(id: Uuid, password_hash: String)
+}
+
+/// select startup id and credentials
+///
+/// > 🐿️ This function was generated automatically using v4.7.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn get_credentials(
+  db: pog.Connection,
+  arg_1: String,
+) -> Result(pog.Returned(GetCredentialsRow), pog.QueryError) {
+  let decoder = {
+    use id <- decode.field(0, uuid_decoder())
+    use password_hash <- decode.field(1, decode.string)
+    decode.success(GetCredentialsRow(id:, password_hash:))
+  }
+
+  "-- select startup id and credentials
+SELECT
+    s.id,
+    s.password_hash
+FROM
+    public.startup AS s
+WHERE
+    s.email = $1::text;
+"
+  |> pog.query
+  |> pog.parameter(pog.text(arg_1))
   |> pog.returning(decoder)
   |> pog.execute(db)
 }
@@ -375,12 +382,14 @@ pub type GetManyRow {
   GetManyRow(
     id: Uuid,
     name: String,
+    email: String,
     stage: StartupStage,
     cnpj: String,
     description: String,
     city: String,
     state: String,
     created_at: Timestamp,
+    is_active: Bool,
   )
 }
 
@@ -397,21 +406,25 @@ pub fn get_many(
   let decoder = {
     use id <- decode.field(0, uuid_decoder())
     use name <- decode.field(1, decode.string)
-    use stage <- decode.field(2, startup_stage_decoder())
-    use cnpj <- decode.field(3, decode.string)
-    use description <- decode.field(4, decode.string)
-    use city <- decode.field(5, decode.string)
-    use state <- decode.field(6, decode.string)
-    use created_at <- decode.field(7, pog.timestamp_decoder())
+    use email <- decode.field(2, decode.string)
+    use stage <- decode.field(3, startup_stage_decoder())
+    use cnpj <- decode.field(4, decode.string)
+    use description <- decode.field(5, decode.string)
+    use city <- decode.field(6, decode.string)
+    use state <- decode.field(7, decode.string)
+    use created_at <- decode.field(8, pog.timestamp_decoder())
+    use is_active <- decode.field(9, decode.bool)
     decode.success(GetManyRow(
       id:,
       name:,
+      email:,
       stage:,
       cnpj:,
       description:,
       city:,
       state:,
       created_at:,
+      is_active:,
     ))
   }
 
@@ -419,12 +432,14 @@ pub fn get_many(
 SELECT
     s.id,
     s.name,
+    s.email,
     s.stage,
     s.cnpj,
     s.description,
     s.city,
     s.state,
-    s.created_at
+    s.created_at,
+    s.is_active
 FROM
     public.startup AS s
 LIMIT
@@ -433,65 +448,6 @@ LIMIT
   |> pog.query
   |> pog.parameter(pog.int(arg_1))
   |> pog.parameter(pog.int(arg_2))
-  |> pog.returning(decoder)
-  |> pog.execute(db)
-}
-
-/// A row you get from running the `get_members` query
-/// defined in `./src/server/startup/sql/get_members.sql`.
-///
-/// > 🐿️ This type definition was generated automatically using v4.7.0 of the
-/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
-///
-pub type GetMembersRow {
-  GetMembersRow(
-    id: Uuid,
-    full_name: String,
-    email: String,
-    created_at: Timestamp,
-    is_active: Bool,
-  )
-}
-
-/// get all members assigned to a given startup
-///
-/// > 🐿️ This function was generated automatically using v4.7.0 of
-/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
-///
-pub fn get_members(
-  db: pog.Connection,
-  arg_1: Uuid,
-) -> Result(pog.Returned(GetMembersRow), pog.QueryError) {
-  let decoder = {
-    use id <- decode.field(0, uuid_decoder())
-    use full_name <- decode.field(1, decode.string)
-    use email <- decode.field(2, decode.string)
-    use created_at <- decode.field(3, pog.timestamp_decoder())
-    use is_active <- decode.field(4, decode.bool)
-    decode.success(GetMembersRow(
-      id:,
-      full_name:,
-      email:,
-      created_at:,
-      is_active:,
-    ))
-  }
-
-  "-- get all members assigned to a given startup
-SELECT
-    u.id,
-    u.full_name,
-    u.email,
-    u.created_at,
-    u.is_active
-FROM
-    public.user_account AS u
-    INNER JOIN public.startup_membership AS sm ON sm.user_id = u.id
-WHERE
-    sm.startup_id = $1::uuid;
-"
-  |> pog.query
-  |> pog.parameter(pog.text(uuid.to_string(arg_1)))
   |> pog.returning(decoder)
   |> pog.execute(db)
 }
@@ -635,12 +591,14 @@ pub type RegisterRow {
   RegisterRow(
     id: Uuid,
     name: String,
+    email: String,
     stage: StartupStage,
     cnpj: String,
     description: String,
     city: String,
     state: String,
     created_at: Timestamp,
+    is_active: Bool,
   )
 }
 
@@ -657,25 +615,31 @@ pub fn register(
   arg_4: String,
   arg_5: String,
   arg_6: String,
+  arg_7: String,
+  arg_8: String,
 ) -> Result(pog.Returned(RegisterRow), pog.QueryError) {
   let decoder = {
     use id <- decode.field(0, uuid_decoder())
     use name <- decode.field(1, decode.string)
-    use stage <- decode.field(2, startup_stage_decoder())
-    use cnpj <- decode.field(3, decode.string)
-    use description <- decode.field(4, decode.string)
-    use city <- decode.field(5, decode.string)
-    use state <- decode.field(6, decode.string)
-    use created_at <- decode.field(7, pog.timestamp_decoder())
+    use email <- decode.field(2, decode.string)
+    use stage <- decode.field(3, startup_stage_decoder())
+    use cnpj <- decode.field(4, decode.string)
+    use description <- decode.field(5, decode.string)
+    use city <- decode.field(6, decode.string)
+    use state <- decode.field(7, decode.string)
+    use created_at <- decode.field(8, pog.timestamp_decoder())
+    use is_active <- decode.field(9, decode.bool)
     decode.success(RegisterRow(
       id:,
       name:,
+      email:,
       stage:,
       cnpj:,
       description:,
       city:,
       state:,
       created_at:,
+      is_active:,
     ))
   }
 
@@ -684,6 +648,8 @@ INSERT INTO
     public.startup (
         name,
         stage,
+        email,
+        password_hash,
         cnpj,
         description,
         city,
@@ -696,17 +662,21 @@ VALUES
         $3::text,
         $4::text,
         $5::text,
-        $6::text
+        $6::text,
+        $7::text,
+        $8::text
     )
 RETURNING
     id,
     name,
+    email,
     stage,
     cnpj,
     description,
     city,
     state,
-    created_at;
+    created_at,
+    is_active;
 "
   |> pog.query
   |> pog.parameter(pog.text(arg_1))
@@ -715,6 +685,8 @@ RETURNING
   |> pog.parameter(pog.text(arg_4))
   |> pog.parameter(pog.text(arg_5))
   |> pog.parameter(pog.text(arg_6))
+  |> pog.parameter(pog.text(arg_7))
+  |> pog.parameter(pog.text(arg_8))
   |> pog.returning(decoder)
   |> pog.execute(db)
 }

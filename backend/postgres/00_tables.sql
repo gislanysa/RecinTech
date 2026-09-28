@@ -7,18 +7,6 @@ CREATE TYPE investor_kind AS enum (
     'institutional'
 );
 
-CREATE TABLE user_account (
-    id uuid DEFAULT uuidv7(),
-    full_name text NOT NULL,
-    password_hash text NOT NULL,
-    email text UNIQUE NOT NULL CHECK (email LIKE '%@%'),
-    created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    is_active boolean NOT NULL DEFAULT TRUE,
-    PRIMARY KEY (id)
-);
-
-CREATE INDEX idx_user_account_email ON user_account (email);
-
 CREATE TABLE segment (
     id uuid DEFAULT uuidv7(),
     name text NOT NULL,
@@ -30,34 +18,34 @@ CREATE TABLE startup (
     id uuid DEFAULT uuidv7(),
     name text NOT NULL,
     stage startup_stage NOT NULL DEFAULT 'seed',
+    email text UNIQUE NOT NULL CHECK (email LIKE '%@%'),
+    password_hash text NOT NULL,
     cnpj text UNIQUE NOT NULL CHECK (length(cnpj) = 14),
     description text NOT NULL,
     city text NOT NULL,
     state text NOT NULL,
     created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    is_active boolean NOT NULL DEFAULT TRUE,
     PRIMARY KEY (id)
 );
 
 CREATE INDEX idx_startup_cnpj ON startup (cnpj);
 
-CREATE TABLE startup_membership (
-    user_id uuid REFERENCES user_account (id) ON DELETE CASCADE,
-    startup_id uuid REFERENCES startup (id) ON DELETE CASCADE,
-    PRIMARY KEY (user_id, startup_id)
-);
-
-CREATE INDEX idx_startup_membership_user_account_id ON startup_membership (user_id);
-
-CREATE INDEX idx_startup_membership_startup_id ON startup_membership (startup_id);
+CREATE INDEX idx_startup_email ON startup (email);
 
 CREATE TABLE investor (
-    id uuid NOT NULL REFERENCES user_account (id) ON DELETE CASCADE,
+    id uuid DEFAULT uuidv7(),
+    name text NOT NULL,
     kind investor_kind NOT NULL,
+    email text UNIQUE NOT NULL CHECK (email LIKE '%@%'),
+    password_hash text NOT NULL,
     public_profile boolean NOT NULL DEFAULT TRUE,
+    created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    is_active boolean NOT NULL DEFAULT TRUE,
     PRIMARY KEY(id)
 );
 
-CREATE INDEX idx_investor_user_id ON investor (id);
+CREATE INDEX idx_investor_email ON investor (email);
 
 CREATE TABLE startup_segment (
     startup_id uuid NOT NULL REFERENCES startup (id) ON DELETE CASCADE,
