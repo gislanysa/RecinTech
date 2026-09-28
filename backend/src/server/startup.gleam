@@ -11,7 +11,9 @@ import server/cnpj
 import server/email
 import server/segment
 import server/startup/expertise
+import server/startup/service
 import server/startup/sql
+import server/startup/technology
 import server/user
 import youid/uuid
 
@@ -462,30 +464,27 @@ pub fn assign_segment(
   database: pog.Connection,
   id: uuid.Uuid,
   assign segment: uuid.Uuid,
-  as_main_segment as_main_segment: Bool,
 ) -> Result(uuid.Uuid, StartupError) {
-  use returned <- result.try(
-    case sql.assign_segment(database, id, segment, as_main_segment) {
-      // Tried to assign an Segment to a Startup that is not registered.
-      Error(pog.ConstraintViolated(
-        constraint: "startup_segment_startup_id_fkey",
-        ..,
-      )) -> Error(NotFound(id:))
+  use returned <- result.try(case sql.assign_segment(database, id, segment) {
+    // Tried to assign an Segment to a Startup that is not registered.
+    Error(pog.ConstraintViolated(
+      constraint: "startup_segment_startup_id_fkey",
+      ..,
+    )) -> Error(NotFound(id:))
 
-      // Tried to assign an Segment that is not registered.
-      Error(pog.ConstraintViolated(
-        constraint: "startup_segment_segment_id_fkey",
-        ..,
-      )) -> Error(AssignedMissingEntity(id: segment))
+    // Tried to assign an Segment that is not registered.
+    Error(pog.ConstraintViolated(
+      constraint: "startup_segment_segment_id_fkey",
+      ..,
+    )) -> Error(AssignedMissingEntity(id: segment))
 
-      // Segment has already been assigned to the given Startup
-      Error(pog.ConstraintViolated(constraint: "startup_segment_pkey", ..)) ->
-        Error(AssignmentConflict(id: segment))
+    // Segment has already been assigned to the given Startup
+    Error(pog.ConstraintViolated(constraint: "startup_segment_pkey", ..)) ->
+      Error(AssignmentConflict(id: segment))
 
-      Ok(rows) -> Ok(rows)
-      Error(error) -> Error(DatabaseError(error))
-    },
-  )
+    Ok(rows) -> Ok(rows)
+    Error(error) -> Error(DatabaseError(error))
+  })
 
   case list.first(returned.rows) {
     Ok(row) -> Ok(row.segment_id)
@@ -576,6 +575,68 @@ pub fn get_expertises(
       name: row.name,
       description: row.description,
     )
+  })
+}
+
+/// Get all technologies that a Startup is assigned to
+///
+/// ## Examples
+///
+/// ```gleam
+/// let result = startup.get_technologies(context.database, id)
+///
+/// case result {
+///   Ok(technologies) -> todo as "send response"
+///   Error(startup.NotFound(_)) -> wisp.not_found()
+///   Error(_) -> wisp.internal_server_error()
+/// }
+/// ```
+pub fn get_technologies(
+  database: pog.Connection,
+  id: uuid.Uuid,
+) -> Result(List(technology.Technology), StartupError) {
+  use <- ensure_exists(database, id)
+
+  use returned <- result.map(
+    sql.get_technologies(database, id)
+    |> result.map_error(DatabaseError),
+  )
+
+  list.map(returned.rows, fn(row) {
+    technology.Technology(
+      id: row.id,
+      name: row.name,
+      description: row.description,
+    )
+  })
+}
+
+/// Get all services that a Startup is assigned to
+///
+/// ## Examples
+///
+/// ```gleam
+/// let result = startup.get_services(context.database, id)
+///
+/// case result {
+///   Ok(services) -> todo as "send response"
+///   Error(startup.NotFound(_)) -> wisp.not_found()
+///   Error(_) -> wisp.internal_server_error()
+/// }
+/// ```
+pub fn get_services(
+  database: pog.Connection,
+  id: uuid.Uuid,
+) -> Result(List(service.Service), StartupError) {
+  use <- ensure_exists(database, id)
+
+  use returned <- result.map(
+    sql.get_services(database, id)
+    |> result.map_error(DatabaseError),
+  )
+
+  list.map(returned.rows, fn(row) {
+    service.Service(id: row.id, name: row.name, description: row.description)
   })
 }
 
@@ -679,4 +740,47 @@ pub fn assign_technology(
     Ok(row) -> Ok(row.technology_id)
     Error(_) -> Error(AssignmentFailure(id: technology))
   }
+}
+
+/// Fetch many Startups from the database, specifying the max number of
+/// returned rows, and how many to skip.
+///
+/// ## Examples
+///
+/// ```gleam
+/// let result =
+///   startup.get_many(context.database, limit: 3, offset: 6)
+///
+/// case result {
+///   Ok(data) -> todo as "send response"
+///   Error(_) -> wisp.internal_server_error()
+/// }
+/// ```
+pub fn get_many(
+  database: pog.Connection,
+  limit limit: Int,
+  offset offset: Int,
+) -> Result(List(Startup), StartupError) {
+  use returned <- result.try(
+    sql.get_many(database, limit, offset)
+    |> result.map_error(DatabaseError),
+  )
+
+  list.try_map(returned.rows, fn(row) {
+    use cnpj <- result.map(
+      cnpj.parse(row.cnpj)
+      |> result.replace_error(InvalidCnpj(value: row.cnpj)),
+    )
+
+    Startup(
+      id: row.id,
+      name: row.name,
+      stage: stage_from_enum(row.stage),
+      cnpj: cnpj,
+      description: row.description,
+      city: row.city,
+      state: row.state,
+      created_at: row.created_at,
+    )
+  })
 }

@@ -1,4 +1,4 @@
--- select an startup;
+-- get an startup
 SELECT
     s.id,
     s.name,
