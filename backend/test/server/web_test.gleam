@@ -194,6 +194,15 @@ pub fn handle_login_test() -> Nil {
     response.get_cookies(response)
     |> list.key_find(web.session_cookie)
 
+  // response must contain user data
+  let body = simulate.read_body(response)
+  let assert Ok(returned) = json.parse(body, user.decoder())
+
+  // return correct user
+  assert returned.id == user.id
+  assert returned.full_name == user.full_name
+  assert returned.email == user.email
+
   Nil
 }
 
