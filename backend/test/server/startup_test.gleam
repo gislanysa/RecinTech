@@ -427,7 +427,7 @@ pub fn assign_startup_to_missing_expertise_test() -> Nil {
   Nil
 }
 
-pub fn expertise_assignment_conflict() -> Nil {
+pub fn expertise_assignment_conflict_test() -> Nil {
   use context <- server_test.with_context()
 
   let assert Ok(cnpj) = cnpj.parse("12345678901234")
