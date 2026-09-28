@@ -1,5 +1,6 @@
 import gleam/dynamic/decode
 import gleam/http
+import gleam/http/request
 import gleam/http/response
 import gleam/json
 import gleam/list
@@ -295,6 +296,76 @@ pub fn get_startup_expertises_test() -> Nil {
 
   let assert Ok(returned) = json.parse(body, decode.list(expertise.decoder()))
   assert returned == [expertise_a, expertise_b]
+
+  Nil
+}
+
+pub fn get_many_startups_test() -> Nil {
+  use context <- server_test.with_context()
+
+  // Three startups
+  let _startup_a = dummy.new_startup(context.database)
+  let startup_b = dummy.new_startup(context.database)
+  let startup_c = dummy.new_startup(context.database)
+
+  // This will only return B and C
+  let response =
+    simulate.browser_request(http.Get, "/api/startup")
+    |> request.set_query([#("limit", "2"), #("offset", "1")])
+    |> web.handle_request(context)
+
+  assert response.status == 200
+  let body = simulate.read_body(response)
+
+  let assert Ok(returned) =
+    json.parse(body, using: decode.list(startup.decoder()))
+  assert returned == [startup_b, startup_c]
+
+  Nil
+}
+
+pub fn get_many_startups_missing_query_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let response =
+    simulate.browser_request(http.Get, "/api/startup")
+    |> web.handle_request(context)
+
+  assert response.status == 400
+
+  Nil
+}
+
+pub fn get_many_startups_invalid_query_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let response =
+    simulate.browser_request(http.Get, "/api/startup")
+    |> request.set_query([#("limit", "wibble"), #("offset", "0")])
+    //                                ^^
+    |> web.handle_request(context)
+
+  assert response.status == 400
+
+  Nil
+}
+
+pub fn get_many_startups_incomplete_query_test() -> Nil {
+  use context <- server_test.with_context()
+
+  // No offset
+  let response =
+    simulate.browser_request(http.Get, "/api/startup")
+    |> request.set_query([#("limit", "1")])
+    |> web.handle_request(context)
+  assert response.status == 400
+
+  // No limit
+  let response =
+    simulate.browser_request(http.Get, "/api/startup")
+    |> request.set_query([#("offset", "0")])
+    |> web.handle_request(context)
+  assert response.status == 400
 
   Nil
 }
