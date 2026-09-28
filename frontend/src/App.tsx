@@ -3,7 +3,7 @@ import CriarConta from '@/pages/CriarConta.tsx'
 import DashboardEmpresa from '@/pages/DashboardEmpresa.tsx'
 import DashboardStartup from '@/pages/DashboardStartup.tsx'
 import EmConstrucao from '@/pages/EmConstrucao.tsx'
-import ComoFunciona from '@/pages/ComoFunciona.tsx'
+import ParaEmpresas from '@/pages/ParaEmpresas.tsx'
 import ExplorarStartups from '@/pages/ExplorarStartups.tsx'
 import ParaStartups from '@/pages/ParaStartups.tsx'
 import Entrar from '@/pages/Entrar.tsx'
@@ -20,7 +20,7 @@ export default function App() {
         <Route path="/startups" element={<ExplorarStartups />} />
         <Route path="/startups/:slug" element={<EmConstrucao titulo="Perfil da startup" />} />
         <Route path="/para-startups" element={<ParaStartups />} />
-        <Route path="/como-funciona" element={<ComoFunciona />} />
+        <Route path="/para-empresas" element={<ParaEmpresas />} />
         <Route path="/entrar" element={<Entrar />} />
 
         {/* Cadastro de usuário */}
