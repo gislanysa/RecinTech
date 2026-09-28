@@ -1,3 +1,4 @@
+import gleam/int
 import gleam/list
 import server/cnpj
 import server/email
@@ -244,12 +245,7 @@ pub fn assign_segment_to_startup_test() -> Nil {
 
   // We can assign more than one but in this test we are using a single ID
   let assert Ok(got) =
-    startup.assign_segment(
-      context.database,
-      startup.id,
-      assign: want.id,
-      as_main_segment: False,
-    )
+    startup.assign_segment(context.database, startup.id, assign: want.id)
 
   assert got == want.id as "should return a successfully assigned segment"
 
@@ -282,21 +278,11 @@ pub fn segment_assignment_conflict_test() -> Nil {
 
   // Assigning once
   let assert Ok(_) =
-    startup.assign_segment(
-      context.database,
-      startup.id,
-      assign: want.id,
-      as_main_segment: False,
-    )
+    startup.assign_segment(context.database, startup.id, assign: want.id)
 
   // Assigning twice, this one must return an Error.
   let assert Error(startup.AssignmentConflict(returned)) =
-    startup.assign_segment(
-      context.database,
-      startup.id,
-      assign: want.id,
-      as_main_segment: True,
-    )
+    startup.assign_segment(context.database, startup.id, assign: want.id)
 
   assert returned == want.id as "returned conflicted segment"
 
@@ -311,12 +297,7 @@ pub fn assign_segment_to_missing_startup_test() -> Nil {
     segment.register(context.database, name: "gaming", description: "yes")
 
   let assert Error(startup.NotFound(returned)) =
-    startup.assign_segment(
-      context.database,
-      want,
-      assign: segment.id,
-      as_main_segment: True,
-    )
+    startup.assign_segment(context.database, want, assign: segment.id)
 
   assert returned == want as "returned missing startup id"
 
@@ -341,12 +322,7 @@ pub fn assign_missing_segment_to_startup_test() -> Nil {
 
   let id = uuid.v7()
   let assert Error(startup.AssignedMissingEntity(returned)) =
-    startup.assign_segment(
-      context.database,
-      startup.id,
-      assign: id,
-      as_main_segment: True,
-    )
+    startup.assign_segment(context.database, startup.id, assign: id)
 
   assert returned == id
 
@@ -386,12 +362,7 @@ pub fn get_startup_segments_test() -> Nil {
 
   // Assigning first segment
   let assert Ok(_) =
-    startup.assign_segment(
-      context.database,
-      startup.id,
-      assign: segment_iot.id,
-      as_main_segment: True,
-    )
+    startup.assign_segment(context.database, startup.id, assign: segment_iot.id)
 
   // Assigning a second segment
   let assert Ok(_) =
@@ -399,7 +370,6 @@ pub fn get_startup_segments_test() -> Nil {
       context.database,
       startup.id,
       assign: segment_cloud.id,
-      as_main_segment: False,
     )
 
   let assert Ok(got) = startup.get_segments(context.database, from: startup.id)
@@ -586,6 +556,61 @@ pub fn expertise_assignment_conflict() -> Nil {
     startup.assign_expertise(context.database, startup.id, assign: expertise.id)
 
   assert returned == expertise.id
+
+  Nil
+}
+
+pub fn get_many_startup_test() -> Nil {
+  use context <- server_test.with_context()
+  let max = 6
+  let half = max / 2
+
+  let startups =
+    int.range(from: 1, to: max, with: [], run: fn(acc, num) {
+      let assert Ok(cnpj) = cnpj.parse("0000000000000" <> int.to_string(num))
+      let assert Ok(startup) =
+        startup.register(
+          context.database,
+          name: "dummy " <> int.to_string(num),
+          stage: startup.Seed,
+          cnpj:,
+          description: "",
+          city: "Recife",
+          state: "PE",
+        )
+
+      [startup, ..acc]
+    })
+
+  // First we get the first three startups
+  let assert Ok(first_half) =
+    startup.get_many(context.database, limit: half, offset: 0)
+
+  let assert Ok(_) =
+    list.try_each(first_half, fn(startup) {
+      case list.contains(startups, startup) {
+        True -> Ok(Nil)
+        False -> Error(Nil)
+      }
+    })
+
+  // Then we get the other three
+  let assert Ok(second_half) =
+    startup.get_many(context.database, limit: half, offset: half)
+
+  let assert Ok(_) =
+    list.try_each(second_half, fn(startup) {
+      case list.contains(startups, startup) {
+        True -> Ok(Nil)
+        False -> Error(Nil)
+      }
+    })
+
+  // They need to be different
+  assert first_half != second_half
+
+  // There are only 6, so this should return an empty list
+  let assert Ok([]) = startup.get_many(context.database, limit: 3, offset: max)
 
   Nil
 }

@@ -1,6 +1,8 @@
 //// Startups can have an area of expertise like health, education, technology,
 //// finances and others.
 
+import gleam/dynamic/decode
+import gleam/json
 import gleam/list
 import gleam/result
 import pog
@@ -18,6 +20,37 @@ pub type ExpertiseError {
 
 pub type Expertise {
   Expertise(id: uuid.Uuid, name: String, description: String)
+}
+
+/// Encode a Segment into a `Expertise` object.
+pub fn to_json(expertise: Expertise) -> json.Json {
+  let Expertise(id:, name:, description:) = expertise
+  json.object([
+    #("id", uuid_to_json(id)),
+    #("name", json.string(name)),
+    #("description", json.string(description)),
+  ])
+}
+
+/// A decoder that decodes `Expertise` values.
+pub fn decoder() -> decode.Decoder(Expertise) {
+  use id <- decode.field("id", uuid_decoder())
+  use name <- decode.field("name", decode.string)
+  use description <- decode.field("description", decode.string)
+  decode.success(Expertise(id:, name:, description:))
+}
+
+fn uuid_decoder() {
+  use text <- decode.then(decode.string)
+  case uuid.from_string(text) {
+    Ok(id) -> decode.success(id)
+    Error(_) -> decode.failure(uuid.v7(), "uuid")
+  }
+}
+
+fn uuid_to_json(id: uuid.Uuid) -> json.Json {
+  uuid.to_string(id)
+  |> json.string
 }
 
 /// Search an Expertise in the Database using their ID.

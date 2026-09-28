@@ -1,4 +1,4 @@
--- get an startup
+-- get a maximum of $2 startups from the database
 SELECT
     s.id,
     s.name,
@@ -10,5 +10,5 @@ SELECT
     s.created_at
 FROM
     public.startup AS s
-WHERE
-    s.id = $1::uuid;
+LIMIT
+    $1::int OFFSET $2::int;

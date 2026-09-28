@@ -62,7 +62,6 @@ CREATE INDEX idx_investor_user_id ON investor (id);
 CREATE TABLE startup_segment (
     startup_id uuid NOT NULL REFERENCES startup (id) ON DELETE CASCADE,
     segment_id uuid NOT NULL REFERENCES segment (id) ON DELETE CASCADE,
-    is_main_segment boolean NOT NULL DEFAULT false,
     PRIMARY KEY(startup_id, segment_id)
 );
 

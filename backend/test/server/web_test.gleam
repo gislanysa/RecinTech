@@ -1,10 +1,15 @@
+import gleam/dynamic/decode
 import gleam/http
 import gleam/http/response
 import gleam/json
 import gleam/list
 import server/cnpj
 import server/email
+import server/segment
 import server/startup
+import server/startup/expertise
+import server/startup/service
+import server/startup/technology
 import server/user
 import server/web
 import server_test
@@ -107,8 +112,8 @@ pub fn get_user_by_invalid_id_test() -> Nil {
 
 pub fn get_startup_by_id_test() -> Nil {
   use context <- server_test.with_context()
-  let assert Ok(cnpj) = cnpj.parse("12345678901234")
 
+  let assert Ok(cnpj) = cnpj.parse("12345678901234")
   let assert Ok(startup) =
     startup.register(
       context.database,
@@ -209,6 +214,210 @@ pub fn handle_login_missing_user_test() -> Nil {
   // We return 401 instead of 404, because we dont want an attacker to know that
   // an email is registered in the database.
   assert response.status == 401
+
+  Nil
+}
+
+pub fn get_startup_segments_test() -> Nil {
+  use context <- server_test.with_context()
+
+  // Startup
+  let assert Ok(cnpj) = cnpj.parse("12345678901234")
+  let assert Ok(startup) =
+    startup.register(
+      context.database,
+      name: "Critic Level",
+      stage: startup.Seed,
+      cnpj: cnpj,
+      description: "startup muito maneira",
+      city: "Recife",
+      state: "Pernambuco",
+    )
+
+  // First segment
+  let assert Ok(segment_a) =
+    segment.register(context.database, name: "health", description: "")
+
+  let assert Ok(_) =
+    startup.assign_segment(context.database, startup.id, assign: segment_a.id)
+
+  // Second segment
+  let assert Ok(segment_b) =
+    segment.register(context.database, name: "iot", description: "")
+
+  let assert Ok(_) =
+    startup.assign_segment(context.database, startup.id, assign: segment_b.id)
+
+  // Request
+  let id = uuid.to_string(startup.id)
+  let response =
+    simulate.browser_request(http.Get, "/api/startup/segment/" <> id)
+    |> web.handle_request(context)
+
+  assert response.status == 200
+  let body = simulate.read_body(response)
+  let assert Ok(returned) = json.parse(body, decode.list(segment.decoder()))
+
+  // Both need to be present
+  assert list.contains(returned, segment_a)
+  assert list.contains(returned, segment_b)
+
+  Nil
+}
+
+pub fn get_startup_services_test() -> Nil {
+  use context <- server_test.with_context()
+
+  // Startup
+  let assert Ok(cnpj) = cnpj.parse("12345678901234")
+  let assert Ok(startup) =
+    startup.register(
+      context.database,
+      name: "Critic Level",
+      stage: startup.Seed,
+      cnpj: cnpj,
+      description: "startup muito maneira",
+      city: "Recife",
+      state: "Pernambuco",
+    )
+
+  // First service
+  let assert Ok(service_a) =
+    service.register(context.database, name: "web development", description: "")
+
+  let assert Ok(_) =
+    startup.assign_service(context.database, startup.id, assign: service_a.id)
+
+  // Second service
+  let assert Ok(service_b) =
+    service.register(context.database, name: "mobile", description: "")
+
+  let assert Ok(_) =
+    startup.assign_service(context.database, startup.id, assign: service_b.id)
+
+  // Request
+  let id = uuid.to_string(startup.id)
+  let response =
+    simulate.browser_request(http.Get, "/api/startup/service/" <> id)
+    |> web.handle_request(context)
+
+  assert response.status == 200
+  let body = simulate.read_body(response)
+  let assert Ok(returned) = json.parse(body, decode.list(service.decoder()))
+
+  // Both need to be present
+  assert list.contains(returned, service_a)
+  assert list.contains(returned, service_b)
+
+  Nil
+}
+
+pub fn get_startup_technologies_test() -> Nil {
+  use context <- server_test.with_context()
+
+  // Startup
+  let assert Ok(cnpj) = cnpj.parse("12345678901234")
+  let assert Ok(startup) =
+    startup.register(
+      context.database,
+      name: "Critic Level",
+      stage: startup.Seed,
+      cnpj: cnpj,
+      description: "startup muito maneira",
+      city: "Recife",
+      state: "Pernambuco",
+    )
+
+  // First technology
+  let assert Ok(technology_a) =
+    technology.register(context.database, name: "gleam", description: ":)")
+
+  let assert Ok(_) =
+    startup.assign_technology(
+      context.database,
+      startup.id,
+      assign: technology_a.id,
+    )
+
+  // Second technology
+  let assert Ok(technology_b) =
+    technology.register(context.database, name: "OTP", description: ":)")
+
+  let assert Ok(_) =
+    startup.assign_technology(
+      context.database,
+      startup.id,
+      assign: technology_b.id,
+    )
+
+  // Request
+  let id = uuid.to_string(startup.id)
+  let response =
+    simulate.browser_request(http.Get, "/api/startup/technology/" <> id)
+    |> web.handle_request(context)
+
+  assert response.status == 200
+  let body = simulate.read_body(response)
+  let assert Ok(returned) = json.parse(body, decode.list(technology.decoder()))
+
+  // Both need to be present
+  assert list.contains(returned, technology_a)
+  assert list.contains(returned, technology_b)
+
+  Nil
+}
+
+pub fn get_startup_expertises_test() -> Nil {
+  use context <- server_test.with_context()
+
+  // Startup
+  let assert Ok(cnpj) = cnpj.parse("12345678901234")
+  let assert Ok(startup) =
+    startup.register(
+      context.database,
+      name: "Bio AI",
+      stage: startup.Seed,
+      cnpj: cnpj,
+      description: "",
+      city: "Recife",
+      state: "Pernambuco",
+    )
+
+  // First expertise
+  let assert Ok(expertise_a) =
+    expertise.register(context.database, name: "Tech", description: "")
+
+  let assert Ok(_) =
+    startup.assign_expertise(
+      context.database,
+      startup.id,
+      assign: expertise_a.id,
+    )
+
+  // Second expertise
+  let assert Ok(expertise_b) =
+    expertise.register(context.database, name: "BioTech", description: "")
+
+  let assert Ok(_) =
+    startup.assign_expertise(
+      context.database,
+      startup.id,
+      assign: expertise_b.id,
+    )
+
+  // Request
+  let id = uuid.to_string(startup.id)
+  let response =
+    simulate.browser_request(http.Get, "/api/startup/expertise/" <> id)
+    |> web.handle_request(context)
+
+  assert response.status == 200
+  let body = simulate.read_body(response)
+  let assert Ok(returned) = json.parse(body, decode.list(expertise.decoder()))
+
+  // Both need to be present
+  assert list.contains(returned, expertise_a)
+  assert list.contains(returned, expertise_b)
 
   Nil
 }

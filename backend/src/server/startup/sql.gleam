@@ -110,7 +110,6 @@ pub fn assign_segment(
   db: pog.Connection,
   arg_1: Uuid,
   arg_2: Uuid,
-  arg_3: Bool,
 ) -> Result(pog.Returned(AssignSegmentRow), pog.QueryError) {
   let decoder = {
     use segment_id <- decode.field(0, uuid_decoder())
@@ -119,18 +118,16 @@ pub fn assign_segment(
 
   "-- assign a given Segment to a Startup
 INSERT INTO
-    public.startup_segment (startup_id, segment_id, is_main_segment)
+    public.startup_segment (startup_id, segment_id)
 SELECT
     $1::uuid AS startup_id,
-    $2::uuid AS segment_id,
-    $3::boolean AS is_main_segment
+    $2::uuid AS segment_id
 RETURNING
     segment_id;
 "
   |> pog.query
   |> pog.parameter(pog.text(uuid.to_string(arg_1)))
   |> pog.parameter(pog.text(uuid.to_string(arg_2)))
-  |> pog.parameter(pog.bool(arg_3))
   |> pog.returning(decoder)
   |> pog.execute(db)
 }
@@ -274,7 +271,7 @@ pub type GetRow {
   )
 }
 
-/// select an startup;
+/// get an startup
 ///
 /// > 🐿️ This function was generated automatically using v4.7.0 of
 /// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
@@ -304,7 +301,7 @@ pub fn get(
     ))
   }
 
-  "-- select an startup;
+  "-- get an startup
 SELECT
     s.id,
     s.name,
@@ -364,6 +361,78 @@ WHERE
 "
   |> pog.query
   |> pog.parameter(pog.text(uuid.to_string(arg_1)))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
+/// A row you get from running the `get_many` query
+/// defined in `./src/server/startup/sql/get_many.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v4.7.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type GetManyRow {
+  GetManyRow(
+    id: Uuid,
+    name: String,
+    stage: StartupStage,
+    cnpj: String,
+    description: String,
+    city: String,
+    state: String,
+    created_at: Timestamp,
+  )
+}
+
+/// get a maximum of $2 startups from the database
+///
+/// > 🐿️ This function was generated automatically using v4.7.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn get_many(
+  db: pog.Connection,
+  arg_1: Int,
+  arg_2: Int,
+) -> Result(pog.Returned(GetManyRow), pog.QueryError) {
+  let decoder = {
+    use id <- decode.field(0, uuid_decoder())
+    use name <- decode.field(1, decode.string)
+    use stage <- decode.field(2, startup_stage_decoder())
+    use cnpj <- decode.field(3, decode.string)
+    use description <- decode.field(4, decode.string)
+    use city <- decode.field(5, decode.string)
+    use state <- decode.field(6, decode.string)
+    use created_at <- decode.field(7, pog.timestamp_decoder())
+    decode.success(GetManyRow(
+      id:,
+      name:,
+      stage:,
+      cnpj:,
+      description:,
+      city:,
+      state:,
+      created_at:,
+    ))
+  }
+
+  "-- get a maximum of $2 startups from the database
+SELECT
+    s.id,
+    s.name,
+    s.stage,
+    s.cnpj,
+    s.description,
+    s.city,
+    s.state,
+    s.created_at
+FROM
+    public.startup AS s
+LIMIT
+    $1::int OFFSET $2::int;
+"
+  |> pog.query
+  |> pog.parameter(pog.int(arg_1))
+  |> pog.parameter(pog.int(arg_2))
   |> pog.returning(decoder)
   |> pog.execute(db)
 }
@@ -463,6 +532,92 @@ FROM
     INNER JOIN startup_segment AS ss ON ss.segment_id = s.id
 WHERE
     ss.startup_id = $1::uuid;
+"
+  |> pog.query
+  |> pog.parameter(pog.text(uuid.to_string(arg_1)))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
+/// A row you get from running the `get_services` query
+/// defined in `./src/server/startup/sql/get_services.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v4.7.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type GetServicesRow {
+  GetServicesRow(id: Uuid, name: String, description: String)
+}
+
+/// select all services from a startup
+///
+/// > 🐿️ This function was generated automatically using v4.7.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn get_services(
+  db: pog.Connection,
+  arg_1: Uuid,
+) -> Result(pog.Returned(GetServicesRow), pog.QueryError) {
+  let decoder = {
+    use id <- decode.field(0, uuid_decoder())
+    use name <- decode.field(1, decode.string)
+    use description <- decode.field(2, decode.string)
+    decode.success(GetServicesRow(id:, name:, description:))
+  }
+
+  "-- select all services from a startup
+SELECT
+    s.id,
+    s.name,
+    s.description
+FROM
+    service AS s
+    INNER JOIN startup_service AS ss ON ss.service_id = s.id
+WHERE
+    ss.startup_id = $1::uuid;
+"
+  |> pog.query
+  |> pog.parameter(pog.text(uuid.to_string(arg_1)))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
+/// A row you get from running the `get_technologies` query
+/// defined in `./src/server/startup/sql/get_technologies.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v4.7.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type GetTechnologiesRow {
+  GetTechnologiesRow(id: Uuid, name: String, description: String)
+}
+
+/// get all technologies that a given startup is assigned to
+///
+/// > 🐿️ This function was generated automatically using v4.7.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn get_technologies(
+  db: pog.Connection,
+  arg_1: Uuid,
+) -> Result(pog.Returned(GetTechnologiesRow), pog.QueryError) {
+  let decoder = {
+    use id <- decode.field(0, uuid_decoder())
+    use name <- decode.field(1, decode.string)
+    use description <- decode.field(2, decode.string)
+    decode.success(GetTechnologiesRow(id:, name:, description:))
+  }
+
+  "-- get all technologies that a given startup is assigned to
+SELECT
+    t.id,
+    t.name,
+    t.description
+FROM
+    public.technology AS t
+    INNER JOIN public.startup_technology AS st ON st.technology_id = t.id
+WHERE
+    st.startup_id = $1::uuid;
 "
   |> pog.query
   |> pog.parameter(pog.text(uuid.to_string(arg_1)))
