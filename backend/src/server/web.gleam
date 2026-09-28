@@ -58,23 +58,27 @@ pub fn handle_request(
 
   case request.method, request.path_segments(request) {
     // ## HEALTHCHECK
-    //
     // Check if the HTTP server is running correctly.
     http.Get, ["api", "healthcheck"] -> wisp.ok()
 
     // ## CLIENT
-    //
     // Send the HTML to the client.
     http.Get, [] -> get_root_document()
 
-    // ## AUTH
+    // +-----------------------------------------------------------------------+
+    // | AUTH                                                                  |
+    // +-----------------------------------------------------------------------+
     //
     // Authorization / Authentication related routes.
-    http.Post, ["api", "auth", "login"] -> login(request, context.database)
+    http.Post, ["api", "auth", "login"] ->
+      handle_login(request, context.database)
 
-    // ## STARTUP
+    // +-----------------------------------------------------------------------+
+    // | STARTUP                                                               |
+    // +-----------------------------------------------------------------------+
     //
     // Querying, registering and assigning entities to startups.
+    //
     http.Get, ["api", "startup"] -> get_many_startups(request, context.database)
     http.Get, ["api", "startup", id] -> get_startup_by_id(context.database, id)
 
@@ -92,7 +96,9 @@ pub fn handle_request(
     http.Get, ["api", "startup", "technology", id] ->
       get_startup_technologies(context.database, id)
 
-    // ## USER
+    // +-----------------------------------------------------------------------+
+    // | USER                                                                  |
+    // +-----------------------------------------------------------------------+
     //
     // Querying, and registering users.
     http.Get, ["api", "user", id] -> get_user_by_id(context.database, id)
@@ -102,11 +108,11 @@ pub fn handle_request(
   }
 }
 
-/// **GET /api/startup/expertise/:id**
+/// ## `GET /api/startup/expertise/:id`
 ///
 /// Fetch all Expertises that a Startup is assigned to.
 ///
-/// ## Response
+/// ## Response Body
 ///
 /// ```json
 /// [
@@ -123,9 +129,11 @@ pub fn handle_request(
 /// ]
 /// ```
 ///
-/// - 200 If successful.
-/// - 400 if ID is not a valid UUID.
-/// - 404 If Startup is not found.
+/// ## Status Codes
+///
+/// - **200** If successful.
+/// - **400** if ID is not a valid UUID.
+/// - **404** If Startup is not found.
 ///
 pub fn get_startup_expertises(
   database: pog.Connection,
@@ -143,11 +151,11 @@ pub fn get_startup_expertises(
   }
 }
 
-/// **GET /api/startup/service/:id**
+/// ## `GET /api/startup/service/:id`
 ///
 /// Fetch all Services that a Startup is assigned to.
 ///
-/// ## Response
+/// ## Response Body
 ///
 /// ```json
 /// [
@@ -164,9 +172,11 @@ pub fn get_startup_expertises(
 /// ]
 /// ```
 ///
-/// - 200 If successful.
-/// - 400 if ID is not a valid UUID.
-/// - 404 If Startup is not found.
+/// ## Status Codes
+///
+/// - **200** If successful.
+/// - **400** if ID is not a valid UUID.
+/// - **404** If Startup is not found.
 ///
 pub fn get_startup_services(
   database: pog.Connection,
@@ -184,11 +194,11 @@ pub fn get_startup_services(
   }
 }
 
-/// **GET /api/startup/segment/:id**
+/// ## `GET /api/startup/segment/:id`
 ///
 /// Fetch all Segments that a Startup is assigned to.
 ///
-/// ## Response
+/// ## Response Body
 ///
 /// ```json
 /// [
@@ -205,9 +215,11 @@ pub fn get_startup_services(
 /// ]
 /// ```
 ///
-/// - 200 If successful.
-/// - 400 if ID is not a valid UUID.
-/// - 404 If Startup is not found.
+/// ## Status Codes
+///
+/// - **200** If successful.
+/// - **400** if ID is not a valid UUID.
+/// - **404** If Startup is not found.
 ///
 pub fn get_startup_segments(
   database: pog.Connection,
@@ -225,11 +237,11 @@ pub fn get_startup_segments(
   }
 }
 
-/// **GET /api/startup/technology/:id**
+/// ## `GET /api/startup/technology/:id`
 ///
 /// Fetch all Technologies that a Startup is assigned to.
 ///
-/// ## Response
+/// ## Response Body
 ///
 /// ```json
 /// [
@@ -246,9 +258,11 @@ pub fn get_startup_segments(
 /// ]
 /// ```
 ///
-/// - 200 If successful.
-/// - 400 if ID is not a valid UUID.
-/// - 404 If Startup is not found.
+/// ## Status Codes
+///
+/// - **200** If successful.
+/// - **400** if ID is not a valid UUID.
+/// - **404** If Startup is not found.
 ///
 pub fn get_startup_technologies(
   database: pog.Connection,
@@ -266,15 +280,15 @@ pub fn get_startup_technologies(
   }
 }
 
-/// **GET /api/startup**
+/// ## `GET /api/startup`
 ///
 /// Fetch a list of registered Startups, pagination is available.
 ///
 /// Required parameters:
-/// - limit: Int
-/// - offset: Int
+/// - limit: `Int`
+/// - offset: `Int`
 ///
-/// ## Response
+/// ## Response Body
 ///
 /// ```json
 /// [
@@ -300,6 +314,12 @@ pub fn get_startup_technologies(
 ///   }
 /// ]
 /// ```
+///
+/// ## Status Codes
+///
+/// - **200** if successful
+/// - **400** if query is missing, invalid or incomplete.
+///
 pub fn get_many_startups(
   request: wisp.Request,
   database: pog.Connection,
@@ -394,15 +414,15 @@ pub fn require_valid_uuid(
 ) -> wisp.Response {
   case uuid.from_string(id) {
     Ok(uuid) -> next(uuid)
-    Error(_) -> wisp.bad_request("Invalid UUID")
+    Error(_) -> wisp.bad_request("Invalid UUID: " <> id)
   }
 }
 
-/// **GET /api/user/:id**
+/// ## `GET /api/user/:id`
 ///
 /// Fetch information about an User.
 ///
-/// ## Response
+/// ## Response Body
 ///
 /// ```json
 /// {
@@ -414,6 +434,8 @@ pub fn require_valid_uuid(
 /// }
 /// ```
 ///
+/// ## Status Codes
+///
 /// - 200 If successful.
 /// - 404 If User is not found.
 ///
@@ -424,15 +446,17 @@ pub fn get_user_by_id(database: pog.Connection, id: String) -> wisp.Response {
     Ok(data) ->
       user.to_json(data)
       |> json.to_string
-      |> wisp.json_body(wisp.ok(), _)
+      |> wisp.json_response(200)
 
     Error(error) -> handle_user_error(error)
   }
 }
 
-/// **GET /api/startup/:id**
+/// ## `GET /api/startup/:id`
 ///
 /// Fetch information about a Startup.
+///
+/// ## Response Body
 ///
 /// ```json
 /// {
@@ -445,6 +469,8 @@ pub fn get_user_by_id(database: pog.Connection, id: String) -> wisp.Response {
 ///  "created_at": "2026-09-14T20:08:02.000Z"
 /// }
 /// ```
+///
+/// ## Status Codes
 ///
 /// - 200 If successful.
 /// - 404 If Startup is not found.
@@ -459,7 +485,7 @@ pub fn get_startup_by_id(
     Ok(data) ->
       startup.to_json(data)
       |> json.to_string
-      |> wisp.json_body(wisp.ok(), _)
+      |> wisp.json_response(200)
 
     Error(error) -> handle_startup_error(error)
   }
@@ -470,40 +496,39 @@ fn handle_startup_error(error: startup.StartupError) -> wisp.Response {
   case error {
     startup.DatabaseError(error) -> handle_database_error(error)
     startup.FailedToRegisterStartup -> wisp.internal_server_error()
-    startup.InvalidStage(error) -> wisp.bad_request("Invalid stage: " <> error)
+
+    startup.InvalidStage(error) ->
+      { "Invalid stage: " <> error }
+      |> wisp.bad_request
 
     startup.CnpjConflict(cnpj) ->
-      wisp.response(409)
-      |> wisp.string_body(
-        "CNPJ " <> cnpj.to_string(cnpj) <> " is already in use",
-      )
+      { "CNPJ " <> cnpj.to_string(cnpj) <> " is already in use" }
+      |> wisp.string_body(wisp.response(409), _)
 
     startup.NotFound(id) ->
-      wisp.not_found()
-      |> wisp.string_body("Startup " <> uuid.to_string(id) <> " not found")
+      { "Startup " <> uuid.to_string(id) <> " not found" }
+      |> wisp.string_body(wisp.not_found(), _)
 
     startup.InvalidCnpj(value) ->
       wisp.bad_request("Invalid CNPJ format: " <> value)
 
-    startup.InvalidMemberEmail(id:, value:) ->
-      wisp.bad_request(
-        "User "
-        <> uuid.to_string(id)
-        <> " has an invalid Email address: "
-        <> value,
-      )
+    startup.InvalidMemberEmail(id:, value:) -> {
+      let id = uuid.to_string(id)
+      { "User " <> id <> " has an invalid Email address: " <> value }
+      |> wisp.bad_request
+    }
 
     startup.AssignmentFailure(id:) ->
-      wisp.internal_server_error()
-      |> wisp.string_body("Failed to assign " <> uuid.to_string(id))
+      { "Failed to assign " <> uuid.to_string(id) }
+      |> wisp.string_body(wisp.internal_server_error(), _)
 
     startup.AssignmentConflict(id:) ->
-      wisp.response(409)
-      |> wisp.string_body(uuid.to_string(id) <> " is already assigned")
+      { uuid.to_string(id) <> " is already assigned" }
+      |> wisp.string_body(wisp.response(409), _)
 
     startup.AssignedMissingEntity(id:) ->
-      wisp.not_found()
-      |> wisp.string_body("Entity " <> uuid.to_string(id) <> " was not found")
+      { "Entity " <> uuid.to_string(id) <> " was not found" }
+      |> wisp.string_body(wisp.not_found(), _)
   }
 }
 
@@ -515,22 +540,21 @@ fn handle_user_error(error: user.UserError) -> wisp.Response {
     user.HashError(_) -> wisp.internal_server_error()
 
     user.InvalidEmail(value) ->
-      wisp.bad_request("Invalid email address: " <> value)
+      { "Invalid email address: " <> value }
+      |> wisp.bad_request
 
     user.NotFound(id) ->
-      wisp.not_found()
-      |> wisp.string_body("User " <> uuid.to_string(id) <> " not found.")
+      { "User " <> uuid.to_string(id) <> " not found." }
+      |> wisp.string_body(wisp.not_found(), _)
 
-    // Usually this happens when a User is trying to login.
+    // Usually this one happens when a User is trying to login.
     user.EmailNotFound(_) | user.WrongPassword ->
-      wisp.response(401)
-      |> wisp.string_body("Wrong email or password")
+      { "Wrong email or password" }
+      |> wisp.string_body(wisp.response(401), _)
 
     user.EmailConflict(email) ->
-      wisp.response(409)
-      |> wisp.string_body(
-        "Email " <> email.to_string(email) <> " is already in use",
-      )
+      { "Email " <> email.to_string(email) <> " is already in use" }
+      |> wisp.string_body(wisp.response(409), _)
   }
 }
 
@@ -560,11 +584,11 @@ fn login_decoder() -> decode.Decoder(Login) {
   decode.success(Login(email:, password:))
 }
 
-/// **POST /api/auth/login**
+/// ## `POST /api/auth/login`
 ///
 /// Sets a session cookie if successful, it will last exactly one hour.
 ///
-/// ## Request
+/// ## Request Body
 ///
 /// ```json
 /// {
@@ -573,34 +597,51 @@ fn login_decoder() -> decode.Decoder(Login) {
 /// }
 /// ```
 ///
-/// ## Response
+/// ## Response Body
+///
+/// ```json
+/// {
+///  "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+///  "full_name": "Marquinhos",
+///  "email": "user@email.com",
+///  "created_at": "2026-09-14T20:08:02.000Z",
+///  "is_active": true
+/// }
+/// ```
+///
+/// ## Status Codes
 ///
 /// - 200 If successful.
 /// - 401 If email or password is incorrect.
 /// - 400 If email is not a valid format.
 ///
-pub fn login(request: wisp.Request, database: pog.Connection) -> wisp.Response {
+pub fn handle_login(
+  request: wisp.Request,
+  database: pog.Connection,
+) -> wisp.Response {
   use body <- wisp.require_json(request)
 
   case decode.run(body, login_decoder()) {
-    Error(_errors) -> wisp.bad_request("Invalid JSON format")
-    Ok(login) -> {
-      let result =
-        user.verify(database, email: login.email, password: login.password)
-
-      case result {
+    Error(_) -> wisp.bad_request("Invalid JSON format")
+    Ok(login) ->
+      case user.verify(database, email: login.email, password: login.password) {
         Error(error) -> handle_user_error(error)
-        Ok(user) ->
+        Ok(user) -> {
+          let response =
+            user.to_json(user)
+            |> json.to_string()
+            |> wisp.json_response(200)
+
           wisp.set_cookie(
-            response: wisp.ok(),
+            response:,
             request:,
             name: session_cookie,
             value: uuid.to_string(user.id),
             security: wisp.Signed,
-            // One hour
+            // Session will last exactly one hour
             max_age: 60 * 60,
           )
+        }
       }
-    }
   }
 }
