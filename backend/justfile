@@ -78,50 +78,30 @@ generate-sql: require-database
 # Start the database container
 [group("database")]
 start-database:
-    docker rm -f {{ database_container_name }} >/dev/null 2>&1 || true
-    docker run --rm -d --name {{ database_container_name }} \
-      -e POSTGRES_USER="aluno" \
-      -e POSTGRES_PASSWORD="123" \
-      -e POSTGRES_DB="senac" \
-      -v "./postgres:/docker-entrypoint-initdb.d" \
-      -p "5432:5432" \
-      docker.io/postgres:18-alpine
-    just wait-for-database
+    echo {{ YELLOW }}"󱎫  Starting PostgreSQL..."{{ NORMAL }}
+    docker compose up -d postgres
+    timeout 30 bash -c 'until pg_isready -q -h localhost -p 5432 -U aluno -d senac; do sleep 0.2; done' \
+    || ( echo {{ YELLOW }}"PostgreSQL did not become ready in 30s"{{ NORMAL }} && exit 1 )
     echo {{ GREEN }}"  PostgreSQL is now running"{{ NORMAL }}
 
-# Restart the database container
+# Restart the database container with a fresh database
 [group("database")]
 restart-database: stop-database && start-database
-    echo {{ GREEN }}"󱎫  Rebuilding PostgreSQL database"{{ NORMAL }}
+    echo {{ GREEN }}"󱎫  Rebuilt the PostgreSQL database"{{ NORMAL }}
 
 # Stop the database container
 [group("database")]
 stop-database:
-    docker container stop {{ database_container_name }}
+    docker rm -f {{ database_container_name }} || true
     echo {{ GREEN }}"  Stopped the database container"{{ NORMAL }}
-
-# Wait until PostgreSQL accepts connections
-[private]
-wait-for-database:
-    #!/usr/bin/env bash
-    echo {{ YELLOW }}"󱎫  Waiting for PostgreSQL to be ready..."{{ NORMAL }}
-    for i in $(seq 1 30); do
-        docker exec {{ database_container_name }} \
-          pg_isready -U aluno -d senac >/dev/null 2>&1 && exit 0
-        sleep 1
-    done
-    echo "PostgreSQL did not become ready in time" >&2
-    exit 1
 
 # Check if the database is active
 [no-exit-message]
 [private]
 require-database:
-    docker container exists {{ database_container_name }} \
-    || ( echo {{ YELLOW }}"  Database container needs to be running"{{ NORMAL }} \
-    && echo {{ GREEN }}"󱎫  Starting it automatically"{{ NORMAL }} \
+    pg_isready -q -h localhost -p 5432 -U aluno -d senac \
+    || ( echo {{ YELLOW }}"  Database is not running, starting it"{{ NORMAL }} \
     && just start-database )
-    just wait-for-database
 
 # Check if the server is active
 [no-exit-message]
