@@ -11,8 +11,8 @@ pub fn register_service_test() -> Nil {
   let assert Ok(returned) =
     service.register(context.database, name:, description:)
 
+  assert uuid.version(returned.id) == uuid.V7
   assert returned == service.Service(id: returned.id, name:, description:)
-    as "return correct service"
 
   Nil
 }

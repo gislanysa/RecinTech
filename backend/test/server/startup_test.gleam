@@ -8,32 +8,42 @@ import youid/uuid
 pub fn register_startup_test() -> Nil {
   use context <- server_test.with_context()
 
-  let name = "Critic Level"
-  let email = dummy.new_email()
+  let city = "Recife"
   let cnpj = dummy.new_cnpj()
   let description = "startup muito maneira"
-  let city = "Recife"
+  let email = dummy.new_email()
+  let name = "Critic Level"
+  let password = "wibble"
+  let stage = startup.Seed
   let state = "Pernambuco"
 
   let assert Ok(returned) =
     startup.register(
       context.database,
-      name: name,
-      email: email,
-      password: "wibble",
-      stage: startup.Seed,
-      cnpj: cnpj,
-      description: description,
-      city: city,
-      state: state,
+      name:,
+      email:,
+      password:,
+      stage:,
+      cnpj:,
+      description:,
+      city:,
+      state:,
     )
 
-  assert returned.name == name
-  assert returned.email == email
-  assert returned.cnpj == cnpj
-  assert returned.description == description
-  assert returned.city == city
-  assert returned.state == state
+  assert uuid.version(returned.id) == uuid.V7
+  assert returned
+    == startup.Startup(
+      id: returned.id,
+      name:,
+      email:,
+      stage:,
+      cnpj:,
+      description:,
+      city:,
+      state:,
+      created_at: returned.created_at,
+      is_active: True,
+    )
 
   Nil
 }
@@ -169,12 +179,12 @@ pub fn get_missing_startup_test() -> Nil {
   use context <- server_test.with_context()
 
   // Random ID
-  let want = uuid.v7()
+  let id = uuid.v7()
 
   let assert Error(startup.NotFound(returned)) =
-    startup.get(context.database, want)
+    startup.get(context.database, id)
 
-  assert returned == want as "returned id of non existing startup"
+  assert returned == id
 
   Nil
 }
@@ -215,13 +225,13 @@ pub fn segment_assignment_conflict_test() -> Nil {
 pub fn assign_segment_to_missing_startup_test() -> Nil {
   use context <- server_test.with_context()
 
-  let want = uuid.v7()
+  let id = uuid.v7()
   let segment = dummy.new_segment(context.database)
 
   let assert Error(startup.NotFound(returned)) =
-    startup.assign_segment(context.database, want, assign: segment.id)
+    startup.assign_segment(context.database, id, assign: segment.id)
 
-  assert returned == want as "returned missing startup id"
+  assert returned == id
 
   Nil
 }
@@ -273,7 +283,7 @@ pub fn ensure_exists_test() -> Nil {
 
   // The query should early return to avoid interacting with a Startup
   // that does not exist.
-  let assert Error(startup.NotFound(got)) = {
+  let assert Error(startup.NotFound(returned)) = {
     use <- startup.ensure_exists(context.database, missing_startup_id)
 
     Ok(Nil)
@@ -282,7 +292,7 @@ pub fn ensure_exists_test() -> Nil {
   }
 
   // The error should include the given ID in his payload
-  assert got == missing_startup_id
+  assert returned == missing_startup_id
 
   Nil
 }

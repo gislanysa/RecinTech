@@ -16,11 +16,13 @@ pub const password = "root"
 
 pub fn new_email() -> email.Email {
   let assert Ok(email) = email.parse(uuid.v7_string() <> "@email.com")
+    as "generate dummy email"
   email
 }
 
 pub fn new_cnpj() -> cnpj.Cnpj {
   let assert Ok(cnpj) = cnpj.parse(string.slice(uuid.v7_string(), 0, 14))
+    as "generate dummy cnpj"
   cnpj
 }
 
@@ -37,6 +39,7 @@ pub fn new_startup(database: pog.Connection) -> startup.Startup {
       city: "Recife",
       state: "PE",
     )
+    as "generate dummy startup"
 
   startup
 }
@@ -44,6 +47,7 @@ pub fn new_startup(database: pog.Connection) -> startup.Startup {
 pub fn new_segment(database: pog.Connection) -> segment.Segment {
   let assert Ok(data) =
     segment.register(database, name: "wibble", description: "wobble")
+    as "generate dummy segment"
 
   data
 }
@@ -51,6 +55,7 @@ pub fn new_segment(database: pog.Connection) -> segment.Segment {
 pub fn new_expertise(database: pog.Connection) -> expertise.Expertise {
   let assert Ok(data) =
     expertise.register(database, name: "wibble", description: "wobble")
+    as "generate dummy expertise"
 
   data
 }
@@ -58,6 +63,7 @@ pub fn new_expertise(database: pog.Connection) -> expertise.Expertise {
 pub fn new_service(database: pog.Connection) -> service.Service {
   let assert Ok(data) =
     service.register(database, name: "wibble", description: "wobble")
+    as "generate dummy service"
 
   data
 }
@@ -65,6 +71,7 @@ pub fn new_service(database: pog.Connection) -> service.Service {
 pub fn new_technology(database: pog.Connection) -> technology.Technology {
   let assert Ok(data) =
     technology.register(database, name: "wibble", description: "wobble")
+    as "generate dummy technology"
 
   data
 }

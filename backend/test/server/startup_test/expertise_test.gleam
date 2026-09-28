@@ -8,9 +8,11 @@ pub fn register_expertise_test() -> Nil {
 
   let name = "Health"
   let description = "Medic stuff"
-  let assert Ok(got) = expertise.register(context.database, name:, description:)
+  let assert Ok(returned) =
+    expertise.register(context.database, name:, description:)
 
-  assert got == expertise.Expertise(id: got.id, name:, description:)
+  assert uuid.version(returned.id) == uuid.V7
+  assert returned == expertise.Expertise(id: returned.id, name:, description:)
 
   Nil
 }
