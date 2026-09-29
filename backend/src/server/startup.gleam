@@ -485,7 +485,6 @@ pub fn ensure_exists(
 ///   context.database,
 ///   startup_id,
 ///   assign: segment_id,
-///   as_main_segment: True,
 ///   )
 ///
 /// case result {
