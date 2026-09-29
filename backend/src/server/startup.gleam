@@ -1,5 +1,6 @@
 //// Types and functions for working with [Startups](#Startup)
 
+import argus
 import gleam/dynamic/decode
 import gleam/json
 import gleam/list
@@ -14,7 +15,6 @@ import server/startup/expertise
 import server/startup/service
 import server/startup/sql
 import server/startup/technology
-import server/user
 import youid/uuid
 
 pub type StartupError {
@@ -24,14 +24,14 @@ pub type StartupError {
   FailedToRegisterStartup
   /// Startup was not found in the Database
   NotFound(id: uuid.Uuid)
-  /// Member's email has invalid format
-  InvalidMemberEmail(id: uuid.Uuid, value: String)
-  /// User, segment, technology, etc is already assigned
+  /// Segment, technology, etc is already assigned
   AssignmentConflict(id: uuid.Uuid)
   /// Tried to assign an entity that is not registered
   AssignedMissingEntity(id: uuid.Uuid)
   /// Failed to assign entity to a startup for unknown reasons
   AssignmentFailure(id: uuid.Uuid)
+  /// Failed to hash the Startup password
+  HashError(argus.HashError)
 
   /// CPNJ should have 14 characters
   InvalidCnpj(value: String)
@@ -39,6 +39,20 @@ pub type StartupError {
   CnpjConflict(value: cnpj.Cnpj)
   /// Failed to parse a String into a [Stage](#Stage) type
   InvalidStage(value: String)
+
+  // Email related errors -----------------------------------------------------
+  //
+  /// Email doesn't belong to a registered Startup
+  EmailNotFound(email: email.Email)
+  /// Startup emails need to be unique
+  EmailConflict(value: email.Email)
+  /// Startup email has invalid format
+  InvalidEmail(value: String)
+
+  // Auth related errors -------------------------------------------------------
+  //
+  /// Startup provided an incorrect password when during login
+  WrongPassword
 }
 
 pub type Startup {
@@ -47,6 +61,8 @@ pub type Startup {
     id: uuid.Uuid,
     /// Their name
     name: String,
+    /// Their name
+    email: email.Email,
     /// The stage that they are currently on
     stage: Stage,
     /// Their CPNJ, it must be exactly 14 digits
@@ -59,6 +75,8 @@ pub type Startup {
     state: String,
     /// When the startup was created
     created_at: timestamp.Timestamp,
+    /// Whether the Startup is active
+    is_active: Bool,
   )
 }
 
@@ -110,15 +128,27 @@ pub fn stage_from_string(value: String) -> Result(Stage, StartupError) {
 pub fn decoder() -> decode.Decoder(Startup) {
   use id <- decode.field("id", uuid_decoder())
   use name <- decode.field("name", decode.string)
+  use email <- decode.field("email", email.decoder())
   use stage <- decode.field("stage", stage_decoder())
   use cnpj <- decode.field("cnpj", cnpj.decoder())
   use description <- decode.field("description", decode.string)
   use city <- decode.field("city", decode.string)
   use state <- decode.field("state", decode.string)
   use created_at <- decode.field("created_at", timestamp_decoder())
+  use is_active <- decode.field("is_active", decode.bool)
 
-  Startup(id:, name:, stage:, cnpj:, description:, city:, state:, created_at:)
-  |> decode.success
+  decode.success(Startup(
+    id:,
+    name:,
+    stage:,
+    email:,
+    cnpj:,
+    description:,
+    city:,
+    state:,
+    created_at:,
+    is_active:,
+  ))
 }
 
 /// Encode a Startup into a JSON object.
@@ -126,12 +156,14 @@ pub fn to_json(startup: Startup) -> json.Json {
   json.object([
     #("id", uuid_to_json(startup.id)),
     #("name", json.string(startup.name)),
+    #("email", json.string(email.to_string(startup.email))),
     #("stage", stage_to_json(startup.stage)),
     #("cnpj", json.string(cnpj.to_string(startup.cnpj))),
     #("description", json.string(startup.description)),
     #("city", json.string(startup.city)),
     #("state", json.string(startup.state)),
     #("created_at", timestamp_to_json(startup.created_at)),
+    #("is_active", json.bool(startup.is_active)),
   ])
 }
 
@@ -173,6 +205,8 @@ fn timestamp_decoder() -> decode.Decoder(timestamp.Timestamp) {
 /// let result = startup.register(
 ///   context.database,
 ///   name: "Critic Level",
+///   email: email,
+///   password: "wibble",
 ///   stage: startup.Seed,
 ///   cnpj: cnpj,
 ///   description: "startup muito maneira",
@@ -181,58 +215,138 @@ fn timestamp_decoder() -> decode.Decoder(timestamp.Timestamp) {
 /// )
 ///
 /// case result {
+///   Error(startup.CnpjConflict(..))
+///   | Error(startup.EmailConflict(..)) -> wisp.response(409)
+///
 ///   Ok(data) -> todo as "send response"
-///   Error(startup.CnpjConflict) -> wisp.response(409)
 ///   Error(_) -> wisp.internal_server_error()
 /// }
 /// ```
 pub fn register(
   database: pog.Connection,
   name name: String,
+  email email: email.Email,
+  password password: String,
   stage stage: Stage,
   cnpj cnpj: cnpj.Cnpj,
   description description: String,
   city city: String,
   state state: String,
 ) -> Result(Startup, StartupError) {
-  let s_cnpj = cnpj.to_string(cnpj)
   let stage = stage_to_enum(stage)
 
-  use returned <- result.try(
-    case sql.register(database, name, stage, s_cnpj, description, city, state) {
-      // Every Startup CNPJ needs to be unique.
-      Error(pog.ConstraintViolated(constraint: "startup_cnpj_key", ..)) ->
-        Error(CnpjConflict(value: cnpj))
-
-      // A CNPJ needs to have exactly 14 digits.
-      Error(pog.ConstraintViolated(constraint: "startup_cnpj_check", ..)) ->
-        Error(InvalidCnpj(value: s_cnpj))
-
-      Ok(data) -> Ok(data)
-      Error(error) -> Error(DatabaseError(error))
-    },
+  use hash <- result.try(
+    argus.hasher()
+    |> argus.hash(password)
+    |> result.map_error(HashError)
+    |> result.map(fn(output) { output.encoded_hash }),
   )
+
+  let register_result =
+    sql.register(
+      database,
+      name,
+      stage,
+      email.to_string(email),
+      hash,
+      cnpj.to_string(cnpj),
+      description,
+      city,
+      state,
+    )
+
+  use returned <- result.try(case register_result {
+    // Every Startup CNPJ needs to be unique.
+    Error(pog.ConstraintViolated(constraint: "startup_cnpj_key", ..)) ->
+      Error(CnpjConflict(value: cnpj))
+
+    // A CNPJ needs to have exactly 14 digits.
+    Error(pog.ConstraintViolated(constraint: "startup_cnpj_check", ..)) ->
+      Error(InvalidCnpj(value: cnpj.to_string(cnpj)))
+
+    // Every Startup Email needs to be unique.
+    Error(pog.ConstraintViolated(constraint: "startup_email_key", ..)) ->
+      Error(EmailConflict(value: email))
+
+    Ok(data) -> Ok(data)
+    Error(error) -> Error(DatabaseError(error))
+  })
 
   use row <- result.try(
     list.first(returned.rows)
     |> result.replace_error(FailedToRegisterStartup),
   )
 
-  use cnpj <- result.map(
+  use cnpj <- result.try(
     cnpj.parse(row.cnpj)
     |> result.replace_error(InvalidCnpj(value: row.cnpj)),
+  )
+
+  use email <- result.map(
+    email.parse(row.email)
+    |> result.replace_error(InvalidEmail(value: row.email)),
   )
 
   Startup(
     id: row.id,
     name: row.name,
+    email:,
     stage: stage_from_enum(row.stage),
-    cnpj: cnpj,
+    cnpj:,
     description: row.description,
     city: row.city,
     state: row.state,
     created_at: row.created_at,
+    is_active: row.is_active,
   )
+}
+
+/// Verifies the provided `email` and `password`, checking if they matche the
+/// ones stored in our Database. Returning Startup information if correct.
+///
+/// ## Examples
+///
+/// ```gleam
+/// let result = startup.verify(
+///   context.database,
+///   email: "my@email.com",
+///   password: "password",
+/// )
+///
+/// case result {
+///   Ok(data) -> todo as "send response"
+///   Error(startup.NotFound) -> wisp.not_found()
+///   Error(startup.WrongPassword) -> wisp.response(401)
+///   Error(_) -> wisp.internal_server_error()
+/// }
+/// ```
+pub fn verify(
+  database: pog.Connection,
+  email email: email.Email,
+  password password: String,
+) -> Result(Startup, StartupError) {
+  use returned <- result.try(
+    sql.get_credentials(database, email.to_string(email))
+    |> result.map_error(DatabaseError),
+  )
+
+  use row <- result.try(
+    list.first(returned.rows)
+    |> result.replace_error(EmailNotFound(email:)),
+  )
+
+  // Comparing the given password with the value stored in our Database
+  case argus.verify(row.password_hash, password) {
+    // Correct password, we can query the user information
+    // and send it to the client.
+    Ok(True) -> get(database, row.id)
+
+    // Incorrect password
+    Ok(False) -> Error(WrongPassword)
+
+    // Something went wrong when hashing the user password
+    Error(error) -> Error(HashError(error))
+  }
 }
 
 /// Convert the sql-generated StartupStage enum to a valid [Stage](#Stage) type.
@@ -278,106 +392,28 @@ pub fn get(
     |> result.replace_error(NotFound(id:)),
   )
 
-  use cnpj <- result.map(
+  use cnpj <- result.try(
     cnpj.parse(row.cnpj)
     |> result.replace_error(InvalidCnpj(value: row.cnpj)),
+  )
+
+  use email <- result.map(
+    email.parse(row.email)
+    |> result.replace_error(InvalidEmail(value: row.email)),
   )
 
   Startup(
     id: row.id,
     name: row.name,
+    email:,
     stage: stage_from_enum(row.stage),
-    cnpj: cnpj,
+    cnpj:,
     description: row.description,
     city: row.city,
     state: row.state,
     created_at: row.created_at,
+    is_active: row.is_active,
   )
-}
-
-/// Assign a member to a Startup and returns the ID of the user if successful.
-/// You cannot assign a member to a startup more than once.
-///
-/// ## Examples
-///
-/// ```gleam
-/// let result = startup.assign_member(context.database, id, assign: member)
-///
-/// case result {
-///   Ok(assigned_user_id) -> todo as "send response"
-///   Error(startup.NotFound(_)) -> wisp.not_found()
-///   Error(_) -> wisp.internal_server_error()
-/// }
-/// ```
-pub fn assign_member(
-  database: pog.Connection,
-  id: uuid.Uuid,
-  assign member: uuid.Uuid,
-) -> Result(uuid.Uuid, StartupError) {
-  use returned <- result.try(case sql.assign_member(database, id, member) {
-    // Tried to assign an User to a Startup that is not registered.
-    Error(pog.ConstraintViolated(
-      constraint: "startup_membership_startup_id_fkey",
-      ..,
-    )) -> Error(NotFound(id:))
-
-    // Tried to assign an User that is not registered.
-    Error(pog.ConstraintViolated(
-      constraint: "startup_membership_user_id_fkey",
-      ..,
-    )) -> Error(AssignedMissingEntity(id: member))
-
-    // Tried to assign an User that is already assigned
-    Error(pog.ConstraintViolated(constraint: "startup_membership_pkey", ..)) ->
-      Error(AssignmentConflict(id: member))
-
-    Ok(rows) -> Ok(rows)
-    Error(error) -> Error(DatabaseError(error:))
-  })
-
-  case list.first(returned.rows) {
-    Ok(row) -> Ok(row.user_id)
-    Error(_) -> Error(AssignmentFailure(id: member))
-  }
-}
-
-/// Get all members assigned to a given Startup.
-///
-/// ## Examples
-///
-/// ```gleam
-/// let result = startup.get_members(context.database, id)
-///
-/// case result {
-///   Ok(members) -> todo as "send response"
-///   Error(_) -> wisp.internal_server_error()
-/// }
-/// ```
-pub fn get_members(
-  database: pog.Connection,
-  id: uuid.Uuid,
-) -> Result(List(user.User), StartupError) {
-  use <- ensure_exists(database, id)
-
-  use returned <- result.try(
-    sql.get_members(database, id)
-    |> result.map_error(DatabaseError),
-  )
-
-  list.try_map(returned.rows, fn(row) {
-    use email <- result.map(
-      email.parse(row.email)
-      |> result.replace_error(InvalidMemberEmail(id: row.id, value: row.email)),
-    )
-
-    user.User(
-      id: row.id,
-      full_name: row.full_name,
-      email: email,
-      created_at: row.created_at,
-      is_active: row.is_active,
-    )
-  })
 }
 
 /// Get all segments that a Startup is assigned to.
@@ -419,7 +455,7 @@ pub fn get_segments(
 /// use <- ensure_exists(database, id)
 ///
 /// use returned <- result.map(
-///   sql.get_members(database, id)
+///   sql.get_segments(database, id)
 ///   |> result.map_error(DatabaseError),
 /// )
 /// ```
@@ -433,12 +469,10 @@ pub fn ensure_exists(
     |> result.map_error(DatabaseError),
   )
 
-  use _found <- result.try(
-    list.first(returned.rows)
-    |> result.replace_error(NotFound(id:)),
-  )
-
-  next()
+  case list.first(returned.rows) {
+    Ok(_) -> next()
+    Error(_) -> Error(NotFound(id:))
+  }
 }
 
 /// Assign a Segment to a Startup and returns the ID of the segment if successful.
@@ -767,20 +801,27 @@ pub fn get_many(
   )
 
   list.try_map(returned.rows, fn(row) {
-    use cnpj <- result.map(
+    use cnpj <- result.try(
       cnpj.parse(row.cnpj)
       |> result.replace_error(InvalidCnpj(value: row.cnpj)),
+    )
+
+    use email <- result.map(
+      email.parse(row.email)
+      |> result.replace_error(InvalidEmail(value: row.email)),
     )
 
     Startup(
       id: row.id,
       name: row.name,
+      email:,
       stage: stage_from_enum(row.stage),
       cnpj: cnpj,
       description: row.description,
       city: row.city,
       state: row.state,
       created_at: row.created_at,
+      is_active: row.is_active,
     )
   })
 }

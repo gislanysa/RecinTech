@@ -1,16 +1,16 @@
 import gleam/dynamic/decode
 import gleam/http
+import gleam/http/request
 import gleam/http/response
 import gleam/json
 import gleam/list
-import server/cnpj
+import server/dummy
 import server/email
 import server/segment
 import server/startup
 import server/startup/expertise
 import server/startup/service
 import server/startup/technology
-import server/user
 import server/web
 import server_test
 import wisp/simulate
@@ -50,82 +50,12 @@ pub fn healthcheck_test() -> Nil {
   assert response.status == 200
 }
 
-pub fn get_user_by_id_test() -> Nil {
-  use context <- server_test.with_context()
-
-  let assert Ok(email) = email.parse("user@email.com")
-
-  let assert Ok(user) =
-    user.register(
-      context.database,
-      full_name: "wibble",
-      email: email,
-      password: "12345678",
-    )
-
-  let endpoint = "/api/user/" <> uuid.to_string(user.id)
-
-  let response =
-    simulate.browser_request(http.Get, endpoint)
-    |> web.handle_request(context)
-
-  assert response.status == 200
-  assert response.get_header(response, "content-type")
-    == Ok("application/json; charset=utf-8")
-
-  let body = simulate.read_body(response)
-  let assert Ok(found) = json.parse(body, user.decoder())
-
-  assert user == found as "return correct user"
-
-  Nil
-}
-
-/// Querying a missing User should return 404 Not Found
-pub fn get_missing_user_by_id_test() -> Nil {
-  use context <- server_test.with_context()
-
-  let user_id = uuid.v7_string()
-
-  let response =
-    simulate.browser_request(http.Get, "/api/user/" <> user_id)
-    |> web.handle_request(context)
-
-  assert response.status == 404
-
-  Nil
-}
-
-/// Path paramether needs to be a valid UUID V7
-pub fn get_user_by_invalid_id_test() -> Nil {
-  use context <- server_test.with_context()
-
-  let response =
-    //                                                  vvvvvv
-    simulate.browser_request(http.Get, "/api/user/" <> "wibble")
-    |> web.handle_request(context)
-
-  assert response.status == 400
-
-  Nil
-}
-
 pub fn get_startup_by_id_test() -> Nil {
   use context <- server_test.with_context()
 
-  let assert Ok(cnpj) = cnpj.parse("12345678901234")
-  let assert Ok(startup) =
-    startup.register(
-      context.database,
-      name: "Critic Level",
-      stage: startup.Seed,
-      cnpj: cnpj,
-      description: "startup muito maneira",
-      city: "Recife",
-      state: "Pernambuco",
-    )
-
+  let startup = dummy.new_startup(context.database)
   let id = uuid.to_string(startup.id)
+
   let response =
     simulate.browser_request(http.Get, "/api/startup/" <> id)
     |> web.handle_request(context)
@@ -173,15 +103,12 @@ pub fn get_startup_by_invalid_id_test() -> Nil {
 pub fn handle_login_test() -> Nil {
   use context <- server_test.with_context()
 
-  let assert Ok(email) = email.parse("wibble@email.com")
-  let password = "12345678"
-  let assert Ok(user) =
-    user.register(context.database, full_name: "wibble", email:, password:)
+  let startup = dummy.new_startup(context.database)
 
   let body =
     json.object([
-      #("email", json.string(email.to_string(user.email))),
-      #("password", json.string(password)),
+      #("email", json.string(email.to_string(startup.email))),
+      #("password", json.string(dummy.password)),
     ])
 
   let response =
@@ -194,25 +121,25 @@ pub fn handle_login_test() -> Nil {
     response.get_cookies(response)
     |> list.key_find(web.session_cookie)
 
-  // response must contain user data
+  // response must contain startup data
   let body = simulate.read_body(response)
-  let assert Ok(returned) = json.parse(body, user.decoder())
+  let assert Ok(returned) = json.parse(body, startup.decoder())
 
-  // return correct user
-  assert returned.id == user.id
-  assert returned.full_name == user.full_name
-  assert returned.email == user.email
+  // return correct startup
+  assert returned.id == startup.id
+  assert returned.name == startup.name
+  assert returned.email == startup.email
 
   Nil
 }
 
-pub fn handle_login_missing_user_test() -> Nil {
+pub fn handle_login_missing_startup_test() -> Nil {
   use context <- server_test.with_context()
 
   let body =
     json.object([
       #("email", json.string("user@email.com")),
-      #("password", json.string("wibble123")),
+      #("password", json.string(dummy.password)),
     ])
 
   let response =
@@ -231,28 +158,16 @@ pub fn get_startup_segments_test() -> Nil {
   use context <- server_test.with_context()
 
   // Startup
-  let assert Ok(cnpj) = cnpj.parse("12345678901234")
-  let assert Ok(startup) =
-    startup.register(
-      context.database,
-      name: "Critic Level",
-      stage: startup.Seed,
-      cnpj: cnpj,
-      description: "startup muito maneira",
-      city: "Recife",
-      state: "Pernambuco",
-    )
+  let startup = dummy.new_startup(context.database)
 
   // First segment
-  let assert Ok(segment_a) =
-    segment.register(context.database, name: "health", description: "")
+  let segment_a = dummy.new_segment(context.database)
 
   let assert Ok(_) =
     startup.assign_segment(context.database, startup.id, assign: segment_a.id)
 
   // Second segment
-  let assert Ok(segment_b) =
-    segment.register(context.database, name: "iot", description: "")
+  let segment_b = dummy.new_segment(context.database)
 
   let assert Ok(_) =
     startup.assign_segment(context.database, startup.id, assign: segment_b.id)
@@ -265,11 +180,9 @@ pub fn get_startup_segments_test() -> Nil {
 
   assert response.status == 200
   let body = simulate.read_body(response)
-  let assert Ok(returned) = json.parse(body, decode.list(segment.decoder()))
 
-  // Both need to be present
-  assert list.contains(returned, segment_a)
-  assert list.contains(returned, segment_b)
+  let assert Ok(returned) = json.parse(body, decode.list(segment.decoder()))
+  assert returned == [segment_a, segment_b]
 
   Nil
 }
@@ -278,29 +191,15 @@ pub fn get_startup_services_test() -> Nil {
   use context <- server_test.with_context()
 
   // Startup
-  let assert Ok(cnpj) = cnpj.parse("12345678901234")
-  let assert Ok(startup) =
-    startup.register(
-      context.database,
-      name: "Critic Level",
-      stage: startup.Seed,
-      cnpj: cnpj,
-      description: "startup muito maneira",
-      city: "Recife",
-      state: "Pernambuco",
-    )
+  let startup = dummy.new_startup(context.database)
 
   // First service
-  let assert Ok(service_a) =
-    service.register(context.database, name: "web development", description: "")
-
+  let service_a = dummy.new_service(context.database)
   let assert Ok(_) =
     startup.assign_service(context.database, startup.id, assign: service_a.id)
 
   // Second service
-  let assert Ok(service_b) =
-    service.register(context.database, name: "mobile", description: "")
-
+  let service_b = dummy.new_service(context.database)
   let assert Ok(_) =
     startup.assign_service(context.database, startup.id, assign: service_b.id)
 
@@ -312,11 +211,9 @@ pub fn get_startup_services_test() -> Nil {
 
   assert response.status == 200
   let body = simulate.read_body(response)
-  let assert Ok(returned) = json.parse(body, decode.list(service.decoder()))
 
-  // Both need to be present
-  assert list.contains(returned, service_a)
-  assert list.contains(returned, service_b)
+  let assert Ok(returned) = json.parse(body, decode.list(service.decoder()))
+  assert returned == [service_a, service_b]
 
   Nil
 }
@@ -325,21 +222,10 @@ pub fn get_startup_technologies_test() -> Nil {
   use context <- server_test.with_context()
 
   // Startup
-  let assert Ok(cnpj) = cnpj.parse("12345678901234")
-  let assert Ok(startup) =
-    startup.register(
-      context.database,
-      name: "Critic Level",
-      stage: startup.Seed,
-      cnpj: cnpj,
-      description: "startup muito maneira",
-      city: "Recife",
-      state: "Pernambuco",
-    )
+  let startup = dummy.new_startup(context.database)
 
   // First technology
-  let assert Ok(technology_a) =
-    technology.register(context.database, name: "gleam", description: ":)")
+  let technology_a = dummy.new_technology(context.database)
 
   let assert Ok(_) =
     startup.assign_technology(
@@ -349,8 +235,7 @@ pub fn get_startup_technologies_test() -> Nil {
     )
 
   // Second technology
-  let assert Ok(technology_b) =
-    technology.register(context.database, name: "OTP", description: ":)")
+  let technology_b = dummy.new_technology(context.database)
 
   let assert Ok(_) =
     startup.assign_technology(
@@ -367,11 +252,9 @@ pub fn get_startup_technologies_test() -> Nil {
 
   assert response.status == 200
   let body = simulate.read_body(response)
-  let assert Ok(returned) = json.parse(body, decode.list(technology.decoder()))
 
-  // Both need to be present
-  assert list.contains(returned, technology_a)
-  assert list.contains(returned, technology_b)
+  let assert Ok(returned) = json.parse(body, decode.list(technology.decoder()))
+  assert returned == [technology_a, technology_b]
 
   Nil
 }
@@ -380,21 +263,10 @@ pub fn get_startup_expertises_test() -> Nil {
   use context <- server_test.with_context()
 
   // Startup
-  let assert Ok(cnpj) = cnpj.parse("12345678901234")
-  let assert Ok(startup) =
-    startup.register(
-      context.database,
-      name: "Bio AI",
-      stage: startup.Seed,
-      cnpj: cnpj,
-      description: "",
-      city: "Recife",
-      state: "Pernambuco",
-    )
+  let startup = dummy.new_startup(context.database)
 
   // First expertise
-  let assert Ok(expertise_a) =
-    expertise.register(context.database, name: "Tech", description: "")
+  let expertise_a = dummy.new_expertise(context.database)
 
   let assert Ok(_) =
     startup.assign_expertise(
@@ -404,8 +276,7 @@ pub fn get_startup_expertises_test() -> Nil {
     )
 
   // Second expertise
-  let assert Ok(expertise_b) =
-    expertise.register(context.database, name: "BioTech", description: "")
+  let expertise_b = dummy.new_expertise(context.database)
 
   let assert Ok(_) =
     startup.assign_expertise(
@@ -422,11 +293,79 @@ pub fn get_startup_expertises_test() -> Nil {
 
   assert response.status == 200
   let body = simulate.read_body(response)
-  let assert Ok(returned) = json.parse(body, decode.list(expertise.decoder()))
 
-  // Both need to be present
-  assert list.contains(returned, expertise_a)
-  assert list.contains(returned, expertise_b)
+  let assert Ok(returned) = json.parse(body, decode.list(expertise.decoder()))
+  assert returned == [expertise_a, expertise_b]
+
+  Nil
+}
+
+pub fn get_many_startups_test() -> Nil {
+  use context <- server_test.with_context()
+
+  // Three startups
+  let _startup_a = dummy.new_startup(context.database)
+  let startup_b = dummy.new_startup(context.database)
+  let startup_c = dummy.new_startup(context.database)
+
+  // This will only return B and C
+  let response =
+    simulate.browser_request(http.Get, "/api/startup")
+    |> request.set_query([#("limit", "2"), #("offset", "1")])
+    |> web.handle_request(context)
+
+  assert response.status == 200
+  let body = simulate.read_body(response)
+
+  let assert Ok(returned) =
+    json.parse(body, using: decode.list(startup.decoder()))
+  assert returned == [startup_b, startup_c]
+
+  Nil
+}
+
+pub fn get_many_startups_missing_query_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let response =
+    simulate.browser_request(http.Get, "/api/startup")
+    |> web.handle_request(context)
+
+  assert response.status == 400
+
+  Nil
+}
+
+pub fn get_many_startups_invalid_query_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let response =
+    simulate.browser_request(http.Get, "/api/startup")
+    |> request.set_query([#("limit", "wibble"), #("offset", "0")])
+    //                                ^^
+    |> web.handle_request(context)
+
+  assert response.status == 400
+
+  Nil
+}
+
+pub fn get_many_startups_incomplete_query_test() -> Nil {
+  use context <- server_test.with_context()
+
+  // No offset
+  let response =
+    simulate.browser_request(http.Get, "/api/startup")
+    |> request.set_query([#("limit", "1")])
+    |> web.handle_request(context)
+  assert response.status == 400
+
+  // No limit
+  let response =
+    simulate.browser_request(http.Get, "/api/startup")
+    |> request.set_query([#("offset", "0")])
+    |> web.handle_request(context)
+  assert response.status == 400
 
   Nil
 }

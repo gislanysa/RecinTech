@@ -37,7 +37,7 @@ pub type Investor {
     /// Whether their profile is public.
     public_profile: Bool,
     /// The Investor's full name.
-    full_name: String,
+    name: String,
     /// The Investor's email address.
     email: email.Email,
     /// Timestamp of when the Investor was registred.
@@ -90,7 +90,7 @@ pub fn get(
     id: row.id,
     kind:,
     public_profile: row.public_profile,
-    full_name: row.full_name,
+    name: row.name,
     email:,
     created_at: row.created_at,
     is_active: row.is_active,

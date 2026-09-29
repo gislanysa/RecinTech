@@ -18,7 +18,6 @@ import server/startup
 import server/startup/expertise
 import server/startup/service
 import server/startup/technology
-import server/user
 import wisp
 import youid/uuid
 
@@ -32,8 +31,6 @@ pub type Context {
 }
 
 type WebError {
-  /// User related errors
-  UserError(user.UserError)
   /// Startup related errors
   StartupError(startup.StartupError)
   /// Missing request query
@@ -95,13 +92,6 @@ pub fn handle_request(
 
     http.Get, ["api", "startup", "technology", id] ->
       get_startup_technologies(context.database, id)
-
-    // +-----------------------------------------------------------------------+
-    // | USER                                                                  |
-    // +-----------------------------------------------------------------------+
-    //
-    // Querying, and registering users.
-    http.Get, ["api", "user", id] -> get_user_by_id(context.database, id)
 
     // ## Fallback routes
     _, _ -> wisp.not_found()
@@ -295,22 +285,26 @@ pub fn get_startup_technologies(
 ///   {
 ///    "id": "01a058ae-057f-73e8-b2a0-50986559767b",
 ///    "name": "Critic Level",
+///    "email": "wibble@email.com",
 ///    "stage": "seed",
 ///    "cnpj": "12345678901234",
 ///    "description": "startup muito maneira",
 ///    "city": "Recife",
 ///    "state": "Pernambuco",
 ///    "created_at": "2026-09-14T20:08:02.000Z"
+///    "is_active": true
 ///   },
 ///   {
 ///    "id": "01a0dbb3-153a-7b84-8c3d-631788972d4a",
 ///    "name": "Virada no Cafe",
+///    "email": "wobble@email.com",
 ///    "stage": "growth",
 ///    "cnpj": "12345678901234",
 ///    "description": "bem legal",
 ///    "city": "Recife",
 ///    "state": "Pernambuco",
 ///    "created_at": "2025-09-14T20:08:02.000Z"
+///    "is_active": true
 ///   }
 /// ]
 /// ```
@@ -359,7 +353,6 @@ pub fn get_many_startups(
 /// Handle WebError
 fn handle_error(error: WebError) -> wisp.Response {
   case error {
-    UserError(error) -> handle_user_error(error)
     StartupError(error) -> handle_startup_error(error)
     MissingQuery -> wisp.bad_request("Missing query")
     InvalidQueryParameter(key:) -> wisp.bad_request("Invalid " <> key)
@@ -402,7 +395,7 @@ fn middleware(
 /// pub fn handle_request(request, context, id) -> wisp.Response {
 ///   use id <- require_valid_uuid(id)
 ///
-///   case user.get(database, id) {
+///   case startup.get(database, id) {
 ///     Ok(data) -> todo as "send response"
 ///     Error(error) -> todo as "handle error"
 ///   }
@@ -415,40 +408,6 @@ pub fn require_valid_uuid(
   case uuid.from_string(id) {
     Ok(uuid) -> next(uuid)
     Error(_) -> wisp.bad_request("Invalid UUID: " <> id)
-  }
-}
-
-/// ## `GET /api/user/:id`
-///
-/// Fetch information about an User.
-///
-/// ## Response Body
-///
-/// ```json
-/// {
-///  "id": "01a058ae-057f-73e8-b2a0-50986559767b",
-///  "full_name": "Marquinhos",
-///  "email": "user@email.com",
-///  "created_at": "2026-09-14T20:08:02.000Z",
-///  "is_active": true
-/// }
-/// ```
-///
-/// ## Status Codes
-///
-/// - 200 If successful.
-/// - 404 If User is not found.
-///
-pub fn get_user_by_id(database: pog.Connection, id: String) -> wisp.Response {
-  use id <- require_valid_uuid(id)
-
-  case user.get(database, id) {
-    Ok(data) ->
-      user.to_json(data)
-      |> json.to_string
-      |> wisp.json_response(200)
-
-    Error(error) -> handle_user_error(error)
   }
 }
 
@@ -512,9 +471,8 @@ fn handle_startup_error(error: startup.StartupError) -> wisp.Response {
     startup.InvalidCnpj(value) ->
       wisp.bad_request("Invalid CNPJ format: " <> value)
 
-    startup.InvalidMemberEmail(id:, value:) -> {
-      let id = uuid.to_string(id)
-      { "User " <> id <> " has an invalid Email address: " <> value }
+    startup.InvalidEmail(value:) -> {
+      { "Invalid Email address: " <> value }
       |> wisp.bad_request
     }
 
@@ -529,31 +487,15 @@ fn handle_startup_error(error: startup.StartupError) -> wisp.Response {
     startup.AssignedMissingEntity(id:) ->
       { "Entity " <> uuid.to_string(id) <> " was not found" }
       |> wisp.string_body(wisp.not_found(), _)
-  }
-}
 
-/// Handle user.UserError errors
-fn handle_user_error(error: user.UserError) -> wisp.Response {
-  case error {
-    user.DatabaseError(error) -> handle_database_error(error)
-    user.FailedToRegisterUser -> wisp.internal_server_error()
-    user.HashError(_) -> wisp.internal_server_error()
+    startup.HashError(_) -> wisp.internal_server_error()
 
-    user.InvalidEmail(value) ->
-      { "Invalid email address: " <> value }
-      |> wisp.bad_request
-
-    user.NotFound(id) ->
-      { "User " <> uuid.to_string(id) <> " not found." }
-      |> wisp.string_body(wisp.not_found(), _)
-
-    // Usually this one happens when a User is trying to login.
-    user.EmailNotFound(_) | user.WrongPassword ->
-      { "Wrong email or password" }
+    startup.EmailNotFound(..) | startup.WrongPassword ->
+      { "Invalid email or password" }
       |> wisp.string_body(wisp.response(401), _)
 
-    user.EmailConflict(email) ->
-      { "Email " <> email.to_string(email) <> " is already in use" }
+    startup.EmailConflict(value:) ->
+      { "Email already registered: " <> email.to_string(value) }
       |> wisp.string_body(wisp.response(409), _)
   }
 }
@@ -624,11 +566,13 @@ pub fn handle_login(
   case decode.run(body, login_decoder()) {
     Error(_) -> wisp.bad_request("Invalid JSON format")
     Ok(login) ->
-      case user.verify(database, email: login.email, password: login.password) {
-        Error(error) -> handle_user_error(error)
-        Ok(user) -> {
+      case
+        startup.verify(database, email: login.email, password: login.password)
+      {
+        Error(error) -> handle_startup_error(error)
+        Ok(startup) -> {
           let response =
-            user.to_json(user)
+            startup.to_json(startup)
             |> json.to_string()
             |> wisp.json_response(200)
 
@@ -636,7 +580,7 @@ pub fn handle_login(
             response:,
             request:,
             name: session_cookie,
-            value: uuid.to_string(user.id),
+            value: uuid.to_string(startup.id),
             security: wisp.Signed,
             // Session will last exactly one hour
             max_age: 60 * 60,
