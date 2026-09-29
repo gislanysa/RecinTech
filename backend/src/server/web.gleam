@@ -7,6 +7,7 @@ import gleam/int
 import gleam/json
 import gleam/list
 import gleam/result
+import gleam/string
 import lustre/attribute
 import lustre/element
 import lustre/element/html
@@ -386,9 +387,80 @@ fn handle_error(error: WebError) -> wisp.Response {
 /// use it to communicate with the Server.
 pub fn get_root_document() -> wisp.Response {
   let body =
-    html.html([], [
-      html.head([], [html.title([], "SENAC")]),
-      html.body([], [html.div([attribute.id("app")], [])]),
+    html.html([attribute.lang("pt-BR")], [
+      html.head([], [
+        html.meta([attribute.charset("UTF-8")]),
+        // Icon
+        html.link([
+          attribute.rel("icon"),
+          attribute.type_("image/svg+xml"),
+          attribute.href("/static/favicon.svg"),
+        ]),
+
+        // Meta tags
+        html.meta([
+          attribute.name("viewport"),
+          attribute.content("width=device-width, initial-scale=1.0"),
+        ]),
+
+        html.meta([
+          attribute.name("description"),
+          attribute.content(
+            "RecInTech conecta startups do Porto Digital a empresas que precisam
+            de solução em tecnologia.",
+          ),
+        ]),
+
+        // Preconnect links
+        html.link([
+          attribute.rel("preconnect"),
+          attribute.href("https://fonts.googleapis.com"),
+        ]),
+
+        html.link([
+          attribute.rel("preconnect"),
+          attribute.href("https://fonts.gstatic.com"),
+          attribute.crossorigin(""),
+        ]),
+
+        html.link([
+          attribute.rel("stylesheet"),
+          "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700
+          &family=Space+Grotesk:wght@500;600;700&display=swap"
+            // Gleam strings add a " " when there's a line break, so we need to remove it.
+            |> string.replace(" ", "")
+            |> attribute.href,
+        ]),
+
+        // +-------------------------------------------------------------------+
+        // | CLIENT                                                            |
+        // +-------------------------------------------------------------------+
+        //
+        // CSS
+        html.link([
+          attribute.rel("stylesheet"),
+          attribute.crossorigin(""),
+          attribute.href("/static/assets/client.css"),
+        ]),
+
+        // JAVASCRIPT
+        html.script(
+          [
+            attribute.src("/static/assets/client.js"),
+            attribute.type_("module"),
+            attribute.crossorigin(""),
+          ],
+          "",
+        ),
+
+        // Page title
+        html.title(
+          [],
+          "RecInTech — encontre a startup certa para o que sua empresa precisa",
+        ),
+      ]),
+
+      html.body([], [html.div([attribute.id("root")], [])]),
     ])
 
   element.to_document_string(body)
@@ -396,7 +468,7 @@ pub fn get_root_document() -> wisp.Response {
 }
 
 fn middleware(
-  request: request.Request(wisp.Connection),
+  request: wisp.Request,
   context: Context,
   next: fn(wisp.Request) -> wisp.Response,
 ) -> wisp.Response {
