@@ -141,6 +141,29 @@ pub fn get_startup_expertises(
   }
 }
 
+/// Return HTTP 401 if the cookie session is not found in the request.
+///
+/// ## Examples
+///
+/// ```gleam
+/// pub fn handle_request(request, context, id) -> wisp.Response {
+///   use id <- require_session(request)
+///
+///   todo as "query protected data"
+/// }
+/// ```
+pub fn require_session(
+  request: wisp.Request,
+  next: fn() -> wisp.Response,
+) -> wisp.Response {
+  case wisp.get_cookie(request, session_cookie, wisp.Signed) {
+    Ok(_) -> next()
+    Error(_) ->
+      "Missing session cookie"
+      |> wisp.string_body(wisp.response(401), _)
+  }
+}
+
 /// ## `GET /api/startup/service/:id`
 ///
 /// Fetch all Services that a Startup is assigned to.
