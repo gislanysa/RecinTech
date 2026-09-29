@@ -11,23 +11,25 @@ import server/startup/service
 import server/startup/technology
 import youid/uuid
 
-/// Default password for all entities
+/// Default password for all dummy entities
 pub const password = "root"
 
 pub fn new_email() -> email.Email {
-  let assert Ok(email) = email.parse(uuid.v7_string() <> "@email.com")
-    as "generate dummy email"
-  email
+  case email.parse(uuid.v7_string() <> "@email.com") {
+    Error(_) -> panic as "failed to generate dummy email"
+    Ok(data) -> data
+  }
 }
 
 pub fn new_cnpj() -> cnpj.Cnpj {
-  let assert Ok(cnpj) = cnpj.parse(string.slice(uuid.v7_string(), 0, 14))
-    as "generate dummy cnpj"
-  cnpj
+  case cnpj.parse(string.slice(uuid.v7_string(), 0, 14)) {
+    Error(_) -> panic as "failed to generate dummy cnpj"
+    Ok(data) -> data
+  }
 }
 
 pub fn new_startup(database: pog.Connection) -> startup.Startup {
-  let assert Ok(startup) =
+  let result =
     startup.register(
       database,
       name: "dummy",
@@ -39,39 +41,37 @@ pub fn new_startup(database: pog.Connection) -> startup.Startup {
       city: "Recife",
       state: "PE",
     )
-    as "generate dummy startup"
 
-  startup
+  case result {
+    Error(_) -> panic as "failed to generate dummy startup"
+    Ok(data) -> data
+  }
 }
 
 pub fn new_segment(database: pog.Connection) -> segment.Segment {
-  let assert Ok(data) =
-    segment.register(database, name: "wibble", description: "wobble")
-    as "generate dummy segment"
-
-  data
+  case segment.register(database, name: "wibble", description: "wobble") {
+    Error(_) -> panic as "failed to generate dummy segment"
+    Ok(data) -> data
+  }
 }
 
 pub fn new_expertise(database: pog.Connection) -> expertise.Expertise {
-  let assert Ok(data) =
-    expertise.register(database, name: "wibble", description: "wobble")
-    as "generate dummy expertise"
-
-  data
+  case expertise.register(database, name: "wibble", description: "wobble") {
+    Error(_) -> panic as "failed to generate dummy expertise"
+    Ok(data) -> data
+  }
 }
 
 pub fn new_service(database: pog.Connection) -> service.Service {
-  let assert Ok(data) =
-    service.register(database, name: "wibble", description: "wobble")
-    as "generate dummy service"
-
-  data
+  case service.register(database, name: "wibble", description: "wobble") {
+    Error(_) -> panic as "failed to generate dummy service"
+    Ok(data) -> data
+  }
 }
 
 pub fn new_technology(database: pog.Connection) -> technology.Technology {
-  let assert Ok(data) =
-    technology.register(database, name: "wibble", description: "wobble")
-    as "generate dummy technology"
-
-  data
+  case technology.register(database, name: "wibble", description: "wobble") {
+    Error(_) -> panic as "failed to generate dummy technology"
+    Ok(data) -> data
+  }
 }
