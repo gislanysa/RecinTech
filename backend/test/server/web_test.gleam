@@ -13,6 +13,7 @@ import server/startup/service
 import server/startup/technology
 import server/web
 import server_test
+import wisp
 import wisp/simulate
 import youid/uuid
 
@@ -366,6 +367,50 @@ pub fn get_many_startups_incomplete_query_test() -> Nil {
     |> request.set_query([#("offset", "0")])
     |> web.handle_request(context)
   assert response.status == 400
+
+  Nil
+}
+
+pub fn require_session_cookie_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+
+  let login_body =
+    json.object([
+      #("email", json.string(email.to_string(startup.email))),
+      #("password", json.string(dummy.password)),
+    ])
+
+  let login_request =
+    simulate.browser_request(http.Post, "/api/auth/login")
+    |> simulate.json_body(login_body)
+
+  let login_response = web.handle_request(login_request, context)
+  let with_session = simulate.session(_, login_request, login_response)
+
+  let handle_request = fn(request) {
+    let request = with_session(request)
+    use <- web.require_session(request)
+    wisp.ok()
+  }
+
+  let request = simulate.browser_request(http.Get, "/")
+  let response = handle_request(request)
+  assert response.status == 200
+
+  Nil
+}
+
+pub fn require_session_missing_cookie_test() -> Nil {
+  let handle_request = fn(request) {
+    use <- web.require_session(request)
+    wisp.ok()
+  }
+
+  let request = simulate.request(http.Get, "/")
+  let response = handle_request(request)
+  assert response.status == 401
 
   Nil
 }
