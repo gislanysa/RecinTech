@@ -4,6 +4,12 @@ import gleam/dynamic/decode
 import gleam/result
 import gleam/string
 
+pub type EmailError {
+  MissingAt
+  MissingUsername
+  MissingDomain
+}
+
 /// Email address, stored internally as a lowercase String
 pub opaque type Email {
   Email(value: String)
@@ -17,15 +23,16 @@ pub opaque type Email {
 /// let assert Ok(email) = email.parse("user@email.com")
 /// let assert Error(_) = email.parse("invalid-email")
 /// ```
-pub fn parse(string: String) -> Result(Email, Nil) {
+pub fn parse(string: String) -> Result(Email, EmailError) {
   use value <- result.map(case string.split_once(string, on: "@") {
     // An email needs to have text before and after the "@"
     // -> "@email.com" and "user@" are not valid email addresses
-    Ok(#("", _)) | Ok(#(_, "")) -> Error(Nil)
+    Ok(#("", _)) -> Error(MissingUsername)
+    Ok(#(_, "")) -> Error(MissingDomain)
 
     // In case "@" sign isn't present
     // -> "user_email.com"
-    Error(_) -> Error(Nil)
+    Error(_) -> Error(MissingAt)
 
     // -> "user@email.com"
     Ok(_) -> Ok(string)
