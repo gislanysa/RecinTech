@@ -5,7 +5,7 @@ FROM ghcr.io/gleam-lang/gleam:${GLEAM_VERSION}-scratch as gleam
 
 FROM docker.io/erlang:${ERLANG_VERSION}-alpine AS builder
 COPY --from=gleam /bin/gleam /bin/gleam
-COPY . /app/
+COPY ./backend/ /app/
 
 WORKDIR /app
 RUN apk add --no-cache build-base

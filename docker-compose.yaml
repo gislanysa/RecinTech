@@ -15,7 +15,7 @@ services:
       POSTGRES_USER: aluno
       POSTGRES_PASSWORD: 123
       POSTGRES_DB: senac
-    volumes: ["./postgres:/docker-entrypoint-initdb.d"]
+    volumes: ["./backend/postgres:/docker-entrypoint-initdb.d"]
   # server
   backend:
     build: .

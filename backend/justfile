@@ -18,7 +18,7 @@ default:
 
 # Run unit tests
 [group("dev")]
-test: require-database build
+test: require-database
     gleam test
 
 # Build documentation
@@ -56,7 +56,7 @@ watch-test:
 # Build container
 [group("docker")]
 build-container:
-    docker compose build
+    docker compose -f ../docker-compose.yaml build
 
 # Build backend
 [group("dev")]
@@ -72,13 +72,13 @@ build-frontend:
 # Start containers
 [group("docker")]
 up:
-    docker compose up -d
+    docker compose -f ../docker-compose.yaml up -d
 
 # Stop containers
 [confirm("Stop containers and clean resources? [y/N]")]
 [group("docker")]
 down:
-    docker compose down -v
+    docker compose -f ../docker-compose.yaml down -v
 
 # Generate SQL queries
 [group("dev")]
@@ -90,7 +90,7 @@ generate-sql: require-database
 [group("database")]
 start-database:
     echo {{ YELLOW }}"󱎫  Starting PostgreSQL..."{{ NORMAL }}
-    docker compose up -d postgres
+    docker compose -f ../docker-compose.yaml up -d postgres
     timeout 30 bash -c 'until pg_isready -q -h localhost -p 5432 -U aluno -d senac; do sleep 0.2; done' \
     || ( echo {{ YELLOW }}"PostgreSQL did not become ready in 30s"{{ NORMAL }} && exit 1 )
     echo {{ GREEN }}"  PostgreSQL is now running"{{ NORMAL }}
