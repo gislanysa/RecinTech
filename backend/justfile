@@ -55,7 +55,7 @@ watch-test:
 
 # Build container
 [group("docker")]
-build:
+build-container:
     docker compose build
 
 # Start containers
