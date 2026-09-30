@@ -18,19 +18,19 @@ default:
 
 # Run unit tests
 [group("dev")]
-test: require-database
+test: require-database build
     gleam test
 
 # Build documentation
 [group("dev")]
-docs-build:
+build-documentation:
     echo {{ MAGENTA }}"  Building documentation.."{{ NORMAL }}
     gleam docs build
     echo {{ GREEN }}"  Click the link to open it in your browser."{{ NORMAL }}
 
 # Run application
 [group("dev")]
-run: require-database
+run: require-database build
     ERL_FLAGS="-name {{ node_name }} -setcookie {{ erlang_cookie }}" gleam run
 
 # Open erlang observer
@@ -57,6 +57,17 @@ watch-test:
 [group("docker")]
 build-container:
     docker compose build
+
+# Build backend
+[group("dev")]
+build: build-frontend
+    gleam build
+
+# Build the frontend and copy the assets into priv/static
+[group("dev")]
+build-frontend:
+    rm -rf priv/static
+    just --justfile ../frontend/justfile build
 
 # Start containers
 [group("docker")]
