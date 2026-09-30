@@ -1,0 +1,7 @@
+build
+.git
+.jj
+docs
+*.md
+.envrc
+docker-compose.yaml
