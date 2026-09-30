@@ -1,16 +1,16 @@
-database_container_name := "server_postgres"
+set shell := ["sh", "-c"]
+set quiet
 
 # Server
 export DATABASE_URL := "postgres://aluno:123@localhost:5432/senac"
 export SECRET_KEY := "senac"
+database_container_name := "server_postgres"
 
 #   Erlang-related variables
 node_name := "wibble@127.0.0.1"
 erlang_cookie := "wibble"
 
 debounce := "500ms"
-
-set quiet
 
 [private]
 default:

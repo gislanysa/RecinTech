@@ -22,6 +22,11 @@ down:
 build:
     just backend::build
 
+# Build application container
+[group("dev")]
+build-container:
+    just backend::build-container
+
 # Run application
 [group("dev")]
 run:
