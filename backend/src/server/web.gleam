@@ -94,8 +94,15 @@ pub fn handle_request(
     http.Get, ["api", "startup", "technology", id] ->
       get_startup_technologies(context.database, id)
 
-    // ## Fallback routes
-    _, _ -> wisp.not_found()
+    // +-----------------------------------------------------------------------+
+    // | NOT FOUND                                                             |
+    // +-----------------------------------------------------------------------+
+    //
+    // Endpoint not found in the backend
+    _, ["api", ..] -> wisp.not_found()
+
+    // Page not found in the frontend
+    _, _ -> get_root_document()
   }
 }
 
