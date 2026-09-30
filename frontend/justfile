@@ -9,5 +9,5 @@ build:
     npm run build --no-fund
     mv dist/assets/*.css dist/assets/client.css
     mv dist/assets/*.js dist/assets/client.js
-    mkdir ../backend/priv/static || true
+    mkdir -p ../backend/priv/static
     mv dist/* ../backend/priv/static
