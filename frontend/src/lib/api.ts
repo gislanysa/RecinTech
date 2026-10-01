@@ -127,10 +127,12 @@ export async function registrarUsuario(body: BodyRegistroUsuario): Promise<Usuar
 
 export type BodyRegistroStartup = {
   name: string
+  email: string
+  password?: string
   /** Apenas dígitos, exatamente 14 caracteres */
   cnpj: string
   stage: string
-  description: string
+  description?: string
   city: string
   state: string
   /** URL do site (opcional) */
@@ -140,25 +142,7 @@ export type BodyRegistroStartup = {
 /**
  * POST /startup
  *
- * Registra uma nova startup. Deve ser chamado APÓS criar o usuário
- * responsável com {@link registrarUsuario}.
- *
- * Body:
- * ```json
- * {
- *   "name": "Nexus AI",
- *   "cnpj": "12345678000195",
- *   "stage": "tracao",
- *   "description": "",
- *   "city": "Recife",
- *   "state": "PE"
- * }
- * ```
- *
- * Respostas:
- * - 201 Created - Startup
- * - 409 Conflict - "CNPJ ... is already in use"
- * - 400 Bad Request - "Invalid CNPJ format: ..."
+ * Registra uma nova startup.
  */
 export async function registrarStartup(body: BodyRegistroStartup): Promise<Startup> {
   const { data } = await api.post<Startup>('/startup', {

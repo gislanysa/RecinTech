@@ -238,13 +238,13 @@ const RECURSOS_DE_TAG = {
 } as const
 
 type Tags = {
-  area: string[]
+  area: string
   services: string[]
   technologies: string[]
   segments: string[]
 }
 
-const SEM_TAGS: Tags = { area: [], services: [], technologies: [], segments: [] }
+const SEM_TAGS: Tags = { area: '', services: [], technologies: [], segments: [] }
 
 /** Iniciais para o avatar do card: "Mobilize Labs" -> "ML". */
 function iniciais(nome: string): string {
@@ -326,7 +326,7 @@ export async function carregarTagsDaStartup(id: string): Promise<Tags> {
   ) as Record<(typeof RECURSOS_DE_TAG)[keyof typeof RECURSOS_DE_TAG], string[]>
 
   return {
-    area: porRecurso.expertises[0] ?? [],
+    area: porRecurso.expertises[0] ?? '',
     services: porRecurso.services,
     technologies: porRecurso.technologies,
     segments: porRecurso.segments,
