@@ -101,7 +101,7 @@ pub fn get_startup_by_invalid_id_test() -> Nil {
   Nil
 }
 
-pub fn handle_login_test() -> Nil {
+pub fn handle_login_startup_test() -> Nil {
   use context <- server_test.with_context()
 
   let startup = dummy.new_startup(context.database)
@@ -113,7 +113,7 @@ pub fn handle_login_test() -> Nil {
     ])
 
   let response =
-    simulate.browser_request(http.Post, "/api/auth/login")
+    simulate.browser_request(http.Post, "/api/auth/login/startup")
     |> simulate.json_body(body)
     |> web.handle_request(context)
 
@@ -144,7 +144,7 @@ pub fn handle_login_missing_startup_test() -> Nil {
     ])
 
   let response =
-    simulate.browser_request(http.Post, "/api/auth/login")
+    simulate.browser_request(http.Post, "/api/auth/login/startup")
     |> simulate.json_body(body)
     |> web.handle_request(context)
 
@@ -371,7 +371,7 @@ pub fn get_many_startups_incomplete_query_test() -> Nil {
   Nil
 }
 
-pub fn require_session_cookie_test() -> Nil {
+pub fn require_session_cookie_startup_test() -> Nil {
   use context <- server_test.with_context()
 
   let startup = dummy.new_startup(context.database)
@@ -383,7 +383,7 @@ pub fn require_session_cookie_test() -> Nil {
     ])
 
   let login_request =
-    simulate.browser_request(http.Post, "/api/auth/login")
+    simulate.browser_request(http.Post, "/api/auth/login/startup")
     |> simulate.json_body(login_body)
 
   let login_response = web.handle_request(login_request, context)
