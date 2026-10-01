@@ -75,6 +75,46 @@ WHERE
   |> pog.execute(db)
 }
 
+/// A row you get from running the `get_credentials` query
+/// defined in `./src/server/investor/sql/get_credentials.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v4.7.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type GetCredentialsRow {
+  GetCredentialsRow(id: Uuid, password_hash: String)
+}
+
+/// select investor id and credentials
+///
+/// > 🐿️ This function was generated automatically using v4.7.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn get_credentials(
+  db: pog.Connection,
+  arg_1: String,
+) -> Result(pog.Returned(GetCredentialsRow), pog.QueryError) {
+  let decoder = {
+    use id <- decode.field(0, uuid_decoder())
+    use password_hash <- decode.field(1, decode.string)
+    decode.success(GetCredentialsRow(id:, password_hash:))
+  }
+
+  "-- select investor id and credentials
+SELECT
+    i.id,
+    i.password_hash
+FROM
+    public.investor AS i
+WHERE
+    i.email = $1::text;
+"
+  |> pog.query
+  |> pog.parameter(pog.text(arg_1))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
 // --- Enums -------------------------------------------------------------------
 
 /// Corresponds to the Postgres `investor_kind` enum.
