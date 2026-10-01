@@ -6,6 +6,7 @@ import gleam/json
 import gleam/list
 import gleam/result
 import pog
+import server/internal
 import server/startup/service/sql
 import youid/uuid
 
@@ -23,7 +24,7 @@ pub type Service {
 }
 
 pub fn decoder() -> decode.Decoder(Service) {
-  use id <- decode.field("id", uuid_decoder())
+  use id <- decode.field("id", internal.uuid_decoder())
   use name <- decode.field("name", decode.string)
   use description <- decode.field("description", decode.string)
   decode.success(Service(id:, name:, description:))
@@ -32,23 +33,10 @@ pub fn decoder() -> decode.Decoder(Service) {
 pub fn to_json(service: Service) -> json.Json {
   let Service(id:, name:, description:) = service
   json.object([
-    #("id", uuid_to_json(id)),
+    #("id", internal.uuid_to_json(id)),
     #("name", json.string(name)),
     #("description", json.string(description)),
   ])
-}
-
-fn uuid_decoder() {
-  use text <- decode.then(decode.string)
-  case uuid.from_string(text) {
-    Ok(id) -> decode.success(id)
-    Error(_) -> decode.failure(uuid.v7(), "uuid")
-  }
-}
-
-fn uuid_to_json(id: uuid.Uuid) -> json.Json {
-  uuid.to_string(id)
-  |> json.string
 }
 
 /// Search a Service in the Database using their ID.

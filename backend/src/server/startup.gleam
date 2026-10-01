@@ -5,11 +5,11 @@ import gleam/dynamic/decode
 import gleam/json
 import gleam/list
 import gleam/result
-import gleam/time/calendar
 import gleam/time/timestamp
 import pog
 import server/cnpj
 import server/email
+import server/internal
 import server/segment
 import server/startup/expertise
 import server/startup/service
@@ -126,7 +126,7 @@ pub fn stage_from_string(value: String) -> Result(Stage, StartupError) {
 
 /// A decoder that decodes `Startup` values.
 pub fn decoder() -> decode.Decoder(Startup) {
-  use id <- decode.field("id", uuid_decoder())
+  use id <- decode.field("id", internal.uuid_decoder())
   use name <- decode.field("name", decode.string)
   use email <- decode.field("email", email.decoder())
   use stage <- decode.field("stage", stage_decoder())
@@ -134,7 +134,7 @@ pub fn decoder() -> decode.Decoder(Startup) {
   use description <- decode.field("description", decode.string)
   use city <- decode.field("city", decode.string)
   use state <- decode.field("state", decode.string)
-  use created_at <- decode.field("created_at", timestamp_decoder())
+  use created_at <- decode.field("created_at", internal.timestamp_decoder())
   use is_active <- decode.field("is_active", decode.bool)
 
   decode.success(Startup(
@@ -154,7 +154,7 @@ pub fn decoder() -> decode.Decoder(Startup) {
 /// Encode a Startup into a JSON object.
 pub fn to_json(startup: Startup) -> json.Json {
   json.object([
-    #("id", uuid_to_json(startup.id)),
+    #("id", internal.uuid_to_json(startup.id)),
     #("name", json.string(startup.name)),
     #("email", json.string(email.to_string(startup.email))),
     #("stage", stage_to_json(startup.stage)),
@@ -162,39 +162,9 @@ pub fn to_json(startup: Startup) -> json.Json {
     #("description", json.string(startup.description)),
     #("city", json.string(startup.city)),
     #("state", json.string(startup.state)),
-    #("created_at", timestamp_to_json(startup.created_at)),
+    #("created_at", internal.timestamp_to_json(startup.created_at)),
     #("is_active", json.bool(startup.is_active)),
   ])
-}
-
-/// Encode a `uuid.Uuid` into a json string.
-fn uuid_to_json(id: uuid.Uuid) -> json.Json {
-  uuid.to_string(id)
-  |> json.string
-}
-
-/// A decoder that decodes `uuid.Uuid` values.
-fn uuid_decoder() {
-  use text <- decode.then(decode.string)
-  case uuid.from_string(text) {
-    Ok(id) -> decode.success(id)
-    Error(_) -> decode.failure(uuid.v7(), "uuid")
-  }
-}
-
-/// Encode a `timestamp.Timestamp` into a rfc3339 JSON string.
-fn timestamp_to_json(timestamp: timestamp.Timestamp) -> json.Json {
-  timestamp.to_rfc3339(timestamp, calendar.utc_offset)
-  |> json.string()
-}
-
-/// A decoder that decodes `timestamp.Timestamp` rfc3339 values.
-fn timestamp_decoder() -> decode.Decoder(timestamp.Timestamp) {
-  use string <- decode.then(decode.string)
-  case timestamp.parse_rfc3339(string) {
-    Ok(data) -> decode.success(data)
-    Error(_) -> decode.failure(timestamp.system_time(), "rfc3339")
-  }
 }
 
 /// Register an empty startup in the Database
