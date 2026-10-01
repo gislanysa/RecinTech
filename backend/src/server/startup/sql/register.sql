@@ -8,7 +8,8 @@ INSERT INTO
         cnpj,
         description,
         city,
-        state
+        state,
+        website
     )
 VALUES
     (
@@ -19,7 +20,8 @@ VALUES
         $5::text,
         $6::text,
         $7::text,
-        $8::text
+        $8::text,
+        $9::text
     )
 RETURNING
     id,
@@ -31,4 +33,5 @@ RETURNING
     city,
     state,
     created_at,
-    is_active;
+    is_active,
+    website;
