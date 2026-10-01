@@ -176,6 +176,62 @@ pub fn require_session(
   }
 }
 
+/// Return HTTP 401 if request does not have a Startup session cookie.
+///
+/// ## Examples
+///
+/// ```gleam
+/// pub fn handle_request(request, context, id) -> wisp.Response {
+///   use id <- require_startup_session(request)
+///
+///   todo as "query protected data"
+/// }
+/// ```
+pub fn require_startup_session(
+  request: wisp.Request,
+  next: fn() -> wisp.Response,
+) -> wisp.Response {
+  case wisp.get_cookie(request, session_cookie, wisp.Signed) {
+    Ok(string) ->
+      case json.parse(string, session_decoder()) {
+        Ok(Startup(..)) -> next()
+        Ok(Investor(..)) | Error(_) -> wisp.response(401)
+      }
+
+    Error(_) ->
+      "Missing session cookie"
+      |> wisp.string_body(wisp.response(401), _)
+  }
+}
+
+/// Return HTTP 401 if request does not have a Investor session cookie.
+///
+/// ## Examples
+///
+/// ```gleam
+/// pub fn handle_request(request, context, id) -> wisp.Response {
+///   use id <- require_investor_session(request)
+///
+///   todo as "query protected data"
+/// }
+/// ```
+pub fn require_investor_session(
+  request: wisp.Request,
+  next: fn() -> wisp.Response,
+) -> wisp.Response {
+  case wisp.get_cookie(request, session_cookie, wisp.Signed) {
+    Ok(string) ->
+      case json.parse(string, session_decoder()) {
+        Ok(Investor(..)) -> next()
+        Ok(Startup(..)) | Error(_) -> wisp.response(401)
+      }
+
+    Error(_) ->
+      "Missing session cookie"
+      |> wisp.string_body(wisp.response(401), _)
+  }
+}
+
 /// ## `GET /api/startup/service/:id`
 ///
 /// Fetch all Services that a Startup is assigned to.
@@ -619,6 +675,61 @@ fn handle_database_error(error: pog.QueryError) -> wisp.Response {
   }
 }
 
+/// A user can be logged in as an Startup or as an Investor
+pub type Session {
+  Startup(id: uuid.Uuid)
+  Investor(id: uuid.Uuid)
+}
+
+pub fn session_to_json(session: Session) -> json.Json {
+  case session {
+    Startup(id:) ->
+      json.object([
+        #("type", json.string("startup")),
+        #("id", uuid_to_json(id)),
+      ])
+
+    Investor(id:) ->
+      json.object([
+        #("type", json.string("investor")),
+        #("id", uuid_to_json(id)),
+      ])
+  }
+}
+
+/// Encode a `uuid.Uuid` into a json string.
+fn uuid_to_json(id: uuid.Uuid) -> json.Json {
+  uuid.to_string(id)
+  |> json.string
+}
+
+/// A decoder that decodes `uuid.Uuid` values.
+fn uuid_decoder() {
+  use text <- decode.then(decode.string)
+  case uuid.from_string(text) {
+    Ok(id) -> decode.success(id)
+    Error(_) -> decode.failure(uuid.v7(), "uuid")
+  }
+}
+
+pub fn session_decoder() -> decode.Decoder(Session) {
+  use variant <- decode.field("type", decode.string)
+
+  case variant {
+    "startup" -> {
+      use id <- decode.field("id", uuid_decoder())
+      decode.success(Startup(id:))
+    }
+
+    "investor" -> {
+      use id <- decode.field("id", uuid_decoder())
+      decode.success(Investor(id:))
+    }
+
+    _ -> decode.failure(Startup(id: uuid.v7()), "Session")
+  }
+}
+
 /// Cookie storing the user session.
 pub const session_cookie = "SESSION"
 
@@ -688,11 +799,16 @@ pub fn handle_login_startup(
             |> json.to_string()
             |> wisp.json_response(200)
 
+          let token =
+            Startup(id: startup.id)
+            |> session_to_json
+            |> json.to_string
+
           wisp.set_cookie(
             response:,
             request:,
             name: session_cookie,
-            value: uuid.to_string(startup.id),
+            value: token,
             security: wisp.Signed,
             max_age: 60 * 60,
           )
@@ -755,11 +871,16 @@ pub fn handle_login_investor(
             |> json.to_string()
             |> wisp.json_response(200)
 
+          let token =
+            Investor(id: investor.id)
+            |> session_to_json
+            |> json.to_string
+
           wisp.set_cookie(
             response:,
             request:,
             name: session_cookie,
-            value: uuid.to_string(investor.id),
+            value: token,
             security: wisp.Signed,
             max_age: 60 * 60,
           )
