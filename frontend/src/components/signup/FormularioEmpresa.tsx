@@ -1,5 +1,4 @@
 import Botao from '@/components/Botao.tsx'
-import { registrarUsuario } from '@/lib/api.ts'
 import { UFS } from '@/lib/ufs.ts'
 import axios from 'axios'
 import { useState } from 'react'
@@ -125,15 +124,7 @@ export default function FormularioEmpresa({ onVoltar }: FormularioEmpresaProps) 
     setEnviando(true)
 
     try {
-      // Registra o usuário responsável pela empresa.
-      //     Backend: quando houver um model de Investor/Empresa, criar
-      //     também POST /investor com os dados abaixo.
-      await registrarUsuario({
-        full_name: campos.nomeResponsavel,
-        email: campos.email,
-        password: campos.senha,
-      })
-
+      // Quando o backend expuser POST /investor, conectar a chamada aqui.
       navigate('/dashboard/empresa')
     } catch (err) {
       if (axios.isAxiosError(err)) {
