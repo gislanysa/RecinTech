@@ -1,16 +1,16 @@
-database_container_name := "server_postgres"
+set shell := ["sh", "-c"]
+set quiet
 
 # Server
 export DATABASE_URL := "postgres://aluno:123@localhost:5432/senac"
 export SECRET_KEY := "senac"
+database_container_name := "server_postgres"
 
 #   Erlang-related variables
 node_name := "wibble@127.0.0.1"
 erlang_cookie := "wibble"
 
 debounce := "500ms"
-
-set quiet
 
 [private]
 default:
@@ -23,14 +23,14 @@ test: require-database
 
 # Build documentation
 [group("dev")]
-docs-build:
+build-documentation:
     echo {{ MAGENTA }}"  Building documentation.."{{ NORMAL }}
     gleam docs build
     echo {{ GREEN }}"  Click the link to open it in your browser."{{ NORMAL }}
 
 # Run application
 [group("dev")]
-run: require-database
+run: require-database build
     ERL_FLAGS="-name {{ node_name }} -setcookie {{ erlang_cookie }}" gleam run
 
 # Open erlang observer
@@ -55,19 +55,30 @@ watch-test:
 
 # Build container
 [group("docker")]
-build:
-    docker compose build
+build-container:
+    docker compose -f ../docker-compose.yaml build
+
+# Build backend
+[group("dev")]
+build: build-frontend
+    gleam build
+
+# Build the frontend and copy the assets into priv/static
+[group("dev")]
+build-frontend:
+    rm -rf priv/static
+    just --justfile ../frontend/justfile build
 
 # Start containers
 [group("docker")]
 up:
-    docker compose up -d
+    docker compose -f ../docker-compose.yaml up -d
 
 # Stop containers
 [confirm("Stop containers and clean resources? [y/N]")]
 [group("docker")]
 down:
-    docker compose down -v
+    docker compose -f ../docker-compose.yaml down -v
 
 # Generate SQL queries
 [group("dev")]
@@ -79,7 +90,7 @@ generate-sql: require-database
 [group("database")]
 start-database:
     echo {{ YELLOW }}"󱎫  Starting PostgreSQL..."{{ NORMAL }}
-    docker compose up -d postgres
+    docker compose -f ../docker-compose.yaml up -d postgres
     timeout 30 bash -c 'until pg_isready -q -h localhost -p 5432 -U aluno -d senac; do sleep 0.2; done' \
     || ( echo {{ YELLOW }}"PostgreSQL did not become ready in 30s"{{ NORMAL }} && exit 1 )
     echo {{ GREEN }}"  PostgreSQL is now running"{{ NORMAL }}

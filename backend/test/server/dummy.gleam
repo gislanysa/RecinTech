@@ -1,5 +1,7 @@
 //// Quickly generate Data for unit tests.
 
+import gleam/http
+import gleam/json
 import gleam/string
 import pog
 import server/cnpj
@@ -9,6 +11,9 @@ import server/startup
 import server/startup/expertise
 import server/startup/service
 import server/startup/technology
+import server/web
+import wisp
+import wisp/simulate
 import youid/uuid
 
 /// Default password for all dummy entities
@@ -46,6 +51,27 @@ pub fn new_startup(database: pog.Connection) -> startup.Startup {
     Error(_) -> panic as "failed to generate dummy startup"
     Ok(data) -> data
   }
+}
+
+/// Send a request while including a Startup session token.
+pub fn with_startup_session(
+  startup: startup.Startup,
+  request: wisp.Request,
+  context: web.Context,
+) -> wisp.Request {
+  let login_body =
+    json.object([
+      #("session", json.string("startup")),
+      #("email", json.string(email.to_string(startup.email))),
+      #("password", json.string(password)),
+    ])
+
+  let login_request =
+    simulate.browser_request(http.Post, "/api/auth/login")
+    |> simulate.json_body(login_body)
+
+  let login_response = web.handle_request(login_request, context)
+  simulate.session(request, login_request, login_response)
 }
 
 pub fn new_segment(database: pog.Connection) -> segment.Segment {

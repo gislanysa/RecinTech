@@ -1,6 +1,11 @@
 name = "server"
 version = "1.0.0"
-internal_modules = ["server/**/sql"]
+
+internal_modules = [
+  "server/**/sql",
+  "server/internal",
+  "server/internal/*.gleam",
+]
 
 [dependencies]
 gleam_stdlib = ">= 1.0.0 and < 2.0.0"

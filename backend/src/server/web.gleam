@@ -7,12 +7,15 @@ import gleam/int
 import gleam/json
 import gleam/list
 import gleam/result
+import gleam/string
 import lustre/attribute
 import lustre/element
 import lustre/element/html
 import pog
 import server/cnpj
 import server/email
+import server/internal
+import server/investor
 import server/segment
 import server/startup
 import server/startup/expertise
@@ -52,7 +55,6 @@ pub fn handle_request(
   context: Context,
 ) -> wisp.Response {
   use request <- middleware(request, context)
-
   case request.method, request.path_segments(request) {
     // ## HEALTHCHECK
     // Check if the HTTP server is running correctly.
@@ -69,6 +71,10 @@ pub fn handle_request(
     // Authorization / Authentication related routes.
     http.Post, ["api", "auth", "login"] ->
       handle_login(request, context.database)
+
+    // Restore user session
+    http.Get, ["api", "auth", "restore"] ->
+      restore_session(request, context.database)
 
     // +-----------------------------------------------------------------------+
     // | STARTUP                                                               |
@@ -93,8 +99,50 @@ pub fn handle_request(
     http.Get, ["api", "startup", "technology", id] ->
       get_startup_technologies(context.database, id)
 
-    // ## Fallback routes
-    _, _ -> wisp.not_found()
+    // +-----------------------------------------------------------------------+
+    // | NOT FOUND                                                             |
+    // +-----------------------------------------------------------------------+
+    //
+    // Endpoint not found in the backend
+    _, ["api", ..] -> wisp.not_found()
+
+    // Page not found in the frontend
+    _, _ -> get_root_document()
+  }
+}
+
+/// Checks if there's an active session token in the user request.
+/// On sucess, the server will send Startup / Investor JSON data to the client
+/// depending on their previous session type.
+///
+/// > **NOTE:**  
+/// > This function **does not** refresh the session token duration.
+pub fn restore_session(
+  request: wisp.Request,
+  database: pog.Connection,
+) -> wisp.Response {
+  use session <- require_session(request)
+
+  case session {
+    Startup(id:) -> {
+      case startup.get(database, id) {
+        Error(error) -> handle_startup_error(error)
+        Ok(data) ->
+          startup.to_json(data)
+          |> json.to_string()
+          |> wisp.json_response(200)
+      }
+    }
+
+    Investor(id:) -> {
+      case investor.get(database, id) {
+        Error(error) -> handle_investor_error(error)
+        Ok(data) ->
+          investor.to_json(data)
+          |> json.to_string()
+          |> wisp.json_response(200)
+      }
+    }
   }
 }
 
@@ -141,23 +189,33 @@ pub fn get_startup_expertises(
   }
 }
 
-/// Return HTTP 401 if the cookie session is not found in the request.
+/// Return HTTP 401 if the Session token is not found
 ///
 /// ## Examples
 ///
 /// ```gleam
 /// pub fn handle_request(request, context, id) -> wisp.Response {
-///   use id <- require_session(request)
+///   use session <- require_session(request)
 ///
 ///   todo as "query protected data"
 /// }
 /// ```
 pub fn require_session(
   request: wisp.Request,
-  next: fn() -> wisp.Response,
+  next: fn(Session) -> wisp.Response,
 ) -> wisp.Response {
-  case wisp.get_cookie(request, session_cookie, wisp.Signed) {
-    Ok(_) -> next()
+  let parse_session_cookie = fn(value) {
+    json.parse(value, session_decoder())
+    |> result.replace_error(Nil)
+  }
+
+  let result =
+    wisp.get_cookie(request, session_cookie, wisp.Signed)
+    |> result.try(parse_session_cookie)
+
+  case result {
+    Ok(session) -> next(session)
+
     Error(_) ->
       "Missing session cookie"
       |> wisp.string_body(wisp.response(401), _)
@@ -386,9 +444,80 @@ fn handle_error(error: WebError) -> wisp.Response {
 /// use it to communicate with the Server.
 pub fn get_root_document() -> wisp.Response {
   let body =
-    html.html([], [
-      html.head([], [html.title([], "SENAC")]),
-      html.body([], [html.div([attribute.id("app")], [])]),
+    html.html([attribute.lang("pt-BR")], [
+      html.head([], [
+        html.meta([attribute.charset("UTF-8")]),
+        // Icon
+        html.link([
+          attribute.rel("icon"),
+          attribute.type_("image/svg+xml"),
+          attribute.href("/static/favicon.svg"),
+        ]),
+
+        // Meta tags
+        html.meta([
+          attribute.name("viewport"),
+          attribute.content("width=device-width, initial-scale=1.0"),
+        ]),
+
+        html.meta([
+          attribute.name("description"),
+          attribute.content(
+            "RecInTech conecta startups do Porto Digital a empresas que precisam
+            de solução em tecnologia.",
+          ),
+        ]),
+
+        // Preconnect links
+        html.link([
+          attribute.rel("preconnect"),
+          attribute.href("https://fonts.googleapis.com"),
+        ]),
+
+        html.link([
+          attribute.rel("preconnect"),
+          attribute.href("https://fonts.gstatic.com"),
+          attribute.crossorigin(""),
+        ]),
+
+        html.link([
+          attribute.rel("stylesheet"),
+          "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700
+          &family=Space+Grotesk:wght@500;600;700&display=swap"
+            // Gleam strings add a " " when there's a line break, so we need to remove it.
+            |> string.replace(" ", "")
+            |> attribute.href,
+        ]),
+
+        // +-------------------------------------------------------------------+
+        // | CLIENT                                                            |
+        // +-------------------------------------------------------------------+
+        //
+        // CSS
+        html.link([
+          attribute.rel("stylesheet"),
+          attribute.crossorigin(""),
+          attribute.href("/static/assets/client.css"),
+        ]),
+
+        // JAVASCRIPT
+        html.script(
+          [
+            attribute.src("/static/assets/client.js"),
+            attribute.type_("module"),
+            attribute.crossorigin(""),
+          ],
+          "",
+        ),
+
+        // Page title
+        html.title(
+          [],
+          "RecInTech — encontre a startup certa para o que sua empresa precisa",
+        ),
+      ]),
+
+      html.body([], [html.div([attribute.id("root")], [])]),
     ])
 
   element.to_document_string(body)
@@ -396,7 +525,7 @@ pub fn get_root_document() -> wisp.Response {
 }
 
 fn middleware(
-  request: request.Request(wisp.Connection),
+  request: wisp.Request,
   context: Context,
   next: fn(wisp.Request) -> wisp.Response,
 ) -> wisp.Response {
@@ -536,41 +665,66 @@ fn handle_database_error(error: pog.QueryError) -> wisp.Response {
   }
 }
 
+/// A user can be logged in as an Startup or as an Investor
+pub type Session {
+  Startup(id: uuid.Uuid)
+  Investor(id: uuid.Uuid)
+}
+
+pub fn session_to_json(session: Session) -> json.Json {
+  case session {
+    Startup(id:) ->
+      json.object([
+        #("type", json.string("startup")),
+        #("id", internal.uuid_to_json(id)),
+      ])
+
+    Investor(id:) ->
+      json.object([
+        #("type", json.string("investor")),
+        #("id", internal.uuid_to_json(id)),
+      ])
+  }
+}
+
+pub fn session_decoder() -> decode.Decoder(Session) {
+  use variant <- decode.field("type", decode.string)
+
+  case variant {
+    "startup" -> {
+      use id <- decode.field("id", internal.uuid_decoder())
+      decode.success(Startup(id:))
+    }
+
+    "investor" -> {
+      use id <- decode.field("id", internal.uuid_decoder())
+      decode.success(Investor(id:))
+    }
+
+    _ -> decode.failure(Startup(id: uuid.v7()), "Session")
+  }
+}
+
 /// Cookie storing the user session.
 pub const session_cookie = "SESSION"
 
 type Login {
-  Login(email: email.Email, password: String)
-}
-
-fn login_decoder() -> decode.Decoder(Login) {
-  use email <- decode.field("email", email.decoder())
-  use password <- decode.field("password", decode.string)
-  decode.success(Login(email:, password:))
+  Login(session: String, email: email.Email, password: String)
 }
 
 /// ## `POST /api/auth/login`
 ///
 /// Sets a session cookie if successful, it will last exactly one hour.
+/// The response body will include a Json string containing information about the
+/// Startup / Investor being authorized.
 ///
 /// ## Request Body
 ///
-/// ```json
+/// ```jsonc
 /// {
+///   "session": "startup", // "startup" | "investor"
 ///   "email": "wibble@email.com",
 ///   "password": "12345678"
-/// }
-/// ```
-///
-/// ## Response Body
-///
-/// ```json
-/// {
-///  "id": "01a058ae-057f-73e8-b2a0-50986559767b",
-///  "full_name": "Marquinhos",
-///  "email": "user@email.com",
-///  "created_at": "2026-09-14T20:08:02.000Z",
-///  "is_active": true
 /// }
 /// ```
 ///
@@ -586,29 +740,79 @@ pub fn handle_login(
 ) -> wisp.Response {
   use body <- wisp.require_json(request)
 
-  case decode.run(body, login_decoder()) {
-    Error(_) -> wisp.bad_request("Invalid JSON format")
-    Ok(login) ->
-      case
-        startup.verify(database, email: login.email, password: login.password)
-      {
-        Error(error) -> handle_startup_error(error)
-        Ok(startup) -> {
-          let response =
-            startup.to_json(startup)
-            |> json.to_string()
-            |> wisp.json_response(200)
-
-          wisp.set_cookie(
-            response:,
-            request:,
-            name: session_cookie,
-            value: uuid.to_string(startup.id),
-            security: wisp.Signed,
-            // Session will last exactly one hour
-            max_age: 60 * 60,
-          )
-        }
+  // Custom decoder for the `Login` request body
+  let login_decoder = fn() {
+    let session_kind_decoder = {
+      use string <- decode.then(decode.string)
+      case string {
+        "startup" -> decode.success(string)
+        "investor" -> decode.success(string)
+        other -> decode.failure(other, "session_kind")
       }
+    }
+
+    use session <- decode.field("session", session_kind_decoder)
+    use email <- decode.field("email", email.decoder())
+    use password <- decode.field("password", decode.string)
+    decode.success(Login(session:, email:, password:))
+  }
+
+  case decode.run(body, login_decoder()) {
+    // Startup session
+    Ok(Login(session: "startup", email:, password:)) ->
+      case startup.verify(database, email:, password:) {
+        Error(error) -> handle_startup_error(error)
+        Ok(startup) ->
+          startup.to_json(startup)
+          |> json.to_string
+          |> wisp.json_response(200)
+          |> set_session_token(request, Startup(startup.id))
+      }
+
+    // Investor session
+    Ok(Login(session: "investor", email:, password:)) ->
+      case investor.verify(database, email:, password:) {
+        Error(error) -> handle_investor_error(error)
+        Ok(investor) ->
+          investor.to_json(investor)
+          |> json.to_string
+          |> wisp.json_response(200)
+          |> set_session_token(request, Investor(investor.id))
+      }
+
+    // Correct Json but invalid session type
+    Ok(Login(session:, ..)) ->
+      wisp.bad_request("Invalid session type: " <> session)
+
+    // Incorrect Json
+    Error(_) -> wisp.bad_request("Invalid JSON format")
+  }
+}
+
+/// Set a session cookie on the request.
+fn set_session_token(
+  response: wisp.Response,
+  request: wisp.Request,
+  session: Session,
+) -> wisp.Response {
+  session_to_json(session)
+  |> json.to_string
+  |> wisp.set_cookie(
+    response:,
+    request:,
+    name: session_cookie,
+    value: _,
+    security: wisp.Signed,
+    max_age: 60 * 60,
+  )
+}
+
+pub fn handle_investor_error(error: investor.InvestorError) -> wisp.Response {
+  case error {
+    investor.DatabaseError(error) -> handle_database_error(error)
+    investor.NotFound -> wisp.not_found()
+    investor.InvalidEmail(value) -> wisp.bad_request("Invalid email: " <> value)
+    investor.EmailNotFound(_) | investor.WrongPassword -> wisp.response(401)
+    investor.HashError(_) -> wisp.internal_server_error()
   }
 }
