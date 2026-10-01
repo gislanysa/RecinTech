@@ -15,6 +15,7 @@ import lustre/element/html
 import pog
 import server/cnpj
 import server/email
+import server/internal
 import server/investor
 import server/segment
 import server/startup
@@ -676,29 +677,14 @@ pub fn session_to_json(session: Session) -> json.Json {
     Startup(id:) ->
       json.object([
         #("type", json.string("startup")),
-        #("id", uuid_to_json(id)),
+        #("id", internal.uuid_to_json(id)),
       ])
 
     Investor(id:) ->
       json.object([
         #("type", json.string("investor")),
-        #("id", uuid_to_json(id)),
+        #("id", internal.uuid_to_json(id)),
       ])
-  }
-}
-
-/// Encode a `uuid.Uuid` into a json string.
-fn uuid_to_json(id: uuid.Uuid) -> json.Json {
-  uuid.to_string(id)
-  |> json.string
-}
-
-/// A decoder that decodes `uuid.Uuid` values.
-fn uuid_decoder() {
-  use text <- decode.then(decode.string)
-  case uuid.from_string(text) {
-    Ok(id) -> decode.success(id)
-    Error(_) -> decode.failure(uuid.v7(), "uuid")
   }
 }
 
@@ -707,12 +693,12 @@ pub fn session_decoder() -> decode.Decoder(Session) {
 
   case variant {
     "startup" -> {
-      use id <- decode.field("id", uuid_decoder())
+      use id <- decode.field("id", internal.uuid_decoder())
       decode.success(Startup(id:))
     }
 
     "investor" -> {
-      use id <- decode.field("id", uuid_decoder())
+      use id <- decode.field("id", internal.uuid_decoder())
       decode.success(Investor(id:))
     }
 
