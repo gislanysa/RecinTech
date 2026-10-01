@@ -52,7 +52,12 @@ export default function ExplorarStartups() {
   const [filtrosAbertos, setFiltrosAbertos] = useState(false)
 
   useEffect(() => {
-    listarStartups().then((dados) => {
+    listarStartups({
+      // As tags vêm de quatro rotas separadas e chegam depois dos dados
+      // básicos: cada startup é substituída no lugar assim que as dela chegam.
+      aoAtualizar: (startup) =>
+        setTodas((atual) => atual.map((s) => (s.id === startup.id ? startup : s))),
+    }).then((dados) => {
       setTodas(dados)
       setCarregando(false)
     })

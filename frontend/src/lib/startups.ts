@@ -219,28 +219,159 @@ export const STARTUPS_MOCK: StartupCatalogo[] = [
   },
 ]
 
+/** Formato de segmento, serviço, área de atuação e tecnologia no backend. */
+type ItemNomeado = {
+  id: string
+  name: string
+  description: string
+}
+
 /**
- * GET /startup (lista pública, sem autenticação).
- *
- * TODO (backend): rota ainda não existe — hoje só há `GET /api/startup/:id`
- * (ver `web.gleam`). Quando existir, o formato esperado por esta função é:
- * ```json
- * [{ "id", "name", "stage", "cnpj", "description", "city", "state",
- *    "created_at", "area", "services": [], "technologies": [],
- *    "segments": [] }, ...]
- * ```
- * `area`/`services`/`segments` batem com as entidades `expertise`, `service`
- * e `segment` já modeladas no banco; `technologies` não tem tabela — se o
- * time decidir não criar uma, essa faceta fica só no front por enquanto.
- *
- * Até a rota existir, cai silenciosamente para `STARTUPS_MOCK` — a tela
- * funciona local e "liga sozinha" assim que o back responder.
+ * As quatro rotas de tag seguem o mesmo padrão: `/api/startup/<recurso>/:id`,
+ * e todas devolvem uma lista de `{ id, name, description }`.
  */
-export async function listarStartups(): Promise<StartupCatalogo[]> {
+const RECURSOS_DE_TAG = {
+  segment: 'segments',
+  service: 'services',
+  expertise: 'expertises',
+  technology: 'technologies',
+} as const
+
+type Tags = {
+  area: string[]
+  services: string[]
+  technologies: string[]
+  segments: string[]
+}
+
+const SEM_TAGS: Tags = { area: [], services: [], technologies: [], segments: [] }
+
+/** Iniciais para o avatar do card: "Mobilize Labs" -> "ML". */
+function iniciais(nome: string): string {
+  return nome
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((parte) => parte[0] ?? '')
+    .join('')
+    .toUpperCase()
+}
+
+function paraSlug(nome: string): string {
+  return nome
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+}
+
+/**
+ * Converte a startup crua da API no modelo que a tela usa.
+ *
+ * `remote`, `onsite` e `relevance` não existem no backend — são campos só de
+ * UX. Enquanto não houver origem para eles, `remote`/`onsite` ficam `true`
+ * para a startup não sumir de nenhum filtro, e `relevance` fica 0, o que faz
+ * a ordenação padrão preservar a ordem devolvida pela API.
+ */
+function paraCatalogo(startup: StartupReal): StartupCatalogo {
+  return {
+    ...startup,
+    slug: paraSlug(startup.name),
+    initials: iniciais(startup.name),
+    tagline: startup.description,
+    remote: true,
+    onsite: true,
+    relevance: 0,
+    ...SEM_TAGS,
+  }
+}
+
+/**
+ * GET /startup?limit=&offset= — lista pública, sem autenticação.
+ *
+ * `limit` e `offset` são **obrigatórios**: sem eles o backend responde erro
+ * (ver `get_many_startups` em `web.gleam`).
+ */
+async function buscarStartups(limit: number, offset: number): Promise<StartupReal[]> {
+  const { data } = await api.get<StartupReal[]>('/startup', { params: { limit, offset } })
+  return data
+}
+
+/**
+ * Busca as tags de uma startup nas quatro rotas, em paralelo.
+ *
+ * O backend manteve um endpoint por tabela de propósito: numa resposta única,
+ * uma consulta que falhasse derrubaria o card inteiro. Aqui cada recurso que
+ * falhar vira lista vazia e os outros continuam valendo.
+ *
+ * `expertise` (área de atuação) vira o campo `area`, que a tela trata como um
+ * valor só — usamos a primeira da lista.
+ */
+export async function carregarTagsDaStartup(id: string): Promise<Tags> {
+  const chaves = Object.keys(RECURSOS_DE_TAG) as (keyof typeof RECURSOS_DE_TAG)[]
+
+  const respostas = await Promise.all(
+    chaves.map(async (recurso) => {
+      try {
+        const { data } = await api.get<ItemNomeado[]>(`/startup/${recurso}/${id}`)
+        return data.map((item) => item.name)
+      } catch {
+        return []
+      }
+    }),
+  )
+
+  const porRecurso = Object.fromEntries(
+    chaves.map((recurso, indice) => [RECURSOS_DE_TAG[recurso], respostas[indice]]),
+  ) as Record<(typeof RECURSOS_DE_TAG)[keyof typeof RECURSOS_DE_TAG], string[]>
+
+  return {
+    area: porRecurso.expertises[0] ?? [],
+    services: porRecurso.services,
+    technologies: porRecurso.technologies,
+    segments: porRecurso.segments,
+  }
+}
+
+type OpcoesDeListagem = {
+  limit?: number
+  offset?: number
+  /**
+   * Chamado uma vez por startup, assim que as tags dela chegam. É o que
+   * permite a tela pintar os cards primeiro e completá-los depois, como no
+   * diagrama de sequência do backend.
+   */
+  aoAtualizar?: (startup: StartupCatalogo) => void
+}
+
+/**
+ * Lista as startups e dispara o enriquecimento em segundo plano.
+ *
+ * A promessa resolve com os dados básicos — as tags chegam depois, via
+ * `aoAtualizar`. Se a lista falhar (backend fora do ar), cai em
+ * `STARTUPS_MOCK` e nenhuma requisição de tag é disparada.
+ */
+export async function listarStartups(
+  opcoes: OpcoesDeListagem = {},
+): Promise<StartupCatalogo[]> {
+  const { limit = 24, offset = 0, aoAtualizar } = opcoes
+
+  let cruas: StartupReal[]
   try {
-    const { data } = await api.get<StartupCatalogo[]>('/startup')
-    return data
+    cruas = await buscarStartups(limit, offset)
   } catch {
     return STARTUPS_MOCK
   }
+
+  const startups = cruas.map(paraCatalogo)
+
+  if (aoAtualizar) {
+    for (const startup of startups) {
+      void carregarTagsDaStartup(startup.id).then((tags) =>
+        aoAtualizar({ ...startup, ...tags }),
+      )
+    }
+  }
+
+  return startups
 }
