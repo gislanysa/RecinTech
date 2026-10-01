@@ -118,6 +118,9 @@ pub fn handle_login_startup_test() -> Nil {
     |> web.handle_request(context)
 
   assert response.status == 200
+  assert response.get_header(response, "content-type")
+    == Ok("application/json; charset=utf-8")
+
   let assert Ok(_) =
     response.get_cookies(response)
     |> list.key_find(web.session_cookie)
@@ -180,6 +183,9 @@ pub fn get_startup_segments_test() -> Nil {
     |> web.handle_request(context)
 
   assert response.status == 200
+  assert response.get_header(response, "content-type")
+    == Ok("application/json; charset=utf-8")
+
   let body = simulate.read_body(response)
 
   let assert Ok(returned) = json.parse(body, decode.list(segment.decoder()))
@@ -211,6 +217,9 @@ pub fn get_startup_services_test() -> Nil {
     |> web.handle_request(context)
 
   assert response.status == 200
+  assert response.get_header(response, "content-type")
+    == Ok("application/json; charset=utf-8")
+
   let body = simulate.read_body(response)
 
   let assert Ok(returned) = json.parse(body, decode.list(service.decoder()))
@@ -252,6 +261,9 @@ pub fn get_startup_technologies_test() -> Nil {
     |> web.handle_request(context)
 
   assert response.status == 200
+  assert response.get_header(response, "content-type")
+    == Ok("application/json; charset=utf-8")
+
   let body = simulate.read_body(response)
 
   let assert Ok(returned) = json.parse(body, decode.list(technology.decoder()))
@@ -293,6 +305,9 @@ pub fn get_startup_expertises_test() -> Nil {
     |> web.handle_request(context)
 
   assert response.status == 200
+  assert response.get_header(response, "content-type")
+    == Ok("application/json; charset=utf-8")
+
   let body = simulate.read_body(response)
 
   let assert Ok(returned) = json.parse(body, decode.list(expertise.decoder()))
@@ -316,10 +331,12 @@ pub fn get_many_startups_test() -> Nil {
     |> web.handle_request(context)
 
   assert response.status == 200
-  let body = simulate.read_body(response)
+  assert response.get_header(response, "content-type")
+    == Ok("application/json; charset=utf-8")
 
-  let assert Ok(returned) =
-    json.parse(body, using: decode.list(startup.decoder()))
+  let body = simulate.read_body(response)
+  let assert Ok(returned) = json.parse(body, decode.list(startup.decoder()))
+
   assert returned == [startup_b, startup_c]
 
   Nil
@@ -373,9 +390,10 @@ pub fn get_many_startups_incomplete_query_test() -> Nil {
 
 pub fn require_session_test() -> Nil {
   use context <- server_test.with_context()
+  let startup = dummy.new_startup(context.database)
 
   let handle_request = fn(request) {
-    let request = dummy.with_startup_session(request, context)
+    let request = dummy.with_startup_session(startup, request, context)
     use _ <- web.require_session(request)
     wisp.ok()
   }
@@ -395,6 +413,39 @@ pub fn require_session_missing_token_test() -> Nil {
 
   let request = simulate.request(http.Get, "/")
   let response = handle_request(request)
+  assert response.status == 401
+
+  Nil
+}
+
+pub fn restore_session_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+  let request = simulate.browser_request(http.Get, "/api/auth/restore")
+  let response =
+    dummy.with_startup_session(startup, request, context)
+    |> web.handle_request(context)
+
+  assert response.status == 200
+  assert response.get_header(response, "content-type")
+    == Ok("application/json; charset=utf-8")
+
+  let body = simulate.read_body(response)
+  let assert Ok(returned) = json.parse(body, startup.decoder())
+
+  assert returned == startup
+
+  Nil
+}
+
+pub fn restore_session_missing_token_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let response =
+    simulate.browser_request(http.Get, "/api/auth/restore")
+    |> web.handle_request(context)
+
   assert response.status == 401
 
   Nil

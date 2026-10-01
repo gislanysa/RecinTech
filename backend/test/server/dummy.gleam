@@ -55,11 +55,10 @@ pub fn new_startup(database: pog.Connection) -> startup.Startup {
 
 /// Send a request while including a Startup session token.
 pub fn with_startup_session(
+  startup: startup.Startup,
   request: wisp.Request,
   context: web.Context,
 ) -> wisp.Request {
-  let startup = new_startup(context.database)
-
   let login_body =
     json.object([
       #("email", json.string(email.to_string(startup.email))),
