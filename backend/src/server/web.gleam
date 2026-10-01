@@ -1,5 +1,4 @@
 //// Http handlers and middlewares
-/////
 
 import gleam/dynamic/decode
 import gleam/http
@@ -713,23 +712,7 @@ type Login {
   Login(session: String, email: email.Email, password: String)
 }
 
-fn login_decoder() -> decode.Decoder(Login) {
-  let session_kind_decoder = {
-    use string <- decode.then(decode.string)
-    case string {
-      "startup" -> decode.success(string)
-      "investor" -> decode.success(string)
-      other -> decode.failure(other, "session_kind")
-    }
-  }
-
-  use session <- decode.field("session", session_kind_decoder)
-  use email <- decode.field("email", email.decoder())
-  use password <- decode.field("password", decode.string)
-  decode.success(Login(session:, email:, password:))
-}
-
-/// ## `POST /api/auth/login/startup`
+/// ## `POST /api/auth/login`
 ///
 /// Sets a session cookie if successful, it will last exactly one hour.
 /// The response body will include a Json string containing information about the
@@ -737,9 +720,9 @@ fn login_decoder() -> decode.Decoder(Login) {
 ///
 /// ## Request Body
 ///
-/// ```json
+/// ```jsonc
 /// {
-///   "session": "startup",
+///   "session": "startup", // "startup" | "investor"
 ///   "email": "wibble@email.com",
 ///   "password": "12345678"
 /// }
@@ -757,12 +740,28 @@ pub fn handle_login(
 ) -> wisp.Response {
   use body <- wisp.require_json(request)
 
+  // Custom decoder for the `Login` request body
+  let login_decoder = fn() {
+    let session_kind_decoder = {
+      use string <- decode.then(decode.string)
+      case string {
+        "startup" -> decode.success(string)
+        "investor" -> decode.success(string)
+        other -> decode.failure(other, "session_kind")
+      }
+    }
+
+    use session <- decode.field("session", session_kind_decoder)
+    use email <- decode.field("email", email.decoder())
+    use password <- decode.field("password", decode.string)
+    decode.success(Login(session:, email:, password:))
+  }
+
   case decode.run(body, login_decoder()) {
     // Startup session
     Ok(Login(session: "startup", email:, password:)) ->
       case startup.verify(database, email:, password:) {
         Error(error) -> handle_startup_error(error)
-
         Ok(startup) ->
           startup.to_json(startup)
           |> json.to_string
@@ -774,7 +773,6 @@ pub fn handle_login(
     Ok(Login(session: "investor", email:, password:)) ->
       case investor.verify(database, email:, password:) {
         Error(error) -> handle_investor_error(error)
-
         Ok(investor) ->
           investor.to_json(investor)
           |> json.to_string
@@ -782,11 +780,16 @@ pub fn handle_login(
           |> set_session_token(request, Investor(investor.id))
       }
 
-    Ok(Login(session: _, ..)) | Error(_) ->
-      wisp.bad_request("Invalid JSON format")
+    // Correct Json but invalid session type
+    Ok(Login(session:, ..)) ->
+      wisp.bad_request("Invalid session type: " <> session)
+
+    // Incorrect Json
+    Error(_) -> wisp.bad_request("Invalid JSON format")
   }
 }
 
+/// Set a session cookie on the request.
 fn set_session_token(
   response: wisp.Response,
   request: wisp.Request,
