@@ -4,6 +4,7 @@ import gleam/http/request
 import gleam/http/response
 import gleam/json
 import gleam/list
+import server/cnpj
 import server/dummy
 import server/email
 import server/segment
@@ -449,6 +450,89 @@ pub fn restore_session_missing_token_test() -> Nil {
     |> web.handle_request(context)
 
   assert response.status == 401
+
+  Nil
+}
+
+pub fn register_startup_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let body =
+    json.object([
+      #("name", json.string("critic level")),
+      #("email", json.string("user@email.com")),
+      #("password", json.string("wibble")),
+      #("cnpj", json.string("12345678901234")),
+      #("stage", json.string("seed")),
+      #("description", json.string("muito legal")),
+      #("city", json.string("Recife")),
+      #("state", json.string("PE")),
+      #("website", json.string("https://criticlevel.dev")),
+    ])
+
+  let response =
+    simulate.browser_request(http.Post, "/api/startup")
+    |> simulate.json_body(body)
+    |> web.handle_request(context)
+
+  assert response.status == 200
+
+  let body = simulate.read_body(response)
+  let assert Ok(_) = json.parse(body, startup.decoder())
+
+  Nil
+}
+
+pub fn register_startup_email_conflict_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+  let body =
+    json.object([
+      #("name", json.string("critic level")),
+      #("email", json.string(email.to_string(startup.email))),
+      #("password", json.string("wibble")),
+      #("cnpj", json.string("12345678901234")),
+      #("stage", json.string("seed")),
+      #("description", json.string("muito legal")),
+      #("city", json.string("Recife")),
+      #("state", json.string("PE")),
+      #("website", json.string("https://criticlevel.dev")),
+    ])
+
+  let response =
+    simulate.browser_request(http.Post, "/api/startup")
+    |> simulate.json_body(body)
+    |> web.handle_request(context)
+
+  assert response.status == 409
+
+  Nil
+}
+
+pub fn register_startup_cnpj_conflict_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+  let body =
+    json.object([
+      #("name", json.string("critic level")),
+      #("email", json.string("user@email.com")),
+      #("password", json.string("wibble")),
+      #("cnpj", json.string(cnpj.to_string(startup.cnpj))),
+      #("stage", json.string("seed")),
+      #("description", json.string("muito legal")),
+      #("city", json.string("Recife")),
+      #("state", json.string("PE")),
+      #("website", json.string("https://criticlevel.dev")),
+    ])
+
+  let response =
+    simulate.browser_request(http.Post, "/api/startup")
+    |> simulate.json_body(body)
+    |> web.handle_request(context)
+
+  assert response.status == 409
 
   Nil
 }
