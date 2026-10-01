@@ -61,12 +61,13 @@ pub fn with_startup_session(
 ) -> wisp.Request {
   let login_body =
     json.object([
+      #("session", json.string("startup")),
       #("email", json.string(email.to_string(startup.email))),
       #("password", json.string(password)),
     ])
 
   let login_request =
-    simulate.browser_request(http.Post, "/api/auth/login/startup")
+    simulate.browser_request(http.Post, "/api/auth/login")
     |> simulate.json_body(login_body)
 
   let login_response = web.handle_request(login_request, context)

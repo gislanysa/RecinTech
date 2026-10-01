@@ -69,11 +69,8 @@ pub fn handle_request(
     // +-----------------------------------------------------------------------+
     //
     // Authorization / Authentication related routes.
-    http.Post, ["api", "auth", "login", "startup"] ->
-      handle_login_startup(request, context.database)
-
-    http.Post, ["api", "auth", "login", "investor"] ->
-      handle_login_investor(request, context.database)
+    http.Post, ["api", "auth", "login"] ->
+      handle_login(request, context.database)
 
     // Restore user session
     http.Get, ["api", "auth", "restore"] ->
@@ -727,42 +724,38 @@ pub fn session_decoder() -> decode.Decoder(Session) {
 pub const session_cookie = "SESSION"
 
 type Login {
-  Login(email: email.Email, password: String)
+  Login(session: String, email: email.Email, password: String)
 }
 
 fn login_decoder() -> decode.Decoder(Login) {
+  let session_kind_decoder = {
+    use string <- decode.then(decode.string)
+    case string {
+      "startup" -> decode.success(string)
+      "investor" -> decode.success(string)
+      other -> decode.failure(other, "session_kind")
+    }
+  }
+
+  use session <- decode.field("session", session_kind_decoder)
   use email <- decode.field("email", email.decoder())
   use password <- decode.field("password", decode.string)
-  decode.success(Login(email:, password:))
+  decode.success(Login(session:, email:, password:))
 }
 
 /// ## `POST /api/auth/login/startup`
 ///
 /// Sets a session cookie if successful, it will last exactly one hour.
+/// The response body will include a Json string containing information about the
+/// Startup / Investor being authorized.
 ///
 /// ## Request Body
 ///
 /// ```json
 /// {
+///   "session": "startup",
 ///   "email": "wibble@email.com",
 ///   "password": "12345678"
-/// }
-/// ```
-///
-/// ## Response Body
-///
-/// ```json
-/// {
-///  "id": "01a058ae-057f-73e8-b2a0-50986559767b",
-///  "name": "CriticLevel",
-///  "email": "startup@email.com",
-///  "stage": "seed",
-///  "cnpj": "12345678901234",
-///  "description": "muito massa",
-///  "city": "Recife",
-///  "state": "PE",
-///  "created_at": "2026-09-14T20:08:02.000Z",
-///  "is_active": true
 /// }
 /// ```
 ///
@@ -772,31 +765,39 @@ fn login_decoder() -> decode.Decoder(Login) {
 /// - 401 If email or password is incorrect.
 /// - 400 If email is not a valid format.
 ///
-pub fn handle_login_startup(
+pub fn handle_login(
   request: wisp.Request,
   database: pog.Connection,
 ) -> wisp.Response {
   use body <- wisp.require_json(request)
 
   case decode.run(body, login_decoder()) {
-    Error(_) -> wisp.bad_request("Invalid JSON format")
-    Ok(login) -> {
-      let result =
-        startup.verify(database, email: login.email, password: login.password)
-
-      case result {
+    // Startup session
+    Ok(Login(session: "startup", email:, password:)) ->
+      case startup.verify(database, email:, password:) {
         Error(error) -> handle_startup_error(error)
-        Ok(startup) -> {
-          let response =
-            startup.to_json(startup)
-            |> json.to_string()
-            |> wisp.json_response(200)
 
-          Startup(id: startup.id)
-          |> set_session_token(response, request, _)
-        }
+        Ok(startup) ->
+          startup.to_json(startup)
+          |> json.to_string
+          |> wisp.json_response(200)
+          |> set_session_token(request, Startup(startup.id))
       }
-    }
+
+    // Investor session
+    Ok(Login(session: "investor", email:, password:)) ->
+      case investor.verify(database, email:, password:) {
+        Error(error) -> handle_investor_error(error)
+
+        Ok(investor) ->
+          investor.to_json(investor)
+          |> json.to_string
+          |> wisp.json_response(200)
+          |> set_session_token(request, Investor(investor.id))
+      }
+
+    Ok(Login(session: _, ..)) | Error(_) ->
+      wisp.bad_request("Invalid JSON format")
   }
 }
 
@@ -805,80 +806,16 @@ fn set_session_token(
   request: wisp.Request,
   session: Session,
 ) -> wisp.Response {
-  let token =
-    session
-    |> session_to_json
-    |> json.to_string
-
-  wisp.set_cookie(
+  session_to_json(session)
+  |> json.to_string
+  |> wisp.set_cookie(
     response:,
     request:,
     name: session_cookie,
-    value: token,
+    value: _,
     security: wisp.Signed,
     max_age: 60 * 60,
   )
-}
-
-/// ## `POST /api/auth/login/investor`
-///
-/// Sets a session cookie if successful, it will last exactly one hour.
-///
-/// ## Request Body
-///
-/// ```json
-/// {
-///   "email": "wibble@email.com",
-///   "password": "12345678"
-/// }
-/// ```
-///
-/// ## Response Body
-///
-/// ```json
-/// {
-///  "id": "01a058ae-057f-73e8-b2a0-50986559767b",
-///  "name": "Jorginho",
-///  "email": "investor@email.com",
-///  "kind": "angel",
-///  "public_profile": true,
-///  "created_at": "2026-09-14T20:08:02.000Z",
-///  "is_active": true
-/// }
-/// ```
-///
-/// ## Status Codes
-///
-/// - 200 If successful.
-/// - 401 If email or password is incorrect.
-/// - 400 If email is not a valid format.
-///
-pub fn handle_login_investor(
-  request: wisp.Request,
-  database: pog.Connection,
-) -> wisp.Response {
-  use body <- wisp.require_json(request)
-
-  case decode.run(body, login_decoder()) {
-    Error(_) -> wisp.bad_request("Invalid JSON format")
-    Ok(login) -> {
-      let result =
-        investor.verify(database, email: login.email, password: login.password)
-
-      case result {
-        Error(error) -> handle_investor_error(error)
-        Ok(investor) -> {
-          let response =
-            investor.to_json(investor)
-            |> json.to_string()
-            |> wisp.json_response(200)
-
-          Investor(id: investor.id)
-          |> set_session_token(response, request, _)
-        }
-      }
-    }
-  }
 }
 
 pub fn handle_investor_error(error: investor.InvestorError) -> wisp.Response {
