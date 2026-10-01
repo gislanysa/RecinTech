@@ -75,6 +75,10 @@ pub fn handle_request(
     http.Post, ["api", "auth", "login", "investor"] ->
       handle_login_investor(request, context.database)
 
+    // Restore user session
+    http.Get, ["api", "auth", "restore"] ->
+      restore_session(request, context.database)
+
     // +-----------------------------------------------------------------------+
     // | STARTUP                                                               |
     // +-----------------------------------------------------------------------+
@@ -107,6 +111,41 @@ pub fn handle_request(
 
     // Page not found in the frontend
     _, _ -> get_root_document()
+  }
+}
+
+/// Checks if there's an active session token in the user request.
+/// On sucess, the server will send Startup / Investor JSON data to the client
+/// depending on their previous session type.
+///
+/// > **NOTE:**  
+/// > This function **does not** refresh the session token duration.
+pub fn restore_session(
+  request: wisp.Request,
+  database: pog.Connection,
+) -> wisp.Response {
+  use session <- require_session(request)
+
+  case session {
+    Startup(id:) -> {
+      case startup.get(database, id) {
+        Error(error) -> handle_startup_error(error)
+        Ok(data) ->
+          startup.to_json(data)
+          |> json.to_string()
+          |> wisp.json_response(200)
+      }
+    }
+
+    Investor(id:) -> {
+      case investor.get(database, id) {
+        Error(error) -> handle_investor_error(error)
+        Ok(data) ->
+          investor.to_json(data)
+          |> json.to_string()
+          |> wisp.json_response(200)
+      }
+    }
   }
 }
 
@@ -753,23 +792,32 @@ pub fn handle_login_startup(
             |> json.to_string()
             |> wisp.json_response(200)
 
-          let token =
-            Startup(id: startup.id)
-            |> session_to_json
-            |> json.to_string
-
-          wisp.set_cookie(
-            response:,
-            request:,
-            name: session_cookie,
-            value: token,
-            security: wisp.Signed,
-            max_age: 60 * 60,
-          )
+          Startup(id: startup.id)
+          |> set_session_token(response, request, _)
         }
       }
     }
   }
+}
+
+fn set_session_token(
+  response: wisp.Response,
+  request: wisp.Request,
+  session: Session,
+) -> wisp.Response {
+  let token =
+    session
+    |> session_to_json
+    |> json.to_string
+
+  wisp.set_cookie(
+    response:,
+    request:,
+    name: session_cookie,
+    value: token,
+    security: wisp.Signed,
+    max_age: 60 * 60,
+  )
 }
 
 /// ## `POST /api/auth/login/investor`
@@ -825,19 +873,8 @@ pub fn handle_login_investor(
             |> json.to_string()
             |> wisp.json_response(200)
 
-          let token =
-            Investor(id: investor.id)
-            |> session_to_json
-            |> json.to_string
-
-          wisp.set_cookie(
-            response:,
-            request:,
-            name: session_cookie,
-            value: token,
-            security: wisp.Signed,
-            max_age: 60 * 60,
-          )
+          Investor(id: investor.id)
+          |> set_session_token(response, request, _)
         }
       }
     }
