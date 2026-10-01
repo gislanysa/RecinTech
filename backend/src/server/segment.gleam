@@ -5,6 +5,7 @@ import gleam/json
 import gleam/list
 import gleam/result
 import pog
+import server/internal
 import server/segment/sql
 import youid/uuid
 
@@ -30,7 +31,7 @@ pub type Segment {
 
 /// A decoder that decodes `Segment` values.
 pub fn decoder() -> decode.Decoder(Segment) {
-  use id <- decode.field("id", uuid_decoder())
+  use id <- decode.field("id", internal.uuid_decoder())
   use name <- decode.field("name", decode.string)
   use description <- decode.field("description", decode.string)
   decode.success(Segment(id:, name:, description:))
@@ -40,23 +41,10 @@ pub fn decoder() -> decode.Decoder(Segment) {
 pub fn to_json(segment: Segment) -> json.Json {
   let Segment(id:, name:, description:) = segment
   json.object([
-    #("id", uuid_to_json(id)),
+    #("id", internal.uuid_to_json(id)),
     #("name", json.string(name)),
     #("description", json.string(description)),
   ])
-}
-
-fn uuid_decoder() {
-  use text <- decode.then(decode.string)
-  case uuid.from_string(text) {
-    Ok(id) -> decode.success(id)
-    Error(_) -> decode.failure(uuid.v7(), "uuid")
-  }
-}
-
-fn uuid_to_json(id: uuid.Uuid) -> json.Json {
-  uuid.to_string(id)
-  |> json.string
 }
 
 /// Register a new segment in the Database.
