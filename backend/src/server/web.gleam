@@ -153,78 +153,32 @@ pub fn get_startup_expertises(
   }
 }
 
-/// Return HTTP 401 if the cookie session is not found in the request.
+/// Return HTTP 401 if the Session token is not found
 ///
 /// ## Examples
 ///
 /// ```gleam
 /// pub fn handle_request(request, context, id) -> wisp.Response {
-///   use id <- require_session(request)
+///   use session <- require_session(request)
 ///
 ///   todo as "query protected data"
 /// }
 /// ```
 pub fn require_session(
   request: wisp.Request,
-  next: fn() -> wisp.Response,
+  next: fn(Session) -> wisp.Response,
 ) -> wisp.Response {
-  case wisp.get_cookie(request, session_cookie, wisp.Signed) {
-    Ok(_) -> next()
-    Error(_) ->
-      "Missing session cookie"
-      |> wisp.string_body(wisp.response(401), _)
+  let parse_session_cookie = fn(value) {
+    json.parse(value, session_decoder())
+    |> result.replace_error(Nil)
   }
-}
 
-/// Return HTTP 401 if request does not have a Startup session cookie.
-///
-/// ## Examples
-///
-/// ```gleam
-/// pub fn handle_request(request, context, id) -> wisp.Response {
-///   use id <- require_startup_session(request)
-///
-///   todo as "query protected data"
-/// }
-/// ```
-pub fn require_startup_session(
-  request: wisp.Request,
-  next: fn() -> wisp.Response,
-) -> wisp.Response {
-  case wisp.get_cookie(request, session_cookie, wisp.Signed) {
-    Ok(string) ->
-      case json.parse(string, session_decoder()) {
-        Ok(Startup(..)) -> next()
-        Ok(Investor(..)) | Error(_) -> wisp.response(401)
-      }
+  let result =
+    wisp.get_cookie(request, session_cookie, wisp.Signed)
+    |> result.try(parse_session_cookie)
 
-    Error(_) ->
-      "Missing session cookie"
-      |> wisp.string_body(wisp.response(401), _)
-  }
-}
-
-/// Return HTTP 401 if request does not have a Investor session cookie.
-///
-/// ## Examples
-///
-/// ```gleam
-/// pub fn handle_request(request, context, id) -> wisp.Response {
-///   use id <- require_investor_session(request)
-///
-///   todo as "query protected data"
-/// }
-/// ```
-pub fn require_investor_session(
-  request: wisp.Request,
-  next: fn() -> wisp.Response,
-) -> wisp.Response {
-  case wisp.get_cookie(request, session_cookie, wisp.Signed) {
-    Ok(string) ->
-      case json.parse(string, session_decoder()) {
-        Ok(Investor(..)) -> next()
-        Ok(Startup(..)) | Error(_) -> wisp.response(401)
-      }
+  case result {
+    Ok(session) -> next(session)
 
     Error(_) ->
       "Missing session cookie"

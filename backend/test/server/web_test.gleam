@@ -361,7 +361,7 @@ pub fn get_many_startups_incomplete_query_test() -> Nil {
     |> web.handle_request(context)
   assert response.status == 400
 
-  // No limit
+  // Missing "limit" query
   let response =
     simulate.browser_request(http.Get, "/api/startup")
     |> request.set_query([#("offset", "0")])
@@ -371,27 +371,12 @@ pub fn get_many_startups_incomplete_query_test() -> Nil {
   Nil
 }
 
-pub fn require_session_cookie_startup_test() -> Nil {
+pub fn require_session_test() -> Nil {
   use context <- server_test.with_context()
 
-  let startup = dummy.new_startup(context.database)
-
-  let login_body =
-    json.object([
-      #("email", json.string(email.to_string(startup.email))),
-      #("password", json.string(dummy.password)),
-    ])
-
-  let login_request =
-    simulate.browser_request(http.Post, "/api/auth/login/startup")
-    |> simulate.json_body(login_body)
-
-  let login_response = web.handle_request(login_request, context)
-  let with_session = simulate.session(_, login_request, login_response)
-
   let handle_request = fn(request) {
-    let request = with_session(request)
-    use <- web.require_session(request)
+    let request = dummy.with_startup_session(request, context)
+    use _ <- web.require_session(request)
     wisp.ok()
   }
 
@@ -402,9 +387,9 @@ pub fn require_session_cookie_startup_test() -> Nil {
   Nil
 }
 
-pub fn require_session_missing_cookie_test() -> Nil {
+pub fn require_session_missing_token_test() -> Nil {
   let handle_request = fn(request) {
-    use <- web.require_session(request)
+    use _ <- web.require_session(request)
     wisp.ok()
   }
 
