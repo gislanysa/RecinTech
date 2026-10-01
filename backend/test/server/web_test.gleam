@@ -108,12 +108,13 @@ pub fn handle_login_startup_test() -> Nil {
 
   let body =
     json.object([
+      #("session", json.string("startup")),
       #("email", json.string(email.to_string(startup.email))),
       #("password", json.string(dummy.password)),
     ])
 
   let response =
-    simulate.browser_request(http.Post, "/api/auth/login/startup")
+    simulate.browser_request(http.Post, "/api/auth/login")
     |> simulate.json_body(body)
     |> web.handle_request(context)
 
@@ -142,12 +143,13 @@ pub fn handle_login_missing_startup_test() -> Nil {
 
   let body =
     json.object([
+      #("session", json.string("startup")),
       #("email", json.string("user@email.com")),
       #("password", json.string(dummy.password)),
     ])
 
   let response =
-    simulate.browser_request(http.Post, "/api/auth/login/startup")
+    simulate.browser_request(http.Post, "/api/auth/login")
     |> simulate.json_body(body)
     |> web.handle_request(context)
 
