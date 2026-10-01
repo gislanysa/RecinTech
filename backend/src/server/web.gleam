@@ -918,7 +918,7 @@ pub fn register_startup(
   }
 }
 
-pub fn handle_investor_error(error: investor.InvestorError) -> wisp.Response {
+fn handle_investor_error(error: investor.InvestorError) -> wisp.Response {
   case error {
     investor.DatabaseError(error) -> handle_database_error(error)
     investor.NotFound -> wisp.not_found()
