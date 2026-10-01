@@ -229,6 +229,7 @@ pub type GetRow {
     state: String,
     created_at: Timestamp,
     is_active: Bool,
+    website: String,
   )
 }
 
@@ -252,6 +253,7 @@ pub fn get(
     use state <- decode.field(7, decode.string)
     use created_at <- decode.field(8, pog.timestamp_decoder())
     use is_active <- decode.field(9, decode.bool)
+    use website <- decode.field(10, decode.string)
     decode.success(GetRow(
       id:,
       name:,
@@ -263,6 +265,7 @@ pub fn get(
       state:,
       created_at:,
       is_active:,
+      website:,
     ))
   }
 
@@ -277,7 +280,8 @@ SELECT
     s.city,
     s.state,
     s.created_at,
-    s.is_active
+    s.is_active,
+    s.website
 FROM
     public.startup AS s
 WHERE
@@ -392,6 +396,7 @@ pub type GetManyRow {
     state: String,
     created_at: Timestamp,
     is_active: Bool,
+    website: String,
   )
 }
 
@@ -416,6 +421,7 @@ pub fn get_many(
     use state <- decode.field(7, decode.string)
     use created_at <- decode.field(8, pog.timestamp_decoder())
     use is_active <- decode.field(9, decode.bool)
+    use website <- decode.field(10, decode.string)
     decode.success(GetManyRow(
       id:,
       name:,
@@ -427,6 +433,7 @@ pub fn get_many(
       state:,
       created_at:,
       is_active:,
+      website:,
     ))
   }
 
@@ -441,7 +448,8 @@ SELECT
     s.city,
     s.state,
     s.created_at,
-    s.is_active
+    s.is_active,
+    s.website
 FROM
     public.startup AS s
 ORDER BY
@@ -609,6 +617,7 @@ pub type RegisterRow {
     state: String,
     created_at: Timestamp,
     is_active: Bool,
+    website: String,
   )
 }
 
@@ -627,6 +636,7 @@ pub fn register(
   arg_6: String,
   arg_7: String,
   arg_8: String,
+  arg_9: String,
 ) -> Result(pog.Returned(RegisterRow), pog.QueryError) {
   let decoder = {
     use id <- decode.field(0, uuid_decoder())
@@ -639,6 +649,7 @@ pub fn register(
     use state <- decode.field(7, decode.string)
     use created_at <- decode.field(8, pog.timestamp_decoder())
     use is_active <- decode.field(9, decode.bool)
+    use website <- decode.field(10, decode.string)
     decode.success(RegisterRow(
       id:,
       name:,
@@ -650,6 +661,7 @@ pub fn register(
       state:,
       created_at:,
       is_active:,
+      website:,
     ))
   }
 
@@ -663,7 +675,8 @@ INSERT INTO
         cnpj,
         description,
         city,
-        state
+        state,
+        website
     )
 VALUES
     (
@@ -674,7 +687,8 @@ VALUES
         $5::text,
         $6::text,
         $7::text,
-        $8::text
+        $8::text,
+        $9::text
     )
 RETURNING
     id,
@@ -686,7 +700,8 @@ RETURNING
     city,
     state,
     created_at,
-    is_active;
+    is_active,
+    website;
 "
   |> pog.query
   |> pog.parameter(pog.text(arg_1))
@@ -697,6 +712,7 @@ RETURNING
   |> pog.parameter(pog.text(arg_6))
   |> pog.parameter(pog.text(arg_7))
   |> pog.parameter(pog.text(arg_8))
+  |> pog.parameter(pog.text(arg_9))
   |> pog.returning(decoder)
   |> pog.execute(db)
 }

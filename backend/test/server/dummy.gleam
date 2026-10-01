@@ -3,6 +3,7 @@
 import gleam/http
 import gleam/json
 import gleam/string
+import gleam/uri
 import pog
 import server/cnpj
 import server/email
@@ -45,6 +46,7 @@ pub fn new_startup(database: pog.Connection) -> startup.Startup {
       description: "useful for tests",
       city: "Recife",
       state: "PE",
+      website: uri.empty,
     )
 
   case result {

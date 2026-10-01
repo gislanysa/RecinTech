@@ -8,6 +8,7 @@ import gleam/json
 import gleam/list
 import gleam/result
 import gleam/string
+import gleam/uri
 import lustre/attribute
 import lustre/element
 import lustre/element/html
@@ -82,6 +83,7 @@ pub fn handle_request(
     //
     // Querying, registering and assigning entities to startups.
     //
+    http.Post, ["api", "startup"] -> register_startup(request, context.database)
     http.Get, ["api", "startup"] -> get_many_startups(request, context.database)
     http.Get, ["api", "startup", id] -> get_startup_by_id(context.database, id)
 
@@ -372,8 +374,9 @@ pub fn get_startup_technologies(
 ///    "description": "startup muito maneira",
 ///    "city": "Recife",
 ///    "state": "Pernambuco",
-///    "created_at": "2026-09-14T20:08:02.000Z"
-///    "is_active": true
+///    "created_at": "2026-09-14T20:08:02.000Z",
+///    "is_active": true,
+///    "website": "wibble.com"
 ///   },
 ///   {
 ///    "id": "01a0dbb3-153a-7b84-8c3d-631788972d4a",
@@ -384,8 +387,9 @@ pub fn get_startup_technologies(
 ///    "description": "bem legal",
 ///    "city": "Recife",
 ///    "state": "Pernambuco",
-///    "created_at": "2025-09-14T20:08:02.000Z"
-///    "is_active": true
+///    "created_at": "2025-09-14T20:08:02.000Z",
+///    "is_active": true,
+///    "website": "wobble.com"
 ///   }
 /// ]
 /// ```
@@ -573,11 +577,15 @@ pub fn require_valid_uuid(
 /// {
 ///  "id": "01a058ae-057f-73e8-b2a0-50986559767b",
 ///  "name": "Critic Level",
+///  "email": "critic@email.dev",
+///  "stage": "seed",
 ///  "cnpj": "12345678901234",
 ///  "description": "startup muito maneira",
 ///  "city": "Recife",
 ///  "state": "Pernambuco",
-///  "created_at": "2026-09-14T20:08:02.000Z"
+///  "created_at": "2026-09-14T20:08:02.000Z",
+///  "is_active": true,
+///  "website": "criticlevel.dev"
 /// }
 /// ```
 ///
@@ -649,6 +657,10 @@ fn handle_startup_error(error: startup.StartupError) -> wisp.Response {
     startup.EmailConflict(value:) ->
       { "Email already registered: " <> email.to_string(value) }
       |> wisp.string_body(wisp.response(409), _)
+
+    startup.InvalidWebsite(value:) ->
+      { "Invalid website: " <> value }
+      |> wisp.bad_request()
   }
 }
 
@@ -805,6 +817,105 @@ fn set_session_token(
     security: wisp.Signed,
     max_age: 60 * 60,
   )
+}
+
+type RegisterStartup {
+  RegisterStartup(
+    name: String,
+    email: email.Email,
+    password: String,
+    cnpj: cnpj.Cnpj,
+    stage: startup.Stage,
+    description: String,
+    city: String,
+    state: String,
+    website: uri.Uri,
+  )
+}
+
+/// ## `POST /api/startup`
+///
+/// Register a new Startup
+///
+/// ## Request Body
+///
+/// ```json
+/// {
+///  "name": "Recintech",
+///  "email": "recintech@email.com",
+///  "password": "12345678",
+///  "cnpj": "12345678901234",
+///  "stage": "seed",
+///  "description": "startup muito maneira",
+///  "city": "Recife",
+///  "state": "Pernambuco",
+///  "website": "recintech.dev"
+/// }
+/// ```
+///
+/// ## Status Codes
+///
+/// - 200 If successful.
+/// - 409 If duplicated email or cnpj.
+///
+pub fn register_startup(
+  request: wisp.Request,
+  database: pog.Connection,
+) -> wisp.Response {
+  use body <- wisp.require_json(request)
+
+  let decoder = {
+    use name <- decode.field("name", decode.string)
+    use email <- decode.field("email", email.decoder())
+    use password <- decode.field("password", decode.string)
+    use cnpj <- decode.field("cnpj", cnpj.decoder())
+    use stage <- decode.field("stage", startup.stage_decoder())
+    use description <- decode.field("description", decode.string)
+    use city <- decode.field("city", decode.string)
+    use state <- decode.field("state", decode.string)
+    use website <- decode.field("website", internal.uri_decoder())
+
+    RegisterStartup(
+      name:,
+      email:,
+      password:,
+      cnpj:,
+      stage:,
+      description:,
+      city:,
+      state:,
+      website:,
+    )
+    |> decode.success
+  }
+
+  case decode.run(body, decoder) {
+    Error(_) -> wisp.bad_request("Invalid Json")
+    Ok(data) -> {
+      let result =
+        startup.register(
+          database,
+          name: data.name,
+          email: data.email,
+          password: data.password,
+          stage: data.stage,
+          cnpj: data.cnpj,
+          description: data.description,
+          city: data.city,
+          state: data.state,
+          website: data.website,
+        )
+
+      case result {
+        Ok(startup) ->
+          startup.to_json(startup)
+          |> json.to_string()
+          |> wisp.json_response(200)
+
+        Error(error) -> handle_startup_error(error)
+      }
+    }
+  }
 }
 
 pub fn handle_investor_error(error: investor.InvestorError) -> wisp.Response {

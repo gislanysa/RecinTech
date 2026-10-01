@@ -26,6 +26,7 @@ CREATE TABLE startup (
     state text NOT NULL,
     created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
     is_active boolean NOT NULL DEFAULT TRUE,
+    website text NOT NULL DEFAULT '',
     PRIMARY KEY (id)
 );
 

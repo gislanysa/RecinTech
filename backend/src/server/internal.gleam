@@ -2,6 +2,7 @@ import gleam/dynamic/decode
 import gleam/json
 import gleam/time/calendar
 import gleam/time/timestamp
+import gleam/uri
 import youid/uuid
 
 /// Encode a `uuid.Uuid` into a json string.
@@ -32,4 +33,19 @@ pub fn timestamp_decoder() -> decode.Decoder(timestamp.Timestamp) {
     Ok(data) -> decode.success(data)
     Error(_) -> decode.failure(timestamp.system_time(), "rfc3339")
   }
+}
+
+/// A decoder that decodes `uri.Uri` values.
+pub fn uri_decoder() -> decode.Decoder(uri.Uri) {
+  use string <- decode.then(decode.string)
+  case uri.parse(string) {
+    Ok(data) -> decode.success(data)
+    Error(_) -> decode.failure(uri.empty, "uri")
+  }
+}
+
+/// A decoder that decodes `uri.Uri` values.
+pub fn uri_to_json(uri: uri.Uri) -> json.Json {
+  uri.to_string(uri)
+  |> json.string
 }
