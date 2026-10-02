@@ -536,3 +536,35 @@ pub fn register_startup_cnpj_conflict_test() -> Nil {
 
   Nil
 }
+
+pub fn refresh_session_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let request = simulate.browser_request(http.Get, "/api/auth/refresh")
+
+  let response =
+    dummy.new_startup(context.database)
+    |> dummy.with_startup_session(request, context)
+    |> web.handle_request(context)
+
+  assert response.status == 200
+
+  let assert Ok(_) =
+    response.get_cookies(response)
+    |> list.key_find(web.session_cookie)
+
+  Nil
+}
+
+pub fn refresh_session_missing_token_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let response =
+    simulate.browser_request(http.Get, "/api/auth/refresh")
+    |> web.handle_request(context)
+
+  // Missing token
+  assert response.status == 401
+
+  Nil
+}
