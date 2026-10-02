@@ -77,6 +77,9 @@ pub fn handle_request(
     http.Get, ["api", "auth", "restore"] ->
       restore_session(request, context.database)
 
+    // Refresh token duration
+    http.Get, ["api", "auth", "refresh"] -> refresh_session(request)
+
     // +-----------------------------------------------------------------------+
     // | STARTUP                                                               |
     // +-----------------------------------------------------------------------+
@@ -146,6 +149,17 @@ pub fn restore_session(
       }
     }
   }
+}
+
+/// Refresh the current session token duration.
+///
+/// ## Status Codes
+///
+/// - 200 if successfull
+/// - 401 if token is missing
+pub fn refresh_session(request: wisp.Request) -> wisp.Response {
+  use session <- require_session(request)
+  set_session_token(wisp.ok(), request, session)
 }
 
 /// ## `GET /api/startup/expertise/:id`
