@@ -6,6 +6,7 @@ default:
 
 # Build frontend and send files to the backend
 build:
+    npm install
     npm run build --no-fund
     mv dist/assets/*.css dist/assets/client.css
     mv dist/assets/*.js dist/assets/client.js
