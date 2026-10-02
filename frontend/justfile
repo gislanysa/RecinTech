@@ -1,14 +1,21 @@
 set quiet
 
+static_dir := "../backend/priv/static"
+
 [private]
 default:
     just --list
 
-# Build frontend and send files to the backend
-build:
-    npm install
+# build frontend and send files to the backend
+[group("dev")]
+build: install
     npm run build --no-fund
     mv dist/assets/*.css dist/assets/client.css
     mv dist/assets/*.js dist/assets/client.js
-    mkdir -p ../backend/priv/static
-    mv dist/* ../backend/priv/static
+    mkdir -p  {{ static_dir }}
+    mv dist/* {{ static_dir }}
+
+# download project dependencies
+[group("dev")]
+install:
+    npm install
