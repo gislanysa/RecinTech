@@ -6,6 +6,7 @@ import gleam/json
 import gleam/list
 import gleam/result
 import gleam/time/timestamp
+import gleam/uri
 import pog
 import server/cnpj
 import server/email
@@ -35,6 +36,8 @@ pub type StartupError {
 
   /// CPNJ should have 14 characters
   InvalidCnpj(value: String)
+  /// Startup has an invalid website
+  InvalidWebsite(value: String)
   /// Startup CNPJ must be unique
   CnpjConflict(value: cnpj.Cnpj)
   /// Failed to parse a String into a [Stage](#Stage) type
@@ -77,6 +80,8 @@ pub type Startup {
     created_at: timestamp.Timestamp,
     /// Whether the Startup is active
     is_active: Bool,
+    /// Startup's website
+    website: uri.Uri,
   )
 }
 
@@ -88,14 +93,14 @@ pub type Stage {
   Growth
 }
 
-fn stage_to_json(stage: Stage) -> json.Json {
+pub fn stage_to_json(stage: Stage) -> json.Json {
   case stage {
     Seed -> json.string("seed")
     Growth -> json.string("growth")
   }
 }
 
-fn stage_decoder() -> decode.Decoder(Stage) {
+pub fn stage_decoder() -> decode.Decoder(Stage) {
   use variant <- decode.then(decode.string)
   case variant {
     "seed" -> decode.success(Seed)
@@ -136,6 +141,7 @@ pub fn decoder() -> decode.Decoder(Startup) {
   use state <- decode.field("state", decode.string)
   use created_at <- decode.field("created_at", internal.timestamp_decoder())
   use is_active <- decode.field("is_active", decode.bool)
+  use website <- decode.field("website", internal.uri_decoder())
 
   decode.success(Startup(
     id:,
@@ -148,6 +154,7 @@ pub fn decoder() -> decode.Decoder(Startup) {
     state:,
     created_at:,
     is_active:,
+    website:,
   ))
 }
 
@@ -164,6 +171,7 @@ pub fn to_json(startup: Startup) -> json.Json {
     #("state", json.string(startup.state)),
     #("created_at", internal.timestamp_to_json(startup.created_at)),
     #("is_active", json.bool(startup.is_active)),
+    #("website", internal.uri_to_json(startup.website)),
   ])
 }
 
@@ -182,6 +190,7 @@ pub fn to_json(startup: Startup) -> json.Json {
 ///   description: "startup muito maneira",
 ///   city: "Recife",
 ///   state: "Pernambuco",
+///   website: "wibble.com",
 /// )
 ///
 /// case result {
@@ -202,6 +211,7 @@ pub fn register(
   description description: String,
   city city: String,
   state state: String,
+  website website: uri.Uri,
 ) -> Result(Startup, StartupError) {
   let stage = stage_to_enum(stage)
 
@@ -223,6 +233,7 @@ pub fn register(
       description,
       city,
       state,
+      uri.to_string(website),
     )
 
   use returned <- result.try(case register_result {
@@ -252,9 +263,14 @@ pub fn register(
     |> result.replace_error(InvalidCnpj(value: row.cnpj)),
   )
 
-  use email <- result.map(
+  use email <- result.try(
     email.parse(row.email)
     |> result.replace_error(InvalidEmail(value: row.email)),
+  )
+
+  use website <- result.map(
+    uri.parse(row.website)
+    |> result.replace_error(InvalidWebsite(value: row.website)),
   )
 
   Startup(
@@ -268,6 +284,7 @@ pub fn register(
     state: row.state,
     created_at: row.created_at,
     is_active: row.is_active,
+    website: website,
   )
 }
 
@@ -367,9 +384,14 @@ pub fn get(
     |> result.replace_error(InvalidCnpj(value: row.cnpj)),
   )
 
-  use email <- result.map(
+  use email <- result.try(
     email.parse(row.email)
     |> result.replace_error(InvalidEmail(value: row.email)),
+  )
+
+  use website <- result.map(
+    uri.parse(row.website)
+    |> result.replace_error(InvalidWebsite(value: row.website)),
   )
 
   Startup(
@@ -383,6 +405,7 @@ pub fn get(
     state: row.state,
     created_at: row.created_at,
     is_active: row.is_active,
+    website: website,
   )
 }
 
@@ -775,9 +798,14 @@ pub fn get_many(
       |> result.replace_error(InvalidCnpj(value: row.cnpj)),
     )
 
-    use email <- result.map(
+    use email <- result.try(
       email.parse(row.email)
       |> result.replace_error(InvalidEmail(value: row.email)),
+    )
+
+    use website <- result.map(
+      uri.parse(row.website)
+      |> result.replace_error(InvalidWebsite(value: row.website)),
     )
 
     Startup(
@@ -791,6 +819,7 @@ pub fn get_many(
       state: row.state,
       created_at: row.created_at,
       is_active: row.is_active,
+      website: website,
     )
   })
 }

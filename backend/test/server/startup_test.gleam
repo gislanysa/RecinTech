@@ -1,5 +1,6 @@
 import gleam/int
 import gleam/list
+import gleam/uri
 import server/dummy
 import server/startup
 import server_test
@@ -16,6 +17,7 @@ pub fn register_startup_test() -> Nil {
   let password = "wibble"
   let stage = startup.Seed
   let state = "Pernambuco"
+  let website = uri.empty
 
   let assert Ok(returned) =
     startup.register(
@@ -28,6 +30,7 @@ pub fn register_startup_test() -> Nil {
       description:,
       city:,
       state:,
+      website:,
     )
 
   assert uuid.version(returned.id) == uuid.V7
@@ -43,6 +46,7 @@ pub fn register_startup_test() -> Nil {
       state:,
       created_at: returned.created_at,
       is_active: True,
+      website:,
     )
 
   Nil
@@ -64,6 +68,7 @@ pub fn register_cnpj_conflict_test() -> Nil {
       description: "description",
       city: "Recife",
       state: "PE",
+      website: uri.empty,
     )
 
   let email = dummy.new_email()
@@ -78,6 +83,7 @@ pub fn register_cnpj_conflict_test() -> Nil {
       description: "description",
       city: "Recife",
       state: "PE",
+      website: uri.empty,
     )
 
   assert returned == cnpj as "returned conflicted CNPJ"
@@ -101,6 +107,7 @@ pub fn register_email_conflict_test() -> Nil {
       description: "description",
       city: "Recife",
       state: "PE",
+      website: uri.empty,
     )
 
   let cnpj = dummy.new_cnpj()
@@ -115,6 +122,7 @@ pub fn register_email_conflict_test() -> Nil {
       description: "description",
       city: "Recife",
       state: "PE",
+      website: uri.empty,
     )
 
   assert returned == email as "returned conflicted Email"
