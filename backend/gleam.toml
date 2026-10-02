@@ -7,6 +7,11 @@ internal_modules = [
   "server/internal/*.gleam",
 ]
 
+[documentation]
+pages = [
+  { title = "API Documentation", path = "api.html", source = "./docs/api.md" },
+]
+
 [dependencies]
 gleam_stdlib = ">= 1.0.0 and < 2.0.0"
 gleam_http = ">= 4.3.0 and < 5.0.0"
