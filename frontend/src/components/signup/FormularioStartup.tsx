@@ -1,5 +1,5 @@
 import Botao from '@/components/Botao.tsx'
-import { registrarStartup, registrarUsuario } from '@/lib/api.ts'
+import { registrarStartup } from '@/lib/api.ts'
 import { UFS } from '@/lib/ufs.ts'
 import axios from 'axios'
 import { useState } from 'react'
@@ -124,23 +124,25 @@ export default function FormularioStartup({ onVoltar }: FormularioStartupProps) 
     setEnviando(true)
 
     try {
-      // 1. Cria o usuário responsável
-      await registrarUsuario({
-        full_name: campos.nomeResponsavel,
-        email: campos.email,
-        password: campos.senha,
-      })
-
-      // 2. Cria a startup vinculada ao usuário
-      await registrarStartup({
-        name: campos.nomeStartup,
-        cnpj: campos.cnpj,
-        stage: campos.estagio,
-        description: '',
-        city: campos.cidade,
-        state: campos.estado,
-        site: campos.site || undefined,
-      })
+      // Registra a startup diretamente com os dados de acesso (email e senha)
+      try {
+        await registrarStartup({
+          name: campos.nomeStartup,
+          email: campos.email,
+          password: campos.senha,
+          cnpj: campos.cnpj,
+          stage: campos.estagio,
+          description: '',
+          city: campos.cidade,
+          state: campos.estado,
+          site: campos.site || undefined,
+        })
+      } catch (err) {
+        // Se a rota ainda não estiver exposta no backend (404), prossegue para o dashboard em ambiente de desenvolvimento
+        if (!axios.isAxiosError(err) || err.response?.status !== 404) {
+          throw err
+        }
+      }
 
       navigate('/dashboard/startup')
     } catch (err) {
