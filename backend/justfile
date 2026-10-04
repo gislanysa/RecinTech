@@ -33,15 +33,11 @@ build-documentation: build
 run: require-database build
     ERL_FLAGS="-name {{ node_name }} -setcookie {{ erlang_cookie }}" gleam run
 
-# Build frontend assets and run application
-[group("dev")]
-run-full: build-frontend run
-
 # Open erlang observer
 [group("dev")]
 observer observer_node_name="wobble@127.0.0.1": require-server
     erl -name {{ observer_node_name }} -setcookie {{ erlang_cookie }} \
-      -hidden -run observer start '{{ node_name }}'
+      -hidden -run observer start {{ node_name }}
 
 # Watch and run application
 [group("dev")]
