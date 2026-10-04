@@ -6,6 +6,16 @@ static_dir := "../backend/priv/static"
 default:
     just --list
 
+# lint project
+[group("dev")]
+lint: install
+    npm run lint
+
+# start development server
+[group("dev")]
+dev: install
+    npm run dev
+
 # build frontend and send files to the backend
 [group("dev")]
 build: install
