@@ -1,5 +1,5 @@
 ARG ERLANG_VERSION=29
-ARG GLEAM_VERSION=v1.18.1
+ARG GLEAM_VERSION=v1.19.0
 ARG NODE_VERSION=26
 
 # frontend step
@@ -30,5 +30,5 @@ COPY --from=builder /app/build/erlang-shipment /app
 
 EXPOSE 8000
 WORKDIR /app
-ENTRYPOINT ["sh", "./entrypoint.sh"]
+ENTRYPOINT ["./entrypoint.sh"]
 CMD ["run"]
