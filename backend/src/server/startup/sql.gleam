@@ -16,7 +16,7 @@ import youid/uuid.{type Uuid}
 /// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
 ///
 pub type AssignExpertiseRow {
-  AssignExpertiseRow(expertise_id: Uuid)
+  AssignExpertiseRow(id: Uuid, name: String, description: String)
 }
 
 /// Assign an expertise to a startup
@@ -30,19 +30,29 @@ pub fn assign_expertise(
   arg_2: Uuid,
 ) -> Result(pog.Returned(AssignExpertiseRow), pog.QueryError) {
   let decoder = {
-    use expertise_id <- decode.field(0, uuid_decoder())
-    decode.success(AssignExpertiseRow(expertise_id:))
+    use id <- decode.field(0, uuid_decoder())
+    use name <- decode.field(1, decode.string)
+    use description <- decode.field(2, decode.string)
+    decode.success(AssignExpertiseRow(id:, name:, description:))
   }
 
   "-- Assign an expertise to a startup
-INSERT INTO
-    public.startup_expertise (startup_id, expertise_id)
+WITH assigned AS (
+    INSERT INTO
+        public.startup_expertise (startup_id, expertise_id)
+    SELECT
+        $1::uuid AS startup_id,
+        $2::uuid AS expertise_id
+    RETURNING
+        expertise_id
+)
 SELECT
-    $1::uuid AS startup_id,
-    $2::uuid AS expertise_id
-RETURNING
-    expertise_id;
-"
+    e.id,
+    e.name,
+    e.description
+FROM
+    public.expertise AS e
+    INNER JOIN assigned AS a ON a.expertise_id = e.id;"
   |> pog.query
   |> pog.parameter(pog.text(uuid.to_string(arg_1)))
   |> pog.parameter(pog.text(uuid.to_string(arg_2)))
@@ -57,7 +67,7 @@ RETURNING
 /// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
 ///
 pub type AssignSegmentRow {
-  AssignSegmentRow(segment_id: Uuid)
+  AssignSegmentRow(id: Uuid, name: String, description: String)
 }
 
 /// assign a given Segment to a Startup
@@ -71,19 +81,29 @@ pub fn assign_segment(
   arg_2: Uuid,
 ) -> Result(pog.Returned(AssignSegmentRow), pog.QueryError) {
   let decoder = {
-    use segment_id <- decode.field(0, uuid_decoder())
-    decode.success(AssignSegmentRow(segment_id:))
+    use id <- decode.field(0, uuid_decoder())
+    use name <- decode.field(1, decode.string)
+    use description <- decode.field(2, decode.string)
+    decode.success(AssignSegmentRow(id:, name:, description:))
   }
 
   "-- assign a given Segment to a Startup
-INSERT INTO
-    public.startup_segment (startup_id, segment_id)
+WITH assigned AS (
+    INSERT INTO
+        public.startup_segment (startup_id, segment_id)
+    SELECT
+        $1::uuid AS startup_id,
+        $2::uuid AS segment_id
+    RETURNING
+        segment_id
+)
 SELECT
-    $1::uuid AS startup_id,
-    $2::uuid AS segment_id
-RETURNING
-    segment_id;
-"
+    s.id,
+    s.name,
+    s.description
+FROM
+    public.segment AS s
+    INNER JOIN assigned AS a ON a.segment_id = s.id;"
   |> pog.query
   |> pog.parameter(pog.text(uuid.to_string(arg_1)))
   |> pog.parameter(pog.text(uuid.to_string(arg_2)))
@@ -98,7 +118,7 @@ RETURNING
 /// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
 ///
 pub type AssignServiceRow {
-  AssignServiceRow(service_id: Uuid)
+  AssignServiceRow(id: Uuid, name: String, description: String)
 }
 
 /// Assign a service to a Startup
@@ -112,18 +132,29 @@ pub fn assign_service(
   arg_2: Uuid,
 ) -> Result(pog.Returned(AssignServiceRow), pog.QueryError) {
   let decoder = {
-    use service_id <- decode.field(0, uuid_decoder())
-    decode.success(AssignServiceRow(service_id:))
+    use id <- decode.field(0, uuid_decoder())
+    use name <- decode.field(1, decode.string)
+    use description <- decode.field(2, decode.string)
+    decode.success(AssignServiceRow(id:, name:, description:))
   }
 
   "-- Assign a service to a Startup
-INSERT INTO
-    public.startup_service (startup_id, service_id)
+WITH assigned AS (
+    INSERT INTO
+        public.startup_service (startup_id, service_id)
+    SELECT
+        $1::uuid AS startup_id,
+        $2::uuid AS service_id
+    RETURNING
+        service_id
+)
 SELECT
-    $1::uuid AS startup_id,
-    $2::uuid AS service_id
-RETURNING
-    service_id;
+    s.id,
+    s.name,
+    s.description
+FROM
+    public.service AS s
+    INNER JOIN assigned AS a ON a.service_id = s.id;
 "
   |> pog.query
   |> pog.parameter(pog.text(uuid.to_string(arg_1)))
@@ -139,7 +170,7 @@ RETURNING
 /// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
 ///
 pub type AssignTechnologyRow {
-  AssignTechnologyRow(technology_id: Uuid)
+  AssignTechnologyRow(id: Uuid, name: String, description: String)
 }
 
 /// Assign a startup to a technology
@@ -153,19 +184,29 @@ pub fn assign_technology(
   arg_2: Uuid,
 ) -> Result(pog.Returned(AssignTechnologyRow), pog.QueryError) {
   let decoder = {
-    use technology_id <- decode.field(0, uuid_decoder())
-    decode.success(AssignTechnologyRow(technology_id:))
+    use id <- decode.field(0, uuid_decoder())
+    use name <- decode.field(1, decode.string)
+    use description <- decode.field(2, decode.string)
+    decode.success(AssignTechnologyRow(id:, name:, description:))
   }
 
   "-- Assign a startup to a technology
-INSERT INTO
-    public.startup_technology (startup_id, technology_id)
+WITH assigned AS (
+    INSERT INTO
+        public.startup_technology (startup_id, technology_id)
+    SELECT
+        $1::uuid AS startup_id,
+        $2::uuid AS technology_id
+    RETURNING
+        technology_id
+)
 SELECT
-    $1::uuid AS startup_id,
-    $2::uuid AS technology_id
-RETURNING
-    technology_id;
-"
+    t.id,
+    t.name,
+    t.description
+FROM
+    public.technology AS t
+    INNER JOIN assigned AS a ON a.technology_id = t.id;"
   |> pog.query
   |> pog.parameter(pog.text(uuid.to_string(arg_1)))
   |> pog.parameter(pog.text(uuid.to_string(arg_2)))

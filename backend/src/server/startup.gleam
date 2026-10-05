@@ -468,8 +468,8 @@ pub fn ensure_exists(
   }
 }
 
-/// Assign a Segment to a Startup and returns the ID of the segment if successful.
-/// You cannot assign a segment to a startup more than once.
+/// Assign a Segment to a Startup and returns the assigned Segment if
+/// successful. You cannot assign a segment to a startup more than once.
 ///
 /// ## Examples
 ///
@@ -490,7 +490,7 @@ pub fn assign_segment(
   database: pog.Connection,
   id: uuid.Uuid,
   assign segment: uuid.Uuid,
-) -> Result(uuid.Uuid, StartupError) {
+) -> Result(segment.Segment, StartupError) {
   use returned <- result.try(case sql.assign_segment(database, id, segment) {
     // Tried to assign an Segment to a Startup that is not registered.
     Error(pog.ConstraintViolated(
@@ -512,14 +512,16 @@ pub fn assign_segment(
     Error(error) -> Error(DatabaseError(error))
   })
 
-  case list.first(returned.rows) {
-    Ok(row) -> Ok(row.segment_id)
-    Error(_) -> Error(AssignmentFailure(id: segment))
-  }
+  use row <- result.map(
+    list.first(returned.rows)
+    |> result.replace_error(AssignmentFailure(id: segment)),
+  )
+
+  segment.Segment(id: row.id, name: row.name, description: row.description)
 }
 
-/// Assign an Expertise to a Startup and returns the ID of the expertise
-/// if successful. You cannot assign the same expertise to a startup more
+/// Assign an Expertise to a Startup and returns the assigned Expertise if
+/// successful. You cannot assign the same expertise to a startup more
 /// than once.
 ///
 /// ## Examples
@@ -541,7 +543,7 @@ pub fn assign_expertise(
   database: pog.Connection,
   id: uuid.Uuid,
   assign expertise: uuid.Uuid,
-) -> Result(uuid.Uuid, StartupError) {
+) -> Result(expertise.Expertise, StartupError) {
   use returned <- result.try(
     case sql.assign_expertise(database, id, expertise) {
       // Tried to assign an Segment to a Startup that is not registered.
@@ -565,10 +567,12 @@ pub fn assign_expertise(
     },
   )
 
-  case list.first(returned.rows) {
-    Ok(row) -> Ok(row.expertise_id)
-    Error(_) -> Error(AssignmentFailure(id: expertise))
-  }
+  use row <- result.map(
+    list.first(returned.rows)
+    |> result.replace_error(AssignmentFailure(id: expertise)),
+  )
+
+  expertise.Expertise(id: row.id, name: row.name, description: row.description)
 }
 
 /// Get all expertises that a Startup is assigned to
@@ -666,8 +670,8 @@ pub fn get_services(
   })
 }
 
-/// Assign a Service to a Startup and returns the ID of the service
-/// if successful. You cannot assign a service to a startup more than once.
+/// Assign a Service to a Startup and returns the assigned Service if
+/// successful. You cannot assign a service to a startup more than once.
 ///
 /// ## Examples
 ///
@@ -688,7 +692,7 @@ pub fn assign_service(
   database: pog.Connection,
   id: uuid.Uuid,
   assign service: uuid.Uuid,
-) -> Result(uuid.Uuid, StartupError) {
+) -> Result(service.Service, StartupError) {
   use returned <- result.try(case sql.assign_service(database, id, service) {
     // Tried to assign a Service to a Startup that is not registered.
     Error(pog.ConstraintViolated(
@@ -710,14 +714,16 @@ pub fn assign_service(
     Error(error) -> Error(DatabaseError(error))
   })
 
-  case list.first(returned.rows) {
-    Ok(row) -> Ok(row.service_id)
-    Error(_) -> Error(AssignmentFailure(id: service))
-  }
+  use row <- result.map(
+    list.first(returned.rows)
+    |> result.replace_error(AssignmentFailure(id: service)),
+  )
+
+  service.Service(id: row.id, name: row.name, description: row.description)
 }
 
-/// Assign a Technology to a Startup and returns the ID of the technology
-/// if successful. You cannot assign a technology to a startup more than once.
+/// Assign a Technology to a Startup and returns the assigned Technology if
+/// successful. You cannot assign a technology to a startup more than once.
 ///
 /// ## Examples
 ///
@@ -738,7 +744,7 @@ pub fn assign_technology(
   database: pog.Connection,
   id: uuid.Uuid,
   assign technology: uuid.Uuid,
-) -> Result(uuid.Uuid, StartupError) {
+) -> Result(technology.Technology, StartupError) {
   use returned <- result.try(
     case sql.assign_technology(database, id, technology) {
       // Tried to assign a Technology to a Startup that is not registered.
@@ -762,10 +768,16 @@ pub fn assign_technology(
     },
   )
 
-  case list.first(returned.rows) {
-    Ok(row) -> Ok(row.technology_id)
-    Error(_) -> Error(AssignmentFailure(id: technology))
-  }
+  use row <- result.map(
+    list.first(returned.rows)
+    |> result.replace_error(AssignmentFailure(id: technology)),
+  )
+
+  technology.Technology(
+    id: row.id,
+    name: row.name,
+    description: row.description,
+  )
 }
 
 /// Fetch many Startups from the database, specifying the max number of
