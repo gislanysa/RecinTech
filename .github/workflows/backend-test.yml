@@ -50,7 +50,7 @@ jobs:
       - uses: erlef/setup-beam@v1
         with:
           otp-version: "29"
-          gleam-version: "v1.18.1"
+          gleam-version: "v1.19.0"
           rebar3-version: "3"
 
       # It needs a C compiler because of the Argon2 hashing.
