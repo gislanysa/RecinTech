@@ -206,7 +206,7 @@ pub fn assign_segment_to_startup_test() -> Nil {
   let assert Ok(returned) =
     startup.assign_segment(context.database, startup.id, assign: segment.id)
 
-  assert returned == segment.id
+  assert returned == segment
 
   Nil
 }
@@ -314,7 +314,7 @@ pub fn assign_startup_to_expertise_test() -> Nil {
   let assert Ok(returned) =
     startup.assign_expertise(context.database, startup.id, assign: expertise.id)
 
-  assert returned == expertise.id
+  assert returned == expertise
 
   Nil
 }
