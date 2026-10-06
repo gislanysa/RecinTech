@@ -1,0 +1,22 @@
+ARG ERLANG_VERSION=29
+ARG GLEAM_VERSION=v1.19.0
+
+FROM ghcr.io/gleam-lang/gleam:${GLEAM_VERSION}-scratch AS gleam
+FROM docker.io/erlang:${ERLANG_VERSION}-alpine AS builder
+
+COPY --from=gleam /bin/gleam /bin/gleam
+COPY . /app/
+
+WORKDIR /app
+RUN gleam docs build
+
+FROM docker.io/nginx:alpine AS nginx
+
+# copy static documentation files from builder
+COPY --from=builder /app/build/dev/docs/server/ /usr/share/nginx/html/
+
+# expose port 80
+EXPOSE 80
+
+# start nginx
+CMD ["nginx", "-g", "daemon off;"]

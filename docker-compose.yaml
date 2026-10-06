@@ -33,3 +33,11 @@ services:
     environment:
       DATABASE_URL: postgres://aluno:123@postgres:5432/senac
       SECRET_KEY: senac
+  # docs
+  docs:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.docs
+    container_name: server_docs
+    ports: ["8080:80"]
+    restart: unless-stopped
