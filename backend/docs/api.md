@@ -128,6 +128,16 @@ Investor:
 - 401: Missing session cookie
 - 404: User not found
 
+## GET /api/auth/refresh
+
+Refresh the current session token duration. On success, a new session cookie
+is set (valid for 1 hour).
+
+### Status Codes
+
+- 200: Successful
+- 401: Missing session cookie
+
 ## POST /api/startup
 
 Register a new startup.
