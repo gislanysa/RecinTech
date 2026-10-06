@@ -63,8 +63,11 @@ jobs:
       - name: build database tables
         run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f postgres/00_tables.sql
 
-      - name: run unit tests
-        run: gleam test
+      - name: validate generated sql queries
+        run: gleam run -m squirrel check
 
       - name: check formatting
         run: gleam format --check src test
+
+      - name: run unit tests
+        run: gleam test
