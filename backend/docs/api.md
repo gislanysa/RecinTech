@@ -168,7 +168,7 @@ Register a new startup.
 
 ### Status Codes
 
-- 200: Successful
+- 201: Successful
 - 400: Invalid JSON or invalid data
 - 409: Duplicated email or CNPJ
 
