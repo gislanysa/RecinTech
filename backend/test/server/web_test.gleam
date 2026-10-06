@@ -475,7 +475,7 @@ pub fn register_startup_test() -> Nil {
     |> simulate.json_body(body)
     |> web.handle_request(context)
 
-  assert response.status == 200
+  assert response.status == 201
 
   let body = simulate.read_body(response)
   let assert Ok(_) = json.parse(body, startup.decoder())

@@ -924,7 +924,7 @@ pub fn register_startup(
         Ok(startup) ->
           startup.to_json(startup)
           |> json.to_string()
-          |> wisp.json_response(200)
+          |> wisp.json_response(201)
 
         Error(error) -> handle_startup_error(error)
       }
