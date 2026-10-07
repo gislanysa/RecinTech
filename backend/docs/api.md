@@ -261,7 +261,7 @@ Fetch information about a startup.
 - 400: Invalid UUID format
 - 404: Startup not found
 
-## GET /api/startup/segment/:id
+## GET /api/startup/:id/segment
 
 Fetch all segments that a startup is assigned to.
 
@@ -292,7 +292,7 @@ Fetch all segments that a startup is assigned to.
 - 400: Invalid UUID format
 - 404: Startup not found
 
-## GET /api/startup/service/:id
+## GET /api/startup/:id/service
 
 Fetch all services that a startup is assigned to.
 
@@ -323,7 +323,7 @@ Fetch all services that a startup is assigned to.
 - 400: Invalid UUID format
 - 404: Startup not found
 
-## GET /api/startup/expertise/:id
+## GET /api/startup/:id/expertise
 
 Fetch all expertises that a startup is assigned to.
 
@@ -354,7 +354,7 @@ Fetch all expertises that a startup is assigned to.
 - 400: Invalid UUID format
 - 404: Startup not found
 
-## GET /api/startup/technology/:id
+## GET /api/startup/:id/technology
 
 Fetch all technologies that a startup is assigned to.
 
