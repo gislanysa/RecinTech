@@ -92,16 +92,16 @@ pub fn handle_request(
 
     // Fetching specific information about startups
     //
-    http.Get, ["api", "startup", "segment", id] ->
+    http.Get, ["api", "startup", id, "segment"] ->
       get_startup_segments(context.database, id)
 
-    http.Get, ["api", "startup", "service", id] ->
+    http.Get, ["api", "startup", id, "service"] ->
       get_startup_services(context.database, id)
 
-    http.Get, ["api", "startup", "expertise", id] ->
+    http.Get, ["api", "startup", id, "expertise"] ->
       get_startup_expertises(context.database, id)
 
-    http.Get, ["api", "startup", "technology", id] ->
+    http.Get, ["api", "startup", id, "technology"] ->
       get_startup_technologies(context.database, id)
 
     // +-----------------------------------------------------------------------+

@@ -182,7 +182,7 @@ pub fn get_startup_segments_test() -> Nil {
   // Request
   let id = uuid.to_string(startup.id)
   let response =
-    simulate.browser_request(http.Get, "/api/startup/segment/" <> id)
+    simulate.browser_request(http.Get, "/api/startup/" <> id <> "/segment")
     |> web.handle_request(context)
 
   assert response.status == 200
@@ -216,7 +216,7 @@ pub fn get_startup_services_test() -> Nil {
   // Request
   let id = uuid.to_string(startup.id)
   let response =
-    simulate.browser_request(http.Get, "/api/startup/service/" <> id)
+    simulate.browser_request(http.Get, "/api/startup/" <> id <> "/service")
     |> web.handle_request(context)
 
   assert response.status == 200
@@ -260,7 +260,7 @@ pub fn get_startup_technologies_test() -> Nil {
   // Request
   let id = uuid.to_string(startup.id)
   let response =
-    simulate.browser_request(http.Get, "/api/startup/technology/" <> id)
+    simulate.browser_request(http.Get, "/api/startup/" <> id <> "/technology")
     |> web.handle_request(context)
 
   assert response.status == 200
@@ -304,7 +304,7 @@ pub fn get_startup_expertises_test() -> Nil {
   // Request
   let id = uuid.to_string(startup.id)
   let response =
-    simulate.browser_request(http.Get, "/api/startup/expertise/" <> id)
+    simulate.browser_request(http.Get, "/api/startup/" <> id <> "/expertise")
     |> web.handle_request(context)
 
   assert response.status == 200
