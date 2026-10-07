@@ -87,6 +87,7 @@ pub fn handle_request(
     // Querying, registering and assigning entities to startups.
     //
     http.Post, ["api", "startup"] -> register_startup(request, context.database)
+
     http.Get, ["api", "startup"] -> get_many_startups(request, context.database)
     http.Get, ["api", "startup", id] -> get_startup_by_id(context.database, id)
 
@@ -129,7 +130,7 @@ pub fn restore_session(
   use session <- require_session(request)
 
   case session {
-    Startup(id:) -> {
+    Startup(id:) ->
       case startup.get(database, id) {
         Error(error) -> handle_startup_error(error)
         Ok(data) ->
@@ -137,9 +138,8 @@ pub fn restore_session(
           |> json.to_string()
           |> wisp.json_response(200)
       }
-    }
 
-    Investor(id:) -> {
+    Investor(id:) ->
       case investor.get(database, id) {
         Error(error) -> handle_investor_error(error)
         Ok(data) ->
@@ -147,7 +147,6 @@ pub fn restore_session(
           |> json.to_string()
           |> wisp.json_response(200)
       }
-    }
   }
 }
 
@@ -189,7 +188,7 @@ pub fn refresh_session(request: wisp.Request) -> wisp.Response {
 /// - **400** if ID is not a valid UUID.
 /// - **404** If Startup is not found.
 ///
-pub fn get_startup_expertises(
+fn get_startup_expertises(
   database: pog.Connection,
   id: String,
 ) -> wisp.Response {
@@ -212,7 +211,6 @@ pub fn get_startup_expertises(
 /// ```gleam
 /// pub fn handle_request(request, context, id) -> wisp.Response {
 ///   use session <- require_session(request)
-///
 ///   todo as "query protected data"
 /// }
 /// ```
@@ -220,14 +218,14 @@ pub fn require_session(
   request: wisp.Request,
   next: fn(Session) -> wisp.Response,
 ) -> wisp.Response {
-  let parse_session_cookie = fn(value) {
+  let decode_session = fn(value) {
     json.parse(value, session_decoder())
     |> result.replace_error(Nil)
   }
 
   let result =
     wisp.get_cookie(request, session_cookie, wisp.Signed)
-    |> result.try(parse_session_cookie)
+    |> result.try(decode_session)
 
   case result {
     Ok(session) -> next(session)
@@ -238,7 +236,7 @@ pub fn require_session(
   }
 }
 
-/// ## `GET /api/startup/service/:id`
+/// ## `GET /api/startup/:id/service`
 ///
 /// Fetch all Services that a Startup is assigned to.
 ///
@@ -265,10 +263,7 @@ pub fn require_session(
 /// - **400** if ID is not a valid UUID.
 /// - **404** If Startup is not found.
 ///
-pub fn get_startup_services(
-  database: pog.Connection,
-  id: String,
-) -> wisp.Response {
+fn get_startup_services(database: pog.Connection, id: String) -> wisp.Response {
   use id <- require_valid_uuid(id)
 
   case startup.get_services(database, id) {
@@ -281,7 +276,7 @@ pub fn get_startup_services(
   }
 }
 
-/// ## `GET /api/startup/segment/:id`
+/// ## `GET /api/startup/:id/segment`
 ///
 /// Fetch all Segments that a Startup is assigned to.
 ///
@@ -308,10 +303,7 @@ pub fn get_startup_services(
 /// - **400** if ID is not a valid UUID.
 /// - **404** If Startup is not found.
 ///
-pub fn get_startup_segments(
-  database: pog.Connection,
-  id: String,
-) -> wisp.Response {
+fn get_startup_segments(database: pog.Connection, id: String) -> wisp.Response {
   use id <- require_valid_uuid(id)
 
   case startup.get_segments(database, id) {
@@ -324,7 +316,7 @@ pub fn get_startup_segments(
   }
 }
 
-/// ## `GET /api/startup/technology/:id`
+/// ## `GET /api/startup/:id/technology`
 ///
 /// Fetch all Technologies that a Startup is assigned to.
 ///
@@ -351,7 +343,7 @@ pub fn get_startup_segments(
 /// - **400** if ID is not a valid UUID.
 /// - **404** If Startup is not found.
 ///
-pub fn get_startup_technologies(
+fn get_startup_technologies(
   database: pog.Connection,
   id: String,
 ) -> wisp.Response {
@@ -413,7 +405,7 @@ pub fn get_startup_technologies(
 /// - **200** if successful
 /// - **400** if query is missing, invalid or incomplete.
 ///
-pub fn get_many_startups(
+fn get_many_startups(
   request: wisp.Request,
   database: pog.Connection,
 ) -> wisp.Response {
@@ -426,13 +418,13 @@ pub fn get_many_startups(
     use limit <- result.try(
       list.key_find(query, "limit")
       |> result.try(int.parse)
-      |> result.replace_error(InvalidQueryParameter("limit")),
+      |> result.replace_error(InvalidQueryParameter(key: "limit")),
     )
 
     use offset <- result.try(
       list.key_find(query, "offset")
       |> result.try(int.parse)
-      |> result.replace_error(InvalidQueryParameter("offset")),
+      |> result.replace_error(InvalidQueryParameter(key: "offset")),
     )
 
     startup.get_many(database, limit:, offset:)
@@ -449,7 +441,7 @@ pub fn get_many_startups(
   }
 }
 
-/// Handle WebError
+/// Handle [WebError](#WebError)
 fn handle_error(error: WebError) -> wisp.Response {
   case error {
     StartupError(error) -> handle_startup_error(error)
@@ -460,7 +452,7 @@ fn handle_error(error: WebError) -> wisp.Response {
 
 /// Send the necessary HTML for the client-side application. The user will
 /// use it to communicate with the Server.
-pub fn get_root_document() -> wisp.Response {
+fn get_root_document() -> wisp.Response {
   let body =
     html.html([attribute.lang("pt-BR")], [
       html.head([], [
@@ -608,10 +600,7 @@ pub fn require_valid_uuid(
 /// - 200 If successful.
 /// - 404 If Startup is not found.
 ///
-pub fn get_startup_by_id(
-  database: pog.Connection,
-  id: String,
-) -> wisp.Response {
+fn get_startup_by_id(database: pog.Connection, id: String) -> wisp.Response {
   use id <- require_valid_uuid(id)
 
   case startup.get(database, id) {
@@ -645,10 +634,9 @@ fn handle_startup_error(error: startup.StartupError) -> wisp.Response {
     startup.InvalidCnpj(value) ->
       wisp.bad_request("Invalid CNPJ format: " <> value)
 
-    startup.InvalidEmail(value:) -> {
+    startup.InvalidEmail(value:) ->
       { "Invalid Email address: " <> value }
       |> wisp.bad_request
-    }
 
     startup.AssignmentFailure(id:) ->
       { "Failed to assign " <> uuid.to_string(id) }
@@ -697,6 +685,7 @@ pub type Session {
   Investor(id: uuid.Uuid)
 }
 
+/// Encode a Session into a JSON object.
 pub fn session_to_json(session: Session) -> json.Json {
   case session {
     Startup(id:) ->
@@ -713,6 +702,7 @@ pub fn session_to_json(session: Session) -> json.Json {
   }
 }
 
+/// A decoder that decodes `Session` values.
 pub fn session_decoder() -> decode.Decoder(Session) {
   use variant <- decode.field("type", decode.string)
 
@@ -760,7 +750,7 @@ type Login {
 /// - 401 If email or password is incorrect.
 /// - 400 If email is not a valid format.
 ///
-pub fn handle_login(
+fn handle_login(
   request: wisp.Request,
   database: pog.Connection,
 ) -> wisp.Response {
@@ -872,7 +862,7 @@ type RegisterStartup {
 /// - 200 If successful.
 /// - 409 If duplicated email or cnpj.
 ///
-pub fn register_startup(
+fn register_startup(
   request: wisp.Request,
   database: pog.Connection,
 ) -> wisp.Response {
