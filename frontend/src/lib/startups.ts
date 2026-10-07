@@ -227,7 +227,7 @@ type ItemNomeado = {
 }
 
 /**
- * As quatro rotas de tag seguem o mesmo padrão: `/api/startup/<recurso>/:id`,
+ * As quatro rotas de tag seguem o mesmo padrão: `/api/startup/:id/<recurso>`,
  * e todas devolvem uma lista de `{ id, name, description }`.
  */
 const RECURSOS_DE_TAG = {
@@ -313,7 +313,7 @@ export async function carregarTagsDaStartup(id: string): Promise<Tags> {
   const respostas = await Promise.all(
     chaves.map(async (recurso) => {
       try {
-        const { data } = await api.get<ItemNomeado[]>(`/startup/${recurso}/${id}`)
+        const { data } = await api.get<ItemNomeado[]>(`/startup/${id}/${recurso}`)
         return data.map((item) => item.name)
       } catch {
         return []
