@@ -93,28 +93,28 @@ pub fn handle_request(
 
     // Fetching specific information about startups
     //
-    // Segment
+    // == segment ==============================================================
     http.Get, ["api", "startup", id, "segment"] ->
       get_startup_segments(context.database, id)
 
     http.Post, ["api", "startup", "segment"] ->
       assign_startup_to_segment(request, context.database)
 
-    // == Service
+    // == service ==============================================================
     http.Get, ["api", "startup", id, "service"] ->
       get_startup_services(context.database, id)
 
     http.Post, ["api", "startup", "service"] ->
       assign_startup_to_service(request, context.database)
 
-    // == Expertise
+    // == expertise ============================================================
     http.Get, ["api", "startup", id, "expertise"] ->
       get_startup_expertises(context.database, id)
 
     http.Post, ["api", "startup", "expertise"] ->
       assign_startup_to_expertise(request, context.database)
 
-    // == Technology
+    // == technology ===========================================================
     http.Get, ["api", "startup", id, "technology"] ->
       get_startup_technologies(context.database, id)
 
@@ -414,7 +414,7 @@ pub fn refresh_session(request: wisp.Request) -> wisp.Response {
 ///    "id": "01a0dbb3-153a-7b84-8c3d-631788972d4a",
 ///    "name": "Health",
 ///    "description": "Medical stuff",
-///   },
+///   }
 /// ]
 /// ```
 ///
