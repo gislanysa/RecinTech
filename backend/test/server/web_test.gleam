@@ -619,3 +619,54 @@ pub fn assign_startup_to_segment_conflict_test() -> Nil {
 
   Nil
 }
+
+pub fn assign_startup_to_technology_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+  let techology = dummy.new_technology(context.database)
+
+  let body =
+    json.object([
+      #("startup", json.string(uuid.to_string(startup.id))),
+      #("technology", json.string(uuid.to_string(techology.id))),
+    ])
+
+  let response =
+    simulate.browser_request(http.Post, "/api/startup/technology")
+    |> simulate.json_body(body)
+    |> web.handle_request(context)
+
+  assert response.status == 201
+  let body = simulate.read_body(response)
+  let assert Ok(_) = json.parse(body, technology.decoder())
+
+  Nil
+}
+
+pub fn assign_startup_to_technology_conflict_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+  let technology = dummy.new_technology(context.database)
+
+  // assigning once
+  let assert Ok(_) =
+    startup.assign_technology(context.database, startup.id, technology.id)
+
+  let body =
+    json.object([
+      #("startup", json.string(uuid.to_string(startup.id))),
+      #("technology", json.string(uuid.to_string(technology.id))),
+    ])
+
+  // assigning twice
+  let response =
+    simulate.browser_request(http.Post, "/api/startup/technology")
+    |> simulate.json_body(body)
+    |> web.handle_request(context)
+
+  assert response.status == 409
+
+  Nil
+}

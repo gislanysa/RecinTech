@@ -93,20 +93,27 @@ pub fn handle_request(
 
     // Fetching specific information about startups
     //
+    // Segment
     http.Get, ["api", "startup", id, "segment"] ->
       get_startup_segments(context.database, id)
 
     http.Post, ["api", "startup", "segment"] ->
       assign_startup_to_segment(request, context.database)
 
+    // Service
     http.Get, ["api", "startup", id, "service"] ->
       get_startup_services(context.database, id)
 
+    // Expertise
     http.Get, ["api", "startup", id, "expertise"] ->
       get_startup_expertises(context.database, id)
 
+    // Technology
     http.Get, ["api", "startup", id, "technology"] ->
       get_startup_technologies(context.database, id)
+
+    http.Post, ["api", "startup", "technology"] ->
+      assign_startup_to_technology(request, context.database)
 
     // +-----------------------------------------------------------------------+
     // | NOT FOUND                                                             |
@@ -165,6 +172,64 @@ fn assign_startup_to_segment(
       case result {
         Ok(data) ->
           segment.to_json(data)
+          |> json.to_string()
+          |> wisp.json_response(201)
+
+        Error(error) -> handle_startup_error(error)
+      }
+    }
+  }
+}
+
+type AssignStartupToTechnology {
+  AssignStartupToTechnology(startup: uuid.Uuid, technology: uuid.Uuid)
+}
+
+/// ## `GET /api/startup/:startup/technology/:technology`
+///
+/// Assign a Technology to a Startup
+///
+/// ## Response Body
+///
+/// ```json
+/// {
+///   "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+///   "name": "Javascript",
+///   "description": "dont",
+/// }
+/// ```
+///
+/// ## Status Codes
+///
+/// - **200** If successful.
+/// - **400** if :startup or :technology is not a valid UUID.
+/// - **404** If Startup or Technology is not found.
+///
+fn assign_startup_to_technology(
+  request: wisp.Request,
+  database: pog.Connection,
+) -> wisp.Response {
+  use body <- wisp.require_json(request)
+
+  let decoder = {
+    use startup <- decode.field("startup", internal.uuid_decoder())
+    use technology <- decode.field("technology", internal.uuid_decoder())
+    decode.success(AssignStartupToTechnology(startup:, technology:))
+  }
+
+  case decode.run(body, decoder) {
+    Error(_) -> wisp.bad_request("Invalid JSON")
+    Ok(data) -> {
+      let result =
+        startup.assign_technology(
+          database,
+          data.startup,
+          assign: data.technology,
+        )
+
+      case result {
+        Ok(data) ->
+          technology.to_json(data)
           |> json.to_string()
           |> wisp.json_response(201)
 
