@@ -100,18 +100,21 @@ pub fn handle_request(
     http.Post, ["api", "startup", "segment"] ->
       assign_startup_to_segment(request, context.database)
 
-    // Service
+    // == Service
     http.Get, ["api", "startup", id, "service"] ->
       get_startup_services(context.database, id)
 
-    // Expertise
+    http.Post, ["api", "startup", "service"] ->
+      assign_startup_to_service(request, context.database)
+
+    // == Expertise
     http.Get, ["api", "startup", id, "expertise"] ->
       get_startup_expertises(context.database, id)
 
     http.Post, ["api", "startup", "expertise"] ->
       assign_startup_to_expertise(request, context.database)
 
-    // Technology
+    // == Technology
     http.Get, ["api", "startup", id, "technology"] ->
       get_startup_technologies(context.database, id)
 
@@ -287,6 +290,60 @@ fn assign_startup_to_expertise(
       case result {
         Ok(data) ->
           expertise.to_json(data)
+          |> json.to_string()
+          |> wisp.json_response(201)
+
+        Error(error) -> handle_startup_error(error)
+      }
+    }
+  }
+}
+
+type AssignStartupToService {
+  AssignStartupToService(startup: uuid.Uuid, service: uuid.Uuid)
+}
+
+/// ## `GET /api/startup/:startup/service/:service`
+///
+/// Assign a Service to a Startup
+///
+/// ## Response Body
+///
+/// ```json
+/// {
+///   "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+///   "name": "UI/UX",
+///   "description": "user experience"
+/// }
+/// ```
+///
+/// ## Status Codes
+///
+/// - **200** If successful.
+/// - **400** if :startup or :service is not a valid UUID.
+/// - **404** If Startup or Service is not found.
+///
+fn assign_startup_to_service(
+  request: wisp.Request,
+  database: pog.Connection,
+) -> wisp.Response {
+  use body <- wisp.require_json(request)
+
+  let decoder = {
+    use startup <- decode.field("startup", internal.uuid_decoder())
+    use service <- decode.field("service", internal.uuid_decoder())
+    decode.success(AssignStartupToService(startup:, service:))
+  }
+
+  case decode.run(body, decoder) {
+    Error(_) -> wisp.bad_request("Invalid JSON")
+    Ok(data) -> {
+      let result =
+        startup.assign_service(database, data.startup, assign: data.service)
+
+      case result {
+        Ok(data) ->
+          service.to_json(data)
           |> json.to_string()
           |> wisp.json_response(201)
 
