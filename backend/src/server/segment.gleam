@@ -107,3 +107,32 @@ pub fn get(
 
   Segment(id: row.id, name: row.name, description: row.description)
 }
+
+/// Fetch many Segments from the database, specifying the max number of
+/// returned rows, and how many to skip.
+///
+/// ## Examples
+///
+/// ```gleam
+/// let result =
+///   segment.get_many(context.database, limit: 3, offset: 6)
+///
+/// case result {
+///   Ok(data) -> todo as "send response"
+///   Error(_) -> wisp.internal_server_error()
+/// }
+/// ```
+pub fn get_many(
+  database: pog.Connection,
+  limit limit: Int,
+  offset offset: Int,
+) -> Result(List(Segment), SegmentError) {
+  use returned <- result.map(
+    sql.get_many(database, limit, offset)
+    |> result.map_error(DatabaseError),
+  )
+
+  list.map(returned.rows, fn(row) {
+    Segment(id: row.id, name: row.name, description: row.description)
+  })
+}
