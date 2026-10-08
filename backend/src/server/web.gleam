@@ -108,6 +108,9 @@ pub fn handle_request(
     http.Get, ["api", "startup", id, "expertise"] ->
       get_startup_expertises(context.database, id)
 
+    http.Post, ["api", "startup", "expertise"] ->
+      assign_startup_to_expertise(request, context.database)
+
     // Technology
     http.Get, ["api", "startup", id, "technology"] ->
       get_startup_technologies(context.database, id)
@@ -230,6 +233,60 @@ fn assign_startup_to_technology(
       case result {
         Ok(data) ->
           technology.to_json(data)
+          |> json.to_string()
+          |> wisp.json_response(201)
+
+        Error(error) -> handle_startup_error(error)
+      }
+    }
+  }
+}
+
+type AssignStartupToExpertise {
+  AssignStartupToExpertise(startup: uuid.Uuid, expertise: uuid.Uuid)
+}
+
+/// ## `GET /api/startup/:startup/expertise/:expertise`
+///
+/// Assign a Expertise to a Startup
+///
+/// ## Response Body
+///
+/// ```json
+/// {
+///   "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+///   "name": "Education",
+///   "description": "May it be free and for everyone"
+/// }
+/// ```
+///
+/// ## Status Codes
+///
+/// - **200** If successful.
+/// - **400** if :startup or :Expertise is not a valid UUID.
+/// - **404** If Startup or Expertise is not found.
+///
+fn assign_startup_to_expertise(
+  request: wisp.Request,
+  database: pog.Connection,
+) -> wisp.Response {
+  use body <- wisp.require_json(request)
+
+  let decoder = {
+    use startup <- decode.field("startup", internal.uuid_decoder())
+    use expertise <- decode.field("expertise", internal.uuid_decoder())
+    decode.success(AssignStartupToExpertise(startup:, expertise:))
+  }
+
+  case decode.run(body, decoder) {
+    Error(_) -> wisp.bad_request("Invalid JSON")
+    Ok(data) -> {
+      let result =
+        startup.assign_expertise(database, data.startup, assign: data.expertise)
+
+      case result {
+        Ok(data) ->
+          expertise.to_json(data)
           |> json.to_string()
           |> wisp.json_response(201)
 
