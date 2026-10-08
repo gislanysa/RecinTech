@@ -568,3 +568,54 @@ pub fn refresh_session_missing_token_test() -> Nil {
 
   Nil
 }
+
+pub fn assign_startup_to_segment_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+  let segment = dummy.new_segment(context.database)
+
+  let body =
+    json.object([
+      #("startup", json.string(uuid.to_string(startup.id))),
+      #("segment", json.string(uuid.to_string(segment.id))),
+    ])
+
+  let response =
+    simulate.browser_request(http.Post, "/api/startup/segment")
+    |> simulate.json_body(body)
+    |> web.handle_request(context)
+
+  assert response.status == 201
+  let body = simulate.read_body(response)
+  let assert Ok(_) = json.parse(body, segment.decoder())
+
+  Nil
+}
+
+pub fn assign_startup_to_segment_conflict_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+  let segment = dummy.new_segment(context.database)
+
+  // assigning once
+  let assert Ok(_) =
+    startup.assign_segment(context.database, startup.id, segment.id)
+
+  let body =
+    json.object([
+      #("startup", json.string(uuid.to_string(startup.id))),
+      #("segment", json.string(uuid.to_string(segment.id))),
+    ])
+
+  // assigning twice
+  let response =
+    simulate.browser_request(http.Post, "/api/startup/segment")
+    |> simulate.json_body(body)
+    |> web.handle_request(context)
+
+  assert response.status == 409
+
+  Nil
+}
