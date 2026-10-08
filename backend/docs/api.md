@@ -1,143 +1,3 @@
-# HTTP Endpoints
-
-## GET /api/healthcheck
-
-Check if the HTTP server is running correctly.
-
-### Status Codes
-
-- 200: OK
-
-### Response Body
-
-```json
-OK
-```
-
-## GET /
-
-Serve the client-side application.
-
-### Status Codes
-
-- 200: OK (HTML)
-
-## POST /api/auth/login
-
-Authenticate a user. Sets a session cookie if successful (valid for 1 hour).
-
-### Request Body
-
-```json
-{
-  "session": "startup",
-  "email": "wibble@email.com",
-  "password": "12345678"
-}
-```
-
-```json
-{
-  "session": "investor",
-  "email": "investor@email.com",
-  "password": "12345678"
-}
-```
-
-### Response Body
-
-Startup session:
-
-```json
-{
-  "id": "01a058ae-057f-73e8-b2a0-50986559767b",
-  "name": "Critic Level",
-  "email": "critic@email.dev",
-  "stage": "seed",
-  "cnpj": "12345678901234",
-  "description": "startup muito maneira",
-  "city": "Recife",
-  "state": "Pernambuco",
-  "created_at": "2026-09-14T20:08:02.000Z",
-  "is_active": true,
-  "website": "criticlevel.dev"
-}
-```
-
-Investor session:
-
-```json
-{
-  "id": "01a058ae-057f-73e8-b2a0-50986559767b",
-  "name": "Porto Digital",
-  "kind": "angel",
-  "public_profile": true,
-  "email": "investor@email.com",
-  "created_at": "2026-09-14T20:08:02.000Z",
-  "is_active": true
-}
-```
-
-### Status Codes
-
-- 200: Successful authentication
-- 400: Invalid JSON format or invalid session type or invalid email format
-- 401: Incorrect email or password
-
-## GET /api/auth/restore
-
-Restore an active user session. Requires a valid session cookie.
-
-### Response Body
-
-Startup:
-
-```json
-{
-  "id": "01a058ae-057f-73e8-b2a0-50986559767b",
-  "name": "Critic Level",
-  "email": "critic@email.dev",
-  "stage": "seed",
-  "cnpj": "12345678901234",
-  "description": "startup muito maneira",
-  "city": "Recife",
-  "state": "Pernambuco",
-  "created_at": "2026-09-14T20:08:02.000Z",
-  "is_active": true,
-  "website": "criticlevel.dev"
-}
-```
-
-Investor:
-
-```json
-{
-  "id": "01a058ae-057f-73e8-b2a0-50986559767b",
-  "name": "Investor Name",
-  "kind": "angel",
-  "public_profile": true,
-  "email": "investor@email.com",
-  "created_at": "2026-09-14T20:08:02.000Z",
-  "is_active": true
-}
-```
-
-### Status Codes
-
-- 200: Successful
-- 401: Missing session cookie
-- 404: User not found
-
-## GET /api/auth/refresh
-
-Refresh the current session token duration. On success, a new session cookie
-is set (valid for 1 hour).
-
-### Status Codes
-
-- 200: Successful
-- 401: Missing session cookie
-
 ## POST /api/startup
 
 Register a new startup.
@@ -292,6 +152,36 @@ Fetch all segments that a startup is assigned to.
 - 400: Invalid UUID format
 - 404: Startup not found
 
+## POST /api/startup/segment
+
+Assign a segment to a startup.
+
+### Request Body
+
+```json
+{
+  "startup": "01a058ae-057f-73e8-b2a0-50986559767b",
+  "segment": "01a058ae-057f-73e8-b2a0-50986559767b"
+}
+```
+
+### Response Body
+
+```json
+{
+  "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+  "name": "Tech",
+  "description": "Technology-related stuff"
+}
+```
+
+### Status Codes
+
+- 201: Successful
+- 400: Invalid JSON or invalid UUID
+- 404: Startup or Segment not found
+- 409: Already assigned
+
 ## GET /api/startup/:id/service
 
 Fetch all services that a startup is assigned to.
@@ -322,6 +212,36 @@ Fetch all services that a startup is assigned to.
 - 200: Successful
 - 400: Invalid UUID format
 - 404: Startup not found
+
+## POST /api/startup/service
+
+Assign a service to a startup.
+
+### Request Body
+
+```json
+{
+  "startup": "01a058ae-057f-73e8-b2a0-50986559767b",
+  "service": "01a058ae-057f-73e8-b2a0-50986559767b"
+}
+```
+
+### Response Body
+
+```json
+{
+  "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+  "name": "UI/UX",
+  "description": "user experience"
+}
+```
+
+### Status Codes
+
+- 201: Successful
+- 400: Invalid JSON or invalid UUID
+- 404: Startup or Service not found
+- 409: Already assigned
 
 ## GET /api/startup/:id/expertise
 
@@ -354,6 +274,36 @@ Fetch all expertises that a startup is assigned to.
 - 400: Invalid UUID format
 - 404: Startup not found
 
+## POST /api/startup/expertise
+
+Assign an expertise to a startup.
+
+### Request Body
+
+```json
+{
+  "startup": "01a058ae-057f-73e8-b2a0-50986559767b",
+  "expertise": "01a058ae-057f-73e8-b2a0-50986559767b"
+}
+```
+
+### Response Body
+
+```json
+{
+  "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+  "name": "Education",
+  "description": "May it be free and for everyone"
+}
+```
+
+### Status Codes
+
+- 201: Successful
+- 400: Invalid JSON or invalid UUID
+- 404: Startup or Expertise not found
+- 409: Already assigned
+
 ## GET /api/startup/:id/technology
 
 Fetch all technologies that a startup is assigned to.
@@ -384,3 +334,33 @@ Fetch all technologies that a startup is assigned to.
 - 200: Successful
 - 400: Invalid UUID format
 - 404: Startup not found
+
+## POST /api/startup/technology
+
+Assign a technology to a startup.
+
+### Request Body
+
+```json
+{
+  "startup": "01a058ae-057f-73e8-b2a0-50986559767b",
+  "technology": "01a058ae-057f-73e8-b2a0-50986559767b"
+}
+```
+
+### Response Body
+
+```json
+{
+  "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+  "name": "Javascript",
+  "description": "dont"
+}
+```
+
+### Status Codes
+
+- 201: Successful
+- 400: Invalid JSON or invalid UUID
+- 404: Startup or Technology not found
+- 409: Already assigned
