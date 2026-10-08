@@ -96,6 +96,9 @@ pub fn handle_request(
     http.Get, ["api", "startup", id, "segment"] ->
       get_startup_segments(context.database, id)
 
+    http.Post, ["api", "startup", "segment"] ->
+      assign_startup_to_segment(request, context.database)
+
     http.Get, ["api", "startup", id, "service"] ->
       get_startup_services(context.database, id)
 
@@ -114,6 +117,60 @@ pub fn handle_request(
 
     // Page not found in the frontend
     _, _ -> get_root_document()
+  }
+}
+
+type AssignStartupToSegment {
+  AssignStartupToSegment(startup: uuid.Uuid, segment: uuid.Uuid)
+}
+
+/// ## `GET /api/startup/:startup/segment/:segment`
+///
+/// Assign a Segment to a Startup
+///
+/// ## Response Body
+///
+/// ```json
+/// {
+///  "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+///  "name": "Tech",
+///  "description": "Technology-related stuff"
+/// }
+/// ```
+///
+/// ## Status Codes
+///
+/// - **200** If successful.
+/// - **400** if :startup or :segment is not a valid UUID.
+/// - **404** If Startup or Segment is not found.
+///
+fn assign_startup_to_segment(
+  request: wisp.Request,
+  database: pog.Connection,
+) -> wisp.Response {
+  use body <- wisp.require_json(request)
+
+  let decoder = {
+    use startup <- decode.field("startup", internal.uuid_decoder())
+    use segment <- decode.field("segment", internal.uuid_decoder())
+    decode.success(AssignStartupToSegment(startup:, segment:))
+  }
+
+  case decode.run(body, decoder) {
+    Error(_) -> wisp.bad_request("Invalid JSON")
+    Ok(data) -> {
+      let result =
+        startup.assign_segment(database, data.startup, assign: data.segment)
+
+      case result {
+        Ok(data) ->
+          segment.to_json(data)
+          |> json.to_string()
+          |> wisp.json_response(201)
+
+        Error(error) -> handle_startup_error(error)
+      }
+    }
   }
 }
 
@@ -757,8 +814,8 @@ fn handle_login(
   use body <- wisp.require_json(request)
 
   // Custom decoder for the `Login` request body
-  let login_decoder = fn() {
-    let session_kind_decoder = {
+  let decoder = {
+    let kind_decoder = {
       use string <- decode.then(decode.string)
       case string {
         "startup" -> decode.success(string)
@@ -767,13 +824,13 @@ fn handle_login(
       }
     }
 
-    use session <- decode.field("session", session_kind_decoder)
+    use session <- decode.field("session", kind_decoder)
     use email <- decode.field("email", email.decoder())
     use password <- decode.field("password", decode.string)
     decode.success(Login(session:, email:, password:))
   }
 
-  case decode.run(body, login_decoder()) {
+  case decode.run(body, decoder) {
     // Startup session
     Ok(Login(session: "startup", email:, password:)) ->
       case startup.verify(database, email:, password:) {
