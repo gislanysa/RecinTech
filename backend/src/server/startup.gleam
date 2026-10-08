@@ -93,6 +93,7 @@ pub type Stage {
   Growth
 }
 
+/// Encode a startup Stage into a JSON object.
 pub fn stage_to_json(stage: Stage) -> json.Json {
   case stage {
     Seed -> json.string("seed")
@@ -100,6 +101,7 @@ pub fn stage_to_json(stage: Stage) -> json.Json {
   }
 }
 
+/// A decoder that decodes `Stage` values.
 pub fn stage_decoder() -> decode.Decoder(Stage) {
   use variant <- decode.then(decode.string)
   case variant {
