@@ -1,3 +1,5 @@
+# API
+
 ## POST /api/startup
 
 Register a new startup.
@@ -41,6 +43,37 @@ Register a new startup.
 - 201: Successful
 - 400: Invalid JSON or invalid data
 - 409: Duplicated email or CNPJ
+
+## GET /api/segments
+
+Fetch a list of registered segments.
+
+### Query Parameters
+
+- `limit` (int, required)
+- `offset` (int, required)
+
+### Response Body
+
+```json
+[
+  {
+   "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+   "name": "Tech",
+   "description": "Technology"
+  },
+  {
+   "id": "01a0dbb3-153a-7b84-8c3d-631788972d4a",
+   "name": "Biotech",
+   "description": "Technology, but Bio"
+  }
+]
+```
+
+### Status Codes
+
+- 200: Successful
+- 400: Missing, invalid or incomplete query parameters
 
 ## GET /api/startup
 
@@ -364,3 +397,4 @@ Assign a technology to a startup.
 - 400: Invalid JSON or invalid UUID
 - 404: Startup or Technology not found
 - 409: Already assigned
+
