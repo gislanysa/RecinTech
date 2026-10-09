@@ -49,8 +49,8 @@ CREATE TABLE investor (
 CREATE INDEX idx_investor_email ON investor (email);
 
 CREATE TABLE startup_segment (
-    startup_id uuid NOT NULL REFERENCES startup (id) ON DELETE CASCADE,
-    segment_id uuid NOT NULL REFERENCES segment (id) ON DELETE CASCADE,
+    startup_id uuid REFERENCES startup (id) ON DELETE CASCADE,
+    segment_id uuid REFERENCES segment (id) ON DELETE CASCADE,
     PRIMARY KEY(startup_id, segment_id)
 );
 
@@ -59,8 +59,8 @@ CREATE INDEX idx_startup_segment_startup ON startup_segment (startup_id);
 CREATE INDEX idx_startup_segment_segment ON startup_segment (segment_id);
 
 CREATE TABLE investor_segment (
-    investor_id uuid NOT NULL REFERENCES investor (id) ON DELETE CASCADE,
-    segment_id uuid NOT NULL REFERENCES segment (id) ON DELETE CASCADE,
+    investor_id uuid REFERENCES investor (id) ON DELETE CASCADE,
+    segment_id uuid REFERENCES segment (id) ON DELETE CASCADE,
     PRIMARY KEY(investor_id, segment_id)
 );
 
@@ -76,8 +76,8 @@ CREATE TABLE expertise(
 );
 
 CREATE TABLE startup_expertise (
-    startup_id uuid NOT NULL REFERENCES startup (id) ON DELETE CASCADE,
-    expertise_id uuid NOT NULL REFERENCES expertise (id) ON DELETE CASCADE,
+    startup_id uuid REFERENCES startup (id) ON DELETE CASCADE,
+    expertise_id uuid REFERENCES expertise (id) ON DELETE CASCADE,
     PRIMARY KEY(startup_id, expertise_id)
 );
 
@@ -93,8 +93,8 @@ CREATE TABLE service(
 );
 
 CREATE TABLE startup_service (
-    startup_id uuid NOT NULL REFERENCES startup (id) ON DELETE CASCADE,
-    service_id uuid NOT NULL REFERENCES service (id) ON DELETE CASCADE,
+    startup_id uuid REFERENCES startup (id) ON DELETE CASCADE,
+    service_id uuid REFERENCES service (id) ON DELETE CASCADE,
     PRIMARY KEY(startup_id, service_id)
 );
 
@@ -110,8 +110,8 @@ CREATE TABLE technology(
 );
 
 CREATE TABLE startup_technology (
-    startup_id uuid NOT NULL REFERENCES startup (id) ON DELETE CASCADE,
-    technology_id uuid NOT NULL REFERENCES technology (id) ON DELETE CASCADE,
+    startup_id uuid REFERENCES startup (id) ON DELETE CASCADE,
+    technology_id uuid REFERENCES technology (id) ON DELETE CASCADE,
     PRIMARY KEY(startup_id, technology_id)
 );
 
