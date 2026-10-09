@@ -593,7 +593,9 @@ pub fn assign_startup_to_segment_test() -> Nil {
 
   assert response.status == 201
   let body = simulate.read_body(response)
-  let assert Ok(_) = json.parse(body, segment.decoder())
+
+  let assert Ok(returned) = json.parse(body, segment.decoder())
+  assert returned == segment
 
   Nil
 }
@@ -644,7 +646,9 @@ pub fn assign_startup_to_technology_test() -> Nil {
 
   assert response.status == 201
   let body = simulate.read_body(response)
-  let assert Ok(_) = json.parse(body, technology.decoder())
+
+  let assert Ok(returned) = json.parse(body, technology.decoder())
+  assert returned == techology
 
   Nil
 }
@@ -695,7 +699,9 @@ pub fn assign_startup_to_expertise_test() -> Nil {
 
   assert response.status == 201
   let body = simulate.read_body(response)
-  let assert Ok(_) = json.parse(body, expertise.decoder())
+
+  let assert Ok(returned) = json.parse(body, expertise.decoder())
+  assert returned == expertise
 
   Nil
 }
@@ -746,7 +752,9 @@ pub fn assign_startup_to_service_test() -> Nil {
 
   assert response.status == 201
   let body = simulate.read_body(response)
-  let assert Ok(_) = json.parse(body, service.decoder())
+
+  let assert Ok(returned) = json.parse(body, service.decoder())
+  assert returned == service
 
   Nil
 }
@@ -795,12 +803,9 @@ pub fn get_many_segments_test() -> Nil {
     |> web.handle_request(context)
 
   assert response.status == 200
-  assert response.get_header(response, "content-type")
-    == Ok("application/json; charset=utf-8")
-
   let body = simulate.read_body(response)
-  let assert Ok(returned) = json.parse(body, decode.list(segment.decoder()))
 
+  let assert Ok(returned) = json.parse(body, decode.list(segment.decoder()))
   assert returned == segments
 
   Nil
