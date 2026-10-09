@@ -50,6 +50,52 @@ WHERE
   |> pog.execute(db)
 }
 
+/// A row you get from running the `get_many` query
+/// defined in `./src/server/segment/sql/get_many.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v4.7.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type GetManyRow {
+  GetManyRow(id: Uuid, name: String, description: String)
+}
+
+/// get a maximum of $2 segments from the database
+///
+/// > 🐿️ This function was generated automatically using v4.7.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn get_many(
+  db: pog.Connection,
+  arg_1: Int,
+  arg_2: Int,
+) -> Result(pog.Returned(GetManyRow), pog.QueryError) {
+  let decoder = {
+    use id <- decode.field(0, uuid_decoder())
+    use name <- decode.field(1, decode.string)
+    use description <- decode.field(2, decode.string)
+    decode.success(GetManyRow(id:, name:, description:))
+  }
+
+  "-- get a maximum of $2 segments from the database
+SELECT
+    s.id,
+    s.name,
+    s.description
+FROM
+    public.segment AS s
+ORDER BY
+    id
+LIMIT
+    $1::int OFFSET $2::int;
+"
+  |> pog.query
+  |> pog.parameter(pog.int(arg_1))
+  |> pog.parameter(pog.int(arg_2))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
 /// A row you get from running the `register` query
 /// defined in `./src/server/segment/sql/register.sql`.
 ///
