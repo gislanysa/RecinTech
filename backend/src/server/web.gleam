@@ -41,6 +41,8 @@ type WebError {
   MissingQuery
   /// Invalid query parameter
   InvalidQueryParameter(key: String)
+  /// Segment related errors
+  SegmentError(segment.SegmentError)
 }
 
 /// Handle incoming HTTP requests
@@ -96,6 +98,8 @@ pub fn handle_request(
     // == segment ==============================================================
     http.Get, ["api", "startup", id, "segment"] ->
       get_startup_segments(context.database, id)
+
+    http.Get, ["api", "segment"] -> get_many_segments(request, context.database)
 
     http.Post, ["api", "startup", "segment"] ->
       assign_startup_to_segment(request, context.database)
@@ -681,8 +685,86 @@ fn get_many_startups(
 fn handle_error(error: WebError) -> wisp.Response {
   case error {
     StartupError(error) -> handle_startup_error(error)
+    SegmentError(error) -> handle_segment_error(error)
     MissingQuery -> wisp.bad_request("Missing query")
     InvalidQueryParameter(key:) -> wisp.bad_request("Invalid " <> key)
+  }
+}
+
+fn handle_segment_error(error: segment.SegmentError) -> wisp.Response {
+  case error {
+    segment.DatabaseError(error:) -> handle_database_error(error)
+    segment.FailedToRegisterSegment -> wisp.internal_server_error()
+
+    segment.NotFound(id:) ->
+      { "Not found: " <> uuid.to_string(id) }
+      |> wisp.string_body(wisp.response(404), _)
+  }
+}
+
+/// ## `GET /api/segments`
+///
+/// Fetch a list of registered Startups, pagination is available.
+///
+/// Required parameters:
+/// - limit: `Int`
+/// - offset: `Int`
+///
+/// ## Response Body
+///
+/// ```json
+/// [
+///   {
+///    "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+///    "name": "Tech",
+///    "description": "Technology"
+///   },
+///   {
+///    "id": "01a0dbb3-153a-7b84-8c3d-631788972d4a",
+///    "name": "Biotech",
+///    "description": "Technology, but Bio"
+///   }
+/// ]
+/// ```
+///
+/// ## Status Codes
+///
+/// - **200** if successful
+/// - **400** if query is missing, invalid or incomplete.
+///
+fn get_many_segments(
+  request: wisp.Request,
+  database: pog.Connection,
+) -> wisp.Response {
+  let result = {
+    use query <- result.try(
+      request.get_query(request)
+      |> result.replace_error(MissingQuery),
+    )
+
+    use limit <- result.try(
+      list.key_find(query, "limit")
+      |> result.try(int.parse)
+      |> result.replace_error(InvalidQueryParameter(key: "limit")),
+    )
+
+    use offset <- result.try(
+      list.key_find(query, "offset")
+      |> result.try(int.parse)
+      |> result.replace_error(InvalidQueryParameter(key: "offset")),
+    )
+
+    segment.get_many(database, limit:, offset:)
+    |> result.map_error(SegmentError)
+  }
+
+  case result {
+    Ok(data) ->
+      json.array(data, segment.to_json)
+      |> json.to_string
+      |> wisp.json_response(200)
+
+    Error(error) -> handle_error(error)
   }
 }
 

@@ -2,6 +2,7 @@ import gleam/dynamic/decode
 import gleam/http
 import gleam/http/request
 import gleam/http/response
+import gleam/int
 import gleam/json
 import gleam/list
 import server/cnpj
@@ -321,16 +322,20 @@ pub fn get_startup_expertises_test() -> Nil {
 
 pub fn get_many_startups_test() -> Nil {
   use context <- server_test.with_context()
+  let max = 6
 
   // Three startups
-  let _startup_a = dummy.new_startup(context.database)
-  let startup_b = dummy.new_startup(context.database)
-  let startup_c = dummy.new_startup(context.database)
+  let startups =
+    int.range(from: 1, to: max, with: [], run: fn(acc, _) {
+      let segment = dummy.new_startup(context.database)
+      [segment, ..acc]
+    })
+    |> list.reverse
 
   // This will only return B and C
   let response =
     simulate.browser_request(http.Get, "/api/startup")
-    |> request.set_query([#("limit", "2"), #("offset", "1")])
+    |> request.set_query([#("limit", int.to_string(max)), #("offset", "0")])
     |> web.handle_request(context)
 
   assert response.status == 200
@@ -340,7 +345,7 @@ pub fn get_many_startups_test() -> Nil {
   let body = simulate.read_body(response)
   let assert Ok(returned) = json.parse(body, decode.list(startup.decoder()))
 
-  assert returned == [startup_b, startup_c]
+  assert returned == startups
 
   Nil
 }
@@ -769,6 +774,34 @@ pub fn assign_startup_to_service_conflict_test() -> Nil {
     |> web.handle_request(context)
 
   assert response.status == 409
+
+  Nil
+}
+
+pub fn get_many_segments_test() -> Nil {
+  use context <- server_test.with_context()
+  let max = 6
+
+  let segments =
+    int.range(from: 1, to: max, with: [], run: fn(acc, _) {
+      let segment = dummy.new_segment(context.database)
+      [segment, ..acc]
+    })
+    |> list.reverse
+
+  let response =
+    simulate.browser_request(http.Get, "/api/segment")
+    |> request.set_query([#("limit", int.to_string(max)), #("offset", "0")])
+    |> web.handle_request(context)
+
+  assert response.status == 200
+  assert response.get_header(response, "content-type")
+    == Ok("application/json; charset=utf-8")
+
+  let body = simulate.read_body(response)
+  let assert Ok(returned) = json.parse(body, decode.list(segment.decoder()))
+
+  assert returned == segments
 
   Nil
 }
