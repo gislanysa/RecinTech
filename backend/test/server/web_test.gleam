@@ -568,3 +568,207 @@ pub fn refresh_session_missing_token_test() -> Nil {
 
   Nil
 }
+
+pub fn assign_startup_to_segment_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+  let segment = dummy.new_segment(context.database)
+
+  let body =
+    json.object([
+      #("startup", json.string(uuid.to_string(startup.id))),
+      #("segment", json.string(uuid.to_string(segment.id))),
+    ])
+
+  let response =
+    simulate.browser_request(http.Post, "/api/startup/segment")
+    |> simulate.json_body(body)
+    |> web.handle_request(context)
+
+  assert response.status == 201
+  let body = simulate.read_body(response)
+  let assert Ok(_) = json.parse(body, segment.decoder())
+
+  Nil
+}
+
+pub fn assign_startup_to_segment_conflict_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+  let segment = dummy.new_segment(context.database)
+
+  // assigning once
+  let assert Ok(_) =
+    startup.assign_segment(context.database, startup.id, segment.id)
+
+  let body =
+    json.object([
+      #("startup", json.string(uuid.to_string(startup.id))),
+      #("segment", json.string(uuid.to_string(segment.id))),
+    ])
+
+  // assigning twice
+  let response =
+    simulate.browser_request(http.Post, "/api/startup/segment")
+    |> simulate.json_body(body)
+    |> web.handle_request(context)
+
+  assert response.status == 409
+
+  Nil
+}
+
+pub fn assign_startup_to_technology_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+  let techology = dummy.new_technology(context.database)
+
+  let body =
+    json.object([
+      #("startup", json.string(uuid.to_string(startup.id))),
+      #("technology", json.string(uuid.to_string(techology.id))),
+    ])
+
+  let response =
+    simulate.browser_request(http.Post, "/api/startup/technology")
+    |> simulate.json_body(body)
+    |> web.handle_request(context)
+
+  assert response.status == 201
+  let body = simulate.read_body(response)
+  let assert Ok(_) = json.parse(body, technology.decoder())
+
+  Nil
+}
+
+pub fn assign_startup_to_technology_conflict_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+  let technology = dummy.new_technology(context.database)
+
+  // assigning once
+  let assert Ok(_) =
+    startup.assign_technology(context.database, startup.id, technology.id)
+
+  let body =
+    json.object([
+      #("startup", json.string(uuid.to_string(startup.id))),
+      #("technology", json.string(uuid.to_string(technology.id))),
+    ])
+
+  // assigning twice
+  let response =
+    simulate.browser_request(http.Post, "/api/startup/technology")
+    |> simulate.json_body(body)
+    |> web.handle_request(context)
+
+  assert response.status == 409
+
+  Nil
+}
+
+pub fn assign_startup_to_expertise_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+  let expertise = dummy.new_expertise(context.database)
+
+  let body =
+    json.object([
+      #("startup", json.string(uuid.to_string(startup.id))),
+      #("expertise", json.string(uuid.to_string(expertise.id))),
+    ])
+
+  let response =
+    simulate.browser_request(http.Post, "/api/startup/expertise")
+    |> simulate.json_body(body)
+    |> web.handle_request(context)
+
+  assert response.status == 201
+  let body = simulate.read_body(response)
+  let assert Ok(_) = json.parse(body, expertise.decoder())
+
+  Nil
+}
+
+pub fn assign_startup_to_expertise_conflict_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+  let expertise = dummy.new_expertise(context.database)
+
+  // assigning once
+  let assert Ok(_) =
+    startup.assign_expertise(context.database, startup.id, expertise.id)
+
+  let body =
+    json.object([
+      #("startup", json.string(uuid.to_string(startup.id))),
+      #("expertise", json.string(uuid.to_string(expertise.id))),
+    ])
+
+  // assigning twice
+  let response =
+    simulate.browser_request(http.Post, "/api/startup/expertise")
+    |> simulate.json_body(body)
+    |> web.handle_request(context)
+
+  assert response.status == 409
+
+  Nil
+}
+
+pub fn assign_startup_to_service_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+  let service = dummy.new_service(context.database)
+
+  let body =
+    json.object([
+      #("startup", json.string(uuid.to_string(startup.id))),
+      #("service", json.string(uuid.to_string(service.id))),
+    ])
+
+  let response =
+    simulate.browser_request(http.Post, "/api/startup/service")
+    |> simulate.json_body(body)
+    |> web.handle_request(context)
+
+  assert response.status == 201
+  let body = simulate.read_body(response)
+  let assert Ok(_) = json.parse(body, service.decoder())
+
+  Nil
+}
+
+pub fn assign_startup_to_service_conflict_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+  let service = dummy.new_service(context.database)
+
+  // assigning once
+  let assert Ok(_) =
+    startup.assign_service(context.database, startup.id, service.id)
+
+  let body =
+    json.object([
+      #("startup", json.string(uuid.to_string(startup.id))),
+      #("service", json.string(uuid.to_string(service.id))),
+    ])
+
+  // assigning twice
+  let response =
+    simulate.browser_request(http.Post, "/api/startup/service")
+    |> simulate.json_body(body)
+    |> web.handle_request(context)
+
+  assert response.status == 409
+
+  Nil
+}

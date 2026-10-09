@@ -93,17 +93,33 @@ pub fn handle_request(
 
     // Fetching specific information about startups
     //
+    // == segment ==============================================================
     http.Get, ["api", "startup", id, "segment"] ->
       get_startup_segments(context.database, id)
 
+    http.Post, ["api", "startup", "segment"] ->
+      assign_startup_to_segment(request, context.database)
+
+    // == service ==============================================================
     http.Get, ["api", "startup", id, "service"] ->
       get_startup_services(context.database, id)
 
+    http.Post, ["api", "startup", "service"] ->
+      assign_startup_to_service(request, context.database)
+
+    // == expertise ============================================================
     http.Get, ["api", "startup", id, "expertise"] ->
       get_startup_expertises(context.database, id)
 
+    http.Post, ["api", "startup", "expertise"] ->
+      assign_startup_to_expertise(request, context.database)
+
+    // == technology ===========================================================
     http.Get, ["api", "startup", id, "technology"] ->
       get_startup_technologies(context.database, id)
+
+    http.Post, ["api", "startup", "technology"] ->
+      assign_startup_to_technology(request, context.database)
 
     // +-----------------------------------------------------------------------+
     // | NOT FOUND                                                             |
@@ -114,6 +130,226 @@ pub fn handle_request(
 
     // Page not found in the frontend
     _, _ -> get_root_document()
+  }
+}
+
+type AssignStartupToSegment {
+  AssignStartupToSegment(startup: uuid.Uuid, segment: uuid.Uuid)
+}
+
+/// ## `GET /api/startup/:startup/segment/:segment`
+///
+/// Assign a Segment to a Startup
+///
+/// ## Response Body
+///
+/// ```json
+/// {
+///  "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+///  "name": "Tech",
+///  "description": "Technology-related stuff"
+/// }
+/// ```
+///
+/// ## Status Codes
+///
+/// - **200** If successful.
+/// - **400** if :startup or :segment is not a valid UUID.
+/// - **404** If Startup or Segment is not found.
+///
+fn assign_startup_to_segment(
+  request: wisp.Request,
+  database: pog.Connection,
+) -> wisp.Response {
+  use body <- wisp.require_json(request)
+
+  let decoder = {
+    use startup <- decode.field("startup", internal.uuid_decoder())
+    use segment <- decode.field("segment", internal.uuid_decoder())
+    decode.success(AssignStartupToSegment(startup:, segment:))
+  }
+
+  case decode.run(body, decoder) {
+    Error(_) -> wisp.bad_request("Invalid JSON")
+    Ok(data) -> {
+      let result =
+        startup.assign_segment(database, data.startup, assign: data.segment)
+
+      case result {
+        Ok(data) ->
+          segment.to_json(data)
+          |> json.to_string()
+          |> wisp.json_response(201)
+
+        Error(error) -> handle_startup_error(error)
+      }
+    }
+  }
+}
+
+type AssignStartupToTechnology {
+  AssignStartupToTechnology(startup: uuid.Uuid, technology: uuid.Uuid)
+}
+
+/// ## `GET /api/startup/:startup/technology/:technology`
+///
+/// Assign a Technology to a Startup
+///
+/// ## Response Body
+///
+/// ```json
+/// {
+///   "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+///   "name": "Javascript",
+///   "description": "dont",
+/// }
+/// ```
+///
+/// ## Status Codes
+///
+/// - **200** If successful.
+/// - **400** if :startup or :technology is not a valid UUID.
+/// - **404** If Startup or Technology is not found.
+///
+fn assign_startup_to_technology(
+  request: wisp.Request,
+  database: pog.Connection,
+) -> wisp.Response {
+  use body <- wisp.require_json(request)
+
+  let decoder = {
+    use startup <- decode.field("startup", internal.uuid_decoder())
+    use technology <- decode.field("technology", internal.uuid_decoder())
+    decode.success(AssignStartupToTechnology(startup:, technology:))
+  }
+
+  case decode.run(body, decoder) {
+    Error(_) -> wisp.bad_request("Invalid JSON")
+    Ok(data) -> {
+      let result =
+        startup.assign_technology(
+          database,
+          data.startup,
+          assign: data.technology,
+        )
+
+      case result {
+        Ok(data) ->
+          technology.to_json(data)
+          |> json.to_string()
+          |> wisp.json_response(201)
+
+        Error(error) -> handle_startup_error(error)
+      }
+    }
+  }
+}
+
+type AssignStartupToExpertise {
+  AssignStartupToExpertise(startup: uuid.Uuid, expertise: uuid.Uuid)
+}
+
+/// ## `GET /api/startup/:startup/expertise/:expertise`
+///
+/// Assign a Expertise to a Startup
+///
+/// ## Response Body
+///
+/// ```json
+/// {
+///   "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+///   "name": "Education",
+///   "description": "May it be free and for everyone"
+/// }
+/// ```
+///
+/// ## Status Codes
+///
+/// - **200** If successful.
+/// - **400** if :startup or :Expertise is not a valid UUID.
+/// - **404** If Startup or Expertise is not found.
+///
+fn assign_startup_to_expertise(
+  request: wisp.Request,
+  database: pog.Connection,
+) -> wisp.Response {
+  use body <- wisp.require_json(request)
+
+  let decoder = {
+    use startup <- decode.field("startup", internal.uuid_decoder())
+    use expertise <- decode.field("expertise", internal.uuid_decoder())
+    decode.success(AssignStartupToExpertise(startup:, expertise:))
+  }
+
+  case decode.run(body, decoder) {
+    Error(_) -> wisp.bad_request("Invalid JSON")
+    Ok(data) -> {
+      let result =
+        startup.assign_expertise(database, data.startup, assign: data.expertise)
+
+      case result {
+        Ok(data) ->
+          expertise.to_json(data)
+          |> json.to_string()
+          |> wisp.json_response(201)
+
+        Error(error) -> handle_startup_error(error)
+      }
+    }
+  }
+}
+
+type AssignStartupToService {
+  AssignStartupToService(startup: uuid.Uuid, service: uuid.Uuid)
+}
+
+/// ## `GET /api/startup/:startup/service/:service`
+///
+/// Assign a Service to a Startup
+///
+/// ## Response Body
+///
+/// ```json
+/// {
+///   "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+///   "name": "UI/UX",
+///   "description": "user experience"
+/// }
+/// ```
+///
+/// ## Status Codes
+///
+/// - **200** If successful.
+/// - **400** if :startup or :service is not a valid UUID.
+/// - **404** If Startup or Service is not found.
+///
+fn assign_startup_to_service(
+  request: wisp.Request,
+  database: pog.Connection,
+) -> wisp.Response {
+  use body <- wisp.require_json(request)
+
+  let decoder = {
+    use startup <- decode.field("startup", internal.uuid_decoder())
+    use service <- decode.field("service", internal.uuid_decoder())
+    decode.success(AssignStartupToService(startup:, service:))
+  }
+
+  case decode.run(body, decoder) {
+    Error(_) -> wisp.bad_request("Invalid JSON")
+    Ok(data) -> {
+      let result =
+        startup.assign_service(database, data.startup, assign: data.service)
+
+      case result {
+        Ok(data) ->
+          service.to_json(data)
+          |> json.to_string()
+          |> wisp.json_response(201)
+
+        Error(error) -> handle_startup_error(error)
+      }
+    }
   }
 }
 
@@ -178,7 +414,7 @@ pub fn refresh_session(request: wisp.Request) -> wisp.Response {
 ///    "id": "01a0dbb3-153a-7b84-8c3d-631788972d4a",
 ///    "name": "Health",
 ///    "description": "Medical stuff",
-///   },
+///   }
 /// ]
 /// ```
 ///
@@ -757,8 +993,8 @@ fn handle_login(
   use body <- wisp.require_json(request)
 
   // Custom decoder for the `Login` request body
-  let login_decoder = fn() {
-    let session_kind_decoder = {
+  let decoder = {
+    let kind_decoder = {
       use string <- decode.then(decode.string)
       case string {
         "startup" -> decode.success(string)
@@ -767,13 +1003,13 @@ fn handle_login(
       }
     }
 
-    use session <- decode.field("session", session_kind_decoder)
+    use session <- decode.field("session", kind_decoder)
     use email <- decode.field("email", email.decoder())
     use password <- decode.field("password", decode.string)
     decode.success(Login(session:, email:, password:))
   }
 
-  case decode.run(body, login_decoder()) {
+  case decode.run(body, decoder) {
     // Startup session
     Ok(Login(session: "startup", email:, password:)) ->
       case startup.verify(database, email:, password:) {
