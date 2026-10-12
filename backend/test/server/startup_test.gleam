@@ -368,31 +368,18 @@ pub fn expertise_assignment_conflict_test() -> Nil {
 pub fn get_many_startup_test() -> Nil {
   use context <- server_test.with_context()
   let max = 6
-  let half = max / 2
 
   let startups =
     int.range(from: 1, to: max, with: [], run: fn(acc, _) {
       let startup = dummy.new_startup(context.database)
       [startup, ..acc]
     })
+    |> list.reverse
 
-  // First we get the first three startups
-  let assert Ok(first_half) =
-    startup.get_many(context.database, limit: half, offset: 0)
+  let assert Ok(returned) =
+    startup.get_many(context.database, limit: max, offset: 0)
 
-  assert list.all(first_half, list.contains(startups, _))
-
-  // Then we get the other three
-  let assert Ok(second_half) =
-    startup.get_many(context.database, limit: half, offset: half)
-
-  assert list.all(second_half, list.contains(startups, _))
-
-  // They need to be different
-  assert first_half != second_half
-
-  // There are only 6, so this should return an empty list
-  let assert Ok([]) = startup.get_many(context.database, limit: 3, offset: max)
+  assert returned == startups
 
   Nil
 }

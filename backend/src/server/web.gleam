@@ -8,7 +8,6 @@ import gleam/json
 import gleam/list
 import gleam/result
 import gleam/string
-import gleam/uri
 import lustre/attribute
 import lustre/element
 import lustre/element/html
@@ -16,6 +15,7 @@ import pog
 import server/cnpj
 import server/email
 import server/internal
+import server/internal/payload
 import server/investor
 import server/segment
 import server/startup
@@ -41,6 +41,8 @@ type WebError {
   MissingQuery
   /// Invalid query parameter
   InvalidQueryParameter(key: String)
+  /// Segment related errors
+  SegmentError(segment.SegmentError)
 }
 
 /// Handle incoming HTTP requests
@@ -97,6 +99,8 @@ pub fn handle_request(
     http.Get, ["api", "startup", id, "segment"] ->
       get_startup_segments(context.database, id)
 
+    http.Get, ["api", "segment"] -> get_many_segments(request, context.database)
+
     http.Post, ["api", "startup", "segment"] ->
       assign_startup_to_segment(request, context.database)
 
@@ -133,10 +137,6 @@ pub fn handle_request(
   }
 }
 
-type AssignStartupToSegment {
-  AssignStartupToSegment(startup: uuid.Uuid, segment: uuid.Uuid)
-}
-
 /// ## `GET /api/startup/:startup/segment/:segment`
 ///
 /// Assign a Segment to a Startup
@@ -166,7 +166,7 @@ fn assign_startup_to_segment(
   let decoder = {
     use startup <- decode.field("startup", internal.uuid_decoder())
     use segment <- decode.field("segment", internal.uuid_decoder())
-    decode.success(AssignStartupToSegment(startup:, segment:))
+    decode.success(payload.AssignStartupToSegment(startup:, segment:))
   }
 
   case decode.run(body, decoder) {
@@ -185,10 +185,6 @@ fn assign_startup_to_segment(
       }
     }
   }
-}
-
-type AssignStartupToTechnology {
-  AssignStartupToTechnology(startup: uuid.Uuid, technology: uuid.Uuid)
 }
 
 /// ## `GET /api/startup/:startup/technology/:technology`
@@ -220,7 +216,7 @@ fn assign_startup_to_technology(
   let decoder = {
     use startup <- decode.field("startup", internal.uuid_decoder())
     use technology <- decode.field("technology", internal.uuid_decoder())
-    decode.success(AssignStartupToTechnology(startup:, technology:))
+    decode.success(payload.AssignStartupToTechnology(startup:, technology:))
   }
 
   case decode.run(body, decoder) {
@@ -243,10 +239,6 @@ fn assign_startup_to_technology(
       }
     }
   }
-}
-
-type AssignStartupToExpertise {
-  AssignStartupToExpertise(startup: uuid.Uuid, expertise: uuid.Uuid)
 }
 
 /// ## `GET /api/startup/:startup/expertise/:expertise`
@@ -278,7 +270,7 @@ fn assign_startup_to_expertise(
   let decoder = {
     use startup <- decode.field("startup", internal.uuid_decoder())
     use expertise <- decode.field("expertise", internal.uuid_decoder())
-    decode.success(AssignStartupToExpertise(startup:, expertise:))
+    decode.success(payload.AssignStartupToExpertise(startup:, expertise:))
   }
 
   case decode.run(body, decoder) {
@@ -297,10 +289,6 @@ fn assign_startup_to_expertise(
       }
     }
   }
-}
-
-type AssignStartupToService {
-  AssignStartupToService(startup: uuid.Uuid, service: uuid.Uuid)
 }
 
 /// ## `GET /api/startup/:startup/service/:service`
@@ -332,7 +320,7 @@ fn assign_startup_to_service(
   let decoder = {
     use startup <- decode.field("startup", internal.uuid_decoder())
     use service <- decode.field("service", internal.uuid_decoder())
-    decode.success(AssignStartupToService(startup:, service:))
+    decode.success(payload.AssignStartupToService(startup:, service:))
   }
 
   case decode.run(body, decoder) {
@@ -681,8 +669,86 @@ fn get_many_startups(
 fn handle_error(error: WebError) -> wisp.Response {
   case error {
     StartupError(error) -> handle_startup_error(error)
+    SegmentError(error) -> handle_segment_error(error)
     MissingQuery -> wisp.bad_request("Missing query")
     InvalidQueryParameter(key:) -> wisp.bad_request("Invalid " <> key)
+  }
+}
+
+fn handle_segment_error(error: segment.SegmentError) -> wisp.Response {
+  case error {
+    segment.DatabaseError(error:) -> handle_database_error(error)
+    segment.FailedToRegisterSegment -> wisp.internal_server_error()
+
+    segment.NotFound(id:) ->
+      { "Not found: " <> uuid.to_string(id) }
+      |> wisp.string_body(wisp.response(404), _)
+  }
+}
+
+/// ## `GET /api/segments`
+///
+/// Fetch a list of registered Startups, pagination is available.
+///
+/// Required parameters:
+/// - limit: `Int`
+/// - offset: `Int`
+///
+/// ## Response Body
+///
+/// ```json
+/// [
+///   {
+///    "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+///    "name": "Tech",
+///    "description": "Technology"
+///   },
+///   {
+///    "id": "01a0dbb3-153a-7b84-8c3d-631788972d4a",
+///    "name": "Biotech",
+///    "description": "Technology, but Bio"
+///   }
+/// ]
+/// ```
+///
+/// ## Status Codes
+///
+/// - **200** if successful
+/// - **400** if query is missing, invalid or incomplete.
+///
+fn get_many_segments(
+  request: wisp.Request,
+  database: pog.Connection,
+) -> wisp.Response {
+  let result = {
+    use query <- result.try(
+      request.get_query(request)
+      |> result.replace_error(MissingQuery),
+    )
+
+    use limit <- result.try(
+      list.key_find(query, "limit")
+      |> result.try(int.parse)
+      |> result.replace_error(InvalidQueryParameter(key: "limit")),
+    )
+
+    use offset <- result.try(
+      list.key_find(query, "offset")
+      |> result.try(int.parse)
+      |> result.replace_error(InvalidQueryParameter(key: "offset")),
+    )
+
+    segment.get_many(database, limit:, offset:)
+    |> result.map_error(SegmentError)
+  }
+
+  case result {
+    Ok(data) ->
+      json.array(data, segment.to_json)
+      |> json.to_string
+      |> wisp.json_response(200)
+
+    Error(error) -> handle_error(error)
   }
 }
 
@@ -960,10 +1026,6 @@ pub fn session_decoder() -> decode.Decoder(Session) {
 /// Cookie storing the user session.
 pub const session_cookie = "SESSION"
 
-type Login {
-  Login(session: String, email: email.Email, password: String)
-}
-
 /// ## `POST /api/auth/login`
 ///
 /// Sets a session cookie if successful, it will last exactly one hour.
@@ -1006,12 +1068,12 @@ fn handle_login(
     use session <- decode.field("session", kind_decoder)
     use email <- decode.field("email", email.decoder())
     use password <- decode.field("password", decode.string)
-    decode.success(Login(session:, email:, password:))
+    decode.success(payload.Login(session:, email:, password:))
   }
 
   case decode.run(body, decoder) {
     // Startup session
-    Ok(Login(session: "startup", email:, password:)) ->
+    Ok(payload.Login(session: "startup", email:, password:)) ->
       case startup.verify(database, email:, password:) {
         Error(error) -> handle_startup_error(error)
         Ok(startup) ->
@@ -1022,7 +1084,7 @@ fn handle_login(
       }
 
     // Investor session
-    Ok(Login(session: "investor", email:, password:)) ->
+    Ok(payload.Login(session: "investor", email:, password:)) ->
       case investor.verify(database, email:, password:) {
         Error(error) -> handle_investor_error(error)
         Ok(investor) ->
@@ -1033,7 +1095,7 @@ fn handle_login(
       }
 
     // Correct Json but invalid session type
-    Ok(Login(session:, ..)) ->
+    Ok(payload.Login(session:, ..)) ->
       wisp.bad_request("Invalid session type: " <> session)
 
     // Incorrect Json
@@ -1056,20 +1118,6 @@ fn set_session_token(
     value: _,
     security: wisp.Signed,
     max_age: 60 * 60,
-  )
-}
-
-type RegisterStartup {
-  RegisterStartup(
-    name: String,
-    email: email.Email,
-    password: String,
-    cnpj: cnpj.Cnpj,
-    stage: startup.Stage,
-    description: String,
-    city: String,
-    state: String,
-    website: uri.Uri,
   )
 }
 
@@ -1115,7 +1163,7 @@ fn register_startup(
     use state <- decode.field("state", decode.string)
     use website <- decode.field("website", internal.uri_decoder())
 
-    RegisterStartup(
+    payload.RegisterStartup(
       name:,
       email:,
       password:,
