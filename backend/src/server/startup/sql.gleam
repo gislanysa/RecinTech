@@ -766,23 +766,23 @@ RETURNING
 /// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
 ///
 pub type StartupStage {
-  Growth
-  Seed
+  Scaling
+  Traction
 }
 
 fn startup_stage_decoder() -> decode.Decoder(StartupStage) {
   use startup_stage <- decode.then(decode.string)
   case startup_stage {
-    "growth" -> decode.success(Growth)
-    "seed" -> decode.success(Seed)
-    _ -> decode.failure(Growth, "StartupStage")
+    "scaling" -> decode.success(Scaling)
+    "traction" -> decode.success(Traction)
+    _ -> decode.failure(Scaling, "StartupStage")
   }
 }
 
 fn startup_stage_encoder(startup_stage) -> pog.Value {
   case startup_stage {
-    Growth -> "growth"
-    Seed -> "seed"
+    Scaling -> "scaling"
+    Traction -> "traction"
   }
   |> pog.text
 }

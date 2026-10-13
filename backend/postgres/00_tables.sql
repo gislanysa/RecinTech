@@ -1,4 +1,4 @@
-CREATE TYPE startup_stage AS enum ('seed', 'growth');
+CREATE TYPE startup_stage AS enum ('traction', 'scaling');
 
 CREATE TYPE investor_kind AS enum (
     'angel',
@@ -17,7 +17,7 @@ CREATE TABLE segment (
 CREATE TABLE startup (
     id uuid DEFAULT uuidv7(),
     name text NOT NULL,
-    stage startup_stage NOT NULL DEFAULT 'seed',
+    stage startup_stage NOT NULL DEFAULT 'traction',
     email text UNIQUE NOT NULL CHECK (email LIKE '%@%'),
     password_hash text NOT NULL,
     cnpj text UNIQUE NOT NULL CHECK (length(cnpj) = 14),
