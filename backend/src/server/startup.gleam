@@ -194,7 +194,7 @@ pub fn to_json(startup: Startup) -> json.Json {
 ///   description: "startup muito maneira",
 ///   city: "Recife",
 ///   state: "Pernambuco",
-///   website: "wibble.com",
+///   website: website,
 /// )
 ///
 /// case result {
