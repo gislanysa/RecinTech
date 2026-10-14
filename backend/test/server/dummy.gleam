@@ -41,7 +41,7 @@ pub fn new_startup(database: pog.Connection) -> startup.Startup {
       name: "dummy",
       email: new_email(),
       password:,
-      stage: startup.Seed,
+      stage: startup.Traction,
       cnpj: new_cnpj(),
       description: "useful for tests",
       city: "Recife",

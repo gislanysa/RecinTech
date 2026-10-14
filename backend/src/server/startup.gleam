@@ -87,17 +87,19 @@ pub type Startup {
 
 /// Tracks a startup's progress from an idea to a business
 pub type Stage {
-  /// Finding out if people will actually buy what you built
-  Seed
-  /// Expanding operations
-  Growth
+  /// Finding out if people will actually buy what you built.
+  /// > "Tração", in portuguese.
+  Traction
+  /// Expanding operations, a startup's growth is fast and validated.
+  /// > "Escala", in portuguese.
+  Scaling
 }
 
 /// Encode a startup Stage into a JSON object.
 pub fn stage_to_json(stage: Stage) -> json.Json {
   case stage {
-    Seed -> json.string("seed")
-    Growth -> json.string("growth")
+    Traction -> json.string("traction")
+    Scaling -> json.string("scaling")
   }
 }
 
@@ -105,9 +107,9 @@ pub fn stage_to_json(stage: Stage) -> json.Json {
 pub fn stage_decoder() -> decode.Decoder(Stage) {
   use variant <- decode.then(decode.string)
   case variant {
-    "seed" -> decode.success(Seed)
-    "growth" -> decode.success(Growth)
-    _ -> decode.failure(Seed, "Stage")
+    "traction" -> decode.success(Traction)
+    "scaling" -> decode.success(Scaling)
+    _ -> decode.failure(Traction, "Stage")
   }
 }
 
@@ -116,16 +118,16 @@ pub fn stage_decoder() -> decode.Decoder(Stage) {
 /// ## Examples
 ///
 /// ```gleam
-/// let assert Ok(stage) = startup.stage_from_string("seed")
-/// assert stage == startup.Seed
+/// let assert Ok(stage) = startup.stage_from_string("traction")
+/// assert stage == startup.Traction
 ///
 /// let assert Error(startup.InvalidStage(_)) =
 ///   startup.stage_from_string("wibble")
 /// ```
 pub fn stage_from_string(value: String) -> Result(Stage, StartupError) {
   case value {
-    "seed" -> Ok(Seed)
-    "growth" -> Ok(Growth)
+    "traction" -> Ok(Traction)
+    "scaling" -> Ok(Scaling)
 
     _ -> Error(InvalidStage(value))
   }
@@ -187,7 +189,7 @@ pub fn to_json(startup: Startup) -> json.Json {
 ///   name: "Critic Level",
 ///   email: email,
 ///   password: "wibble",
-///   stage: startup.Seed,
+///   stage: startup.Traction,
 ///   cnpj: cnpj,
 ///   description: "startup muito maneira",
 ///   city: "Recife",
@@ -341,16 +343,16 @@ pub fn verify(
 /// Convert the sql-generated StartupStage enum to a valid [Stage](#Stage) type.
 fn stage_from_enum(enum: sql.StartupStage) -> Stage {
   case enum {
-    sql.Seed -> Seed
-    sql.Growth -> Growth
+    sql.Traction -> Traction
+    sql.Scaling -> Scaling
   }
 }
 
 /// Convert a [Stage](#Stage) to its sql-generated counterpart.
 fn stage_to_enum(stage: Stage) -> sql.StartupStage {
   case stage {
-    Seed -> sql.Seed
-    Growth -> sql.Growth
+    Traction -> sql.Traction
+    Scaling -> sql.Scaling
   }
 }
 

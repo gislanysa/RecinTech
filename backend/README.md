@@ -15,7 +15,7 @@ erDiagram
   STARTUP {
     uuid id PK
     text name
-    startup_stage stage "seed | growth"
+    startup_stage stage "traction | scaling"
     text email UK
     text password_hash
     text cnpj UK

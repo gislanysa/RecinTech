@@ -15,7 +15,7 @@ pub fn register_startup_test() -> Nil {
   let email = dummy.new_email()
   let name = "Critic Level"
   let password = "wibble"
-  let stage = startup.Seed
+  let stage = startup.Traction
   let state = "Pernambuco"
   let website = uri.empty
 
@@ -63,7 +63,7 @@ pub fn register_cnpj_conflict_test() -> Nil {
       name: "startup",
       email: email,
       password: "wibble",
-      stage: startup.Seed,
+      stage: startup.Traction,
       cnpj: cnpj,
       description: "description",
       city: "Recife",
@@ -78,7 +78,7 @@ pub fn register_cnpj_conflict_test() -> Nil {
       name: "startup",
       email: email,
       password: "wobble",
-      stage: startup.Seed,
+      stage: startup.Traction,
       cnpj: cnpj,
       description: "description",
       city: "Recife",
@@ -102,7 +102,7 @@ pub fn register_email_conflict_test() -> Nil {
       name: "startup",
       email: email,
       password: "wibble",
-      stage: startup.Seed,
+      stage: startup.Traction,
       cnpj: cnpj,
       description: "description",
       city: "Recife",
@@ -117,7 +117,7 @@ pub fn register_email_conflict_test() -> Nil {
       name: "startup",
       email: email,
       password: "wobble",
-      stage: startup.Seed,
+      stage: startup.Traction,
       cnpj: cnpj,
       description: "description",
       city: "Recife",
