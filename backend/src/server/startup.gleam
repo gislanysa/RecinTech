@@ -184,6 +184,8 @@ pub fn to_json(startup: Startup) -> json.Json {
 /// ## Examples
 ///
 /// ```gleam
+/// let assert Ok(website) = uri.parse("wibble.com")
+///
 /// let result = startup.register(
 ///   context.database,
 ///   name: "Critic Level",
@@ -194,7 +196,7 @@ pub fn to_json(startup: Startup) -> json.Json {
 ///   description: "startup muito maneira",
 ///   city: "Recife",
 ///   state: "Pernambuco",
-///   website: "wibble.com",
+///   website: website,
 /// )
 ///
 /// case result {

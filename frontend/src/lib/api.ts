@@ -42,6 +42,8 @@ export type Startup = {
 // Auth
 // ---------------------------------------------------------------------------
 
+export type TipoSessao = 'startup' | 'investor'
+
 /**
  * POST /auth/login
  *
@@ -50,15 +52,21 @@ export type Startup = {
  *
  * Body:
  * ```json
- * { "email": "user@email.com", "password": "senha123" }
+ * { "session": "startup", "email": "user@email.com", "password": "senha123" }
  * ```
+ *
+ * `session` é obrigatório no backend: "startup" | "investor".
  *
  * Respostas:
  * - 200 OK - Usuario (cookie de sessão definido pelo backend)
  * - 401 Unauthorized - "Wrong email or password"
  */
-export async function login(email: string, password: string): Promise<Usuario> {
-  const { data } = await api.post<Usuario>('/auth/login', { email, password })
+export async function login(
+  email: string,
+  password: string,
+  session: TipoSessao = 'startup',
+): Promise<Usuario> {
+  const { data } = await api.post<Usuario>('/auth/login', { session, email, password })
   return data
 }
 
@@ -128,15 +136,17 @@ export async function registrarUsuario(body: BodyRegistroUsuario): Promise<Usuar
 export type BodyRegistroStartup = {
   name: string
   email: string
-  password?: string
+  password: string
   /** Apenas dígitos, exatamente 14 caracteres */
   cnpj: string
-  stage: string
+  /** Estágio aceito pelo backend: "traction" | "scaling" */
+  stage: 'traction' | 'scaling'
+  /** Opcional */
   description?: string
   city: string
   state: string
   /** URL do site (opcional) */
-  site?: string
+  website?: string
 }
 
 /**

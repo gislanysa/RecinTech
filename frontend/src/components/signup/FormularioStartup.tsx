@@ -27,8 +27,8 @@ const SEGMENTOS = [
 ]
 
 const ESTAGIOS = [
-  { valor: 'tracao', rotulo: 'Tração — crescimento acelerado e validado' },
-  { valor: 'escala', rotulo: 'Escala — operação consolidada' },
+  { valor: 'traction', rotulo: 'Tração — crescimento acelerado e validado' },
+  { valor: 'scaling', rotulo: 'Escala — operação consolidada' },
 ]
 
 /** Formata CNPJ enquanto digita: XX.XXX.XXX/XXXX-XX */
@@ -72,20 +72,19 @@ const VAZIO: Campos = {
 /**
  * Formulário de cadastro para startups.
  *
- * TODO (backend): integrar com POST /auth/cadastro/startup
- * Body esperado:
+ * Integrado com POST /api/startup.
+ * Body enviado:
  * {
- *   tipo: "startup",
- *   nome_startup: string,
- *   cnpj: string,           // apenas dígitos
- *   segmento: string,
- *   estagio: "tracao" | "escala",
- *   site?: string,
- *   nome_responsavel: string,
+ *   name: string,
  *   email: string,
- *   senha: string
+ *   password: string,
+ *   cnpj: string,           // apenas dígitos
+ *   stage: "traction" | "scaling",
+ *   description?: string,
+ *   city: string,
+ *   state: string,
+ *   website?: string
  * }
- * Resposta: { token: string, usuario: { id, tipo, nome } }
  */
 export default function FormularioStartup({ onVoltar }: FormularioStartupProps) {
   const navigate = useNavigate()
@@ -131,11 +130,10 @@ export default function FormularioStartup({ onVoltar }: FormularioStartupProps) 
           email: campos.email,
           password: campos.senha,
           cnpj: campos.cnpj,
-          stage: campos.estagio,
-          description: '',
+          stage: campos.estagio as 'traction' | 'scaling',
           city: campos.cidade,
           state: campos.estado,
-          site: campos.site || undefined,
+          website: campos.site.trim() || undefined,
         })
       } catch (err) {
         // Se a rota ainda não estiver exposta no backend (404), prossegue para o dashboard em ambiente de desenvolvimento
