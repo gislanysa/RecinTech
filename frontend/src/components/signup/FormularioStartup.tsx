@@ -1,6 +1,18 @@
 import Botao from '@/components/Botao.tsx'
+import { Campo, CampoSelect } from '@/components/forms/Campo.tsx'
 import { registrarStartup } from '@/lib/api.ts'
+import { SEGMENTS } from '@/lib/startups.ts'
 import { UFS } from '@/lib/ufs.ts'
+import {
+  cnpjCom14Digitos,
+  email,
+  formatarCnpj,
+  igualA,
+  minimo,
+  obrigatorio,
+  validarCampos,
+  type Regras,
+} from '@/lib/validacao.ts'
 import axios from 'axios'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -9,37 +21,10 @@ type FormularioStartupProps = {
   onVoltar: () => void
 }
 
-const SEGMENTOS = [
-  'Agritech',
-  'Cleantech / Sustentabilidade',
-  'Edtech',
-  'Fintech',
-  'Healthtech / Medtech',
-  'Legaltech',
-  'Logtech',
-  'Marketplace',
-  'Proptech',
-  'Retailtech',
-  'Saas / Software',
-  'Segurança da Informação',
-  'Inteligência Artificial',
-  'Outro',
-]
-
 const ESTAGIOS = [
   { valor: 'traction', rotulo: 'Tração — crescimento acelerado e validado' },
   { valor: 'scaling', rotulo: 'Escala — operação consolidada' },
 ]
-
-/** Formata CNPJ enquanto digita: XX.XXX.XXX/XXXX-XX */
-function formatarCnpj(valor: string): string {
-  const numeros = valor.replace(/\D/g, '').slice(0, 14)
-  return numeros
-    .replace(/^(\d{2})(\d)/, '$1.$2')
-    .replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
-    .replace(/\.(\d{3})(\d)/, '.$1/$2')
-    .replace(/(\d{4})(\d)/, '$1-$2')
-}
 
 type Campos = {
   nomeStartup: string
@@ -71,6 +56,22 @@ const VAZIO: Campos = {
   confirmarSenha: '',
 }
 
+const REGRAS: Regras<Campos> = {
+  nomeStartup: obrigatorio('Informe o nome da startup.'),
+  segmento: obrigatorio('Selecione um segmento.'),
+  estagio: obrigatorio('Selecione o estágio.'),
+  cnpj: [obrigatorio('Informe o CNPJ.'), cnpjCom14Digitos('CNPJ deve ter 14 dígitos.')],
+  cidade: obrigatorio('Informe a cidade.'),
+  estado: obrigatorio('Selecione o estado.'),
+  nomeResponsavel: obrigatorio('Informe o nome do responsável.'),
+  email: [obrigatorio('Informe o e-mail.'), email('E-mail inválido.')],
+  senha: [
+    obrigatorio('Crie uma senha.', false),
+    minimo(8, 'A senha deve ter pelo menos 8 caracteres.'),
+  ],
+  confirmarSenha: igualA('senha', 'As senhas não coincidem.'),
+}
+
 /**
  * Formulário de cadastro para startups.
  *
@@ -100,21 +101,7 @@ export default function FormularioStartup({ onVoltar }: FormularioStartupProps) 
   }
 
   function validar(): boolean {
-    const novosErros: Partial<Campos> = {}
-    if (!campos.nomeStartup.trim()) novosErros.nomeStartup = 'Informe o nome da startup.'
-    const cnpjDigitos = campos.cnpj.replace(/\D/g, '')
-    if (!cnpjDigitos) novosErros.cnpj = 'Informe o CNPJ.'
-    else if (cnpjDigitos.length !== 14) novosErros.cnpj = 'CNPJ deve ter 14 dígitos.'
-    if (!campos.segmento) novosErros.segmento = 'Selecione um segmento.'
-    if (!campos.estagio) novosErros.estagio = 'Selecione o estágio.'
-    if (!campos.cidade.trim()) novosErros.cidade = 'Informe a cidade.'
-    if (!campos.estado) novosErros.estado = 'Selecione o estado.'
-    if (!campos.nomeResponsavel.trim()) novosErros.nomeResponsavel = 'Informe o nome do responsável.'
-    if (!campos.email.trim()) novosErros.email = 'Informe o e-mail.'
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(campos.email)) novosErros.email = 'E-mail inválido.'
-    if (!campos.senha) novosErros.senha = 'Crie uma senha.'
-    else if (campos.senha.length < 8) novosErros.senha = 'A senha deve ter pelo menos 8 caracteres.'
-    if (campos.senha !== campos.confirmarSenha) novosErros.confirmarSenha = 'As senhas não coincidem.'
+    const novosErros = validarCampos(campos, REGRAS)
     setErrors(novosErros)
     return Object.keys(novosErros).length === 0
   }
@@ -216,7 +203,7 @@ export default function FormularioStartup({ onVoltar }: FormularioStartupProps) 
               value={campos.segmento}
               onChange={(v) => atualizar('segmento', v)}
               error={errors.segmento}
-              opcoes={SEGMENTOS}
+              opcoes={SEGMENTS}
               placeholder="Selecione"
             />
             <CampoSelect
@@ -335,105 +322,6 @@ export default function FormularioStartup({ onVoltar }: FormularioStartupProps) 
           </Botao>
         </div>
       </form>
-    </div>
-  )
-}
-
-/* ---------- sub-componentes de campo ---------- */
-
-type CampoProps = {
-  id: string
-  label: string
-  value: string
-  onChange: (v: string) => void
-  required?: boolean
-  error?: string
-  placeholder?: string
-  type?: string
-  dica?: string
-  inputMode?: React.HTMLAttributes<HTMLInputElement>['inputMode']
-}
-
-function Campo({ id, label, value, onChange, required, error, placeholder, type = 'text', dica, inputMode }: CampoProps) {
-  return (
-    <div className="flex flex-col gap-1.5">
-      <label htmlFor={id} className="text-sm font-medium text-ink-700">
-        {label}
-        {required && <span className="ml-0.5 text-accent-500" aria-hidden="true">*</span>}
-      </label>
-      <input
-        id={id}
-        type={type}
-        inputMode={inputMode}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        required={required}
-        aria-describedby={error ? `${id}-error` : dica ? `${id}-dica` : undefined}
-        aria-invalid={!!error}
-        className={[
-          'rounded-xl border bg-surface px-3.5 py-2.5 text-sm text-ink-900 outline-none',
-          'placeholder:text-ink-500/60 transition-shadow duration-150',
-          'focus:ring-2 focus:ring-accent-500 focus:border-transparent',
-          error
-            ? 'border-red-400 ring-1 ring-red-400'
-            : 'border-brand-200 hover:border-brand-300',
-        ].join(' ')}
-      />
-      {dica && !error && (
-        <p id={`${id}-dica`} className="text-xs text-ink-500">{dica}</p>
-      )}
-      {error && (
-        <p id={`${id}-error`} role="alert" className="text-xs text-red-500">{error}</p>
-      )}
-    </div>
-  )
-}
-
-type CampoSelectProps = {
-  id: string
-  label: string
-  value: string
-  onChange: (v: string) => void
-  required?: boolean
-  error?: string
-  opcoes: string[]
-  valores?: string[]
-  placeholder?: string
-}
-
-function CampoSelect({ id, label, value, onChange, required, error, opcoes, valores, placeholder }: CampoSelectProps) {
-  return (
-    <div className="flex flex-col gap-1.5">
-      <label htmlFor={id} className="text-sm font-medium text-ink-700">
-        {label}
-        {required && <span className="ml-0.5 text-accent-500" aria-hidden="true">*</span>}
-      </label>
-      <select
-        id={id}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        required={required}
-        aria-invalid={!!error}
-        aria-describedby={error ? `${id}-error` : undefined}
-        className={[
-          'rounded-xl border bg-surface px-3.5 py-2.5 text-sm text-ink-900 outline-none',
-          'transition-shadow duration-150 cursor-pointer',
-          'focus:ring-2 focus:ring-accent-500 focus:border-transparent',
-          value === '' ? 'text-ink-500/60' : 'text-ink-900',
-          error
-            ? 'border-red-400 ring-1 ring-red-400'
-            : 'border-brand-200 hover:border-brand-300',
-        ].join(' ')}
-      >
-        <option value="" disabled>{placeholder}</option>
-        {opcoes.map((opcao, i) => (
-          <option key={opcao} value={valores ? valores[i] : opcao}>{opcao}</option>
-        ))}
-      </select>
-      {error && (
-        <p id={`${id}-error`} role="alert" className="text-xs text-red-500">{error}</p>
-      )}
     </div>
   )
 }

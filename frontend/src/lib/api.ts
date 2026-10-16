@@ -30,11 +30,14 @@ export type Usuario = {
 export type Startup = {
   id: string
   name: string
-  stage: string
+  email: string
+  stage: 'traction' | 'scaling'
   cnpj: string
   description: string
   city: string
   state: string
+  website: string
+  is_active: boolean
   created_at: string
 }
 
@@ -100,36 +103,6 @@ export async function restaurarSessao(): Promise<Usuario | null> {
 }
 
 // ---------------------------------------------------------------------------
-// Cadastro de Usuário
-// ---------------------------------------------------------------------------
-
-export type BodyRegistroUsuario = {
-  full_name: string
-  email: string
-  password: string
-}
-
-/**
- * POST /user
- *
- * Registra um novo usuário.
- *
- * Body:
- * ```json
- * { "full_name": "Maria Silva", "email": "maria@email.com", "password": "senha123" }
- * ```
- *
- * Respostas:
- * - 201 Created → Usuario
- * - 409 Conflict → "Email ... is already in use"
- * - 400 Bad Request → "Invalid email address: ..."
- */
-export async function registrarUsuario(body: BodyRegistroUsuario): Promise<Usuario> {
-  const { data } = await api.post<Usuario>('/user', body)
-  return data
-}
-
-// ---------------------------------------------------------------------------
 // Cadastro de Startup
 // ---------------------------------------------------------------------------
 
@@ -155,25 +128,25 @@ export type BodyRegistroStartup = {
  * Registra uma nova startup.
  */
 export async function registrarStartup(body: BodyRegistroStartup): Promise<Startup> {
-  let stage = ""
-  switch (stage) {
-    case "tracao":
-      stage = "traction"
-      break
-    case "escala":
-      stage = "scaling"
-      break
-    default:
-      console.error("Estagio invalido: ", stage)
-      break
+  // Aceita também os valores antigos do formulário e converte para os do backend.
+  const estagios: Record<string, BodyRegistroStartup['stage']> = {
+    tracao: 'traction',
+    escala: 'scaling',
+    traction: 'traction',
+    scaling: 'scaling',
+  }
+  const stage = estagios[body.stage]
+  if (!stage) {
+    throw new Error(`Estágio inválido: ${body.stage}`)
   }
 
   const requestBody: BodyRegistroStartup = {
     ...body,
     cnpj: body.cnpj.replace(/\D/g, ''), // garante que chega sem máscara (só dígitos)
-    website: body.website ?? "",
-    description: body.description ?? "",
-    stage: stage as BodyRegistroStartup["stage"],
+    stage,
+    // O backend aceita string vazia, mas nunca null/ausente.
+    description: body.description ?? '',
+    website: body.website ?? '',
   }
 
   const returned = await api.post<Startup>('/startup', requestBody)
