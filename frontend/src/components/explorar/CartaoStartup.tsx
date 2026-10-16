@@ -1,12 +1,6 @@
 import type { StartupCatalogo } from '@/lib/startups.ts'
 import { Link } from 'react-router-dom'
 
-/**
- * Cores do avatar giram entre tons da própria marca (nunca o índigo/violeta
- * padrão do shadcn — ver o comentário sobre isso em `index.css`), escolhidas
- * de forma determinística a partir do slug, então a mesma startup sempre
- * cai na mesma cor.
- */
 const CORES_AVATAR = ['bg-brand-600', 'bg-accent-600', 'bg-brand-800', 'bg-ink-700', 'bg-brand-400', 'bg-accent-700']
 
 function corAvatar(slug: string): string {
@@ -95,10 +89,7 @@ export default function CartaoStartup({
         ) : (
           <Link
             to="/criar-conta"
-            className="group relative mx-auto flex items-center justify-start overflow-hidden rounded-full bg-gray-200 shadow-md transition-all duration-300 hover:bg-brand-700 active:translate-x-0.5 active:translate-y-0.5"
-            style={{ width: '45px', height: '45px' }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLAnchorElement).style.width = '210px'; (e.currentTarget as HTMLAnchorElement).style.borderRadius = '40px' }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLAnchorElement).style.width = '45px'; (e.currentTarget as HTMLAnchorElement).style.borderRadius = '9999px' }}
+            className="group relative mx-auto flex h-[45px] w-[45px] items-center justify-start overflow-hidden rounded-full bg-gray-200 shadow-md transition-all duration-300 hover:w-[210px] hover:rounded-[40px] hover:bg-brand-700 active:translate-x-0.5 active:translate-y-0.5"
             aria-label="Cadastre-se para ver"
           >
             {/* Ícone de cadeado */}
