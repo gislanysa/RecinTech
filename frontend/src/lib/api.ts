@@ -142,11 +142,11 @@ export type BodyRegistroStartup = {
   /** Estágio aceito pelo backend: "traction" | "scaling" */
   stage: 'traction' | 'scaling'
   /** Opcional */
-  description?: string
+  description: string
   city: string
   state: string
   /** URL do site (opcional) */
-  website?: string
+  website: string
 }
 
 /**
@@ -155,9 +155,27 @@ export type BodyRegistroStartup = {
  * Registra uma nova startup.
  */
 export async function registrarStartup(body: BodyRegistroStartup): Promise<Startup> {
-  const { data } = await api.post<Startup>('/startup', {
+  let stage = ""
+  switch (stage) {
+    case "tracao":
+      stage = "traction"
+      break
+    case "escala":
+      stage = "scaling"
+      break
+    default:
+      console.error("Estagio invalido: ", stage)
+      break
+  }
+
+  const requestBody: BodyRegistroStartup = {
     ...body,
     cnpj: body.cnpj.replace(/\D/g, ''), // garante que chega sem máscara (só dígitos)
-  })
-  return data
+    website: body.website ?? "",
+    description: body.description ?? "",
+    stage: stage as BodyRegistroStartup["stage"],
+  }
+
+  const returned = await api.post<Startup>('/startup', requestBody)
+  return returned.data
 }

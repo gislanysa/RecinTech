@@ -8,7 +8,6 @@ import gleam/json
 import gleam/list
 import gleam/result
 import gleam/string
-import gleam/uri
 import lustre/attribute
 import lustre/element
 import lustre/element/html
@@ -1159,14 +1158,10 @@ fn register_startup(
     use password <- decode.field("password", decode.string)
     use cnpj <- decode.field("cnpj", cnpj.decoder())
     use stage <- decode.field("stage", startup.stage_decoder())
-    use description <- decode.optional_field("description", "", decode.string)
+    use description <- decode.field("description", decode.string)
     use city <- decode.field("city", decode.string)
     use state <- decode.field("state", decode.string)
-    use website <- decode.optional_field(
-      "website",
-      uri.empty,
-      internal.uri_decoder(),
-    )
+    use website <- decode.field("website", internal.uri_decoder())
 
     payload.RegisterStartup(
       name:,
