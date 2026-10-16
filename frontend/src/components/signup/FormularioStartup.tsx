@@ -43,6 +43,7 @@ function formatarCnpj(valor: string): string {
 
 type Campos = {
   nomeStartup: string
+  descricao: string
   cnpj: string
   segmento: string
   estagio: string
@@ -59,6 +60,7 @@ const VAZIO: Campos = {
   nomeStartup: '',
   cnpj: '',
   segmento: '',
+  descricao: '',
   estagio: '',
   cidade: '',
   estado: '',
@@ -80,10 +82,10 @@ const VAZIO: Campos = {
  *   password: string,
  *   cnpj: string,           // apenas dígitos
  *   stage: "traction" | "scaling",
- *   description?: string,
+ *   description: string,
  *   city: string,
  *   state: string,
- *   website?: string
+ *   website: string
  * }
  */
 export default function FormularioStartup({ onVoltar }: FormularioStartupProps) {
@@ -127,13 +129,14 @@ export default function FormularioStartup({ onVoltar }: FormularioStartupProps) 
       try {
         await registrarStartup({
           name: campos.nomeStartup,
+          description: campos.descricao,
           email: campos.email,
           password: campos.senha,
           cnpj: campos.cnpj,
           stage: campos.estagio as 'traction' | 'scaling',
           city: campos.cidade,
           state: campos.estado,
-          website: campos.site.trim() || undefined,
+          website: campos.site.trim() || ""
         })
       } catch (err) {
         // Se a rota ainda não estiver exposta no backend (404), prossegue para o dashboard em ambiente de desenvolvimento
