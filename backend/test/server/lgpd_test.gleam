@@ -22,6 +22,116 @@ pub fn grant_lgpd_consent_startup_test() -> Nil {
       updated_at: returned.updated_at,
       policy_version: version,
     )
+
+  Nil
+}
+
+pub fn revoke_lgpd_consent_startup_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+  let version = 1
+
+  let assert Ok(returned) =
+    lgpd.revoke_consent(
+      context.database,
+      for: lgpd.Startup(startup.id),
+      policy_version: version,
+    )
+
+  assert returned
+    == lgpd.Revoked(
+      subject: lgpd.Startup(startup.id),
+      updated_at: returned.updated_at,
+      policy_version: version,
+    )
+
+  Nil
+}
+
+pub fn revoke_lgpd_consent_startup_twice_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+  let version = 1
+
+  let assert Ok(first) =
+    lgpd.revoke_consent(
+      context.database,
+      for: lgpd.Startup(startup.id),
+      policy_version: version,
+    )
+
+  let assert Ok(second) =
+    lgpd.revoke_consent(
+      context.database,
+      for: lgpd.Startup(startup.id),
+      policy_version: version,
+    )
+
+  assert first == second
+
+  Nil
+}
+
+pub fn grant_lgpd_consent_startup_then_revoke_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+  let version = 1
+
+  let assert Ok(granted) =
+    lgpd.grant_consent(
+      context.database,
+      for: lgpd.Startup(startup.id),
+      policy_version: version,
+    )
+
+  let assert Ok(revoked) =
+    lgpd.revoke_consent(
+      context.database,
+      for: lgpd.Startup(startup.id),
+      policy_version: version,
+    )
+
+  assert granted
+    == lgpd.Granted(
+      subject: lgpd.Startup(startup.id),
+      updated_at: granted.updated_at,
+      policy_version: version,
+    )
+
+  assert revoked
+    == lgpd.Revoked(
+      subject: lgpd.Startup(startup.id),
+      updated_at: granted.updated_at,
+      policy_version: version,
+    )
+
+  Nil
+}
+
+pub fn grant_lgpd_consent_startup_twice_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+  let version = 1
+
+  let assert Ok(first) =
+    lgpd.grant_consent(
+      context.database,
+      for: lgpd.Startup(startup.id),
+      policy_version: version,
+    )
+
+  let assert Ok(second) =
+    lgpd.grant_consent(
+      context.database,
+      for: lgpd.Startup(startup.id),
+      policy_version: version,
+    )
+
+  assert first == second
 }
 
 pub fn grant_lgpd_consent_missing_startup_test() -> Nil {

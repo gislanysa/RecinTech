@@ -39,6 +39,22 @@ pub type Consent {
   )
 }
 
+pub fn grant_consent(
+  database: pog.Connection,
+  for subject: Subject,
+  policy_version version: Int,
+) -> Result(Consent, LgpdError) {
+  do_update_consent(database, subject, sql.Granted, version)
+}
+
+pub fn revoke_consent(
+  database: pog.Connection,
+  for subject: Subject,
+  policy_version version: Int,
+) -> Result(Consent, LgpdError) {
+  do_update_consent(database, subject, sql.Revoked, version)
+}
+
 fn require_valid_policy_version(
   version: Int,
   next: fn(Int) -> Result(a, LgpdError),
@@ -49,17 +65,18 @@ fn require_valid_policy_version(
   }
 }
 
-pub fn grant_consent(
+fn do_update_consent(
   database: pog.Connection,
-  for subject: Subject,
-  policy_version version: Int,
+  subject: Subject,
+  consent_enum: sql.LgpdConsent,
+  version: Int,
 ) -> Result(Consent, LgpdError) {
   use version <- require_valid_policy_version(version)
 
   case subject {
     Startup(id:) -> {
       use returned <- result.try(
-        case sql.update_startup_consent(database, id, sql.Granted, version) {
+        case sql.update_startup_consent(database, id, consent_enum, version) {
           Error(pog.ConstraintViolated(
             constraint: "startup_lgpd_consent_startup_id_fkey",
             ..,
@@ -80,11 +97,21 @@ pub fn grant_consent(
         |> result.replace_error(FailedToUpdateConsent(subject:)),
       )
 
-      Granted(
-        subject:,
-        updated_at: row.updated_at,
-        policy_version: row.policy_version,
-      )
+      case row.consent {
+        sql.Granted ->
+          Granted(
+            subject:,
+            updated_at: row.updated_at,
+            policy_version: row.policy_version,
+          )
+
+        sql.Revoked ->
+          Revoked(
+            subject:,
+            updated_at: row.updated_at,
+            policy_version: row.policy_version,
+          )
+      }
     }
 
     Investor(id:) -> {
@@ -110,11 +137,21 @@ pub fn grant_consent(
         |> result.replace_error(FailedToUpdateConsent(subject:)),
       )
 
-      Granted(
-        subject:,
-        updated_at: row.updated_at,
-        policy_version: row.policy_version,
-      )
+      case row.consent {
+        sql.Granted ->
+          Granted(
+            subject:,
+            updated_at: row.updated_at,
+            policy_version: row.policy_version,
+          )
+
+        sql.Revoked ->
+          Revoked(
+            subject:,
+            updated_at: row.updated_at,
+            policy_version: row.policy_version,
+          )
+      }
     }
   }
 }

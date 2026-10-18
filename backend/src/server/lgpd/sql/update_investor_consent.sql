@@ -7,8 +7,13 @@ VALUES
         $2::lgpd_consent,
         $3::integer,
         CURRENT_TIMESTAMP::timestamp
-    )
+    ) ON conflict(investor_id) DO
+UPDATE
+SET
+    consent = EXCLUDED.consent,
+    updated_at = CURRENT_TIMESTAMP
 RETURNING
     investor_id::uuid,
+    consent::lgpd_consent,
     updated_at::timestamp,
     policy_version::integer;
