@@ -61,6 +61,15 @@ erDiagram
     text state
     timestamp created_at
     bool is_active
+    text website
+  }
+
+  STARTUP_LGPD_CONSENT }o..|| STARTUP : has
+  STARTUP_LGPD_CONSENT {
+    uuid startup_id PK, FK
+    lgpd_consent consent "granted | revoked"
+    timestamp updated_at
+    int policy_version PK
   }
 
   INVESTOR {
@@ -72,6 +81,14 @@ erDiagram
     bool public_profile
     timestamp created_at
     bool is_active
+  }
+
+  INVESTOR_LGPD_CONSENT }o..|| INVESTOR : has
+  INVESTOR_LGPD_CONSENT {
+    uuid investor_id PK, FK
+    lgpd_consent consent "granted | revoked"
+    timestamp updated_at
+    int policy_version PK
   }
 
   STARTUP_SEGMENT }o..|| STARTUP : has
