@@ -18,6 +18,7 @@ import youid/uuid.{type Uuid}
 pub type UpdateInvestorConsentRow {
   UpdateInvestorConsentRow(
     investor_id: Uuid,
+    consent: LgpdConsent,
     updated_at: Timestamp,
     policy_version: Int,
   )
@@ -36,10 +37,12 @@ pub fn update_investor_consent(
 ) -> Result(pog.Returned(UpdateInvestorConsentRow), pog.QueryError) {
   let decoder = {
     use investor_id <- decode.field(0, uuid_decoder())
-    use updated_at <- decode.field(1, pog.timestamp_decoder())
-    use policy_version <- decode.field(2, decode.int)
+    use consent <- decode.field(1, lgpd_consent_decoder())
+    use updated_at <- decode.field(2, pog.timestamp_decoder())
+    use policy_version <- decode.field(3, decode.int)
     decode.success(UpdateInvestorConsentRow(
       investor_id:,
+      consent:,
       updated_at:,
       policy_version:,
     ))
@@ -54,9 +57,14 @@ VALUES
         $2::lgpd_consent,
         $3::integer,
         CURRENT_TIMESTAMP::timestamp
-    )
+    ) ON conflict(investor_id) DO
+UPDATE
+SET
+    consent = EXCLUDED.consent,
+    updated_at = CURRENT_TIMESTAMP
 RETURNING
     investor_id::uuid,
+    consent::lgpd_consent,
     updated_at::timestamp,
     policy_version::integer;
 "
@@ -77,6 +85,7 @@ RETURNING
 pub type UpdateStartupConsentRow {
   UpdateStartupConsentRow(
     startup_id: Uuid,
+    consent: LgpdConsent,
     updated_at: Timestamp,
     policy_version: Int,
   )
@@ -95,10 +104,12 @@ pub fn update_startup_consent(
 ) -> Result(pog.Returned(UpdateStartupConsentRow), pog.QueryError) {
   let decoder = {
     use startup_id <- decode.field(0, uuid_decoder())
-    use updated_at <- decode.field(1, pog.timestamp_decoder())
-    use policy_version <- decode.field(2, decode.int)
+    use consent <- decode.field(1, lgpd_consent_decoder())
+    use updated_at <- decode.field(2, pog.timestamp_decoder())
+    use policy_version <- decode.field(3, decode.int)
     decode.success(UpdateStartupConsentRow(
       startup_id:,
+      consent:,
       updated_at:,
       policy_version:,
     ))
@@ -113,9 +124,14 @@ VALUES
         $2::lgpd_consent,
         $3::integer,
         CURRENT_TIMESTAMP::timestamp
-    )
+    ) ON conflict(startup_id) DO
+UPDATE
+SET
+    consent = EXCLUDED.consent,
+    updated_at = CURRENT_TIMESTAMP
 RETURNING
     startup_id::uuid,
+    consent::lgpd_consent,
     updated_at::timestamp,
     policy_version::integer;
 "
@@ -137,6 +153,15 @@ RETURNING
 pub type LgpdConsent {
   Revoked
   Granted
+}
+
+fn lgpd_consent_decoder() -> decode.Decoder(LgpdConsent) {
+  use lgpd_consent <- decode.then(decode.string)
+  case lgpd_consent {
+    "revoked" -> decode.success(Revoked)
+    "granted" -> decode.success(Granted)
+    _ -> decode.failure(Revoked, "LgpdConsent")
+  }
 }
 
 fn lgpd_consent_encoder(lgpd_consent) -> pog.Value {
