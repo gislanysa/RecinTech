@@ -11,50 +11,77 @@ import youid/uuid
 pub type LgpdError {
   /// Failed to query the Database
   DatabaseError(error: pog.QueryError)
-  /// Startup or Investor was not found in the Database
+  /// Subject was not found in the Database
   SubjectNotFound(id: uuid.Uuid)
-  /// Policy version needs to be an Int greater than zero
+  /// Policy version needs to be an `Int` greater than zero
   InvalidPolicyVersion(version: Int)
-  /// Failed to grant or revoke consent to the LGPD
+  /// Failed to grant or revoke consent
   FailedToUpdateConsent(subject: Subject)
 }
 
+/// Entity (Startup or Investor) granting or revoking consent to their data.
 pub type Subject {
+  /// A startup entity
   Startup(id: uuid.Uuid)
+  /// An Investor entity
   Investor(id: uuid.Uuid)
 }
 
 /// A Startup / Investor may grant or revoke consent
 /// to the General Data Protection Law.
 pub type Consent {
-  Granted(
-    subject: Subject,
-    updated_at: timestamp.Timestamp,
-    policy_version: Int,
-  )
-  Revoked(
-    subject: Subject,
-    updated_at: timestamp.Timestamp,
-    policy_version: Int,
-  )
+  /// A Subject granted access to their data.
+  Granted(subject: Subject, updated_at: timestamp.Timestamp, version: Int)
+  /// A Subject revoked access to their data and we are not allowed to use it.
+  Revoked(subject: Subject, updated_at: timestamp.Timestamp, version: Int)
 }
 
+/// Grants LGPD consent for a given entity and policy version.
+///
+/// ## Examples
+///
+/// ```gleam
+/// let result =
+///   lgpd.grant_consent(context.database, for: lgpd.Startup(id), version: 1)
+///
+/// case result {
+///   Ok(lgpd.Granted(..)) -> todo as "send response"
+///   Ok(_) -> wisp.internal_server_error()
+///   Error(error) -> handle_error(error)
+/// }
+/// ```
 pub fn grant_consent(
   database: pog.Connection,
   for subject: Subject,
-  policy_version version: Int,
+  version version: Int,
 ) -> Result(Consent, LgpdError) {
   do_update_consent(database, subject, sql.Granted, version)
 }
 
+/// Revokes LGPD consent for a given entity and policy version.
+///
+/// ## Examples
+///
+/// ```gleam
+/// let result =
+///   lgpd.revoke_consent(context.database, for: lgpd.Startup(id), version: 1)
+///
+/// case result {
+///   Ok(lgpd.Revoked(..)) -> todo as "send response"
+///   Ok(_) -> wisp.internal_server_error()
+///   Error(error) -> handle_error(error)
+/// }
+/// ```
 pub fn revoke_consent(
   database: pog.Connection,
-  for subject: Subject,
-  policy_version version: Int,
+  from subject: Subject,
+  version version: Int,
 ) -> Result(Consent, LgpdError) {
   do_update_consent(database, subject, sql.Revoked, version)
 }
 
+/// Returns `Error(InvalidPolicyVersion)` if the policy version
+/// is equals or less than zero.
 fn require_valid_policy_version(
   version: Int,
   next: fn(Int) -> Result(a, LgpdError),
@@ -68,7 +95,7 @@ fn require_valid_policy_version(
 fn do_update_consent(
   database: pog.Connection,
   subject: Subject,
-  consent_enum: sql.LgpdConsent,
+  target_consent: sql.LgpdConsent,
   version: Int,
 ) -> Result(Consent, LgpdError) {
   use version <- require_valid_policy_version(version)
@@ -76,7 +103,7 @@ fn do_update_consent(
   case subject {
     Startup(id:) -> {
       use returned <- result.try(
-        case sql.update_startup_consent(database, id, consent_enum, version) {
+        case sql.update_startup_consent(database, id, target_consent, version) {
           Error(pog.ConstraintViolated(
             constraint: "startup_lgpd_consent_startup_id_fkey",
             ..,
@@ -92,24 +119,24 @@ fn do_update_consent(
         },
       )
 
-      use row <- result.map(
-        list.first(returned.rows)
-        |> result.replace_error(FailedToUpdateConsent(subject:)),
-      )
+      use row <- result.map(case list.first(returned.rows) {
+        Ok(found) if found.consent == target_consent -> Ok(found)
+        Ok(_) | Error(_) -> Error(FailedToUpdateConsent(subject:))
+      })
 
       case row.consent {
         sql.Granted ->
           Granted(
             subject:,
             updated_at: row.updated_at,
-            policy_version: row.policy_version,
+            version: row.policy_version,
           )
 
         sql.Revoked ->
           Revoked(
             subject:,
             updated_at: row.updated_at,
-            policy_version: row.policy_version,
+            version: row.policy_version,
           )
       }
     }
@@ -132,24 +159,29 @@ fn do_update_consent(
         },
       )
 
-      use row <- result.map(
-        list.first(returned.rows)
-        |> result.replace_error(FailedToUpdateConsent(subject:)),
-      )
+      // This ensures that the record was properly updated to the
+      // target value.
+      use row <- result.map(case list.first(returned.rows) {
+        Ok(found) if found.consent == target_consent -> Ok(found)
+
+        // If the returned value was different from the expected, then we
+        // failed to update the record.
+        Ok(_) | Error(_) -> Error(FailedToUpdateConsent(subject:))
+      })
 
       case row.consent {
         sql.Granted ->
           Granted(
             subject:,
             updated_at: row.updated_at,
-            policy_version: row.policy_version,
+            version: row.policy_version,
           )
 
         sql.Revoked ->
           Revoked(
             subject:,
             updated_at: row.updated_at,
-            policy_version: row.policy_version,
+            version: row.policy_version,
           )
       }
     }

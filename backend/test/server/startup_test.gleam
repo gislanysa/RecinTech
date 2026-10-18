@@ -395,7 +395,7 @@ pub fn get_lgpd_consent_multiple_policies_versions_test() -> Nil {
     lgpd.grant_consent(
       context.database,
       for: lgpd.Startup(id: startup.id),
-      policy_version: 1,
+      version: 1,
     )
 
   // Version two
@@ -403,7 +403,7 @@ pub fn get_lgpd_consent_multiple_policies_versions_test() -> Nil {
     lgpd.grant_consent(
       context.database,
       for: lgpd.Startup(id: startup.id),
-      policy_version: 2,
+      version: 2,
     )
 
   let assert Ok(returned) =
@@ -423,8 +423,8 @@ pub fn get_lgpd_consent_upsert_test() -> Nil {
   let assert Ok(old) =
     lgpd.revoke_consent(
       context.database,
-      for: lgpd.Startup(id: startup.id),
-      policy_version: 1,
+      from: lgpd.Startup(id: startup.id),
+      version: 1,
     )
 
   // Upsert value and set new timestamp.
@@ -432,7 +432,7 @@ pub fn get_lgpd_consent_upsert_test() -> Nil {
     lgpd.grant_consent(
       context.database,
       for: lgpd.Startup(id: startup.id),
-      policy_version: 1,
+      version: 1,
     )
 
   let assert Ok(returned) =
