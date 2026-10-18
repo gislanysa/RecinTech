@@ -210,8 +210,13 @@ fn do_update_consent(
         },
       )
 
+      // This ensures that the record was properly updated to the
+      // target value.
       use row <- result.map(case list.first(returned.rows) {
         Ok(found) if found.consent == target_consent -> Ok(found)
+
+        // If the returned value was different from the expected, then we
+        // failed to update the record.
         Ok(_) | Error(_) -> Error(FailedToUpdateConsent(subject:))
       })
 

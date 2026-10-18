@@ -14,7 +14,7 @@ pub type InvestorError {
   /// Failed to connect to the Database
   DatabaseError(pog.QueryError)
   /// Investor was not found in the Database
-  NotFound
+  NotFound(id: uuid.Uuid)
   /// Email not found in the Database
   EmailNotFound(email: email.Email)
   /// Investor email has invalid format
@@ -169,7 +169,7 @@ pub fn verify(
 ///
 /// case result {
 ///   Ok(data) -> todo as "send response"
-///   Error(investor.NotFound) -> wisp.not_found()
+///   Error(investor.NotFound(_)) -> wisp.not_found()
 ///   Error(_) -> wisp.internal_server_error()
 /// }
 /// ```
@@ -184,7 +184,7 @@ pub fn get(
 
   use row <- result.try(
     list.first(returned.rows)
-    |> result.replace_error(NotFound),
+    |> result.replace_error(NotFound(id:)),
   )
 
   use email <- result.map(
@@ -192,22 +192,24 @@ pub fn get(
     |> result.replace_error(InvalidEmail(row.email)),
   )
 
-  let kind = case row.kind {
-    sql.Institutional -> Institutional
-    sql.Individual -> Individual
-    sql.Venture -> Venture
-    sql.Angel -> Angel
-  }
-
   Investor(
     id: row.id,
-    kind:,
+    kind: kind_from_enum(row.kind),
     public_profile: row.public_profile,
     name: row.name,
     email:,
     created_at: row.created_at,
     is_active: row.is_active,
   )
+}
+
+fn kind_from_enum(enum: sql.InvestorKind) {
+  case enum {
+    sql.Institutional -> Institutional
+    sql.Individual -> Individual
+    sql.Venture -> Venture
+    sql.Angel -> Angel
+  }
 }
 
 /// Convert a [Kind](#Kind) into a lowercase String
@@ -232,10 +234,10 @@ pub fn kind_to_string(kind: Kind) -> String {
 /// ## Examples
 ///
 /// ```gleam
-/// let assert Ok(kind) = investor.kind_from_string("angel")
+/// let assert Ok(kind) = investor.parse_kind("angel")
 /// assert kind == investor.Angel
 /// ```
-pub fn kind_from_string(string: String) -> Result(Kind, Nil) {
+pub fn parse_kind(string: String) -> Result(Kind, Nil) {
   case string {
     "angel" -> Ok(Angel)
     "venture" -> Ok(Venture)
