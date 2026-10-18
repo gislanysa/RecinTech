@@ -1209,9 +1209,12 @@ fn register_startup(
 fn handle_investor_error(error: investor.InvestorError) -> wisp.Response {
   case error {
     investor.DatabaseError(error) -> handle_database_error(error)
-    investor.NotFound -> wisp.not_found()
     investor.InvalidEmail(value) -> wisp.bad_request("Invalid email: " <> value)
     investor.EmailNotFound(_) | investor.WrongPassword -> wisp.response(401)
     investor.HashError(_) -> wisp.internal_server_error()
+
+    investor.NotFound(id) ->
+      { "Investor not found: " <> uuid.to_string(id) }
+      |> wisp.string_body(wisp.not_found(), _)
   }
 }
