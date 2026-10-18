@@ -30,17 +30,22 @@ export type Usuario = {
 export type Startup = {
   id: string
   name: string
-  stage: string
+  email: string
+  stage: 'traction' | 'scaling'
   cnpj: string
   description: string
   city: string
   state: string
+  website: string
+  is_active: boolean
   created_at: string
 }
 
 // ---------------------------------------------------------------------------
 // Auth
 // ---------------------------------------------------------------------------
+
+export type TipoSessao = 'startup' | 'investor'
 
 /**
  * POST /auth/login
@@ -50,15 +55,21 @@ export type Startup = {
  *
  * Body:
  * ```json
- * { "email": "user@email.com", "password": "senha123" }
+ * { "session": "startup", "email": "user@email.com", "password": "senha123" }
  * ```
+ *
+ * `session` é obrigatório no backend: "startup" | "investor".
  *
  * Respostas:
  * - 200 OK - Usuario (cookie de sessão definido pelo backend)
  * - 401 Unauthorized - "Wrong email or password"
  */
-export async function login(email: string, password: string): Promise<Usuario> {
-  const { data } = await api.post<Usuario>('/auth/login', { email, password })
+export async function login(
+  email: string,
+  password: string,
+  session: TipoSessao = 'startup',
+): Promise<Usuario> {
+  const { data } = await api.post<Usuario>('/auth/login', { session, email, password })
   return data
 }
 
@@ -92,51 +103,23 @@ export async function restaurarSessao(): Promise<Usuario | null> {
 }
 
 // ---------------------------------------------------------------------------
-// Cadastro de Usuário
-// ---------------------------------------------------------------------------
-
-export type BodyRegistroUsuario = {
-  full_name: string
-  email: string
-  password: string
-}
-
-/**
- * POST /user
- *
- * Registra um novo usuário.
- *
- * Body:
- * ```json
- * { "full_name": "Maria Silva", "email": "maria@email.com", "password": "senha123" }
- * ```
- *
- * Respostas:
- * - 201 Created → Usuario
- * - 409 Conflict → "Email ... is already in use"
- * - 400 Bad Request → "Invalid email address: ..."
- */
-export async function registrarUsuario(body: BodyRegistroUsuario): Promise<Usuario> {
-  const { data } = await api.post<Usuario>('/user', body)
-  return data
-}
-
-// ---------------------------------------------------------------------------
 // Cadastro de Startup
 // ---------------------------------------------------------------------------
 
 export type BodyRegistroStartup = {
   name: string
   email: string
-  password?: string
+  password: string
   /** Apenas dígitos, exatamente 14 caracteres */
   cnpj: string
-  stage: string
-  description?: string
+  /** Estágio aceito pelo backend: "traction" | "scaling" */
+  stage: 'traction' | 'scaling'
+  /** Opcional */
+  description: string
   city: string
   state: string
   /** URL do site (opcional) */
-  site?: string
+  website: string
 }
 
 /**
@@ -145,9 +128,27 @@ export type BodyRegistroStartup = {
  * Registra uma nova startup.
  */
 export async function registrarStartup(body: BodyRegistroStartup): Promise<Startup> {
-  const { data } = await api.post<Startup>('/startup', {
+  // Aceita também os valores antigos do formulário e converte para os do backend.
+  const estagios: Record<string, BodyRegistroStartup['stage']> = {
+    tracao: 'traction',
+    escala: 'scaling',
+    traction: 'traction',
+    scaling: 'scaling',
+  }
+  const stage = estagios[body.stage]
+  if (!stage) {
+    throw new Error(`Estágio inválido: ${body.stage}`)
+  }
+
+  const requestBody: BodyRegistroStartup = {
     ...body,
     cnpj: body.cnpj.replace(/\D/g, ''), // garante que chega sem máscara (só dígitos)
-  })
-  return data
+    stage,
+    // O backend aceita string vazia, mas nunca null/ausente.
+    description: body.description ?? '',
+    website: body.website ?? '',
+  }
+
+  const returned = await api.post<Startup>('/startup', requestBody)
+  return returned.data
 }

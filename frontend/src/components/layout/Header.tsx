@@ -12,10 +12,6 @@ const NAV = [
 ]
 
 type HeaderProps = {
-  /**
-   * `true` na home, que abre com uma faixa de fundo própria. O cabeçalho se
-   * funde a ela no topo e só ganha fundo branco ao rolar.
-   */
   overlay?: boolean
 }
 
