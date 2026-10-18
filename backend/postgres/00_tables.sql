@@ -34,11 +34,13 @@ CREATE INDEX idx_startup_cnpj ON startup (cnpj);
 
 CREATE INDEX idx_startup_email ON startup (email);
 
+CREATE TYPE lgpd_consent AS enum ('granted', 'revoked');
+
 CREATE TABLE startup_lgpd_consent (
     id uuid DEFAULT uuidv7(),
     startup_id uuid NOT NULL REFERENCES startup (id) ON DELETE CASCADE,
-    granted boolean NOT NULL DEFAULT false,
-    granted_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    consent lgpd_consent NOT NULL DEFAULT 'revoked',
+    updated_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
     policy_version integer NOT NULL CHECK (policy_version > 0),
     PRIMARY KEY (id)
 );
@@ -62,8 +64,8 @@ CREATE INDEX idx_investor_email ON investor (email);
 CREATE TABLE investor_lgpd_consent (
     id uuid DEFAULT uuidv7(),
     investor_id uuid NOT NULL REFERENCES investor (id) ON DELETE CASCADE,
-    granted boolean NOT NULL DEFAULT false,
-    granted_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    consent lgpd_consent NOT NULL DEFAULT 'revoked',
+    updated_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
     policy_version integer NOT NULL CHECK (policy_version > 0),
     PRIMARY KEY (id)
 );
