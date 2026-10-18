@@ -39,15 +39,22 @@ pub type Consent {
   )
 }
 
+fn require_valid_policy_version(
+  version: Int,
+  next: fn(Int) -> Result(a, LgpdError),
+) -> Result(a, LgpdError) {
+  case version {
+    version if version > 0 -> next(version)
+    version -> Error(InvalidPolicyVersion(version:))
+  }
+}
+
 pub fn grant_consent(
   database: pog.Connection,
   for subject: Subject,
   policy_version version: Int,
 ) -> Result(Consent, LgpdError) {
-  use version <- result.try(case version {
-    version if version > 0 -> Ok(version)
-    version -> Error(InvalidPolicyVersion(version:))
-  })
+  use version <- require_valid_policy_version(version)
 
   case subject {
     Startup(id:) -> {
