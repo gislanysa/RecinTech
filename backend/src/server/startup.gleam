@@ -11,6 +11,7 @@ import pog
 import server/cnpj
 import server/email
 import server/internal
+import server/lgpd
 import server/segment
 import server/startup/expertise
 import server/startup/service
@@ -839,5 +840,51 @@ pub fn get_many(
       is_active: row.is_active,
       website: website,
     )
+  })
+}
+
+/// Get all consent records assigned to a given Startup
+///
+/// ## Examples
+///
+/// ```gleam
+/// let result = startup.get_lgpd_consent(context.database, id)
+///
+/// case returned {
+///   Ok(data) -> todo as "send response"
+///   Error(startup.NotFound(_)) -> wisp.not_found()
+///   Error(_) -> wisp.internal_server_error()
+/// }
+/// ```
+pub fn get_lgpd_consent(
+  database: pog.Connection,
+  id: uuid.Uuid,
+) -> Result(List(lgpd.Consent), StartupError) {
+  use returned <- result.try(
+    sql.get_lgpd_consent(database, id)
+    |> result.map_error(DatabaseError),
+  )
+
+  use rows <- result.map(case returned.rows {
+    [] -> Error(NotFound(id:))
+    rows -> Ok(rows)
+  })
+
+  list.map(rows, fn(row) {
+    case row.consent {
+      sql.Granted ->
+        lgpd.Granted(
+          lgpd.Startup(id:),
+          updated_at: row.updated_at,
+          policy_version: row.policy_version,
+        )
+
+      sql.Revoked ->
+        lgpd.Revoked(
+          lgpd.Startup(id:),
+          updated_at: row.updated_at,
+          policy_version: row.policy_version,
+        )
+    }
   })
 }

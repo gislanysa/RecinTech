@@ -2,6 +2,7 @@ import gleam/int
 import gleam/list
 import gleam/uri
 import server/dummy
+import server/lgpd
 import server/startup
 import server_test
 import youid/uuid
@@ -380,6 +381,65 @@ pub fn get_many_startup_test() -> Nil {
     startup.get_many(context.database, limit: max, offset: 0)
 
   assert returned == startups
+
+  Nil
+}
+
+pub fn get_lgpd_consent_multiple_policies_versions_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+
+  // Version one
+  let assert Ok(policy_version_one) =
+    lgpd.grant_consent(
+      context.database,
+      for: lgpd.Startup(id: startup.id),
+      policy_version: 1,
+    )
+
+  // Version two
+  let assert Ok(policy_version_two) =
+    lgpd.grant_consent(
+      context.database,
+      for: lgpd.Startup(id: startup.id),
+      policy_version: 2,
+    )
+
+  let assert Ok(returned) =
+    startup.get_lgpd_consent(context.database, startup.id)
+
+  assert returned == [policy_version_one, policy_version_two]
+
+  Nil
+}
+
+pub fn get_lgpd_consent_upsert_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+
+  // This one will be removed.
+  let assert Ok(old) =
+    lgpd.revoke_consent(
+      context.database,
+      for: lgpd.Startup(id: startup.id),
+      policy_version: 1,
+    )
+
+  // Upsert value and set new timestamp.
+  let assert Ok(new) =
+    lgpd.grant_consent(
+      context.database,
+      for: lgpd.Startup(id: startup.id),
+      policy_version: 1,
+    )
+
+  let assert Ok(returned) =
+    startup.get_lgpd_consent(context.database, startup.id)
+
+  assert returned != [old]
+  assert returned == [new]
 
   Nil
 }
