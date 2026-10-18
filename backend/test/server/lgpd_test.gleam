@@ -13,14 +13,14 @@ pub fn grant_lgpd_consent_startup_test() -> Nil {
     lgpd.grant_consent(
       context.database,
       for: lgpd.Startup(startup.id),
-      policy_version: version,
+      version: version,
     )
 
   assert returned
     == lgpd.Granted(
       subject: lgpd.Startup(startup.id),
       updated_at: returned.updated_at,
-      policy_version: version,
+      version: version,
     )
 
   Nil
@@ -35,15 +35,15 @@ pub fn revoke_lgpd_consent_startup_test() -> Nil {
   let assert Ok(returned) =
     lgpd.revoke_consent(
       context.database,
-      for: lgpd.Startup(startup.id),
-      policy_version: version,
+      from: lgpd.Startup(startup.id),
+      version: version,
     )
 
   assert returned
     == lgpd.Revoked(
       subject: lgpd.Startup(startup.id),
       updated_at: returned.updated_at,
-      policy_version: version,
+      version: version,
     )
 
   Nil
@@ -58,15 +58,15 @@ pub fn revoke_lgpd_consent_startup_twice_test() -> Nil {
   let assert Ok(first) =
     lgpd.revoke_consent(
       context.database,
-      for: lgpd.Startup(startup.id),
-      policy_version: version,
+      from: lgpd.Startup(startup.id),
+      version: version,
     )
 
   let assert Ok(second) =
     lgpd.revoke_consent(
       context.database,
-      for: lgpd.Startup(startup.id),
-      policy_version: version,
+      from: lgpd.Startup(startup.id),
+      version: version,
     )
 
   assert first == second
@@ -84,28 +84,28 @@ pub fn grant_lgpd_consent_startup_then_revoke_test() -> Nil {
     lgpd.grant_consent(
       context.database,
       for: lgpd.Startup(startup.id),
-      policy_version: version,
+      version: version,
     )
 
   let assert Ok(revoked) =
     lgpd.revoke_consent(
       context.database,
-      for: lgpd.Startup(startup.id),
-      policy_version: version,
+      from: lgpd.Startup(startup.id),
+      version: version,
     )
 
   assert granted
     == lgpd.Granted(
       subject: lgpd.Startup(startup.id),
       updated_at: granted.updated_at,
-      policy_version: version,
+      version: version,
     )
 
   assert revoked
     == lgpd.Revoked(
       subject: lgpd.Startup(startup.id),
       updated_at: granted.updated_at,
-      policy_version: version,
+      version: version,
     )
 
   Nil
@@ -121,14 +121,14 @@ pub fn grant_lgpd_consent_startup_twice_test() -> Nil {
     lgpd.grant_consent(
       context.database,
       for: lgpd.Startup(startup.id),
-      policy_version: version,
+      version: version,
     )
 
   let assert Ok(second) =
     lgpd.grant_consent(
       context.database,
       for: lgpd.Startup(startup.id),
-      policy_version: version,
+      version: version,
     )
 
   assert first == second
@@ -144,7 +144,7 @@ pub fn grant_lgpd_consent_missing_startup_test() -> Nil {
     lgpd.grant_consent(
       context.database,
       for: lgpd.Startup(id),
-      policy_version: version,
+      version: version,
     )
 
   assert returned == id
@@ -162,7 +162,7 @@ pub fn grant_lgpd_consent_invalid_policy_version_test() -> Nil {
     lgpd.grant_consent(
       context.database,
       for: lgpd.Startup(startup.id),
-      policy_version: version,
+      version: version,
     )
 
   assert returned == version

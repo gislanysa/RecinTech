@@ -876,14 +876,14 @@ pub fn get_lgpd_consent(
         lgpd.Granted(
           lgpd.Startup(id:),
           updated_at: row.updated_at,
-          policy_version: row.policy_version,
+          version: row.policy_version,
         )
 
       sql.Revoked ->
         lgpd.Revoked(
           lgpd.Startup(id:),
           updated_at: row.updated_at,
-          policy_version: row.policy_version,
+          version: row.policy_version,
         )
     }
   })
