@@ -1,10 +1,13 @@
 //// Manages user consent tracking and policy versioning for compliance with the
 //// Brazilian General Data Protection Law (Lei Geral de Proteção de Dados).
 
+import gleam/dynamic/decode
+import gleam/json
 import gleam/list
 import gleam/result
 import gleam/time/timestamp
 import pog
+import server/internal
 import server/lgpd/sql
 import youid/uuid
 
@@ -27,6 +30,42 @@ pub type Subject {
   Investor(id: uuid.Uuid)
 }
 
+@internal
+pub fn subject_decoder() -> decode.Decoder(Subject) {
+  use variant <- decode.field("type", decode.string)
+
+  case variant {
+    "startup" -> {
+      use id <- decode.field("id", internal.uuid_decoder())
+      decode.success(Startup(id:))
+    }
+
+    "investor" -> {
+      use id <- decode.field("id", internal.uuid_decoder())
+      decode.success(Investor(id:))
+    }
+
+    _ -> decode.failure(Startup(id: uuid.v7()), "Subject")
+  }
+}
+
+@internal
+pub fn subject_to_json(subject: Subject) -> json.Json {
+  case subject {
+    Startup(id:) ->
+      json.object([
+        #("type", json.string("startup")),
+        #("id", internal.uuid_to_json(id)),
+      ])
+
+    Investor(id:) ->
+      json.object([
+        #("type", json.string("investor")),
+        #("id", internal.uuid_to_json(id)),
+      ])
+  }
+}
+
 /// A Startup / Investor may grant or revoke consent
 /// to the General Data Protection Law.
 pub type Consent {
@@ -34,6 +73,58 @@ pub type Consent {
   Granted(subject: Subject, updated_at: timestamp.Timestamp, version: Int)
   /// A Subject revoked access to their data and we are not allowed to use it.
   Revoked(subject: Subject, updated_at: timestamp.Timestamp, version: Int)
+}
+
+@internal
+pub fn consent_to_json(consent: Consent) -> json.Json {
+  case consent {
+    Granted(subject:, updated_at:, version:) ->
+      json.object([
+        #("type", json.string("granted")),
+        #("subject", subject_to_json(subject)),
+        #("updated_at", internal.timestamp_to_json(updated_at)),
+        #("version", json.int(version)),
+      ])
+
+    Revoked(subject:, updated_at:, version:) ->
+      json.object([
+        #("type", json.string("revoked")),
+        #("subject", subject_to_json(subject)),
+        #("updated_at", internal.timestamp_to_json(updated_at)),
+        #("version", json.int(version)),
+      ])
+  }
+}
+
+@internal
+pub fn consent_decoder() -> decode.Decoder(Consent) {
+  use variant <- decode.field("type", decode.string)
+
+  case variant {
+    "granted" -> {
+      use subject <- decode.field("subject", subject_decoder())
+      use updated_at <- decode.field("updated_at", internal.timestamp_decoder())
+      use version <- decode.field("version", decode.int)
+      decode.success(Granted(subject:, updated_at:, version:))
+    }
+
+    "revoked" -> {
+      use subject <- decode.field("subject", subject_decoder())
+      use updated_at <- decode.field("updated_at", internal.timestamp_decoder())
+      use version <- decode.field("version", decode.int)
+      decode.success(Revoked(subject:, updated_at:, version:))
+    }
+
+    _ ->
+      decode.failure(
+        Revoked(
+          subject: Startup(uuid.v7()),
+          updated_at: timestamp.system_time(),
+          version: 1,
+        ),
+        "Consent",
+      )
+  }
 }
 
 /// Grants LGPD consent for a given entity and policy version.
