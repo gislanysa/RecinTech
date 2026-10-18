@@ -18,7 +18,6 @@ export default function App() {
 
         {/* Telas de outras branches trocar o marcador pelo componente real. */}
         <Route path="/startups" element={<ExplorarStartups />} />
-        <Route path="/startups/:slug" element={<EmConstrucao titulo="Perfil da startup" />} />
         <Route path="/para-startups" element={<ParaStartups />} />
         <Route path="/para-empresas" element={<ParaEmpresas />} />
         <Route path="/entrar" element={<Entrar />} />
@@ -26,8 +25,9 @@ export default function App() {
         {/* Cadastro de usuário */}
         <Route path="/criar-conta" element={<CriarConta />} />
 
-        {/* Dashboards — sessão validada via cookie antes de renderizar */}
+        {/* Rotas privadas — sessão validada via cookie antes de renderizar */}
         <Route element={<RotaProtegida />}>
+          <Route path="/startups/:slug" element={<EmConstrucao titulo="Perfil da startup" />} />
           <Route path="/dashboard/startup" element={<DashboardStartup />} />
           <Route path="/dashboard/empresa" element={<DashboardEmpresa />} />
         </Route>

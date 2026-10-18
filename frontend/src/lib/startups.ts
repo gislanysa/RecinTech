@@ -4,15 +4,15 @@ import { api, type Startup as StartupReal } from '@/lib/api.ts'
  * Modelo de "catálogo" de startup — o que a tela de exploração precisa pra
  * exibir e filtrar cards.
  *
- * `StartupReal` (api.ts) é o contrato que o backend já implementa hoje:
- * id, name, stage, cnpj, description, city, state, created_at. Os campos
- * abaixo (area, services, technologies, segments, tagline...) ainda não
- * existem no banco — no schema atual (`postgres/00_tables.sql`) só
- * `expertise`, `service` e `segment` têm tabela própria; `technologies` não
- * tem nenhuma. Ou seja: quando o back expuser `GET /startup`, o retorno
- * provavelmente vai vir com nomes diferentes desses (`expertises`,
- * `services`, `segments` como listas de `{id, name, description}`) — este
- * tipo é o alvo de UX, não o contrato definitivo. Ajuste `mapearStartup`
+ * `StartupReal` (api.ts) é o contrato que o backend implementa:
+ * id, name, email, stage, cnpj, description, city, state, website,
+ * is_active, created_at. Os campos abaixo (area, services, technologies,
+ * segments, tagline...) ainda não existem no banco — no schema atual
+ * (`postgres/00_tables.sql`) só `expertise`, `service` e `segment` têm tabela
+ * própria; `technologies` não tem nenhuma. Ou seja: quando o back expuser
+ * `GET /startup`, o retorno provavelmente vai vir com nomes diferentes desses
+ * (`expertises`, `services`, `segments` como listas de `{id, name, description}`)
+ * — este tipo é o alvo de UX, não o contrato definitivo. Ajuste `mapearStartup`
  * abaixo quando o formato real chegar.
  */
 export type StartupCatalogo = StartupReal & {
@@ -68,7 +68,7 @@ export const TECHNOLOGIES = [
   'Outras',
 ] as const
 
-/** Mesma lista usada no cadastro (`FormularioStartup.tsx`) — não duplicar aqui, importar de lá quando o valor virar compartilhado. */
+/** Lista única de segmentos: usada no cadastro (`FormularioStartup.tsx`) e nos filtros. */
 export const SEGMENTS = [
   'Agritech',
   'Cleantech / Sustentabilidade',
@@ -100,11 +100,12 @@ export const STARTUPS_MOCK: StartupCatalogo[] = [
     id: 'inova-ai',
     slug: 'inova-ai',
     name: 'InovaAI',
+    email: 'contato@inovaai.com.br',
     initials: 'IA',
     area: 'Tecnologia',
     tagline: 'Modelos de IA aplicados a atendimento, previsão de demanda e automação de processos.',
     description: '',
-    stage: 'growth',
+    stage: 'scaling',
     cnpj: '',
     services: ['Inteligência Artificial', 'Automação', 'Análise de Dados', 'Consultoria'],
     technologies: ['Python', 'TypeScript', 'PostgreSQL', 'AWS', 'Docker'],
@@ -113,7 +114,9 @@ export const STARTUPS_MOCK: StartupCatalogo[] = [
     state: 'PE',
     remote: true,
     onsite: true,
+    website: 'https://inovaai.com.br',
     site: 'https://inovaai.com.br',
+    is_active: true,
     created_at: '2026-08-20',
     relevance: 98,
   },
@@ -121,11 +124,12 @@ export const STARTUPS_MOCK: StartupCatalogo[] = [
     id: 'mobilize-labs',
     slug: 'mobilize-labs',
     name: 'Mobilize Labs',
+    email: 'contato@mobilizelabs.com.br',
     initials: 'ML',
     area: 'Tecnologia',
     tagline: 'Estúdio de produtos mobile de alta performance para apps com milhões de acessos.',
     description: '',
-    stage: 'growth',
+    stage: 'scaling',
     cnpj: '',
     services: ['Desenvolvimento Mobile', 'UX/UI Design', 'Desenvolvimento Web'],
     technologies: ['React Native', 'TypeScript', 'Node.js', 'AWS'],
@@ -134,6 +138,8 @@ export const STARTUPS_MOCK: StartupCatalogo[] = [
     state: 'SP',
     remote: true,
     onsite: true,
+    website: '',
+    is_active: true,
     created_at: '2026-09-02',
     relevance: 95,
   },
@@ -141,11 +147,12 @@ export const STARTUPS_MOCK: StartupCatalogo[] = [
     id: 'vita-healthtech',
     slug: 'vita-healthtech',
     name: 'Vita HealthTech',
+    email: 'contato@vitahealth.com.br',
     initials: 'VH',
     area: 'Saúde',
     tagline: 'Plataformas de telessaúde e prontuário inteligente para clínicas e operadoras.',
     description: '',
-    stage: 'seed',
+    stage: 'traction',
     cnpj: '',
     services: ['Desenvolvimento Web', 'Inteligência Artificial', 'Consultoria'],
     technologies: ['Node.js', 'React', 'PostgreSQL', 'Docker'],
@@ -154,6 +161,8 @@ export const STARTUPS_MOCK: StartupCatalogo[] = [
     state: 'SC',
     remote: true,
     onsite: false,
+    website: '',
+    is_active: true,
     created_at: '2026-07-11',
     relevance: 91,
   },
@@ -161,11 +170,12 @@ export const STARTUPS_MOCK: StartupCatalogo[] = [
     id: 'credmatch',
     slug: 'credmatch',
     name: 'CredMatch',
+    email: 'contato@credmatch.com.br',
     initials: 'CM',
     area: 'Finanças',
     tagline: 'Motores de crédito, antifraude e open finance como serviço.',
     description: '',
-    stage: 'growth',
+    stage: 'scaling',
     cnpj: '',
     services: ['Inteligência Artificial', 'Análise de Dados', 'Desenvolvimento Web', 'Automação'],
     technologies: ['Java', 'Python', 'PostgreSQL', 'AWS', 'Docker'],
@@ -174,6 +184,8 @@ export const STARTUPS_MOCK: StartupCatalogo[] = [
     state: 'SP',
     remote: true,
     onsite: false,
+    website: '',
+    is_active: true,
     created_at: '2026-06-30',
     relevance: 89,
   },
@@ -181,11 +193,12 @@ export const STARTUPS_MOCK: StartupCatalogo[] = [
     id: 'aprende-mais',
     slug: 'aprende-mais',
     name: 'AprendeMais',
+    email: 'contato@aprendemais.com.br',
     initials: 'AM',
     area: 'Educação',
     tagline: 'Plataformas de aprendizagem adaptativa para escolas e universidades corporativas.',
     description: '',
-    stage: 'seed',
+    stage: 'traction',
     cnpj: '',
     services: ['Desenvolvimento Web', 'UX/UI Design', 'Análise de Dados'],
     technologies: ['React', 'Node.js', 'MySQL', 'JavaScript'],
@@ -194,6 +207,8 @@ export const STARTUPS_MOCK: StartupCatalogo[] = [
     state: 'PE',
     remote: true,
     onsite: true,
+    website: '',
+    is_active: true,
     created_at: '2026-09-10',
     relevance: 84,
   },
@@ -201,11 +216,12 @@ export const STARTUPS_MOCK: StartupCatalogo[] = [
     id: 'dataforge',
     slug: 'dataforge',
     name: 'DataForge',
+    email: 'contato@dataforge.com.br',
     initials: 'DF',
     area: 'Tecnologia',
     tagline: 'Engenharia de dados, data lakes e analytics self-service.',
     description: '',
-    stage: 'growth',
+    stage: 'scaling',
     cnpj: '',
     services: ['Análise de Dados', 'Automação', 'Consultoria'],
     technologies: ['Python', 'PostgreSQL', 'AWS', 'Docker', 'TypeScript'],
@@ -214,6 +230,8 @@ export const STARTUPS_MOCK: StartupCatalogo[] = [
     state: 'RS',
     remote: true,
     onsite: false,
+    website: '',
+    is_active: true,
     created_at: '2026-07-29',
     relevance: 86,
   },

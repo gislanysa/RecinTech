@@ -19,7 +19,6 @@ const COLUNAS = [
     ],
   },
   {
-    // A LGPD está no escopo desde o início, então tem lugar fixo no rodapé.
     titulo: 'Privacidade',
     links: [
       { label: 'Política de privacidade', to: '/privacidade' },

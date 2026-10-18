@@ -13,10 +13,11 @@ export default defineConfig({
   },
   server: {
     // A API em Gleam roda na porta 8000 (ver server.gleam). O proxy evita CORS no dev.
+    // Não usar `changeOrigin: true`: o wisp (csrf_known_header_protection) compara
+    // o header Origin com o Host, e reescrever o Host causaria "Invalid origin".
     proxy: {
       '/api': {
         target: 'http://localhost:8000',
-        changeOrigin: true,
       },
     },
   },
