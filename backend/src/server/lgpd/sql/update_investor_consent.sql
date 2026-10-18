@@ -7,7 +7,7 @@ VALUES
         $2::lgpd_consent,
         $3::integer,
         CURRENT_TIMESTAMP::timestamp
-    ) ON conflict(investor_id) DO
+    ) ON conflict(investor_id, policy_version) DO
 UPDATE
 SET
     consent = EXCLUDED.consent,
