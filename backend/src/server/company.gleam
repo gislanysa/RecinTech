@@ -13,6 +13,7 @@ import server/cnpj
 import server/company/sql
 import server/email
 import server/internal
+import server/lgpd
 import youid/uuid
 
 pub type CompanyError {
@@ -395,4 +396,50 @@ fn size_to_enum(size: Size) -> sql.CompanySize {
     Medium -> sql.Medium
     Big -> sql.Big
   }
+}
+
+/// Get all consent records assigned to a given Company
+///
+/// ## Examples
+///
+/// ```gleam
+/// let result = company.get_lgpd_consent(context.database, id)
+///
+/// case returned {
+///   Ok(data) -> todo as "send response"
+///   Error(company.NotFound(_)) -> wisp.not_found()
+///   Error(_) -> wisp.internal_server_error()
+/// }
+/// ```
+pub fn get_lgpd_consent(
+  database: pog.Connection,
+  id: uuid.Uuid,
+) -> Result(List(lgpd.Consent), CompanyError) {
+  use returned <- result.try(
+    sql.get_lgpd_consent(database, id)
+    |> result.map_error(DatabaseError),
+  )
+
+  use rows <- result.map(case returned.rows {
+    [] -> Error(NotFound(id:))
+    rows -> Ok(rows)
+  })
+
+  list.map(rows, fn(row) {
+    case row.consent {
+      sql.Granted ->
+        lgpd.Granted(
+          lgpd.Startup(id:),
+          updated_at: row.updated_at,
+          version: row.policy_version,
+        )
+
+      sql.Revoked ->
+        lgpd.Revoked(
+          lgpd.Startup(id:),
+          updated_at: row.updated_at,
+          version: row.policy_version,
+        )
+    }
+  })
 }

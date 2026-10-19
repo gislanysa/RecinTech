@@ -239,7 +239,7 @@ fn do_update_consent(
 
     Company(id:) -> {
       use returned <- result.try(
-        case sql.update_company_consent(database, id, sql.Granted, version) {
+        case sql.update_company_consent(database, id, target_consent, version) {
           Error(pog.ConstraintViolated(
             constraint: "company_lgpd_consent_company_id_fkey",
             ..,
