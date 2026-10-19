@@ -35,8 +35,11 @@ pub type CompanyError {
 
   /// Company provided an incorrect password when during login
   WrongPassword
+  /// CNPJ is already registered
   CnpjConflict(value: cnpj.Cnpj)
+  /// Email already registered
   EmailConflict(value: email.Email)
+  /// Failed to register a new Company
   FailedToRegisterCompany
 }
 
