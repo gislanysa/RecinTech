@@ -1,5 +1,6 @@
 import gleam/uri
 import server/cnpj
+import server/company
 import server/email
 import server/startup
 import youid/uuid
@@ -36,4 +37,17 @@ pub type AssignStartupToExpertise {
 
 pub type AssignStartupToService {
   AssignStartupToService(startup: uuid.Uuid, service: uuid.Uuid)
+}
+
+pub type RegisterCompany {
+  RegisterCompany(
+    name: String,
+    size: company.Size,
+    email: email.Email,
+    password: String,
+    cnpj: cnpj.Cnpj,
+    city: String,
+    state: String,
+    website: uri.Uri,
+  )
 }

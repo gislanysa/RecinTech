@@ -848,3 +848,31 @@ pub fn get_many_segments_test() -> Nil {
 
   Nil
 }
+
+pub fn register_company_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let body =
+    json.object([
+      #("name", json.string("wibble")),
+      #("size", company.size_to_json(company.Big)),
+      #("email", json.string("wibble@email.com")),
+      #("password", json.string("wibble")),
+      #("cnpj", json.string("12345678901234")),
+      #("city", json.string("Recife")),
+      #("state", json.string("PE")),
+      #("website", json.string("")),
+    ])
+
+  let response =
+    simulate.browser_request(http.Post, "/api/company")
+    |> simulate.json_body(body)
+    |> web.handle_request(context)
+
+  assert response.status == 201
+
+  let body = simulate.read_body(response)
+  let assert Ok(_) = json.parse(body, company.decoder())
+
+  Nil
+}

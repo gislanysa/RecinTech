@@ -74,16 +74,23 @@ pub type Size {
   Big
 }
 
-fn size_to_json(size: Size) -> json.Json {
+pub fn size_to_string(size: Size) -> String {
   case size {
-    Micro -> json.string("micro")
-    Small -> json.string("small")
-    Medium -> json.string("medium")
-    Big -> json.string("big")
+    Micro -> "micro"
+    Small -> "small"
+    Medium -> "medium"
+    Big -> "big"
   }
 }
 
-fn size_decoder() -> decode.Decoder(Size) {
+@internal
+pub fn size_to_json(size: Size) -> json.Json {
+  size_to_string(size)
+  |> json.string
+}
+
+@internal
+pub fn size_decoder() -> decode.Decoder(Size) {
   use variant <- decode.then(decode.string)
   case variant {
     "micro" -> decode.success(Micro)
