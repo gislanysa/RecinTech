@@ -113,7 +113,7 @@ pub fn new_company(database: pog.Connection) -> company.Company {
       size: company.Big,
       email: new_email(),
       cnpj: new_cnpj(),
-      password: "",
+      password:,
       city: "",
       state: "",
       website: uri.empty,
