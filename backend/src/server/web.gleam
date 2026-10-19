@@ -126,6 +126,11 @@ pub fn handle_request(
       assign_startup_to_technology(request, context.database)
 
     // +-----------------------------------------------------------------------+
+    // | COMPANY                                                               |
+    // +-----------------------------------------------------------------------+
+    http.Post, ["api", "company"] -> register_company(request, context.database)
+
+    // +-----------------------------------------------------------------------+
     // | NOT FOUND                                                             |
     // +-----------------------------------------------------------------------+
     //
@@ -1137,7 +1142,7 @@ fn set_session_token(
 ///  "description": "startup muito maneira",
 ///  "city": "Recife",
 ///  "state": "Pernambuco",
-///  "website": "recintech.dev"
+///  "website": "https://recintech.dev"
 /// }
 /// ```
 ///
@@ -1201,6 +1206,87 @@ fn register_startup(
           |> wisp.json_response(201)
 
         Error(error) -> handle_startup_error(error)
+      }
+    }
+  }
+}
+
+/// ## `POST /api/company`
+///
+/// Register a new Company
+///
+/// ## Request Body
+///
+/// ```json
+/// {
+///  "name": "Recintech",
+///  "size": "micro",
+///  "email": "recintech@email.com",
+///  "password": "12345678",
+///  "cnpj": "12345678901234",
+///  "city": "Recife",
+///  "state": "Pernambuco",
+///  "website": "https://recintech.dev"
+/// }
+/// ```
+///
+/// ## Status Codes
+///
+/// - 200 If successful.
+/// - 409 If duplicated email or cnpj.
+///
+fn register_company(
+  request: wisp.Request,
+  database: pog.Connection,
+) -> wisp.Response {
+  use body <- wisp.require_json(request)
+
+  let decoder = {
+    use name <- decode.field("name", decode.string)
+    use size <- decode.field("size", company.size_decoder())
+    use email <- decode.field("email", email.decoder())
+    use password <- decode.field("password", decode.string)
+    use cnpj <- decode.field("cnpj", cnpj.decoder())
+    use city <- decode.field("city", decode.string)
+    use state <- decode.field("state", decode.string)
+    use website <- decode.field("website", internal.uri_decoder())
+
+    payload.RegisterCompany(
+      name:,
+      size:,
+      email:,
+      password:,
+      cnpj:,
+      city:,
+      state:,
+      website:,
+    )
+    |> decode.success
+  }
+
+  case decode.run(body, decoder) {
+    Error(_) -> wisp.bad_request("Invalid JSON")
+    Ok(body) -> {
+      let register_result =
+        company.register(
+          database,
+          name: body.name,
+          size: body.size,
+          email: body.email,
+          cnpj: body.cnpj,
+          password: body.password,
+          city: body.city,
+          state: body.state,
+          website: body.website,
+        )
+
+      case register_result {
+        Ok(data) ->
+          company.to_json(data)
+          |> json.to_string
+          |> wisp.json_response(201)
+
+        Error(error) -> handle_company_error(error)
       }
     }
   }
