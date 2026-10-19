@@ -97,7 +97,7 @@ pub type GetCredentialsRow {
   GetCredentialsRow(id: Uuid, password_hash: String)
 }
 
-/// select investor id and credentials
+/// select company id and credentials
 ///
 /// > 🐿️ This function was generated automatically using v4.7.0 of
 /// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
@@ -112,7 +112,7 @@ pub fn get_credentials(
     decode.success(GetCredentialsRow(id:, password_hash:))
   }
 
-  "-- select investor id and credentials
+  "-- select company id and credentials
 SELECT
     i.id,
     i.password_hash
@@ -123,6 +123,116 @@ WHERE
 "
   |> pog.query
   |> pog.parameter(pog.text(arg_1))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
+/// A row you get from running the `register` query
+/// defined in `./src/server/company/sql/register.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v4.7.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type RegisterRow {
+  RegisterRow(
+    id: Uuid,
+    name: String,
+    size: CompanySize,
+    email: String,
+    cnpj: String,
+    city: String,
+    state: String,
+    created_at: Timestamp,
+    is_active: Bool,
+    website: String,
+  )
+}
+
+/// register a new company on the database
+///
+/// > 🐿️ This function was generated automatically using v4.7.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn register(
+  db: pog.Connection,
+  arg_1: String,
+  arg_2: CompanySize,
+  arg_3: String,
+  arg_4: String,
+  arg_5: String,
+  arg_6: String,
+  arg_7: String,
+  arg_8: String,
+) -> Result(pog.Returned(RegisterRow), pog.QueryError) {
+  let decoder = {
+    use id <- decode.field(0, uuid_decoder())
+    use name <- decode.field(1, decode.string)
+    use size <- decode.field(2, company_size_decoder())
+    use email <- decode.field(3, decode.string)
+    use cnpj <- decode.field(4, decode.string)
+    use city <- decode.field(5, decode.string)
+    use state <- decode.field(6, decode.string)
+    use created_at <- decode.field(7, pog.timestamp_decoder())
+    use is_active <- decode.field(8, decode.bool)
+    use website <- decode.field(9, decode.string)
+    decode.success(RegisterRow(
+      id:,
+      name:,
+      size:,
+      email:,
+      cnpj:,
+      city:,
+      state:,
+      created_at:,
+      is_active:,
+      website:,
+    ))
+  }
+
+  "-- register a new company on the database
+INSERT INTO
+    public.company (
+        name,
+        size,
+        email,
+        cnpj,
+        password_hash,
+        city,
+        state,
+        website
+    )
+VALUES
+    (
+        $1::text,
+        $2::company_size,
+        $3::text,
+        $4::text,
+        $5::text,
+        $6::text,
+        $7::text,
+        $8::text
+    )
+RETURNING
+    id::uuid,
+    name::text,
+    size::company_size,
+    email::text,
+    cnpj::text,
+    city::text,
+    state::text,
+    created_at,
+    is_active::boolean,
+    website::text;
+"
+  |> pog.query
+  |> pog.parameter(pog.text(arg_1))
+  |> pog.parameter(company_size_encoder(arg_2))
+  |> pog.parameter(pog.text(arg_3))
+  |> pog.parameter(pog.text(arg_4))
+  |> pog.parameter(pog.text(arg_5))
+  |> pog.parameter(pog.text(arg_6))
+  |> pog.parameter(pog.text(arg_7))
+  |> pog.parameter(pog.text(arg_8))
   |> pog.returning(decoder)
   |> pog.execute(db)
 }
@@ -150,6 +260,16 @@ fn company_size_decoder() -> decode.Decoder(CompanySize) {
     "micro" -> decode.success(Micro)
     _ -> decode.failure(Big, "CompanySize")
   }
+}
+
+fn company_size_encoder(company_size) -> pog.Value {
+  case company_size {
+    Big -> "big"
+    Medium -> "medium"
+    Small -> "small"
+    Micro -> "micro"
+  }
+  |> pog.text
 }
 
 // --- Encoding/decoding utils -------------------------------------------------

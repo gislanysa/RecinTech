@@ -6,6 +6,7 @@ import gleam/string
 import gleam/uri
 import pog
 import server/cnpj
+import server/company
 import server/email
 import server/segment
 import server/startup
@@ -100,6 +101,26 @@ pub fn new_service(database: pog.Connection) -> service.Service {
 pub fn new_technology(database: pog.Connection) -> technology.Technology {
   case technology.register(database, name: "wibble", description: "wobble") {
     Error(_) -> panic as "failed to generate dummy technology"
+    Ok(data) -> data
+  }
+}
+
+pub fn new_company(database: pog.Connection) -> company.Company {
+  let result =
+    company.register(
+      database,
+      name: "",
+      size: company.Big,
+      email: new_email(),
+      cnpj: new_cnpj(),
+      password: "",
+      city: "",
+      state: "",
+      website: uri.empty,
+    )
+
+  case result {
+    Error(_) -> panic as "failed to generate dummy company"
     Ok(data) -> data
   }
 }
