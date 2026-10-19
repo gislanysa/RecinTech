@@ -1363,11 +1363,11 @@ fn handle_company_error(error: company.CompanyError) -> wisp.Response {
 
     company.CnpjConflict(value:) ->
       { "CNPJ already registered: " <> cnpj.to_string(value) }
-      |> wisp.string_body(wisp.response(401), _)
+      |> wisp.string_body(wisp.response(409), _)
 
     company.EmailConflict(value:) ->
       { "Email already registered: " <> email.to_string(value) }
-      |> wisp.string_body(wisp.response(401), _)
+      |> wisp.string_body(wisp.response(409), _)
 
     company.FailedToRegisterCompany ->
       "Failed to register Company"
