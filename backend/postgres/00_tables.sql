@@ -1,12 +1,5 @@
 CREATE TYPE startup_stage AS enum ('traction', 'scaling');
 
-CREATE TYPE investor_kind AS enum (
-    'angel',
-    'venture',
-    'individual',
-    'institutional'
-);
-
 CREATE TABLE segment (
     id uuid DEFAULT uuidv7(),
     name text NOT NULL,
@@ -46,29 +39,27 @@ CREATE TABLE startup_lgpd_consent (
 
 CREATE INDEX idx_startup_lgpd_consent_startup ON startup_lgpd_consent (startup_id);
 
-CREATE TABLE investor (
+CREATE TABLE company (
     id uuid DEFAULT uuidv7(),
     name text NOT NULL,
-    kind investor_kind NOT NULL,
     email text UNIQUE NOT NULL CHECK (email LIKE '%@%'),
     password_hash text NOT NULL,
-    public_profile boolean NOT NULL DEFAULT TRUE,
     created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
     is_active boolean NOT NULL DEFAULT TRUE,
     PRIMARY KEY(id)
 );
 
-CREATE INDEX idx_investor_email ON investor (email);
+CREATE INDEX idx_company_email ON company (email);
 
-CREATE TABLE investor_lgpd_consent (
-    investor_id uuid NOT NULL REFERENCES investor (id) ON DELETE CASCADE,
+CREATE TABLE company_lgpd_consent (
+    company_id uuid NOT NULL REFERENCES company (id) ON DELETE CASCADE,
     consent lgpd_consent NOT NULL DEFAULT 'revoked',
     updated_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
     policy_version integer NOT NULL CHECK (policy_version > 0),
-    PRIMARY KEY(investor_id, policy_version)
+    PRIMARY KEY(company_id, policy_version)
 );
 
-CREATE INDEX idx_investor_lgpd_consent_investor ON investor_lgpd_consent (investor_id);
+CREATE INDEX idx_company_lgpd_consent_company ON company_lgpd_consent (company_id);
 
 CREATE TABLE startup_segment (
     startup_id uuid REFERENCES startup (id) ON DELETE CASCADE,
@@ -80,15 +71,15 @@ CREATE INDEX idx_startup_segment_startup ON startup_segment (startup_id);
 
 CREATE INDEX idx_startup_segment_segment ON startup_segment (segment_id);
 
-CREATE TABLE investor_segment (
-    investor_id uuid REFERENCES investor (id) ON DELETE CASCADE,
+CREATE TABLE company_segment (
+    company_id uuid REFERENCES company (id) ON DELETE CASCADE,
     segment_id uuid REFERENCES segment (id) ON DELETE CASCADE,
-    PRIMARY KEY(investor_id, segment_id)
+    PRIMARY KEY(company_id, segment_id)
 );
 
-CREATE INDEX idx_investor_segment_investor ON investor_segment (investor_id);
+CREATE INDEX idx_company_segment_company ON company_segment (company_id);
 
-CREATE INDEX idx_investor_segment_segment ON investor_segment (segment_id);
+CREATE INDEX idx_company_segment_segment ON company_segment (segment_id);
 
 CREATE TABLE expertise(
     id uuid DEFAULT uuidv7(),

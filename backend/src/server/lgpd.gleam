@@ -22,12 +22,12 @@ pub type LgpdError {
   FailedToUpdateConsent(subject: Subject)
 }
 
-/// Entity (Startup or Investor) granting or revoking consent to their data.
+/// Entity (Startup or Company) granting or revoking consent to their data.
 pub type Subject {
   /// A startup entity
   Startup(id: uuid.Uuid)
-  /// An Investor entity
-  Investor(id: uuid.Uuid)
+  /// An Company entity
+  Company(id: uuid.Uuid)
 }
 
 @internal
@@ -40,9 +40,9 @@ pub fn subject_decoder() -> decode.Decoder(Subject) {
       decode.success(Startup(id:))
     }
 
-    "investor" -> {
+    "company" -> {
       use id <- decode.field("id", internal.uuid_decoder())
-      decode.success(Investor(id:))
+      decode.success(Company(id:))
     }
 
     _ -> decode.failure(Startup(id: uuid.v7()), "Subject")
@@ -58,15 +58,15 @@ pub fn subject_to_json(subject: Subject) -> json.Json {
         #("id", internal.uuid_to_json(id)),
       ])
 
-    Investor(id:) ->
+    Company(id:) ->
       json.object([
-        #("type", json.string("investor")),
+        #("type", json.string("company")),
         #("id", internal.uuid_to_json(id)),
       ])
   }
 }
 
-/// A Startup / Investor may grant or revoke consent
+/// A Startup / Company may grant or revoke consent
 /// to the General Data Protection Law.
 pub type Consent {
   /// A Subject granted access to their data.
@@ -237,16 +237,16 @@ fn do_update_consent(
       }
     }
 
-    Investor(id:) -> {
+    Company(id:) -> {
       use returned <- result.try(
-        case sql.update_investor_consent(database, id, sql.Granted, version) {
+        case sql.update_company_consent(database, id, sql.Granted, version) {
           Error(pog.ConstraintViolated(
-            constraint: "investor_lgpd_consent_investor_id_fkey",
+            constraint: "company_lgpd_consent_company_id_fkey",
             ..,
           )) -> Error(SubjectNotFound(id:))
 
           Error(pog.ConstraintViolated(
-            constraint: "investor_lgpd_consent_policy_version_check",
+            constraint: "company_lgpd_consent_policy_version_check",
             ..,
           )) -> Error(InvalidPolicyVersion(version:))
 

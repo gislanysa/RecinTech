@@ -1,5 +1,5 @@
 //// This module contains the code to run the sql queries defined in
-//// `./src/server/investor/sql`.
+//// `./src/server/company/sql`.
 //// > 🐿️ This module was generated automatically using v4.7.0 of
 //// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
 ////
@@ -10,7 +10,7 @@ import pog
 import youid/uuid.{type Uuid}
 
 /// A row you get from running the `get` query
-/// defined in `./src/server/investor/sql/get.sql`.
+/// defined in `./src/server/company/sql/get.sql`.
 ///
 /// > 🐿️ This type definition was generated automatically using v4.7.0 of the
 /// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
@@ -20,14 +20,12 @@ pub type GetRow {
     id: Uuid,
     name: String,
     email: String,
-    kind: InvestorKind,
-    public_profile: Bool,
     created_at: Timestamp,
     is_active: Bool,
   )
 }
 
-/// select an investor from the database
+/// select a company from the database
 ///
 /// > 🐿️ This function was generated automatically using v4.7.0 of
 /// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
@@ -40,34 +38,22 @@ pub fn get(
     use id <- decode.field(0, uuid_decoder())
     use name <- decode.field(1, decode.string)
     use email <- decode.field(2, decode.string)
-    use kind <- decode.field(3, investor_kind_decoder())
-    use public_profile <- decode.field(4, decode.bool)
-    use created_at <- decode.field(5, pog.timestamp_decoder())
-    use is_active <- decode.field(6, decode.bool)
-    decode.success(GetRow(
-      id:,
-      name:,
-      email:,
-      kind:,
-      public_profile:,
-      created_at:,
-      is_active:,
-    ))
+    use created_at <- decode.field(3, pog.timestamp_decoder())
+    use is_active <- decode.field(4, decode.bool)
+    decode.success(GetRow(id:, name:, email:, created_at:, is_active:))
   }
 
-  "-- select an investor from the database
+  "-- select a company from the database
 SELECT
-    i.id,
-    i.name,
-    i.email,
-    i.kind,
-    i.public_profile,
-    i.created_at,
-    i.is_active
+    c.id,
+    c.name,
+    c.email,
+    c.created_at,
+    c.is_active
 FROM
-    investor AS i
+    public.company AS c
 WHERE
-    i.id = $1::uuid;
+    c.id = $1::uuid;
 "
   |> pog.query
   |> pog.parameter(pog.text(uuid.to_string(arg_1)))
@@ -76,7 +62,7 @@ WHERE
 }
 
 /// A row you get from running the `get_credentials` query
-/// defined in `./src/server/investor/sql/get_credentials.sql`.
+/// defined in `./src/server/company/sql/get_credentials.sql`.
 ///
 /// > 🐿️ This type definition was generated automatically using v4.7.0 of the
 /// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
@@ -105,7 +91,7 @@ SELECT
     i.id,
     i.password_hash
 FROM
-    public.investor AS i
+    public.company AS i
 WHERE
     i.email = $1::text;
 "
@@ -113,31 +99,6 @@ WHERE
   |> pog.parameter(pog.text(arg_1))
   |> pog.returning(decoder)
   |> pog.execute(db)
-}
-
-// --- Enums -------------------------------------------------------------------
-
-/// Corresponds to the Postgres `investor_kind` enum.
-///
-/// > 🐿️ This type definition was generated automatically using v4.7.0 of the
-/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
-///
-pub type InvestorKind {
-  Institutional
-  Individual
-  Venture
-  Angel
-}
-
-fn investor_kind_decoder() -> decode.Decoder(InvestorKind) {
-  use investor_kind <- decode.then(decode.string)
-  case investor_kind {
-    "institutional" -> decode.success(Institutional)
-    "individual" -> decode.success(Individual)
-    "venture" -> decode.success(Venture)
-    "angel" -> decode.success(Angel)
-    _ -> decode.failure(Institutional, "InvestorKind")
-  }
 }
 
 // --- Encoding/decoding utils -------------------------------------------------

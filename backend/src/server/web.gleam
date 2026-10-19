@@ -13,10 +13,10 @@ import lustre/element
 import lustre/element/html
 import pog
 import server/cnpj
+import server/company
 import server/email
 import server/internal
 import server/internal/payload
-import server/investor
 import server/segment
 import server/startup
 import server/startup/expertise
@@ -342,7 +342,7 @@ fn assign_startup_to_service(
 }
 
 /// Checks if there's an active session token in the user request.
-/// On sucess, the server will send Startup / Investor JSON data to the client
+/// On sucess, the server will send Startup / Company JSON data to the client
 /// depending on their previous session type.
 ///
 /// > **NOTE:**  
@@ -363,11 +363,11 @@ pub fn restore_session(
           |> wisp.json_response(200)
       }
 
-    Investor(id:) ->
-      case investor.get(database, id) {
-        Error(error) -> handle_investor_error(error)
+    Company(id:) ->
+      case company.get(database, id) {
+        Error(error) -> handle_company_error(error)
         Ok(data) ->
-          investor.to_json(data)
+          company.to_json(data)
           |> json.to_string()
           |> wisp.json_response(200)
       }
@@ -981,10 +981,10 @@ fn handle_database_error(error: pog.QueryError) -> wisp.Response {
   }
 }
 
-/// A user can be logged in as an Startup or as an Investor
+/// A user can be logged in as an Startup or as an Company
 pub type Session {
   Startup(id: uuid.Uuid)
-  Investor(id: uuid.Uuid)
+  Company(id: uuid.Uuid)
 }
 
 /// Encode a Session into a JSON object.
@@ -996,9 +996,9 @@ pub fn session_to_json(session: Session) -> json.Json {
         #("id", internal.uuid_to_json(id)),
       ])
 
-    Investor(id:) ->
+    Company(id:) ->
       json.object([
-        #("type", json.string("investor")),
+        #("type", json.string("company")),
         #("id", internal.uuid_to_json(id)),
       ])
   }
@@ -1014,9 +1014,9 @@ pub fn session_decoder() -> decode.Decoder(Session) {
       decode.success(Startup(id:))
     }
 
-    "investor" -> {
+    "company" -> {
       use id <- decode.field("id", internal.uuid_decoder())
-      decode.success(Investor(id:))
+      decode.success(Company(id:))
     }
 
     _ -> decode.failure(Startup(id: uuid.v7()), "Session")
@@ -1030,13 +1030,13 @@ pub const session_cookie = "SESSION"
 ///
 /// Sets a session cookie if successful, it will last exactly one hour.
 /// The response body will include a Json string containing information about the
-/// Startup / Investor being authorized.
+/// Startup / Company being authorized.
 ///
 /// ## Request Body
 ///
 /// ```jsonc
 /// {
-///   "session": "startup", // "startup" | "investor"
+///   "session": "startup", // "startup" | "company"
 ///   "email": "wibble@email.com",
 ///   "password": "12345678"
 /// }
@@ -1060,7 +1060,7 @@ fn handle_login(
       use string <- decode.then(decode.string)
       case string {
         "startup" -> decode.success(string)
-        "investor" -> decode.success(string)
+        "company" -> decode.success(string)
         other -> decode.failure(other, "session_kind")
       }
     }
@@ -1083,15 +1083,15 @@ fn handle_login(
           |> set_session_token(request, Startup(startup.id))
       }
 
-    // Investor session
-    Ok(payload.Login(session: "investor", email:, password:)) ->
-      case investor.verify(database, email:, password:) {
-        Error(error) -> handle_investor_error(error)
-        Ok(investor) ->
-          investor.to_json(investor)
+    // Company session
+    Ok(payload.Login(session: "company", email:, password:)) ->
+      case company.verify(database, email:, password:) {
+        Error(error) -> handle_company_error(error)
+        Ok(company) ->
+          company.to_json(company)
           |> json.to_string
           |> wisp.json_response(200)
-          |> set_session_token(request, Investor(investor.id))
+          |> set_session_token(request, Company(company.id))
       }
 
     // Correct Json but invalid session type
@@ -1206,15 +1206,15 @@ fn register_startup(
   }
 }
 
-fn handle_investor_error(error: investor.InvestorError) -> wisp.Response {
+fn handle_company_error(error: company.CompanyError) -> wisp.Response {
   case error {
-    investor.DatabaseError(error) -> handle_database_error(error)
-    investor.InvalidEmail(value) -> wisp.bad_request("Invalid email: " <> value)
-    investor.EmailNotFound(_) | investor.WrongPassword -> wisp.response(401)
-    investor.HashError(_) -> wisp.internal_server_error()
+    company.DatabaseError(error) -> handle_database_error(error)
+    company.InvalidEmail(value) -> wisp.bad_request("Invalid email: " <> value)
+    company.EmailNotFound(_) | company.WrongPassword -> wisp.response(401)
+    company.HashError(_) -> wisp.internal_server_error()
 
-    investor.NotFound(id) ->
-      { "Investor not found: " <> uuid.to_string(id) }
+    company.NotFound(id) ->
+      { "Company not found: " <> uuid.to_string(id) }
       |> wisp.string_body(wisp.not_found(), _)
   }
 }
