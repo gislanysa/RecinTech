@@ -20,8 +20,13 @@ pub type GetRow {
     id: Uuid,
     name: String,
     email: String,
-    created_at: Timestamp,
+    size: CompanySize,
+    cnpj: String,
+    city: String,
+    state: String,
     is_active: Bool,
+    created_at: Timestamp,
+    website: String,
   )
 }
 
@@ -38,9 +43,25 @@ pub fn get(
     use id <- decode.field(0, uuid_decoder())
     use name <- decode.field(1, decode.string)
     use email <- decode.field(2, decode.string)
-    use created_at <- decode.field(3, pog.timestamp_decoder())
-    use is_active <- decode.field(4, decode.bool)
-    decode.success(GetRow(id:, name:, email:, created_at:, is_active:))
+    use size <- decode.field(3, company_size_decoder())
+    use cnpj <- decode.field(4, decode.string)
+    use city <- decode.field(5, decode.string)
+    use state <- decode.field(6, decode.string)
+    use is_active <- decode.field(7, decode.bool)
+    use created_at <- decode.field(8, pog.timestamp_decoder())
+    use website <- decode.field(9, decode.string)
+    decode.success(GetRow(
+      id:,
+      name:,
+      email:,
+      size:,
+      cnpj:,
+      city:,
+      state:,
+      is_active:,
+      created_at:,
+      website:,
+    ))
   }
 
   "-- select a company from the database
@@ -48,8 +69,13 @@ SELECT
     c.id,
     c.name,
     c.email,
+    c.size,
+    c.cnpj,
+    c.city,
+    c.state,
+    c.is_active,
     c.created_at,
-    c.is_active
+    c.website
 FROM
     public.company AS c
 WHERE
@@ -99,6 +125,31 @@ WHERE
   |> pog.parameter(pog.text(arg_1))
   |> pog.returning(decoder)
   |> pog.execute(db)
+}
+
+// --- Enums -------------------------------------------------------------------
+
+/// Corresponds to the Postgres `company_size` enum.
+///
+/// > 🐿️ This type definition was generated automatically using v4.7.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type CompanySize {
+  Big
+  Medium
+  Small
+  Micro
+}
+
+fn company_size_decoder() -> decode.Decoder(CompanySize) {
+  use company_size <- decode.then(decode.string)
+  case company_size {
+    "big" -> decode.success(Big)
+    "medium" -> decode.success(Medium)
+    "small" -> decode.success(Small)
+    "micro" -> decode.success(Micro)
+    _ -> decode.failure(Big, "CompanySize")
+  }
 }
 
 // --- Encoding/decoding utils -------------------------------------------------

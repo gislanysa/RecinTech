@@ -39,13 +39,20 @@ CREATE TABLE startup_lgpd_consent (
 
 CREATE INDEX idx_startup_lgpd_consent_startup ON startup_lgpd_consent (startup_id);
 
+CREATE TYPE company_size AS enum ('micro', 'small', 'medium', 'big');
+
 CREATE TABLE company (
     id uuid DEFAULT uuidv7(),
     name text NOT NULL,
     email text UNIQUE NOT NULL CHECK (email LIKE '%@%'),
+    size company_size NOT NULL DEFAULT 'micro',
     password_hash text NOT NULL,
+    cnpj text UNIQUE NOT NULL CHECK (length(cnpj) = 14),
+    city text NOT NULL,
+    state text NOT NULL,
     created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
     is_active boolean NOT NULL DEFAULT TRUE,
+    website text NOT NULL DEFAULT '',
     PRIMARY KEY(id)
 );
 

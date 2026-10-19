@@ -1208,13 +1208,21 @@ fn register_startup(
 
 fn handle_company_error(error: company.CompanyError) -> wisp.Response {
   case error {
-    company.DatabaseError(error) -> handle_database_error(error)
-    company.InvalidEmail(value) -> wisp.bad_request("Invalid email: " <> value)
-    company.EmailNotFound(_) | company.WrongPassword -> wisp.response(401)
+    company.DatabaseError(error:) -> handle_database_error(error)
+    company.InvalidEmail(value:) -> wisp.bad_request("Invalid email: " <> value)
     company.HashError(_) -> wisp.internal_server_error()
 
-    company.NotFound(id) ->
+    company.NotFound(id:) ->
       { "Company not found: " <> uuid.to_string(id) }
       |> wisp.string_body(wisp.not_found(), _)
+
+    company.InvalidCnpj(value:) -> wisp.bad_request("Invalid CNPJ: " <> value)
+
+    company.InvalidWebsite(value:) ->
+      wisp.bad_request("Invalid website: " <> value)
+
+    company.EmailNotFound(_) | company.WrongPassword ->
+      { "Wrong email or password" }
+      |> wisp.string_body(wisp.response(401), _)
   }
 }
