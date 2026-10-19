@@ -3,6 +3,6 @@ SELECT
     i.id,
     i.password_hash
 FROM
-    public.investor AS i
+    public.company AS i
 WHERE
     i.email = $1::text;

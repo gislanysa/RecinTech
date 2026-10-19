@@ -72,20 +72,18 @@ erDiagram
     int policy_version PK
   }
 
-  INVESTOR {
+  company {
     uuid id PK
     text name
-    investor_kind kind "angel | venture | individual | institutional"
     text email UK
     text password_hash
-    bool public_profile
     timestamp created_at
     bool is_active
   }
 
-  INVESTOR_LGPD_CONSENT }o..|| INVESTOR : has
-  INVESTOR_LGPD_CONSENT {
-    uuid investor_id PK, FK
+  company_LGPD_CONSENT }o..|| company : has
+  company_LGPD_CONSENT {
+    uuid company_id PK, FK
     lgpd_consent consent "granted | revoked"
     timestamp updated_at
     int policy_version PK
@@ -98,10 +96,10 @@ erDiagram
     uuid segment_id PK, FK
   }
 
-  INVESTOR_SEGMENT }o..|| INVESTOR : has
-  INVESTOR_SEGMENT }o..|| SEGMENT : has
-  INVESTOR_SEGMENT {
-    uuid investor_id PK, FK
+  company_SEGMENT }o..|| company : has
+  company_SEGMENT }o..|| SEGMENT : has
+  company_SEGMENT {
+    uuid company_id PK, FK
     uuid segment_id PK, FK
   }
 
