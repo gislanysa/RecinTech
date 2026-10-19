@@ -1042,7 +1042,7 @@ pub type Session {
   Company(id: uuid.Uuid)
 }
 
-/// Encode a Session into a JSON object.
+/// Encode a Session into JSON
 pub fn session_to_json(session: Session) -> json.Json {
   case session {
     Startup(id:) ->

@@ -37,7 +37,7 @@ pub fn decoder() -> decode.Decoder(Segment) {
   decode.success(Segment(id:, name:, description:))
 }
 
-/// Encode a Segment into a JSON object.
+/// Encode a Segment into JSON
 pub fn to_json(segment: Segment) -> json.Json {
   let Segment(id:, name:, description:) = segment
   json.object([

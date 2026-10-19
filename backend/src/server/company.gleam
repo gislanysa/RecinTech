@@ -1,3 +1,6 @@
+//// Companies look for technological solutions from the
+//// [Startups](#Startup) of Porto Digital.
+
 import argus
 import gleam/dynamic/decode
 import gleam/json
@@ -74,6 +77,7 @@ pub type Size {
   Big
 }
 
+@internal
 pub fn size_to_string(size: Size) -> String {
   case size {
     Micro -> "micro"
@@ -115,7 +119,7 @@ pub fn decoder() -> decode.Decoder(Company) {
   use is_active <- decode.field("is_active", decode.bool)
   use website <- decode.field("website", internal.uri_decoder())
 
-  decode.success(Company(
+  Company(
     id:,
     name:,
     email:,
@@ -126,10 +130,11 @@ pub fn decoder() -> decode.Decoder(Company) {
     city:,
     state:,
     website:,
-  ))
+  )
+  |> decode.success
 }
 
-/// Encode an `Company` into a json string.
+/// Encode an `Company` into a JSON
 pub fn to_json(company: Company) -> json.Json {
   let Company(
     id:,
