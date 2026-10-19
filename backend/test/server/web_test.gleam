@@ -877,6 +877,58 @@ pub fn register_company_test() -> Nil {
   Nil
 }
 
+pub fn register_company_email_conflict_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let body =
+    json.object([
+      #("name", json.string("wibble")),
+      #("size", company.size_to_json(company.Micro)),
+      #("email", email.to_json(company.email)),
+      #("password", json.string("wibble")),
+      #("cnpj", json.string("00000000000000")),
+      #("city", json.string("Recife")),
+      #("state", json.string("PE")),
+      #("website", json.string("")),
+    ])
+
+  let response =
+    simulate.browser_request(http.Post, "/api/company")
+    |> simulate.json_body(body)
+    |> web.handle_request(context)
+
+  assert response.status == 409
+
+  Nil
+}
+
+pub fn register_company_cnpj_conflict_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let body =
+    json.object([
+      #("name", json.string("wibble")),
+      #("size", company.size_to_json(company.Micro)),
+      #("email", json.string("wobble@email.com")),
+      #("password", json.string("wibble")),
+      #("cnpj", cnpj.to_json(company.cnpj)),
+      #("city", json.string("Recife")),
+      #("state", json.string("PE")),
+      #("website", json.string("")),
+    ])
+
+  let response =
+    simulate.browser_request(http.Post, "/api/company")
+    |> simulate.json_body(body)
+    |> web.handle_request(context)
+
+  assert response.status == 409
+
+  Nil
+}
+
 pub fn get_company_test() -> Nil {
   use context <- server_test.with_context()
 
