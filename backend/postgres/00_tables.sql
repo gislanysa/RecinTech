@@ -44,10 +44,10 @@ CREATE TYPE company_size AS enum ('micro', 'small', 'medium', 'big');
 CREATE TABLE company (
     id uuid DEFAULT uuidv7(),
     name text NOT NULL,
-    email text UNIQUE NOT NULL CHECK (email LIKE '%@%'),
     size company_size NOT NULL DEFAULT 'micro',
-    password_hash text NOT NULL,
+    email text UNIQUE NOT NULL CHECK (email LIKE '%@%'),
     cnpj text UNIQUE NOT NULL CHECK (length(cnpj) = 14),
+    password_hash text NOT NULL,
     city text NOT NULL,
     state text NOT NULL,
     created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,

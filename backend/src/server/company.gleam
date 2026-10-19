@@ -31,6 +31,9 @@ pub type CompanyError {
 
   /// Company provided an incorrect password when during login
   WrongPassword
+  CnpjConflict(value: cnpj.Cnpj)
+  EmailConflict(value: email.Email)
+  FailedToRegisterCompany
 }
 
 /// Represents a Company supporting a [Startup](startup.html).
@@ -40,10 +43,10 @@ pub type Company {
     id: uuid.Uuid,
     /// The Company's full name.
     name: String,
-    /// The Company's email address.
-    email: email.Email,
     /// Their size, based on the amount of workers.
     size: Size,
+    /// The Company's email address.
+    email: email.Email,
     /// Their CPNJ, it must be exactly 14 digits
     cnpj: cnpj.Cnpj,
     /// The city where it is located
@@ -146,6 +149,118 @@ pub fn to_json(company: Company) -> json.Json {
     #("is_active", json.bool(is_active)),
     #("website", internal.uri_to_json(website)),
   ])
+}
+
+/// Register a Company on the Database
+///
+/// ## Examples
+///
+/// ```gleam
+/// let assert Ok(website) = uri.parse("wibble.com")
+///
+/// let result = company.register(
+///   context.database,
+///   name: "Porto Digital",
+///   email: email,
+///   password: "wibble",
+///   size: company.Big,
+///   cnpj: cnpj,
+///   description: "Polo de tecnologia do Recife",
+///   city: "Recife",
+///   state: "Pernambuco",
+///   website: website,
+/// )
+///
+/// case result {
+///   Error(company.CnpjConflict(..))
+///   | Error(company.EmailConflict(..)) -> wisp.response(409)
+///
+///   Ok(data) -> todo as "send response"
+///   Error(_) -> wisp.internal_server_error()
+/// }
+/// ```
+pub fn register(
+  database: pog.Connection,
+  name name: String,
+  size size: Size,
+  email email: email.Email,
+  cnpj cnpj: cnpj.Cnpj,
+  password password: String,
+  city city: String,
+  state state: String,
+  website website: uri.Uri,
+) -> Result(Company, CompanyError) {
+  let size = size_to_enum(size)
+
+  use hash <- result.try(
+    argus.hasher()
+    |> argus.hash(password)
+    |> result.map_error(HashError)
+    |> result.map(fn(output) { output.encoded_hash }),
+  )
+
+  let register_result =
+    sql.register(
+      database,
+      name,
+      size,
+      email.to_string(email),
+      cnpj.to_string(cnpj),
+      hash,
+      city,
+      state,
+      uri.to_string(website),
+    )
+
+  use returned <- result.try(case register_result {
+    // Every Startup CNPJ needs to be unique.
+    Error(pog.ConstraintViolated(constraint: "company_cnpj_key", ..)) ->
+      Error(CnpjConflict(value: cnpj))
+
+    // A CNPJ needs to have exactly 14 digits.
+    Error(pog.ConstraintViolated(constraint: "company_cnpj_check", ..)) ->
+      Error(InvalidCnpj(value: cnpj.to_string(cnpj)))
+
+    // Every company Email needs to be unique.
+    Error(pog.ConstraintViolated(constraint: "company_email_key", ..)) ->
+      Error(EmailConflict(value: email))
+
+    Ok(data) -> Ok(data)
+    Error(error) -> Error(DatabaseError(error))
+  })
+
+  use row <- result.try(
+    list.first(returned.rows)
+    |> result.replace_error(FailedToRegisterCompany),
+  )
+
+  use cnpj <- result.try(
+    cnpj.parse(row.cnpj)
+    |> result.replace_error(InvalidCnpj(value: row.cnpj)),
+  )
+
+  use email <- result.try(
+    email.parse(row.email)
+    |> result.replace_error(InvalidEmail(value: row.email)),
+  )
+
+  use website <- result.map(
+    uri.parse(row.website)
+    |> result.replace_error(InvalidWebsite(value: row.website)),
+  )
+
+  Company(
+    id: row.id,
+    name: row.name,
+    email:,
+    size: size_from_enum(row.size),
+    cnpj:,
+    city: row.city,
+    state: row.state,
+    created_at: row.created_at,
+    is_active: row.is_active,
+    website: website,
+  )
 }
 
 /// Verifies the provided `email` and `password`, checking if they matches the
@@ -258,5 +373,14 @@ fn size_from_enum(enum: sql.CompanySize) -> Size {
     sql.Small -> Small
     sql.Medium -> Medium
     sql.Big -> Big
+  }
+}
+
+fn size_to_enum(size: Size) -> sql.CompanySize {
+  case size {
+    Micro -> sql.Micro
+    Small -> sql.Small
+    Medium -> sql.Medium
+    Big -> sql.Big
   }
 }

@@ -1224,5 +1224,17 @@ fn handle_company_error(error: company.CompanyError) -> wisp.Response {
     company.EmailNotFound(_) | company.WrongPassword ->
       { "Wrong email or password" }
       |> wisp.string_body(wisp.response(401), _)
+
+    company.CnpjConflict(value:) ->
+      { "CNPJ already registered: " <> cnpj.to_string(value) }
+      |> wisp.string_body(wisp.response(401), _)
+
+    company.EmailConflict(value:) ->
+      { "Email already registered: " <> email.to_string(value) }
+      |> wisp.string_body(wisp.response(401), _)
+
+    company.FailedToRegisterCompany ->
+      "Failed to register Company"
+      |> wisp.string_body(wisp.internal_server_error(), _)
   }
 }

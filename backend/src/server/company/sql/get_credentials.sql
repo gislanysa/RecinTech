@@ -1,4 +1,4 @@
--- select investor id and credentials
+-- select company id and credentials
 SELECT
     i.id,
     i.password_hash
