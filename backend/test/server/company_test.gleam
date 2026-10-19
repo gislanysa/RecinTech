@@ -1,6 +1,7 @@
 import gleam/uri
 import server/cnpj
 import server/company
+import server/dummy
 import server/email
 import server_test
 
@@ -42,4 +43,15 @@ pub fn register_company_test() -> Nil {
       is_active: returned.is_active,
       website:,
     )
+}
+
+pub fn get_company_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+
+  let assert Ok(returned) = company.get(context.database, company.id)
+  assert returned.id == company.id
+
+  Nil
 }

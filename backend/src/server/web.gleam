@@ -129,6 +129,7 @@ pub fn handle_request(
     // | COMPANY                                                               |
     // +-----------------------------------------------------------------------+
     http.Post, ["api", "company"] -> register_company(request, context.database)
+    http.Get, ["api", "company", id] -> get_company_by_id(context.database, id)
 
     // +-----------------------------------------------------------------------+
     // | NOT FOUND                                                             |
@@ -142,17 +143,39 @@ pub fn handle_request(
   }
 }
 
-/// ## `GET /api/startup/:startup/segment/:segment`
+fn get_company_by_id(database: pog.Connection, id: String) -> wisp.Response {
+  use id <- require_valid_uuid(id)
+
+  case company.get(database, id) {
+    Ok(data) ->
+      company.to_json(data)
+      |> json.to_string
+      |> wisp.json_response(200)
+
+    Error(error) -> handle_company_error(error)
+  }
+}
+
+/// ## `POST /api/startup/segment`
 ///
 /// Assign a Segment to a Startup
+///
+/// ## Request Body
+///
+/// ```json
+/// {
+///  "startup": "01a058ae-057f-73e8-b2a0-50986559767b",
+///  "segment": "01a155b2-69c7-75d7-8cc1-8d2626c6bc9b"
+/// }
+/// ```
 ///
 /// ## Response Body
 ///
 /// ```json
 /// {
-///  "id": "01a058ae-057f-73e8-b2a0-50986559767b",
-///  "name": "Tech",
-///  "description": "Technology-related stuff"
+///   "id": "01a155b2-69c7-75d7-8cc1-8d2626c6bc9b",
+///   "name": "Tech",
+///   "description": "Technology-related stuff"
 /// }
 /// ```
 ///
@@ -192,15 +215,24 @@ fn assign_startup_to_segment(
   }
 }
 
-/// ## `GET /api/startup/:startup/technology/:technology`
+/// ## `POST /api/startup/technology`
 ///
 /// Assign a Technology to a Startup
+///
+/// ## Request Body
+///
+/// ```json
+/// {
+///   "startup": "01a058ae-057f-73e8-b2a0-50986559767b",
+///   "technology": "01a155b2-69c7-75d7-8cc1-8d2626c6bc9b"
+/// }
+/// ```
 ///
 /// ## Response Body
 ///
 /// ```json
 /// {
-///   "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+///   "id": "01a155b2-69c7-75d7-8cc1-8d2626c6bc9b",
 ///   "name": "Javascript",
 ///   "description": "dont",
 /// }
@@ -246,15 +278,24 @@ fn assign_startup_to_technology(
   }
 }
 
-/// ## `GET /api/startup/:startup/expertise/:expertise`
+/// ## `POST /api/startup/expertise`
 ///
 /// Assign a Expertise to a Startup
+///
+/// ## Request Body
+///
+/// ```json
+/// {
+///  "startup": "01a058ae-057f-73e8-b2a0-50986559767b",
+///  "expertise": "01a155b2-69c7-75d7-8cc1-8d2626c6bc9b"
+/// }
+/// ```
 ///
 /// ## Response Body
 ///
 /// ```json
 /// {
-///   "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+///   "id": "01a155b2-69c7-75d7-8cc1-8d2626c6bc9b",
 ///   "name": "Education",
 ///   "description": "May it be free and for everyone"
 /// }
@@ -296,15 +337,24 @@ fn assign_startup_to_expertise(
   }
 }
 
-/// ## `GET /api/startup/:startup/service/:service`
+/// ## `POST /api/startup/service`
 ///
 /// Assign a Service to a Startup
+///
+/// ## Request Body
+///
+/// ```json
+/// {
+///  "startup": "01a058ae-057f-73e8-b2a0-50986559767b",
+///  "service": "01a155b2-69c7-75d7-8cc1-8d2626c6bc9b"
+/// }
+/// ```
 ///
 /// ## Response Body
 ///
 /// ```json
 /// {
-///   "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+///   "id": "01a155b2-69c7-75d7-8cc1-8d2626c6bc9b",
 ///   "name": "UI/UX",
 ///   "description": "user experience"
 /// }
