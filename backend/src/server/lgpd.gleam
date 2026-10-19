@@ -186,7 +186,7 @@ fn require_valid_policy_version(
 fn do_update_consent(
   database: pog.Connection,
   subject: Subject,
-  target_consent: sql.LgpdConsent,
+  consent: sql.LgpdConsent,
   version: Int,
 ) -> Result(Consent, LgpdError) {
   use version <- require_valid_policy_version(version)
@@ -194,7 +194,7 @@ fn do_update_consent(
   case subject {
     Startup(id:) -> {
       use returned <- result.try(
-        case sql.update_startup_consent(database, id, target_consent, version) {
+        case sql.update_startup_consent(database, id, consent, version) {
           Error(pog.ConstraintViolated(
             constraint: "startup_lgpd_consent_startup_id_fkey",
             ..,
@@ -213,7 +213,7 @@ fn do_update_consent(
       // This ensures that the record was properly updated to the
       // target value.
       use row <- result.map(case list.first(returned.rows) {
-        Ok(found) if found.consent == target_consent -> Ok(found)
+        Ok(found) if found.consent == consent -> Ok(found)
 
         // If the returned value was different from the expected, then we
         // failed to update the record.
@@ -239,7 +239,7 @@ fn do_update_consent(
 
     Company(id:) -> {
       use returned <- result.try(
-        case sql.update_company_consent(database, id, target_consent, version) {
+        case sql.update_company_consent(database, id, consent, version) {
           Error(pog.ConstraintViolated(
             constraint: "company_lgpd_consent_company_id_fkey",
             ..,
@@ -258,7 +258,7 @@ fn do_update_consent(
       // This ensures that the record was properly updated to the
       // target value.
       use row <- result.map(case list.first(returned.rows) {
-        Ok(found) if found.consent == target_consent -> Ok(found)
+        Ok(found) if found.consent == consent -> Ok(found)
 
         // If the returned value was different from the expected, then we
         // failed to update the record.
