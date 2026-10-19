@@ -11,6 +11,7 @@ import pog
 import server/cnpj
 import server/email
 import server/internal
+import server/lgpd
 import server/segment
 import server/startup/expertise
 import server/startup/service
@@ -96,6 +97,7 @@ pub type Stage {
 }
 
 /// Encode a startup Stage into a JSON object.
+@internal
 pub fn stage_to_json(stage: Stage) -> json.Json {
   case stage {
     Traction -> json.string("traction")
@@ -104,6 +106,7 @@ pub fn stage_to_json(stage: Stage) -> json.Json {
 }
 
 /// A decoder that decodes `Stage` values.
+@internal
 pub fn stage_decoder() -> decode.Decoder(Stage) {
   use variant <- decode.then(decode.string)
   case variant {
@@ -118,13 +121,12 @@ pub fn stage_decoder() -> decode.Decoder(Stage) {
 /// ## Examples
 ///
 /// ```gleam
-/// let assert Ok(stage) = startup.stage_from_string("traction")
+/// let assert Ok(stage) = startup.parse_stage("traction")
 /// assert stage == startup.Traction
 ///
-/// let assert Error(startup.InvalidStage(_)) =
-///   startup.stage_from_string("wibble")
+/// let assert Error(startup.InvalidStage(_)) = startup.parse_stage("wibble")
 /// ```
-pub fn stage_from_string(value: String) -> Result(Stage, StartupError) {
+pub fn parse_stage(value: String) -> Result(Stage, StartupError) {
   case value {
     "traction" -> Ok(Traction)
     "scaling" -> Ok(Scaling)
@@ -308,7 +310,7 @@ pub fn register(
 ///
 /// case result {
 ///   Ok(data) -> todo as "send response"
-///   Error(startup.NotFound) -> wisp.not_found()
+///   Error(startup.NotFound(_)) -> wisp.not_found()
 ///   Error(startup.WrongPassword) -> wisp.response(401)
 ///   Error(_) -> wisp.internal_server_error()
 /// }
@@ -839,5 +841,51 @@ pub fn get_many(
       is_active: row.is_active,
       website: website,
     )
+  })
+}
+
+/// Get all consent records assigned to a given Startup
+///
+/// ## Examples
+///
+/// ```gleam
+/// let result = startup.get_lgpd_consent(context.database, id)
+///
+/// case returned {
+///   Ok(data) -> todo as "send response"
+///   Error(startup.NotFound(_)) -> wisp.not_found()
+///   Error(_) -> wisp.internal_server_error()
+/// }
+/// ```
+pub fn get_lgpd_consent(
+  database: pog.Connection,
+  id: uuid.Uuid,
+) -> Result(List(lgpd.Consent), StartupError) {
+  use returned <- result.try(
+    sql.get_lgpd_consent(database, id)
+    |> result.map_error(DatabaseError),
+  )
+
+  use rows <- result.map(case returned.rows {
+    [] -> Error(NotFound(id:))
+    rows -> Ok(rows)
+  })
+
+  list.map(rows, fn(row) {
+    case row.consent {
+      sql.Granted ->
+        lgpd.Granted(
+          lgpd.Startup(id:),
+          updated_at: row.updated_at,
+          version: row.policy_version,
+        )
+
+      sql.Revoked ->
+        lgpd.Revoked(
+          lgpd.Startup(id:),
+          updated_at: row.updated_at,
+          version: row.policy_version,
+        )
+    }
   })
 }

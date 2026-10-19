@@ -419,6 +419,62 @@ ORDER BY
   |> pog.execute(db)
 }
 
+/// A row you get from running the `get_lgpd_consent` query
+/// defined in `./src/server/startup/sql/get_lgpd_consent.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v4.7.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type GetLgpdConsentRow {
+  GetLgpdConsentRow(
+    startup_id: Uuid,
+    consent: LgpdConsent,
+    policy_version: Int,
+    updated_at: Timestamp,
+  )
+}
+
+/// Runs the `get_lgpd_consent` query
+/// defined in `./src/server/startup/sql/get_lgpd_consent.sql`.
+///
+/// > 🐿️ This function was generated automatically using v4.7.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn get_lgpd_consent(
+  db: pog.Connection,
+  arg_1: Uuid,
+) -> Result(pog.Returned(GetLgpdConsentRow), pog.QueryError) {
+  let decoder = {
+    use startup_id <- decode.field(0, uuid_decoder())
+    use consent <- decode.field(1, lgpd_consent_decoder())
+    use policy_version <- decode.field(2, decode.int)
+    use updated_at <- decode.field(3, pog.timestamp_decoder())
+    decode.success(GetLgpdConsentRow(
+      startup_id:,
+      consent:,
+      policy_version:,
+      updated_at:,
+    ))
+  }
+
+  "SELECT
+    sc.startup_id,
+    sc.consent,
+    sc.policy_version,
+    sc.updated_at
+FROM
+    public.startup_lgpd_consent AS sc
+WHERE
+    sc.startup_id = $1::uuid
+ORDER BY
+    policy_version::integer;
+"
+  |> pog.query
+  |> pog.parameter(pog.text(uuid.to_string(arg_1)))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
 /// A row you get from running the `get_many` query
 /// defined in `./src/server/startup/sql/get_many.sql`.
 ///
@@ -759,6 +815,25 @@ RETURNING
 }
 
 // --- Enums -------------------------------------------------------------------
+
+/// Corresponds to the Postgres `lgpd_consent` enum.
+///
+/// > 🐿️ This type definition was generated automatically using v4.7.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type LgpdConsent {
+  Revoked
+  Granted
+}
+
+fn lgpd_consent_decoder() -> decode.Decoder(LgpdConsent) {
+  use lgpd_consent <- decode.then(decode.string)
+  case lgpd_consent {
+    "revoked" -> decode.success(Revoked)
+    "granted" -> decode.success(Granted)
+    _ -> decode.failure(Revoked, "LgpdConsent")
+  }
+}
 
 /// Corresponds to the Postgres `startup_stage` enum.
 ///
