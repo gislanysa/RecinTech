@@ -876,3 +876,38 @@ pub fn register_company_test() -> Nil {
 
   Nil
 }
+
+pub fn get_company_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let endpoint = "/api/company/" <> uuid.to_string(company.id)
+
+  let response =
+    simulate.browser_request(http.Get, endpoint)
+    |> web.handle_request(context)
+
+  assert response.status == 200
+
+  let body = simulate.read_body(response)
+  let assert Ok(returned) = json.parse(body, company.decoder())
+
+  assert returned.id == company.id
+
+  Nil
+}
+
+pub fn get_missing_company_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let id = uuid.v7_string()
+  let endpoint = "/api/company/" <> id
+
+  let response =
+    simulate.browser_request(http.Get, endpoint)
+    |> web.handle_request(context)
+
+  assert response.status == 404
+
+  Nil
+}
