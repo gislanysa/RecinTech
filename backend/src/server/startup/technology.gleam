@@ -31,7 +31,7 @@ pub fn decoder() -> decode.Decoder(Technology) {
   decode.success(Technology(id:, name:, description:))
 }
 
-/// Encode a Technology into a JSON object.
+/// Encode a Technology into JSON
 pub fn to_json(technology: Technology) -> json.Json {
   let Technology(id:, name:, description:) = technology
   json.object([

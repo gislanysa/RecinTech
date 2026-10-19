@@ -56,7 +56,7 @@ pub fn to_string(self: Email) -> String {
   self.value
 }
 
-/// Convert an `Email` to a Json object
+/// Encode an `Email` into JSON
 pub fn to_json(email: Email) -> json.Json {
   to_string(email)
   |> json.string
