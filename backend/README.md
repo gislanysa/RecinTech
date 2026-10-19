@@ -1,10 +1,5 @@
 # REC IN TECH — Backend
 
-Backend for **REC IN TECH**, a platform that connects startups from Porto Digital
-(Recife/PE) with companies looking for technological solutions.
-
-## Stack
-
 | Layer | Technology |
 | --- | --- |
 | Language | Gleam |
@@ -17,6 +12,8 @@ Backend for **REC IN TECH**, a platform that connects startups from Porto Digita
 | HTML rendering | Lustre |
 | Database | PostgreSQL 18 |
 
+Backend for **REC IN TECH**, a platform that connects startups from Porto Digital
+(Recife/PE) with companies looking for technological solutions.
 The server starts an OTP supervision tree with two processes: the HTTP server
 (Mist) and the connection pool (pog). A request flows through:
 

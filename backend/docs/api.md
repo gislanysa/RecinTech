@@ -1,5 +1,103 @@
 # API
 
+## GET /api/healthcheck
+
+Check if the HTTP server is running correctly.
+
+### Response Body
+
+Empty.
+
+### Status Codes
+
+- 200: Successful
+
+## GET /
+
+Serve the HTML document for the client-side application. Any unknown
+non-API route falls back to this document.
+
+### Response Body
+
+The application's HTML document.
+
+### Status Codes
+
+- 200: Successful
+
+## POST /api/auth/login
+
+Authenticate a startup or a company. On success, a signed `SESSION` cookie is
+set on the response, lasting exactly one hour. The response body contains
+startup or company data, depending on the session type.
+
+### Request Body
+
+```json
+{
+  "session": "startup",
+  "email": "wibble@email.com",
+  "password": "12345678"
+}
+```
+
+- `session`: either `"startup"` or `"company"`
+
+### Response Body
+
+The startup or company object for the authenticated account, e.g.:
+
+```json
+{
+  "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+  "name": "Critic Level",
+  "email": "critic@email.dev",
+  "stage": "traction",
+  "cnpj": "12345678901234",
+  "description": "startup muito maneira",
+  "city": "Recife",
+  "state": "Pernambuco",
+  "created_at": "2026-09-14T20:08:02.000Z",
+  "is_active": true,
+  "website": "criticlevel.dev"
+}
+```
+
+### Status Codes
+
+- 200: Successful
+- 400: Invalid JSON, invalid email format or invalid session type
+- 401: Wrong email or password
+
+## GET /api/auth/restore
+
+Check for an active session token and restore it. On success, the server
+sends startup or company data, depending on the session type. This route does
+**not** refresh the session token duration.
+
+Requires the `SESSION` cookie.
+
+### Response Body
+
+The startup or company object for the active session.
+
+### Status Codes
+
+- 200: Successful
+- 401: Missing session cookie
+- 404: Startup or Company not found
+
+## GET /api/auth/refresh
+
+Refresh the duration of the current session token.
+
+Requires the `SESSION` cookie.
+
+### Status Codes
+
+- 200: Successful
+- 401: Missing session cookie
+
 ## POST /api/startup
 
 Register a new startup.
@@ -19,6 +117,8 @@ Register a new startup.
   "website": "recintech.dev"
 }
 ```
+
+- `stage`: either `"traction"` or `"scaling"`
 
 ### Response Body
 
@@ -44,7 +144,7 @@ Register a new startup.
 - 400: Invalid JSON or invalid data
 - 409: Duplicated email or CNPJ
 
-## GET /api/segments
+## GET /api/segment
 
 Fetch a list of registered segments.
 
@@ -398,3 +498,77 @@ Assign a technology to a startup.
 - 404: Startup or Technology not found
 - 409: Already assigned
 
+## POST /api/company
+
+Register a new company.
+
+### Request Body
+
+```json
+{
+  "name": "Porto Digital",
+  "size": "micro",
+  "email": "porto@email.com",
+  "password": "12345678",
+  "cnpj": "12345678901234",
+  "city": "Recife",
+  "state": "Pernambuco",
+  "website": "https://portodigital.org"
+}
+```
+
+- `size`: one of `"micro"`, `"small"`, `"medium"` or `"big"`
+
+### Response Body
+
+```json
+{
+  "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+  "name": "Porto Digital",
+  "email": "porto@email.com",
+  "size": "micro",
+  "cnpj": "12345678901234",
+  "city": "Recife",
+  "state": "Pernambuco",
+  "created_at": "2026-09-14T20:08:02.000Z",
+  "is_active": true,
+  "website": "https://portodigital.org"
+}
+```
+
+### Status Codes
+
+- 201: Successful
+- 400: Invalid JSON or invalid data
+- 409: Duplicated email or CNPJ
+
+## GET /api/company/:id
+
+Fetch information about a company.
+
+### Path Parameters
+
+- `id` (UUID, required)
+
+### Response Body
+
+```json
+{
+  "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+  "name": "Porto Digital",
+  "email": "porto@email.com",
+  "size": "micro",
+  "cnpj": "12345678901234",
+  "city": "Recife",
+  "state": "Pernambuco",
+  "created_at": "2026-09-14T20:08:02.000Z",
+  "is_active": true,
+  "website": "https://portodigital.org"
+}
+```
+
+### Status Codes
+
+- 200: Successful
+- 400: Invalid UUID format
+- 404: Company not found
