@@ -26,6 +26,29 @@ pub fn grant_lgpd_consent_startup_test() -> Nil {
   Nil
 }
 
+pub fn grant_lgpd_consent_company_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let version = 1
+
+  let assert Ok(returned) =
+    lgpd.grant_consent(
+      context.database,
+      for: lgpd.Company(company.id),
+      version: version,
+    )
+
+  assert returned
+    == lgpd.Granted(
+      subject: lgpd.Company(company.id),
+      updated_at: returned.updated_at,
+      version: version,
+    )
+
+  Nil
+}
+
 pub fn revoke_lgpd_consent_startup_test() -> Nil {
   use context <- server_test.with_context()
 
@@ -42,6 +65,29 @@ pub fn revoke_lgpd_consent_startup_test() -> Nil {
   assert returned
     == lgpd.Revoked(
       subject: lgpd.Startup(startup.id),
+      updated_at: returned.updated_at,
+      version: version,
+    )
+
+  Nil
+}
+
+pub fn revoke_lgpd_consent_company_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let version = 1
+
+  let assert Ok(returned) =
+    lgpd.revoke_consent(
+      context.database,
+      from: lgpd.Company(company.id),
+      version: version,
+    )
+
+  assert returned
+    == lgpd.Revoked(
+      subject: lgpd.Company(company.id),
       updated_at: returned.updated_at,
       version: version,
     )

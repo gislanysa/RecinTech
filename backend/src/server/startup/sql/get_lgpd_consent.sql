@@ -1,3 +1,4 @@
+-- query the lgpd consent of a startup
 SELECT
     sc.startup_id,
     sc.consent,

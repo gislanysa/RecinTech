@@ -127,6 +127,62 @@ WHERE
   |> pog.execute(db)
 }
 
+/// A row you get from running the `get_lgpd_consent` query
+/// defined in `./src/server/company/sql/get_lgpd_consent.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v4.7.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type GetLgpdConsentRow {
+  GetLgpdConsentRow(
+    company_id: Uuid,
+    consent: LgpdConsent,
+    policy_version: Int,
+    updated_at: Timestamp,
+  )
+}
+
+/// query the lgpd consent of a company
+///
+/// > 🐿️ This function was generated automatically using v4.7.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn get_lgpd_consent(
+  db: pog.Connection,
+  arg_1: Uuid,
+) -> Result(pog.Returned(GetLgpdConsentRow), pog.QueryError) {
+  let decoder = {
+    use company_id <- decode.field(0, uuid_decoder())
+    use consent <- decode.field(1, lgpd_consent_decoder())
+    use policy_version <- decode.field(2, decode.int)
+    use updated_at <- decode.field(3, pog.timestamp_decoder())
+    decode.success(GetLgpdConsentRow(
+      company_id:,
+      consent:,
+      policy_version:,
+      updated_at:,
+    ))
+  }
+
+  "-- query the lgpd consent of a company
+SELECT
+    cl.company_id,
+    cl.consent,
+    cl.policy_version,
+    cl.updated_at
+FROM
+    public.company_lgpd_consent AS cl
+WHERE
+    cl.company_id = $1::uuid
+ORDER BY
+    policy_version::integer;
+"
+  |> pog.query
+  |> pog.parameter(pog.text(uuid.to_string(arg_1)))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
 /// A row you get from running the `register` query
 /// defined in `./src/server/company/sql/register.sql`.
 ///
@@ -270,6 +326,25 @@ fn company_size_encoder(company_size) -> pog.Value {
     Micro -> "micro"
   }
   |> pog.text
+}
+
+/// Corresponds to the Postgres `lgpd_consent` enum.
+///
+/// > 🐿️ This type definition was generated automatically using v4.7.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type LgpdConsent {
+  Revoked
+  Granted
+}
+
+fn lgpd_consent_decoder() -> decode.Decoder(LgpdConsent) {
+  use lgpd_consent <- decode.then(decode.string)
+  case lgpd_consent {
+    "revoked" -> decode.success(Revoked)
+    "granted" -> decode.success(Granted)
+    _ -> decode.failure(Revoked, "LgpdConsent")
+  }
 }
 
 // --- Encoding/decoding utils -------------------------------------------------
