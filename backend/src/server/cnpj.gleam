@@ -12,6 +12,7 @@
 //// ```
 
 import gleam/dynamic/decode
+import gleam/json
 import gleam/string
 
 pub type CnpjError {
@@ -50,6 +51,12 @@ pub fn parse(string: String) -> Result(Cnpj, CnpjError) {
 /// ```
 pub fn to_string(self: Cnpj) -> String {
   self.value
+}
+
+/// Encode a `CNPJ` into JSON
+pub fn to_json(cnpj: Cnpj) -> json.Json {
+  to_string(cnpj)
+  |> json.string
 }
 
 /// A decoder that decodes [Cnpj](#Cnpj) values.
