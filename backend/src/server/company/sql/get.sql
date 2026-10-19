@@ -3,8 +3,13 @@ SELECT
     c.id,
     c.name,
     c.email,
+    c.size,
+    c.cnpj,
+    c.city,
+    c.state,
+    c.is_active,
     c.created_at,
-    c.is_active
+    c.website
 FROM
     public.company AS c
 WHERE

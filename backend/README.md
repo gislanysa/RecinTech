@@ -76,9 +76,14 @@ erDiagram
     uuid id PK
     text name
     text email UK
+    company_size size "micro | small | medium | big"
     text password_hash
+    text cnpj
+    text city
+    text state
     timestamp created_at
     bool is_active
+    text website
   }
 
   company_LGPD_CONSENT }o..|| company : has
