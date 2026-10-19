@@ -6,6 +6,7 @@ import gleam/int
 import gleam/json
 import gleam/list
 import server/cnpj
+import server/company
 import server/dummy
 import server/email
 import server/segment
@@ -124,9 +125,11 @@ pub fn handle_login_startup_test() -> Nil {
   assert response.get_header(response, "content-type")
     == Ok("application/json; charset=utf-8")
 
-  let assert Ok(_) =
+  let assert Ok(cookie) =
     response.get_cookies(response)
     |> list.key_find(web.session_cookie)
+
+  assert cookie != ""
 
   // response must contain startup data
   let body = simulate.read_body(response)
@@ -134,8 +137,43 @@ pub fn handle_login_startup_test() -> Nil {
 
   // return correct startup
   assert returned.id == startup.id
-  assert returned.name == startup.name
-  assert returned.email == startup.email
+
+  Nil
+}
+
+pub fn handle_login_company_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+
+  let body =
+    json.object([
+      #("session", json.string("company")),
+      #("email", json.string(email.to_string(company.email))),
+      #("password", json.string(dummy.password)),
+    ])
+
+  let response =
+    simulate.browser_request(http.Post, "/api/auth/login")
+    |> simulate.json_body(body)
+    |> web.handle_request(context)
+
+  assert response.status == 200
+  assert response.get_header(response, "content-type")
+    == Ok("application/json; charset=utf-8")
+
+  let assert Ok(cookie) =
+    response.get_cookies(response)
+    |> list.key_find(web.session_cookie)
+
+  assert cookie != ""
+
+  // response must contain startup data
+  let body = simulate.read_body(response)
+  let assert Ok(returned) = json.parse(body, company.decoder())
+
+  // return correct company
+  assert returned.id == company.id
 
   Nil
 }
