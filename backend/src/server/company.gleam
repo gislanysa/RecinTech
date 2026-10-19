@@ -1,5 +1,5 @@
 //// Companies look for technological solutions from the
-//// [Startups](#Startup) of Porto Digital.
+//// [Startups](startup.html#Startup) of Porto Digital.
 
 import argus
 import gleam/dynamic/decode
@@ -293,7 +293,7 @@ pub fn register(
 ///
 /// case result {
 ///   Ok(data) -> todo as "send response"
-///   Error(company.NotFound) -> wisp.not_found()
+///   Error(company.NotFound(_)) -> wisp.not_found()
 ///   Error(company.WrongPassword) -> wisp.response(401)
 ///   Error(_) -> wisp.internal_server_error()
 /// }
