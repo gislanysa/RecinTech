@@ -96,7 +96,7 @@ pub type Stage {
   Scaling
 }
 
-/// Encode a startup Stage into a JSON object.
+/// Encode a startup Stage into JSON
 @internal
 pub fn stage_to_json(stage: Stage) -> json.Json {
   case stage {
@@ -164,7 +164,7 @@ pub fn decoder() -> decode.Decoder(Startup) {
   ))
 }
 
-/// Encode a Startup into a JSON object.
+/// Encode a Startup into JSON
 pub fn to_json(startup: Startup) -> json.Json {
   json.object([
     #("id", internal.uuid_to_json(startup.id)),

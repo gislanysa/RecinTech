@@ -1,10 +1,5 @@
 # REC IN TECH — Backend
 
-Backend for **REC IN TECH**, a platform that connects startups from Porto Digital
-(Recife/PE) with companies looking for technological solutions.
-
-## Stack
-
 | Layer | Technology |
 | --- | --- |
 | Language | Gleam |
@@ -17,6 +12,8 @@ Backend for **REC IN TECH**, a platform that connects startups from Porto Digita
 | HTML rendering | Lustre |
 | Database | PostgreSQL 18 |
 
+Backend for **REC IN TECH**, a platform that connects startups from Porto Digital
+(Recife/PE) with companies looking for technological solutions.
 The server starts an OTP supervision tree with two processes: the HTTP server
 (Mist) and the connection pool (pog). A request flows through:
 
@@ -72,20 +69,23 @@ erDiagram
     int policy_version PK
   }
 
-  INVESTOR {
+  company {
     uuid id PK
     text name
-    investor_kind kind "angel | venture | individual | institutional"
     text email UK
+    company_size size "micro | small | medium | big"
     text password_hash
-    bool public_profile
+    text cnpj
+    text city
+    text state
     timestamp created_at
     bool is_active
+    text website
   }
 
-  INVESTOR_LGPD_CONSENT }o..|| INVESTOR : has
-  INVESTOR_LGPD_CONSENT {
-    uuid investor_id PK, FK
+  company_LGPD_CONSENT }o..|| company : has
+  company_LGPD_CONSENT {
+    uuid company_id PK, FK
     lgpd_consent consent "granted | revoked"
     timestamp updated_at
     int policy_version PK
@@ -98,10 +98,10 @@ erDiagram
     uuid segment_id PK, FK
   }
 
-  INVESTOR_SEGMENT }o..|| INVESTOR : has
-  INVESTOR_SEGMENT }o..|| SEGMENT : has
-  INVESTOR_SEGMENT {
-    uuid investor_id PK, FK
+  company_SEGMENT }o..|| company : has
+  company_SEGMENT }o..|| SEGMENT : has
+  company_SEGMENT {
+    uuid company_id PK, FK
     uuid segment_id PK, FK
   }
 

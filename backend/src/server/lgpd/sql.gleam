@@ -9,15 +9,15 @@ import gleam/time/timestamp.{type Timestamp}
 import pog
 import youid/uuid.{type Uuid}
 
-/// A row you get from running the `update_investor_consent` query
-/// defined in `./src/server/lgpd/sql/update_investor_consent.sql`.
+/// A row you get from running the `update_company_consent` query
+/// defined in `./src/server/lgpd/sql/update_company_consent.sql`.
 ///
 /// > 🐿️ This type definition was generated automatically using v4.7.0 of the
 /// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
 ///
-pub type UpdateInvestorConsentRow {
-  UpdateInvestorConsentRow(
-    investor_id: Uuid,
+pub type UpdateCompanyConsentRow {
+  UpdateCompanyConsentRow(
+    company_id: Uuid,
     consent: LgpdConsent,
     updated_at: Timestamp,
     policy_version: Int,
@@ -29,19 +29,19 @@ pub type UpdateInvestorConsentRow {
 /// > 🐿️ This function was generated automatically using v4.7.0 of
 /// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
 ///
-pub fn update_investor_consent(
+pub fn update_company_consent(
   db: pog.Connection,
   arg_1: Uuid,
   arg_2: LgpdConsent,
   arg_3: Int,
-) -> Result(pog.Returned(UpdateInvestorConsentRow), pog.QueryError) {
+) -> Result(pog.Returned(UpdateCompanyConsentRow), pog.QueryError) {
   let decoder = {
-    use investor_id <- decode.field(0, uuid_decoder())
+    use company_id <- decode.field(0, uuid_decoder())
     use consent <- decode.field(1, lgpd_consent_decoder())
     use updated_at <- decode.field(2, pog.timestamp_decoder())
     use policy_version <- decode.field(3, decode.int)
-    decode.success(UpdateInvestorConsentRow(
-      investor_id:,
+    decode.success(UpdateCompanyConsentRow(
+      company_id:,
       consent:,
       updated_at:,
       policy_version:,
@@ -50,20 +50,20 @@ pub fn update_investor_consent(
 
   "-- grant consent to lgpd
 INSERT INTO
-    investor_lgpd_consent (investor_id, consent, policy_version, updated_at)
+    company_lgpd_consent (company_id, consent, policy_version, updated_at)
 VALUES
     (
         $1::uuid,
         $2::lgpd_consent,
         $3::integer,
         CURRENT_TIMESTAMP::timestamp
-    ) ON conflict(investor_id, policy_version) DO
+    ) ON conflict(company_id, policy_version) DO
 UPDATE
 SET
     consent = EXCLUDED.consent,
     updated_at = CURRENT_TIMESTAMP
 RETURNING
-    investor_id::uuid,
+    company_id::uuid,
     consent::lgpd_consent,
     updated_at::timestamp,
     policy_version::integer;

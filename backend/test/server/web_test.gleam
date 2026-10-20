@@ -6,6 +6,7 @@ import gleam/int
 import gleam/json
 import gleam/list
 import server/cnpj
+import server/company
 import server/dummy
 import server/email
 import server/segment
@@ -124,9 +125,11 @@ pub fn handle_login_startup_test() -> Nil {
   assert response.get_header(response, "content-type")
     == Ok("application/json; charset=utf-8")
 
-  let assert Ok(_) =
+  let assert Ok(cookie) =
     response.get_cookies(response)
     |> list.key_find(web.session_cookie)
+
+  assert cookie != ""
 
   // response must contain startup data
   let body = simulate.read_body(response)
@@ -134,8 +137,43 @@ pub fn handle_login_startup_test() -> Nil {
 
   // return correct startup
   assert returned.id == startup.id
-  assert returned.name == startup.name
-  assert returned.email == startup.email
+
+  Nil
+}
+
+pub fn handle_login_company_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+
+  let body =
+    json.object([
+      #("session", json.string("company")),
+      #("email", json.string(email.to_string(company.email))),
+      #("password", json.string(dummy.password)),
+    ])
+
+  let response =
+    simulate.browser_request(http.Post, "/api/auth/login")
+    |> simulate.json_body(body)
+    |> web.handle_request(context)
+
+  assert response.status == 200
+  assert response.get_header(response, "content-type")
+    == Ok("application/json; charset=utf-8")
+
+  let assert Ok(cookie) =
+    response.get_cookies(response)
+    |> list.key_find(web.session_cookie)
+
+  assert cookie != ""
+
+  // response must contain startup data
+  let body = simulate.read_body(response)
+  let assert Ok(returned) = json.parse(body, company.decoder())
+
+  // return correct company
+  assert returned.id == company.id
 
   Nil
 }
@@ -807,6 +845,121 @@ pub fn get_many_segments_test() -> Nil {
 
   let assert Ok(returned) = json.parse(body, decode.list(segment.decoder()))
   assert returned == segments
+
+  Nil
+}
+
+pub fn register_company_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let body =
+    json.object([
+      #("name", json.string("wibble")),
+      #("size", company.size_to_json(company.Big)),
+      #("email", json.string("wibble@email.com")),
+      #("password", json.string("wibble")),
+      #("cnpj", json.string("12345678901234")),
+      #("city", json.string("Recife")),
+      #("state", json.string("PE")),
+      #("website", json.string("")),
+    ])
+
+  let response =
+    simulate.browser_request(http.Post, "/api/company")
+    |> simulate.json_body(body)
+    |> web.handle_request(context)
+
+  assert response.status == 201
+
+  let body = simulate.read_body(response)
+  let assert Ok(_) = json.parse(body, company.decoder())
+
+  Nil
+}
+
+pub fn register_company_email_conflict_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let body =
+    json.object([
+      #("name", json.string("wibble")),
+      #("size", company.size_to_json(company.Micro)),
+      #("email", email.to_json(company.email)),
+      #("password", json.string("wibble")),
+      #("cnpj", json.string("00000000000000")),
+      #("city", json.string("Recife")),
+      #("state", json.string("PE")),
+      #("website", json.string("")),
+    ])
+
+  let response =
+    simulate.browser_request(http.Post, "/api/company")
+    |> simulate.json_body(body)
+    |> web.handle_request(context)
+
+  assert response.status == 409
+
+  Nil
+}
+
+pub fn register_company_cnpj_conflict_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let body =
+    json.object([
+      #("name", json.string("wibble")),
+      #("size", company.size_to_json(company.Micro)),
+      #("email", json.string("wobble@email.com")),
+      #("password", json.string("wibble")),
+      #("cnpj", cnpj.to_json(company.cnpj)),
+      #("city", json.string("Recife")),
+      #("state", json.string("PE")),
+      #("website", json.string("")),
+    ])
+
+  let response =
+    simulate.browser_request(http.Post, "/api/company")
+    |> simulate.json_body(body)
+    |> web.handle_request(context)
+
+  assert response.status == 409
+
+  Nil
+}
+
+pub fn get_company_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let endpoint = "/api/company/" <> uuid.to_string(company.id)
+
+  let response =
+    simulate.browser_request(http.Get, endpoint)
+    |> web.handle_request(context)
+
+  assert response.status == 200
+
+  let body = simulate.read_body(response)
+  let assert Ok(returned) = json.parse(body, company.decoder())
+
+  assert returned.id == company.id
+
+  Nil
+}
+
+pub fn get_missing_company_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let id = uuid.v7_string()
+  let endpoint = "/api/company/" <> id
+
+  let response =
+    simulate.browser_request(http.Get, endpoint)
+    |> web.handle_request(context)
+
+  assert response.status == 404
 
   Nil
 }

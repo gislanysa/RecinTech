@@ -1,6 +1,7 @@
 //// Email addresses need to be parsed before usage.
 
 import gleam/dynamic/decode
+import gleam/json
 import gleam/result
 import gleam/string
 
@@ -53,6 +54,12 @@ pub fn parse(string: String) -> Result(Email, EmailError) {
 /// ```
 pub fn to_string(self: Email) -> String {
   self.value
+}
+
+/// Encode an `Email` into JSON
+pub fn to_json(email: Email) -> json.Json {
+  to_string(email)
+  |> json.string
 }
 
 /// A decoder that decodes `Email` values.

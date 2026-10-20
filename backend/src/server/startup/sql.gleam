@@ -434,8 +434,7 @@ pub type GetLgpdConsentRow {
   )
 }
 
-/// Runs the `get_lgpd_consent` query
-/// defined in `./src/server/startup/sql/get_lgpd_consent.sql`.
+/// query the lgpd consent of a startup
 ///
 /// > 🐿️ This function was generated automatically using v4.7.0 of
 /// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
@@ -457,7 +456,8 @@ pub fn get_lgpd_consent(
     ))
   }
 
-  "SELECT
+  "-- query the lgpd consent of a startup
+SELECT
     sc.startup_id,
     sc.consent,
     sc.policy_version,

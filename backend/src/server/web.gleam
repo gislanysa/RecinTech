@@ -13,10 +13,10 @@ import lustre/element
 import lustre/element/html
 import pog
 import server/cnpj
+import server/company
 import server/email
 import server/internal
 import server/internal/payload
-import server/investor
 import server/segment
 import server/startup
 import server/startup/expertise
@@ -126,6 +126,12 @@ pub fn handle_request(
       assign_startup_to_technology(request, context.database)
 
     // +-----------------------------------------------------------------------+
+    // | COMPANY                                                               |
+    // +-----------------------------------------------------------------------+
+    http.Post, ["api", "company"] -> register_company(request, context.database)
+    http.Get, ["api", "company", id] -> get_company_by_id(context.database, id)
+
+    // +-----------------------------------------------------------------------+
     // | NOT FOUND                                                             |
     // +-----------------------------------------------------------------------+
     //
@@ -137,17 +143,39 @@ pub fn handle_request(
   }
 }
 
-/// ## `GET /api/startup/:startup/segment/:segment`
+fn get_company_by_id(database: pog.Connection, id: String) -> wisp.Response {
+  use id <- require_valid_uuid(id)
+
+  case company.get(database, id) {
+    Ok(data) ->
+      company.to_json(data)
+      |> json.to_string
+      |> wisp.json_response(200)
+
+    Error(error) -> handle_company_error(error)
+  }
+}
+
+/// ## `POST /api/startup/segment`
 ///
 /// Assign a Segment to a Startup
+///
+/// ## Request Body
+///
+/// ```json
+/// {
+///  "startup": "01a058ae-057f-73e8-b2a0-50986559767b",
+///  "segment": "01a155b2-69c7-75d7-8cc1-8d2626c6bc9b"
+/// }
+/// ```
 ///
 /// ## Response Body
 ///
 /// ```json
 /// {
-///  "id": "01a058ae-057f-73e8-b2a0-50986559767b",
-///  "name": "Tech",
-///  "description": "Technology-related stuff"
+///   "id": "01a155b2-69c7-75d7-8cc1-8d2626c6bc9b",
+///   "name": "Tech",
+///   "description": "Technology-related stuff"
 /// }
 /// ```
 ///
@@ -187,15 +215,24 @@ fn assign_startup_to_segment(
   }
 }
 
-/// ## `GET /api/startup/:startup/technology/:technology`
+/// ## `POST /api/startup/technology`
 ///
 /// Assign a Technology to a Startup
+///
+/// ## Request Body
+///
+/// ```json
+/// {
+///   "startup": "01a058ae-057f-73e8-b2a0-50986559767b",
+///   "technology": "01a155b2-69c7-75d7-8cc1-8d2626c6bc9b"
+/// }
+/// ```
 ///
 /// ## Response Body
 ///
 /// ```json
 /// {
-///   "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+///   "id": "01a155b2-69c7-75d7-8cc1-8d2626c6bc9b",
 ///   "name": "Javascript",
 ///   "description": "dont",
 /// }
@@ -241,15 +278,24 @@ fn assign_startup_to_technology(
   }
 }
 
-/// ## `GET /api/startup/:startup/expertise/:expertise`
+/// ## `POST /api/startup/expertise`
 ///
 /// Assign a Expertise to a Startup
+///
+/// ## Request Body
+///
+/// ```json
+/// {
+///  "startup": "01a058ae-057f-73e8-b2a0-50986559767b",
+///  "expertise": "01a155b2-69c7-75d7-8cc1-8d2626c6bc9b"
+/// }
+/// ```
 ///
 /// ## Response Body
 ///
 /// ```json
 /// {
-///   "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+///   "id": "01a155b2-69c7-75d7-8cc1-8d2626c6bc9b",
 ///   "name": "Education",
 ///   "description": "May it be free and for everyone"
 /// }
@@ -291,15 +337,24 @@ fn assign_startup_to_expertise(
   }
 }
 
-/// ## `GET /api/startup/:startup/service/:service`
+/// ## `POST /api/startup/service`
 ///
 /// Assign a Service to a Startup
+///
+/// ## Request Body
+///
+/// ```json
+/// {
+///  "startup": "01a058ae-057f-73e8-b2a0-50986559767b",
+///  "service": "01a155b2-69c7-75d7-8cc1-8d2626c6bc9b"
+/// }
+/// ```
 ///
 /// ## Response Body
 ///
 /// ```json
 /// {
-///   "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+///   "id": "01a155b2-69c7-75d7-8cc1-8d2626c6bc9b",
 ///   "name": "UI/UX",
 ///   "description": "user experience"
 /// }
@@ -342,7 +397,7 @@ fn assign_startup_to_service(
 }
 
 /// Checks if there's an active session token in the user request.
-/// On sucess, the server will send Startup / Investor JSON data to the client
+/// On sucess, the server will send Startup / Company JSON data to the client
 /// depending on their previous session type.
 ///
 /// > **NOTE:**  
@@ -363,11 +418,11 @@ pub fn restore_session(
           |> wisp.json_response(200)
       }
 
-    Investor(id:) ->
-      case investor.get(database, id) {
-        Error(error) -> handle_investor_error(error)
+    Company(id:) ->
+      case company.get(database, id) {
+        Error(error) -> handle_company_error(error)
         Ok(data) ->
-          investor.to_json(data)
+          company.to_json(data)
           |> json.to_string()
           |> wisp.json_response(200)
       }
@@ -981,13 +1036,13 @@ fn handle_database_error(error: pog.QueryError) -> wisp.Response {
   }
 }
 
-/// A user can be logged in as an Startup or as an Investor
+/// A user can be logged in as an Startup or as an Company
 pub type Session {
   Startup(id: uuid.Uuid)
-  Investor(id: uuid.Uuid)
+  Company(id: uuid.Uuid)
 }
 
-/// Encode a Session into a JSON object.
+/// Encode a Session into JSON
 pub fn session_to_json(session: Session) -> json.Json {
   case session {
     Startup(id:) ->
@@ -996,9 +1051,9 @@ pub fn session_to_json(session: Session) -> json.Json {
         #("id", internal.uuid_to_json(id)),
       ])
 
-    Investor(id:) ->
+    Company(id:) ->
       json.object([
-        #("type", json.string("investor")),
+        #("type", json.string("company")),
         #("id", internal.uuid_to_json(id)),
       ])
   }
@@ -1014,9 +1069,9 @@ pub fn session_decoder() -> decode.Decoder(Session) {
       decode.success(Startup(id:))
     }
 
-    "investor" -> {
+    "company" -> {
       use id <- decode.field("id", internal.uuid_decoder())
-      decode.success(Investor(id:))
+      decode.success(Company(id:))
     }
 
     _ -> decode.failure(Startup(id: uuid.v7()), "Session")
@@ -1030,13 +1085,13 @@ pub const session_cookie = "SESSION"
 ///
 /// Sets a session cookie if successful, it will last exactly one hour.
 /// The response body will include a Json string containing information about the
-/// Startup / Investor being authorized.
+/// Startup / Company being authorized.
 ///
 /// ## Request Body
 ///
 /// ```jsonc
 /// {
-///   "session": "startup", // "startup" | "investor"
+///   "session": "startup", // "startup" | "company"
 ///   "email": "wibble@email.com",
 ///   "password": "12345678"
 /// }
@@ -1060,7 +1115,7 @@ fn handle_login(
       use string <- decode.then(decode.string)
       case string {
         "startup" -> decode.success(string)
-        "investor" -> decode.success(string)
+        "company" -> decode.success(string)
         other -> decode.failure(other, "session_kind")
       }
     }
@@ -1083,15 +1138,15 @@ fn handle_login(
           |> set_session_token(request, Startup(startup.id))
       }
 
-    // Investor session
-    Ok(payload.Login(session: "investor", email:, password:)) ->
-      case investor.verify(database, email:, password:) {
-        Error(error) -> handle_investor_error(error)
-        Ok(investor) ->
-          investor.to_json(investor)
+    // Company session
+    Ok(payload.Login(session: "company", email:, password:)) ->
+      case company.verify(database, email:, password:) {
+        Error(error) -> handle_company_error(error)
+        Ok(company) ->
+          company.to_json(company)
           |> json.to_string
           |> wisp.json_response(200)
-          |> set_session_token(request, Investor(investor.id))
+          |> set_session_token(request, Company(company.id))
       }
 
     // Correct Json but invalid session type
@@ -1137,7 +1192,7 @@ fn set_session_token(
 ///  "description": "startup muito maneira",
 ///  "city": "Recife",
 ///  "state": "Pernambuco",
-///  "website": "recintech.dev"
+///  "website": "https://recintech.dev"
 /// }
 /// ```
 ///
@@ -1206,15 +1261,116 @@ fn register_startup(
   }
 }
 
-fn handle_investor_error(error: investor.InvestorError) -> wisp.Response {
-  case error {
-    investor.DatabaseError(error) -> handle_database_error(error)
-    investor.InvalidEmail(value) -> wisp.bad_request("Invalid email: " <> value)
-    investor.EmailNotFound(_) | investor.WrongPassword -> wisp.response(401)
-    investor.HashError(_) -> wisp.internal_server_error()
+/// ## `POST /api/company`
+///
+/// Register a new Company
+///
+/// ## Request Body
+///
+/// ```json
+/// {
+///  "name": "Recintech",
+///  "size": "micro",
+///  "email": "recintech@email.com",
+///  "password": "12345678",
+///  "cnpj": "12345678901234",
+///  "city": "Recife",
+///  "state": "Pernambuco",
+///  "website": "https://recintech.dev"
+/// }
+/// ```
+///
+/// ## Status Codes
+///
+/// - 200 If successful.
+/// - 409 If duplicated email or cnpj.
+///
+fn register_company(
+  request: wisp.Request,
+  database: pog.Connection,
+) -> wisp.Response {
+  use body <- wisp.require_json(request)
 
-    investor.NotFound(id) ->
-      { "Investor not found: " <> uuid.to_string(id) }
+  let decoder = {
+    use name <- decode.field("name", decode.string)
+    use size <- decode.field("size", company.size_decoder())
+    use email <- decode.field("email", email.decoder())
+    use password <- decode.field("password", decode.string)
+    use cnpj <- decode.field("cnpj", cnpj.decoder())
+    use city <- decode.field("city", decode.string)
+    use state <- decode.field("state", decode.string)
+    use website <- decode.field("website", internal.uri_decoder())
+
+    payload.RegisterCompany(
+      name:,
+      size:,
+      email:,
+      password:,
+      cnpj:,
+      city:,
+      state:,
+      website:,
+    )
+    |> decode.success
+  }
+
+  case decode.run(body, decoder) {
+    Error(_) -> wisp.bad_request("Invalid JSON")
+    Ok(body) -> {
+      let register_result =
+        company.register(
+          database,
+          name: body.name,
+          size: body.size,
+          email: body.email,
+          cnpj: body.cnpj,
+          password: body.password,
+          city: body.city,
+          state: body.state,
+          website: body.website,
+        )
+
+      case register_result {
+        Ok(data) ->
+          company.to_json(data)
+          |> json.to_string
+          |> wisp.json_response(201)
+
+        Error(error) -> handle_company_error(error)
+      }
+    }
+  }
+}
+
+fn handle_company_error(error: company.CompanyError) -> wisp.Response {
+  case error {
+    company.DatabaseError(error:) -> handle_database_error(error)
+    company.InvalidEmail(value:) -> wisp.bad_request("Invalid email: " <> value)
+    company.HashError(_) -> wisp.internal_server_error()
+
+    company.NotFound(id:) ->
+      { "Company not found: " <> uuid.to_string(id) }
       |> wisp.string_body(wisp.not_found(), _)
+
+    company.InvalidCnpj(value:) -> wisp.bad_request("Invalid CNPJ: " <> value)
+
+    company.InvalidWebsite(value:) ->
+      wisp.bad_request("Invalid website: " <> value)
+
+    company.EmailNotFound(_) | company.WrongPassword ->
+      { "Wrong email or password" }
+      |> wisp.string_body(wisp.response(401), _)
+
+    company.CnpjConflict(value:) ->
+      { "CNPJ already registered: " <> cnpj.to_string(value) }
+      |> wisp.string_body(wisp.response(409), _)
+
+    company.EmailConflict(value:) ->
+      { "Email already registered: " <> email.to_string(value) }
+      |> wisp.string_body(wisp.response(409), _)
+
+    company.FailedToRegisterCompany ->
+      "Failed to register Company"
+      |> wisp.string_body(wisp.internal_server_error(), _)
   }
 }
