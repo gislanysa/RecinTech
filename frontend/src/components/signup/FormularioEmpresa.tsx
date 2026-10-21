@@ -1,5 +1,6 @@
 import Botao from '@/components/Botao.tsx'
 import { Campo, CampoSelect } from '@/components/forms/Campo.tsx'
+import { registrarEmpresa, type TamanhoEmpresa } from '@/lib/api.ts'
 import { UFS } from '@/lib/ufs.ts'
 import {
   cnpjCom14Digitos,
@@ -35,11 +36,11 @@ const SETORES = [
   'Outro',
 ]
 
-const TAMANHOS = [
+const TAMANHOS: { valor: TamanhoEmpresa; rotulo: string }[] = [
   { valor: 'micro', rotulo: 'Microempresa — até 9 colaboradores' },
-  { valor: 'pequena', rotulo: 'Pequena — 10 a 49 colaboradores' },
-  { valor: 'media', rotulo: 'Média — 50 a 249 colaboradores' },
-  { valor: 'grande', rotulo: 'Grande — 250 ou mais colaboradores' },
+  { valor: 'small', rotulo: 'Pequena — 10 a 49 colaboradores' },
+  { valor: 'medium', rotulo: 'Média — 50 a 249 colaboradores' },
+  { valor: 'big', rotulo: 'Grande — 250 ou mais colaboradores' },
 ]
 
 type Campos = {
@@ -89,20 +90,9 @@ const REGRAS: Regras<Campos> = {
 /**
  * Formulário de cadastro para empresas.
  *
- * TODO (backend): integrar com POST /auth/cadastro/empresa
- * Body esperado:
- * {
- *   tipo: "empresa",
- *   nome_empresa: string,
- *   cnpj: string,           // apenas dígitos
- *   setor: string,
- *   tamanho: "micro" | "pequena" | "media" | "grande",
- *   site?: string,
- *   nome_responsavel: string,
- *   email: string,
- *   senha: string
- * }
- * Resposta: { token: string, usuario: { id, tipo, nome } }
+ * Integrado com POST /company
+ * Body: { name, size, email, password, cnpj, city, state, website }
+ * size: "micro" | "small" | "medium" | "big"
  */
 export default function FormularioEmpresa({ onVoltar }: FormularioEmpresaProps) {
   const navigate = useNavigate()
@@ -127,7 +117,16 @@ export default function FormularioEmpresa({ onVoltar }: FormularioEmpresaProps) 
     setEnviando(true)
 
     try {
-      // Quando o backend expuser POST /investor, conectar a chamada aqui.
+      await registrarEmpresa({
+        name: campos.nomeEmpresa,
+        size: campos.tamanho as TamanhoEmpresa,
+        email: campos.email,
+        password: campos.senha,
+        cnpj: campos.cnpj,
+        city: campos.cidade,
+        state: campos.estado,
+        website: campos.site,
+      })
       navigate('/dashboard/empresa')
     } catch (err) {
       if (axios.isAxiosError(err)) {

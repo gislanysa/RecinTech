@@ -45,7 +45,7 @@ export type Startup = {
 // Auth
 // ---------------------------------------------------------------------------
 
-export type TipoSessao = 'startup' | 'investor'
+export type TipoSessao = 'startup' | 'company'
 
 /**
  * POST /auth/login
@@ -58,7 +58,7 @@ export type TipoSessao = 'startup' | 'investor'
  * { "session": "startup", "email": "user@email.com", "password": "senha123" }
  * ```
  *
- * `session` é obrigatório no backend: "startup" | "investor".
+ * `session` é obrigatório no backend: "startup" | "company".
  *
  * Respostas:
  * - 200 OK - Usuario (cookie de sessão definido pelo backend)
@@ -100,6 +100,17 @@ export async function restaurarSessao(): Promise<Usuario | null> {
   } catch {
     return null
   }
+}
+
+/**
+ * Descobre o tipo da conta pelo payload devolvido pelo backend:
+ * empresas têm `size`, startups têm `stage`.
+ */
+export function tipoDaConta(dados: object | null): TipoSessao | null {
+  if (!dados) return null
+  if ('size' in dados) return 'company'
+  if ('stage' in dados) return 'startup'
+  return null
 }
 
 // ---------------------------------------------------------------------------
@@ -150,5 +161,39 @@ export async function registrarStartup(body: BodyRegistroStartup): Promise<Start
   }
 
   const returned = await api.post<Startup>('/startup', requestBody)
+  return returned.data
+}
+
+// ---------------------------------------------------------------------------
+// Cadastro de Empresa
+// ---------------------------------------------------------------------------
+
+export type TamanhoEmpresa = 'micro' | 'small' | 'medium' | 'big'
+
+export type BodyRegistroEmpresa = {
+  name: string
+  size: TamanhoEmpresa
+  email: string
+  password: string
+  /** Apenas dígitos, exatamente 14 caracteres */
+  cnpj: string
+  city: string
+  state: string
+  /** URL do site (opcional, mas nunca null/ausente) */
+  website: string
+}
+
+/**
+ * POST /company
+ *
+ * Registra uma nova empresa.
+ */
+export async function registrarEmpresa(body: BodyRegistroEmpresa): Promise<unknown> {
+  const requestBody: BodyRegistroEmpresa = {
+    ...body,
+    cnpj: body.cnpj.replace(/\D/g, ''),
+    website: body.website ?? '',
+  }
+  const returned = await api.post('/company', requestBody)
   return returned.data
 }
