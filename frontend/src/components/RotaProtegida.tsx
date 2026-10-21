@@ -1,6 +1,11 @@
-import { restaurarSessao } from '@/lib/api.ts'
+import { restaurarSessao, tipoDaConta, type TipoSessao } from '@/lib/api.ts'
 import { useEffect, useState } from 'react'
 import { Navigate, Outlet } from 'react-router-dom'
+
+type RotaProtegidaProps = {
+  /** Se informado, apenas contas deste tipo acessam a rota. */
+  tipo?: TipoSessao
+}
 
 /**
  * Wrapper de rota protegida.
@@ -9,11 +14,13 @@ import { Navigate, Outlet } from 'react-router-dom'
  * - Cookie válido → renderiza a rota filha (Outlet)
  * - Cookie expirado/ausente → redireciona para /entrar
  */
-export default function RotaProtegida() {
+export default function RotaProtegida({ tipo }: RotaProtegidaProps) {
   const [estado, setEstado] = useState<'carregando' | 'autenticado' | 'nao-autenticado'>('carregando')
+  const [tipoConta, setTipoConta] = useState<TipoSessao | null>(null)
 
   useEffect(() => {
     restaurarSessao().then((usuario) => {
+      setTipoConta(tipoDaConta(usuario))
       setEstado(usuario ? 'autenticado' : 'nao-autenticado')
     })
   }, [])
@@ -34,6 +41,12 @@ export default function RotaProtegida() {
 
   if (estado === 'nao-autenticado') {
     return <Navigate to="/entrar" replace />
+  }
+
+  // Conta logada do tipo errado: manda para o dashboard correto.
+  if (tipo && tipoConta !== tipo) {
+    const destino = tipoConta === 'company' ? '/dashboard/empresa' : '/dashboard/startup'
+    return <Navigate to={destino} replace />
   }
 
   return <Outlet />
