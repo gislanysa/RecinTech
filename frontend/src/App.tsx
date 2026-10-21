@@ -28,7 +28,11 @@ export default function App() {
         {/* Rotas privadas — sessão validada via cookie antes de renderizar */}
         <Route element={<RotaProtegida />}>
           <Route path="/startups/:slug" element={<EmConstrucao titulo="Perfil da startup" />} />
+        </Route>
+        <Route element={<RotaProtegida tipo="startup" />}>
           <Route path="/dashboard/startup" element={<DashboardStartup />} />
+        </Route>
+        <Route element={<RotaProtegida tipo="company" />}>
           <Route path="/dashboard/empresa" element={<DashboardEmpresa />} />
         </Route>
 
