@@ -444,7 +444,7 @@ pub fn refresh_session(request: Request) -> Response {
 ///
 /// - 200 if successfull
 /// - 401 if token is missing
-pub fn handle_logout(request: Request) -> Response {
+fn handle_logout(request: Request) -> Response {
   use session <- require_session(request)
   set_session_token(wisp.no_content(), request, session, duration.seconds(0))
 }

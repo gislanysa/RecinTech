@@ -439,7 +439,14 @@ pub fn require_session_test() -> Nil {
   let startup = dummy.new_startup(context.database)
 
   let handle_request = fn(request) {
-    let request = dummy.with_startup_session(startup, request, context)
+    let request =
+      dummy.with_session(
+        request,
+        context,
+        web.Startup(startup.id),
+        startup.email,
+      )
+
     use _ <- web.require_session(request)
     wisp.ok()
   }
@@ -470,7 +477,7 @@ pub fn restore_session_test() -> Nil {
   let startup = dummy.new_startup(context.database)
   let request = simulate.browser_request(http.Get, "/api/auth/restore")
   let response =
-    dummy.with_startup_session(startup, request, context)
+    dummy.with_session(request, context, web.Startup(startup.id), startup.email)
     |> web.handle_request(context)
 
   assert response.status == 200
@@ -583,14 +590,14 @@ pub fn register_startup_cnpj_conflict_test() -> Nil {
 pub fn refresh_session_test() -> Nil {
   use context <- server_test.with_context()
 
+  let company = dummy.new_company(context.database)
   let request = simulate.browser_request(http.Get, "/api/auth/refresh")
 
   let response =
-    dummy.new_startup(context.database)
-    |> dummy.with_startup_session(request, context)
+    dummy.with_session(request, context, web.Company(company.id), company.email)
     |> web.handle_request(context)
 
-  assert response.status == 200
+  assert response.status == 204
 
   let assert Ok(_) =
     response.get_cookies(response)
@@ -960,6 +967,32 @@ pub fn get_missing_company_test() -> Nil {
     |> web.handle_request(context)
 
   assert response.status == 404
+
+  Nil
+}
+
+pub fn logout_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let response =
+    simulate.browser_request(http.Post, "/api/auth/logout")
+    |> dummy.with_session(context, web.Company(company.id), company.email)
+    |> web.handle_request(context)
+
+  assert response.status == 204
+
+  Nil
+}
+
+pub fn logout_missing_session_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let response =
+    simulate.browser_request(http.Post, "/api/auth/logout")
+    |> web.handle_request(context)
+
+  assert response.status == 401
 
   Nil
 }
