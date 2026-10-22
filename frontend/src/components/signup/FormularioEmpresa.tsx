@@ -106,7 +106,13 @@ export default function FormularioEmpresa({ onVoltar }: FormularioEmpresaProps) 
         state: campos.estado,
         website: campos.site,
       })
-      navigate('/dashboard/empresa')
+      navigate('/entrar', {
+        state: {
+          mensagemSucesso: 'Cadastro realizado com sucesso! Faça login para continuar.',
+          tipo: 'company',
+          email: campos.email,
+        },
+      })
     } catch (err) {
       const errosApi = mapearErroApi(err)
       setErrors((prev) => ({ ...prev, ...errosApi }))

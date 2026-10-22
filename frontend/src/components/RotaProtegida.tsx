@@ -1,5 +1,5 @@
-import { restaurarSessao, tipoDaConta, type ContaLogada, type TipoSessao } from '@/lib/api.ts'
-import { useEffect, useState } from 'react'
+import { useAuth } from '@/contexts/useAuth.ts'
+import type { ContaLogada, TipoSessao } from '@/lib/api.ts'
 import { Navigate, Outlet } from 'react-router-dom'
 
 /** Contexto entregue às rotas filhas via `useOutletContext<ContextoSessao>()`. */
@@ -13,22 +13,13 @@ type RotaProtegidaProps = {
 /**
  * Wrapper de rota protegida.
  *
- * Ao montar, faz GET /auth/restore para validar o cookie de sessão.
- * - Cookie válido → renderiza a rota filha (Outlet)
- * - Cookie expirado/ausente → redireciona para /entrar
+ * Consome o AuthContext global para validar o estado da sessão:
+ * - Carregando → exibe tela de carregamento centralizada
+ * - Não autenticado → redireciona para /entrar
+ * - Autenticado com tipo correto → renderiza a rota filha (Outlet)
  */
 export default function RotaProtegida({ tipo }: RotaProtegidaProps) {
-  const [estado, setEstado] = useState<'carregando' | 'autenticado' | 'nao-autenticado'>('carregando')
-  const [tipoConta, setTipoConta] = useState<TipoSessao | null>(null)
-  const [conta, setConta] = useState<ContaLogada | null>(null)
-
-  useEffect(() => {
-    restaurarSessao().then((usuario) => {
-      setConta(usuario)
-      setTipoConta(tipoDaConta(usuario))
-      setEstado(usuario ? 'autenticado' : 'nao-autenticado')
-    })
-  }, [])
+  const { conta, tipoConta, estado } = useAuth()
 
   if (estado === 'carregando') {
     return (

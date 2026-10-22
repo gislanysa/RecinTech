@@ -304,14 +304,24 @@ function paraCatalogo(startup: StartupReal): StartupCatalogo {
   }
 }
 
+export const LIMITE_PADRAO_STARTUPS = 24
+export const OFFSET_PADRAO_STARTUPS = 0
+
 /**
  * GET /startup?limit=&offset= — lista pública, sem autenticação.
  *
- * `limit` e `offset` são **obrigatórios**: sem eles o backend responde erro
+ * `limit` e `offset` são **obrigatórios**: sem eles o backend responde erro 400
  * (ver `get_many_startups` em `web.gleam`).
  */
-async function buscarStartups(limit: number, offset: number): Promise<StartupReal[]> {
-  const { data } = await api.get<StartupReal[]>('/startup', { params: { limit, offset } })
+export async function buscarStartups(
+  limit: number = LIMITE_PADRAO_STARTUPS,
+  offset: number = OFFSET_PADRAO_STARTUPS,
+): Promise<StartupReal[]> {
+  const params = {
+    limit: Math.max(1, Math.floor(limit)),
+    offset: Math.max(0, Math.floor(offset)),
+  }
+  const { data } = await api.get<StartupReal[]>('/startup', { params })
   return data
 }
 
@@ -362,7 +372,7 @@ export async function carregarTagsDaStartup(id: string): Promise<Tags> {
   }
 }
 
-type OpcoesDeListagem = {
+export type OpcoesDeListagem = {
   limit?: number
   offset?: number
   /**
@@ -383,7 +393,9 @@ type OpcoesDeListagem = {
 export async function listarStartups(
   opcoes: OpcoesDeListagem = {},
 ): Promise<StartupCatalogo[]> {
-  const { limit = 24, offset = 0, aoAtualizar } = opcoes
+  const limit = typeof opcoes.limit === 'number' ? Math.max(1, Math.floor(opcoes.limit)) : LIMITE_PADRAO_STARTUPS
+  const offset = typeof opcoes.offset === 'number' ? Math.max(0, Math.floor(opcoes.offset)) : OFFSET_PADRAO_STARTUPS
+  const { aoAtualizar } = opcoes
 
   let cruas: StartupReal[]
   try {
