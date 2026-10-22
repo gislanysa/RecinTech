@@ -12,6 +12,7 @@ import Home from '@/pages/Home.tsx'
 import MeuPerfilStartup from '@/pages/MeuPerfilStartup.tsx'
 import PaginaConexoesEmpresa from '@/pages/PaginaConexoesEmpresa.tsx'
 import PaginaDemandasEmpresa from '@/pages/PaginaDemandasEmpresa.tsx'
+import PaginaOportunidadesStartup from '@/pages/PaginaOportunidadesStartup.tsx'
 import PaginaRecomendacoesEmpresa from '@/pages/PaginaRecomendacoesEmpresa.tsx'
 import { AuthProvider } from '@/contexts/AuthContext.tsx'
 import ParaEmpresas from '@/pages/ParaEmpresas.tsx'
@@ -43,7 +44,7 @@ export default function App() {
             <Route element={<LayoutDashboardStartup />}>
               <Route path="/dashboard/startup" element={<DashboardStartup />} />
               <Route path="/dashboard/startup/perfil" element={<MeuPerfilStartup />} />
-              <Route path="/dashboard/startup/oportunidades" element={<SecaoEmBreve titulo="Oportunidades" />} />
+              <Route path="/dashboard/startup/oportunidades" element={<PaginaOportunidadesStartup />} />
               <Route path="/dashboard/startup/conexoes" element={<SecaoEmBreve titulo="Conexões" />} />
               <Route path="/dashboard/startup/plano" element={<SecaoEmBreve titulo="Plano" />} />
             </Route>
