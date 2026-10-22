@@ -1,47 +1,37 @@
-import Logo from '@/components/Logo.tsx'
-import { logout } from '@/lib/api.ts'
-import { Link, useNavigate } from 'react-router-dom'
+import type { ContextoSessao } from '@/components/RotaProtegida.tsx'
+import PainelOportunidades from '@/components/dashboard-startup/PainelOportunidades.tsx'
+import PainelSaudePerfil from '@/components/dashboard-startup/PainelSaudePerfil.tsx'
+import type { Startup } from '@/lib/api.ts'
+import { carregarTagsDaStartup } from '@/lib/startups.ts'
+import type { Tags } from '@/lib/perfil.ts'
+import { useEffect, useState } from 'react'
+import { useOutletContext } from 'react-router-dom'
 
 /**
- * Dashboard da startup — exibido após o cadastro.
+ * Dashboard da startup. Renderizada dentro de `LayoutDashboardStartup`
+ * (sidebar) e de `RotaProtegida` (sessão + tipo de conta).
  */
 export default function DashboardStartup() {
-  const navigate = useNavigate()
+  const { conta } = useOutletContext<ContextoSessao>()
+  const startup = conta as Startup
+  const [tags, setTags] = useState<Tags | null>(null)
 
-  async function handleSair() {
-    try {
-      await logout()
-    } finally {
-      navigate('/', { replace: true })
-    }
-  }
+  useEffect(() => {
+    // Cada rota de tag que falhar vira lista vazia (ver carregarTagsDaStartup).
+    void carregarTagsDaStartup(startup.id).then(setTags)
+  }, [startup.id])
 
   return (
-    <div className="min-h-screen bg-canvas">
-      <header className="sticky top-0 z-50 border-b border-brand-100 bg-surface/85 backdrop-blur-xl">
-        <div className="mx-auto flex h-16 max-w-7xl items-center px-4 sm:px-6">
-          <Link to="/" className="flex shrink-0 items-center gap-2.5">
-            <Logo />
-          </Link>
-
-          <div className="ml-auto">
-            <button
-              type="button"
-              onClick={handleSair}
-              className="inline-flex items-center rounded-lg px-4 py-2 text-sm font-medium text-ink-700 ring-1 ring-brand-200 transition-colors hover:bg-brand-50 hover:text-brand-700"
-            >
-              Sair
-            </button>
-          </div>
-        </div>
+    <div className="flex flex-col gap-8">
+      <header>
+        <h1 className="font-display text-2xl font-bold tracking-tight text-ink-900 sm:text-3xl">
+          Olá, {startup.name}!
+        </h1>
+        <p className="mt-1 text-sm text-ink-500">Acompanhe seu perfil e descubra novas oportunidades.</p>
       </header>
 
-      <main className="flex min-h-[calc(100vh-4rem)] items-center justify-center px-4">
-        <div className="text-center">
-          <p className="font-display text-lg font-semibold text-ink-900">Dashboard da Startup</p>
-          <p className="mt-2 text-sm text-ink-500">Em breve, o conteúdo estará disponível aqui.</p>
-        </div>
-      </main>
+      <PainelSaudePerfil startup={startup} tags={tags} />
+      <PainelOportunidades />
     </div>
   )
 }

@@ -3,8 +3,8 @@ import { Link } from 'react-router-dom'
 
 const CORES_AVATAR = ['bg-brand-600', 'bg-accent-600', 'bg-brand-800', 'bg-ink-700', 'bg-brand-400', 'bg-accent-700']
 
-function corAvatar(slug: string): string {
-  const soma = [...slug].reduce((acc, char) => acc + char.charCodeAt(0), 0)
+function corAvatar(identificador: string): string {
+  const soma = [...identificador].reduce((acc, char) => acc + char.charCodeAt(0), 0)
   return CORES_AVATAR[soma % CORES_AVATAR.length]
 }
 
@@ -13,7 +13,7 @@ export function AvatarStartup({ startup, tamanho = 'md' }: { startup: StartupCat
     <span
       className={[
         'grid shrink-0 place-items-center rounded-full font-display font-bold text-white',
-        corAvatar(startup.slug),
+        corAvatar(startup.id || startup.name),
         tamanho === 'lg' ? 'size-16 text-xl' : 'size-12 text-sm',
       ].join(' ')}
     >
@@ -81,7 +81,7 @@ export default function CartaoStartup({
 
         {isAutenticado ? (
           <Link
-            to={`/startups/${startup.slug}`}
+            to={`/startups/${startup.id}`}
             className="block rounded-xl bg-brand-600 py-2.5 text-center text-sm font-semibold text-white transition-colors hover:bg-brand-700"
           >
             Ver perfil

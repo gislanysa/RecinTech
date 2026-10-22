@@ -1,6 +1,9 @@
-import { restaurarSessao, tipoDaConta, type TipoSessao } from '@/lib/api.ts'
+import { restaurarSessao, tipoDaConta, type ContaLogada, type TipoSessao } from '@/lib/api.ts'
 import { useEffect, useState } from 'react'
 import { Navigate, Outlet } from 'react-router-dom'
+
+/** Contexto entregue às rotas filhas via `useOutletContext<ContextoSessao>()`. */
+export type ContextoSessao = { conta: ContaLogada }
 
 type RotaProtegidaProps = {
   /** Se informado, apenas contas deste tipo acessam a rota. */
@@ -17,9 +20,11 @@ type RotaProtegidaProps = {
 export default function RotaProtegida({ tipo }: RotaProtegidaProps) {
   const [estado, setEstado] = useState<'carregando' | 'autenticado' | 'nao-autenticado'>('carregando')
   const [tipoConta, setTipoConta] = useState<TipoSessao | null>(null)
+  const [conta, setConta] = useState<ContaLogada | null>(null)
 
   useEffect(() => {
     restaurarSessao().then((usuario) => {
+      setConta(usuario)
       setTipoConta(tipoDaConta(usuario))
       setEstado(usuario ? 'autenticado' : 'nao-autenticado')
     })
@@ -49,5 +54,5 @@ export default function RotaProtegida({ tipo }: RotaProtegidaProps) {
     return <Navigate to={destino} replace />
   }
 
-  return <Outlet />
+  return <Outlet context={{ conta } satisfies { conta: ContaLogada | null }} />
 }
