@@ -39,7 +39,28 @@ export type Startup = {
   website: string
   is_active: boolean
   created_at: string
+  /**
+   * Data da última atualização do perfil. O backend AINDA NÃO devolve este
+   * campo é opcional para que o dashboard já funcione quando ele existir.
+   */
+  updated_at?: string
 }
+
+export type Company = {
+  id: string
+  name: string
+  email: string
+  size: 'micro' | 'small' | 'medium' | 'big'
+  cnpj: string
+  city: string
+  state: string
+  website: string
+  is_active: boolean
+  created_at: string
+}
+
+/** O que `/auth/login` e `/auth/restore` devolvem, conforme o tipo da sessão. */
+export type ContaLogada = Startup | Company
 
 // ---------------------------------------------------------------------------
 // Auth
@@ -61,15 +82,15 @@ export type TipoSessao = 'startup' | 'company'
  * `session` é obrigatório no backend: "startup" | "company".
  *
  * Respostas:
- * - 200 OK - Usuario (cookie de sessão definido pelo backend)
+ * - 200 OK - ContaLogada (Startup ou Company, cookie de sessão definido pelo backend)
  * - 401 Unauthorized - "Wrong email or password"
  */
 export async function login(
   email: string,
   password: string,
   session: TipoSessao = 'startup',
-): Promise<Usuario> {
-  const { data } = await api.post<Usuario>('/auth/login', { session, email, password })
+): Promise<ContaLogada> {
+  const { data } = await api.post<ContaLogada>('/auth/login', { session, email, password })
   return data
 }
 
@@ -93,9 +114,9 @@ export async function logout(): Promise<void> {
  * - 200 OK → Usuario
  * - 401 Unauthorized → sessão expirada
  */
-export async function restaurarSessao(): Promise<Usuario | null> {
+export async function restaurarSessao(): Promise<ContaLogada | null> {
   try {
-    const { data } = await api.get<Usuario>('/auth/restore')
+    const { data } = await api.get<ContaLogada>('/auth/restore')
     return data
   } catch {
     return null

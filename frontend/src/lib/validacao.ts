@@ -1,3 +1,5 @@
+import axios from 'axios'
+
 const REGEX_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 export function emailValido(email: string): boolean {
@@ -80,3 +82,27 @@ export const igualA =
   <C>(outro: keyof C, mensagem: string): Regra<C> =>
   (valor, campos) =>
     valor === campos[outro] ? undefined : mensagem
+
+// ---------------------------------------------------------------------------
+// Tratamento de erros da API
+// ---------------------------------------------------------------------------
+
+/**
+ * Converte erros HTTP da API (especialmente 409 Conflito para Email ou CNPJ duplicados)
+ * em mensagens amigáveis para os campos do formulário.
+ */
+export function mapearErroApi(err: unknown): Partial<{ email: string; cnpj: string }> {
+  if (axios.isAxiosError(err)) {
+    const msg: string = typeof err.response?.data === 'string' ? err.response.data : ''
+    if (err.response?.status === 409) {
+      if (msg.includes('Email')) {
+        return { email: 'Este e-mail já está em uso.' }
+      }
+      if (msg.includes('CNPJ')) {
+        return { cnpj: 'Este CNPJ já está cadastrado.' }
+      }
+    }
+    return { email: 'Erro ao cadastrar. Tente novamente.' }
+  }
+  return { email: 'Erro ao conectar. Tente novamente.' }
+}

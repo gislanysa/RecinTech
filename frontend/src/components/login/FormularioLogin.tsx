@@ -1,4 +1,5 @@
 import Botao from '@/components/Botao.tsx'
+import BotaoVoltar from '@/components/BotaoVoltar.tsx'
 import { Campo } from '@/components/forms/Campo.tsx'
 import { login, logout, tipoDaConta, type TipoSessao } from '@/lib/api.ts'
 import { email, minimo, obrigatorio, validarCampos, type Regras } from '@/lib/validacao.ts'
@@ -72,15 +73,7 @@ export default function FormularioLogin() {
     <div className="w-full">
       {/* Voltar */}
       <div className="mb-6">
-        <Link
-          to="/"
-          className="flex items-center gap-1.5 text-sm font-medium text-ink-500 transition-colors hover:text-brand-600"
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="size-4" aria-hidden="true">
-            <path d="M19 12H5M11 6l-6 6 6 6" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-          Voltar para a home
-        </Link>
+        <BotaoVoltar to="/">Voltar para a home</BotaoVoltar>
       </div>
 
       {/* Título */}
@@ -147,12 +140,12 @@ export default function FormularioLogin() {
         />
 
         <div className="flex items-center justify-end">
-          <a
-            href="/recuperar-senha"
+          <Link
+            to="/recuperar-senha"
             className="text-xs font-medium text-brand-600 hover:text-brand-700 hover:underline"
           >
             Esqueceu a senha?
-          </a>
+          </Link>
         </div>
 
         <div className="mt-2">
