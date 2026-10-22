@@ -294,15 +294,18 @@ Fetch all segments that a startup is assigned to.
 - 400: Invalid UUID format
 - 404: Startup not found
 
-## POST /api/startup/segment
+## POST /api/startup/:id/segment
 
 Assign a segment to a startup.
+
+### Path Parameters
+
+- `id` (UUID, required)
 
 ### Request Body
 
 ```json
 {
-  "startup": "01a058ae-057f-73e8-b2a0-50986559767b",
   "segment": "01a058ae-057f-73e8-b2a0-50986559767b"
 }
 ```
@@ -323,6 +326,31 @@ Assign a segment to a startup.
 - 400: Invalid JSON or invalid UUID
 - 404: Startup or Segment not found
 - 409: Already assigned
+
+## DELETE /api/startup/:id/segment/:segment_id
+
+Unassign a segment from a startup.
+
+### Path Parameters
+
+- `id` (UUID, required)
+- `segment_id` (UUID, required)
+
+### Response Body
+
+```json
+{
+  "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+  "name": "Tech",
+  "description": "Technology-related stuff"
+}
+```
+
+### Status Codes
+
+- 200: Successful
+- 400: Invalid UUID format
+- 404: Segment is not assigned to the startup
 
 ## GET /api/startup/:id/service
 
@@ -355,15 +383,18 @@ Fetch all services that a startup is assigned to.
 - 400: Invalid UUID format
 - 404: Startup not found
 
-## POST /api/startup/service
+## POST /api/startup/:id/service
 
 Assign a service to a startup.
+
+### Path Parameters
+
+- `id` (UUID, required)
 
 ### Request Body
 
 ```json
 {
-  "startup": "01a058ae-057f-73e8-b2a0-50986559767b",
   "service": "01a058ae-057f-73e8-b2a0-50986559767b"
 }
 ```
@@ -384,6 +415,31 @@ Assign a service to a startup.
 - 400: Invalid JSON or invalid UUID
 - 404: Startup or Service not found
 - 409: Already assigned
+
+## DELETE /api/startup/:id/service/:service_id
+
+Unassign a service from a startup.
+
+### Path Parameters
+
+- `id` (UUID, required)
+- `service_id` (UUID, required)
+
+### Response Body
+
+```json
+{
+  "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+  "name": "UI/UX",
+  "description": "user experience"
+}
+```
+
+### Status Codes
+
+- 200: Successful
+- 400: Invalid UUID format
+- 404: Service is not assigned to the startup
 
 ## GET /api/startup/:id/expertise
 
@@ -416,15 +472,18 @@ Fetch all expertises that a startup is assigned to.
 - 400: Invalid UUID format
 - 404: Startup not found
 
-## POST /api/startup/expertise
+## POST /api/startup/:id/expertise
 
 Assign an expertise to a startup.
+
+### Path Parameters
+
+- `id` (UUID, required)
 
 ### Request Body
 
 ```json
 {
-  "startup": "01a058ae-057f-73e8-b2a0-50986559767b",
   "expertise": "01a058ae-057f-73e8-b2a0-50986559767b"
 }
 ```
@@ -445,6 +504,31 @@ Assign an expertise to a startup.
 - 400: Invalid JSON or invalid UUID
 - 404: Startup or Expertise not found
 - 409: Already assigned
+
+## DELETE /api/startup/:id/expertise/:expertise_id
+
+Unassign an expertise from a startup.
+
+### Path Parameters
+
+- `id` (UUID, required)
+- `expertise_id` (UUID, required)
+
+### Response Body
+
+```json
+{
+  "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+  "name": "Education",
+  "description": "May it be free and for everyone"
+}
+```
+
+### Status Codes
+
+- 200: Successful
+- 400: Invalid UUID format
+- 404: Expertise is not assigned to the startup
 
 ## GET /api/startup/:id/technology
 
@@ -477,15 +561,18 @@ Fetch all technologies that a startup is assigned to.
 - 400: Invalid UUID format
 - 404: Startup not found
 
-## POST /api/startup/technology
+## POST /api/startup/:id/technology
 
 Assign a technology to a startup.
+
+### Path Parameters
+
+- `id` (UUID, required)
 
 ### Request Body
 
 ```json
 {
-  "startup": "01a058ae-057f-73e8-b2a0-50986559767b",
   "technology": "01a058ae-057f-73e8-b2a0-50986559767b"
 }
 ```
@@ -506,6 +593,31 @@ Assign a technology to a startup.
 - 400: Invalid JSON or invalid UUID
 - 404: Startup or Technology not found
 - 409: Already assigned
+
+## DELETE /api/startup/:id/technology/:technology_id
+
+Unassign a technology from a startup.
+
+### Path Parameters
+
+- `id` (UUID, required)
+- `technology_id` (UUID, required)
+
+### Response Body
+
+```json
+{
+  "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+  "name": "Javascript",
+  "description": "dont"
+}
+```
+
+### Status Codes
+
+- 200: Successful
+- 400: Invalid UUID format
+- 404: Technology is not assigned to the startup
 
 ## POST /api/company
 
