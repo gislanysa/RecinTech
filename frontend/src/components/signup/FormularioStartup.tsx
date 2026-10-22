@@ -127,7 +127,13 @@ export default function FormularioStartup({ onVoltar }: FormularioStartupProps) 
         }
       }
 
-      navigate('/dashboard/startup')
+      navigate('/entrar', {
+        state: {
+          mensagemSucesso: 'Cadastro realizado com sucesso! Faça login para continuar.',
+          tipo: 'startup',
+          email: campos.email,
+        },
+      })
     } catch (err) {
       const errosApi = mapearErroApi(err)
       setErrors((prev) => ({ ...prev, ...errosApi }))

@@ -1,21 +1,27 @@
 import RotaProtegida from '@/components/RotaProtegida.tsx'
+import LayoutDashboardEmpresa from '@/components/dashboard-empresa/LayoutDashboardEmpresa.tsx'
 import LayoutDashboardStartup from '@/components/dashboard-startup/LayoutDashboardStartup.tsx'
 import SecaoEmBreve from '@/components/dashboard-startup/SecaoEmBreve.tsx'
 import CriarConta from '@/pages/CriarConta.tsx'
 import DashboardEmpresa from '@/pages/DashboardEmpresa.tsx'
 import DashboardStartup from '@/pages/DashboardStartup.tsx'
 import EmConstrucao from '@/pages/EmConstrucao.tsx'
-import ParaEmpresas from '@/pages/ParaEmpresas.tsx'
-import ExplorarStartups from '@/pages/ExplorarStartups.tsx'
-import ParaStartups from '@/pages/ParaStartups.tsx'
 import Entrar from '@/pages/Entrar.tsx'
+import ExplorarStartups from '@/pages/ExplorarStartups.tsx'
 import Home from '@/pages/Home.tsx'
+import PaginaConexoesEmpresa from '@/pages/PaginaConexoesEmpresa.tsx'
+import PaginaDemandasEmpresa from '@/pages/PaginaDemandasEmpresa.tsx'
+import PaginaRecomendacoesEmpresa from '@/pages/PaginaRecomendacoesEmpresa.tsx'
+import { AuthProvider } from '@/contexts/AuthContext.tsx'
+import ParaEmpresas from '@/pages/ParaEmpresas.tsx'
+import ParaStartups from '@/pages/ParaStartups.tsx'
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
 
 export default function App() {
   return (
     <BrowserRouter>
-      <Routes>
+      <AuthProvider>
+        <Routes>
         <Route path="/" element={<Home />} />
 
         {/* Telas de outras branches trocar o marcador pelo componente real. */}
@@ -41,11 +47,17 @@ export default function App() {
           </Route>
         </Route>
         <Route element={<RotaProtegida tipo="company" />}>
-          <Route path="/dashboard/empresa" element={<DashboardEmpresa />} />
+          <Route element={<LayoutDashboardEmpresa />}>
+            <Route path="/dashboard/empresa" element={<DashboardEmpresa />} />
+            <Route path="/dashboard/empresa/demandas" element={<PaginaDemandasEmpresa />} />
+            <Route path="/dashboard/empresa/recomendacoes" element={<PaginaRecomendacoesEmpresa />} />
+            <Route path="/dashboard/empresa/conexoes" element={<PaginaConexoesEmpresa />} />
+          </Route>
         </Route>
 
         <Route path="*" element={<EmConstrucao titulo="Página não encontrada" />} />
       </Routes>
-    </BrowserRouter>
+    </AuthProvider>
+  </BrowserRouter>
   )
 }

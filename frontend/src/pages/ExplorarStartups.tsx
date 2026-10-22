@@ -8,7 +8,7 @@ import {
 } from '@/lib/filtros.ts'
 import Footer from '@/components/layout/Footer.tsx'
 import Header from '@/components/layout/Header.tsx'
-import { restaurarSessao } from '@/lib/api.ts'
+import { useAuth } from '@/contexts/useAuth.ts'
 import { listarStartups, type StartupCatalogo } from '@/lib/startups.ts'
 import { useEffect, useMemo, useState } from 'react'
 
@@ -42,9 +42,10 @@ function combina(startup: StartupCatalogo, busca: string, f: Filtros): boolean {
 }
 
 export default function ExplorarStartups() {
+  const { estado } = useAuth()
+  const isAutenticado = estado === 'autenticado'
   const [todas, setTodas] = useState<StartupCatalogo[]>([])
   const [carregando, setCarregando] = useState(true)
-  const [isAutenticado, setIsAutenticado] = useState(false)
 
   const [busca, setBusca] = useState('')
   const [filtros, setFiltros] = useState<Filtros>(FILTROS_VAZIOS)
@@ -53,6 +54,8 @@ export default function ExplorarStartups() {
 
   useEffect(() => {
     listarStartups({
+      limit: 50,
+      offset: 0,
       // As tags vêm de quatro rotas separadas e chegam depois dos dados
       // básicos: cada startup é substituída no lugar assim que as dela chegam.
       aoAtualizar: (startup) =>
@@ -60,9 +63,6 @@ export default function ExplorarStartups() {
     }).then((dados) => {
       setTodas(dados)
       setCarregando(false)
-    })
-    restaurarSessao().then((usuario) => {
-      setIsAutenticado(!!usuario)
     })
   }, [])
 

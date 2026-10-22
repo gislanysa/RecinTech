@@ -1,11 +1,13 @@
 import Botao from '@/components/Botao.tsx'
 import BotaoVoltar from '@/components/BotaoVoltar.tsx'
 import { Campo } from '@/components/forms/Campo.tsx'
-import { login, logout, tipoDaConta, type TipoSessao } from '@/lib/api.ts'
+import { CheckIcon } from '@/components/icons.tsx'
+import { useAuth } from '@/contexts/useAuth.ts'
+import { tipoDaConta, type TipoSessao } from '@/lib/api.ts'
 import { email, minimo, obrigatorio, validarCampos, type Regras } from '@/lib/validacao.ts'
 import axios from 'axios'
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 
 type Campos = {
   email: string
@@ -29,11 +31,25 @@ const REGRAS: Regras<Campos> = {
 // ---------------------------------------------------------------------------
 
 export default function FormularioLogin() {
+  const { login: realizarLogin, logout: realizarLogout } = useAuth()
   const navigate = useNavigate()
-  const [campos, setCampos] = useState<Campos>(VAZIO)
+  const location = useLocation()
+  const estadoNavegacao = location.state as {
+    mensagemSucesso?: string
+    tipo?: TipoSessao
+    email?: string
+  } | null
+
+  const [campos, setCampos] = useState<Campos>(() => ({
+    ...VAZIO,
+    email: estadoNavegacao?.email ?? '',
+  }))
   const [errors, setErrors] = useState<Errors>({})
   const [enviando, setEnviando] = useState(false)
-  const [sessao, setSessao] = useState<TipoSessao>('startup')
+  const [sessao, setSessao] = useState<TipoSessao>(() => estadoNavegacao?.tipo ?? 'startup')
+  const [alertaSucesso] = useState<string | null>(
+    () => estadoNavegacao?.mensagemSucesso ?? null,
+  )
 
   function atualizar(campo: keyof Campos, valor: string) {
     setCampos((prev) => ({ ...prev, [campo]: valor }))
@@ -49,11 +65,11 @@ export default function FormularioLogin() {
     }
     setEnviando(true)
     try {
-      const conta = await login(campos.email, campos.senha, sessao)
+      const conta = await realizarLogin(campos.email, campos.senha, sessao)
       const rotulo = sessao === 'company' ? 'empresa' : 'startup'
       if (tipoDaConta(conta) !== sessao) {
         // Garante que nenhuma sessão fique ativa com o tipo errado.
-        await logout().catch(() => undefined)
+        await realizarLogout().catch(() => undefined)
         setErrors({ email: `Não existe ${rotulo} cadastrada com este e-mail. Verifique o tipo de conta selecionado.` })
         return
       }
@@ -85,6 +101,19 @@ export default function FormularioLogin() {
           Acesse sua conta para continuar.
         </p>
       </div>
+
+      {alertaSucesso && (
+        <div
+          role="status"
+          className="mb-6 flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50/90 p-4 text-emerald-800"
+        >
+          <CheckIcon className="mt-0.5 size-5 shrink-0 text-emerald-600" />
+          <div className="text-xs sm:text-sm">
+            <p className="font-semibold text-emerald-900">{alertaSucesso}</p>
+            <p className="mt-0.5 text-emerald-700">Informe sua senha para entrar na plataforma.</p>
+          </div>
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-5">
         <div
