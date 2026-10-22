@@ -6,6 +6,7 @@ import DashboardEmpresa from '@/pages/DashboardEmpresa.tsx'
 import DashboardStartup from '@/pages/DashboardStartup.tsx'
 import EmConstrucao from '@/pages/EmConstrucao.tsx'
 import ParaEmpresas from '@/pages/ParaEmpresas.tsx'
+import PerfilStartup from '@/pages/PerfilStartup.tsx'
 import ExplorarStartups from '@/pages/ExplorarStartups.tsx'
 import ParaStartups from '@/pages/ParaStartups.tsx'
 import Entrar from '@/pages/Entrar.tsx'
@@ -29,7 +30,7 @@ export default function App() {
 
         {/* Rotas privadas — sessão validada via cookie antes de renderizar */}
         <Route element={<RotaProtegida />}>
-          <Route path="/startups/:id" element={<EmConstrucao titulo="Perfil da startup" />} />
+          <Route path="/startups/:id" element={<PerfilStartup />} />
         </Route>
         <Route element={<RotaProtegida tipo="startup" />}>
           <Route element={<LayoutDashboardStartup />}>
