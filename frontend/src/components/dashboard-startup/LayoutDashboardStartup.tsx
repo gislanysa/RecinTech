@@ -11,7 +11,8 @@ import {
   UsersIcon,
 } from '@/components/icons.tsx'
 import type { ContextoSessao } from '@/components/RotaProtegida.tsx'
-import { logout, type Startup } from '@/lib/api.ts'
+import { useAuth } from '@/contexts/useAuth.ts'
+import type { Startup } from '@/lib/api.ts'
 import { useEffect, useState, type ComponentType, type SVGProps } from 'react'
 import { Link, NavLink, Outlet, useLocation, useNavigate, useOutletContext } from 'react-router-dom'
 
@@ -50,13 +51,14 @@ function ConteudoDaSidebar({
   aoNavegar?: () => void
 }) {
   const navigate = useNavigate()
+  const { logout: encerrarSessao } = useAuth()
   const [saindo, setSaindo] = useState(false)
 
   async function handleSair() {
     if (saindo) return
     setSaindo(true)
     try {
-      await logout()
+      await encerrarSessao()
     } finally {
       navigate('/', { replace: true })
     }

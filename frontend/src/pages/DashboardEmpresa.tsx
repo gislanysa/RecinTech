@@ -1,47 +1,171 @@
-import Logo from '@/components/Logo.tsx'
-import { logout } from '@/lib/api.ts'
-import { Link, useNavigate } from 'react-router-dom'
+import ModalNovaDemanda from '@/components/dashboard-empresa/ModalNovaDemanda.tsx'
+import ModalPerfilStartup from '@/components/dashboard-empresa/ModalPerfilStartup.tsx'
+import PainelDemandas from '@/components/dashboard-empresa/PainelDemandas.tsx'
+import PainelRecomendacoes from '@/components/dashboard-empresa/PainelRecomendacoes.tsx'
+import type { ContextoSessao } from '@/components/RotaProtegida.tsx'
+import type { Company } from '@/lib/api.ts'
+import {
+  calcularRecomendacoes,
+  listarDemandas,
+  type Demanda,
+} from '@/lib/demandas.ts'
+import { listarStartups, type StartupCatalogo } from '@/lib/startups.ts'
+import { useEffect, useMemo, useState } from 'react'
+import { useOutletContext } from 'react-router-dom'
 
 /**
- * Dashboard da empresa — exibido após o cadastro.
+ * Dashboard da Empresa — Página inicial / Visão geral.
+ *
+ * Renderizada dentro de `LayoutDashboardEmpresa` (sidebar + topbar com logo Recintech)
+ * e protegida por `RotaProtegida` com tipo="company".
  */
 export default function DashboardEmpresa() {
-  const navigate = useNavigate()
+  const { conta } = useOutletContext<ContextoSessao>()
+  const empresa = conta as Company
 
-  async function handleSair() {
+  const [demandas, setDemandas] = useState<Demanda[]>([])
+  const [carregandoDemandas, setCarregandoDemandas] = useState(true)
+  const [erroDemandas, setErroDemandas] = useState<string | null>(null)
+
+  const [startups, setStartups] = useState<StartupCatalogo[]>([])
+  const [carregandoStartups, setCarregandoStartups] = useState(true)
+
+  const [demandaFiltroId, setDemandaFiltroId] = useState<string | undefined>()
+  const [modalNovaDemanda, setModalNovaDemanda] = useState(false)
+  const [demandaEmEdicao, setDemandaEmEdicao] = useState<Demanda | null>(null)
+  const [startupModal, setStartupModal] = useState<StartupCatalogo | null>(null)
+  const [demandaSugeridaParaModal, setDemandaSugeridaParaModal] = useState<string | undefined>()
+
+  useEffect(() => {
+    let ativo = true
+    listarDemandas(empresa.id)
+      .then((lista) => {
+        if (ativo) setDemandas(lista)
+      })
+      .catch(() => {
+        if (ativo) setErroDemandas('Não foi possível carregar as demandas da empresa.')
+      })
+      .finally(() => {
+        if (ativo) setCarregandoDemandas(false)
+      })
+
+    listarStartups({ limit: 50, offset: 0 }).then((dados) => {
+      if (ativo) {
+        setStartups(dados)
+        setCarregandoStartups(false)
+      }
+    })
+
+    return () => {
+      ativo = false
+    }
+  }, [empresa.id])
+
+  async function handleRecarregar() {
+    setCarregandoDemandas(true)
+    setErroDemandas(null)
     try {
-      await logout()
+      const lista = await listarDemandas(empresa.id)
+      setDemandas(lista)
+    } catch {
+      setErroDemandas('Não foi possível carregar as demandas da empresa.')
     } finally {
-      navigate('/', { replace: true })
+      setCarregandoDemandas(false)
     }
   }
 
-  return (
-    <div className="min-h-screen bg-canvas">
-      <header className="sticky top-0 z-50 border-b border-brand-100 bg-surface/85 backdrop-blur-xl">
-        <div className="mx-auto flex h-16 max-w-7xl items-center px-4 sm:px-6">
-          <Link to="/" className="flex shrink-0 items-center gap-2.5">
-            <Logo />
-          </Link>
+  // Contagem de recomendações para cada demanda da empresa
+  const contagemPorDemanda = useMemo(() => {
+    const mapa: Record<string, number> = {}
+    for (const d of demandas) {
+      mapa[d.id] = calcularRecomendacoes([d], startups).length
+    }
+    return mapa
+  }, [demandas, startups])
 
-          <div className="ml-auto">
-            <button
-              type="button"
-              onClick={handleSair}
-              className="inline-flex items-center rounded-lg px-4 py-2 text-sm font-medium text-ink-700 ring-1 ring-brand-200 transition-colors hover:bg-brand-50 hover:text-brand-700"
-            >
-              Sair
-            </button>
-          </div>
-        </div>
+  // Startups recomendadas com base nas demandas atuais e filtro ativo
+  const recomendacoes = useMemo(() => {
+    return calcularRecomendacoes(demandas, startups, demandaFiltroId)
+  }, [demandas, startups, demandaFiltroId])
+
+  function handleAbrirPerfil(startup: StartupCatalogo, demandaId?: string) {
+    setStartupModal(startup)
+    setDemandaSugeridaParaModal(demandaId)
+  }
+
+  return (
+    <div className="flex flex-col gap-10">
+      {/* 2. Cabeçalho de boas-vindas com dados dinâmicos da empresa */}
+      <header className="flex flex-col gap-1">
+        <h1 className="font-display text-2xl font-bold tracking-tight text-ink-900 sm:text-3xl">
+          Olá, {empresa.name}!
+        </h1>
+        <p className="text-sm text-ink-500">
+          Gerencie suas demandas tecnológicas e encontre startups recomendadas para o seu negócio.
+        </p>
       </header>
 
-      <main className="flex min-h-[calc(100vh-4rem)] items-center justify-center px-4">
-        <div className="text-center">
-          <p className="font-display text-lg font-semibold text-ink-900">Dashboard da Empresa</p>
-          <p className="mt-2 text-sm text-ink-500">Em breve, o conteúdo estará disponível aqui.</p>
-        </div>
-      </main>
+      {/* 3. Painel de demandas da empresa */}
+      <PainelDemandas
+        demandas={demandas}
+        carregando={carregandoDemandas}
+        erro={erroDemandas}
+        demandaAtivaId={demandaFiltroId}
+        contagemRecomendacoesPorDemanda={contagemPorDemanda}
+        onNovaDemanda={() => {
+          setDemandaEmEdicao(null)
+          setModalNovaDemanda(true)
+        }}
+        onEditarDemanda={(demanda) => {
+          setDemandaEmEdicao(demanda)
+          setModalNovaDemanda(true)
+        }}
+        onSelecionarDemanda={(id) => {
+          setDemandaFiltroId((atual) => (atual === id ? undefined : id))
+        }}
+        onTentarNovamente={handleRecarregar}
+      />
+
+      {/* 4. Painel de startups recomendadas */}
+      <PainelRecomendacoes
+        recomendacoes={recomendacoes}
+        demandas={demandas}
+        demandaAtivaId={demandaFiltroId}
+        carregando={carregandoStartups || carregandoDemandas}
+        onSelecionarDemandaFiltro={setDemandaFiltroId}
+        onVerPerfil={handleAbrirPerfil}
+      />
+
+      {/* Modal para cadastrar ou editar demanda */}
+      <ModalNovaDemanda
+        aberto={modalNovaDemanda}
+        companyId={empresa.id}
+        demandaParaEditar={demandaEmEdicao}
+        aoFechar={() => {
+          setModalNovaDemanda(false)
+          setDemandaEmEdicao(null)
+        }}
+        aoSalvar={(salva) => {
+          setDemandas((prev) => {
+            const index = prev.findIndex((d) => d.id === salva.id)
+            if (index >= 0) {
+              const copia = [...prev]
+              copia[index] = salva
+              return copia
+            }
+            return [salva, ...prev]
+          })
+        }}
+      />
+
+      {/* 5. Modal / Card ampliado com perfil detalhado da startup */}
+      <ModalPerfilStartup
+        startup={startupModal}
+        demandas={demandas}
+        demandaSugeridaId={demandaSugeridaParaModal}
+        companyId={empresa.id}
+        aoFechar={() => setStartupModal(null)}
+      />
     </div>
   )
 }
