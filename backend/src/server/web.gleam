@@ -1000,6 +1000,10 @@ fn handle_startup_error(error: startup.StartupError) -> Response {
       { uuid.to_string(id) <> " is already assigned" }
       |> wisp.string_body(wisp.response(409), _)
 
+    startup.AssignmentNotFound(id:) ->
+      { "Entity " <> uuid.to_string(id) <> " is not assigned to the Startup" }
+      |> wisp.string_body(wisp.not_found(), _)
+
     startup.AssignedMissingEntity(id:) ->
       { "Entity " <> uuid.to_string(id) <> " was not found" }
       |> wisp.string_body(wisp.not_found(), _)

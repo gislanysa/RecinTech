@@ -814,6 +814,58 @@ RETURNING
   |> pog.execute(db)
 }
 
+/// A row you get from running the `unassign_segment` query
+/// defined in `./src/server/startup/sql/unassign_segment.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v4.7.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type UnassignSegmentRow {
+  UnassignSegmentRow(id: Uuid, name: String, description: String)
+}
+
+/// unassign a segment from a startup
+///
+/// > 🐿️ This function was generated automatically using v4.7.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn unassign_segment(
+  db: pog.Connection,
+  assigned_startup_id: Uuid,
+  assigned_segment_id: Uuid,
+) -> Result(pog.Returned(UnassignSegmentRow), pog.QueryError) {
+  let decoder = {
+    use id <- decode.field(0, uuid_decoder())
+    use name <- decode.field(1, decode.string)
+    use description <- decode.field(2, decode.string)
+    decode.success(UnassignSegmentRow(id:, name:, description:))
+  }
+
+  "-- unassign a segment from a startup
+WITH deleted AS (
+    DELETE FROM
+        public.startup_segment AS assigned
+    WHERE
+        assigned.startup_id = $1
+        AND assigned.segment_id = $2
+    RETURNING
+        assigned.segment_id
+)
+SELECT
+    segment.id,
+    segment.name,
+    segment.description
+FROM
+    deleted
+    JOIN segment ON segment.id = deleted.segment_id;
+"
+  |> pog.query
+  |> pog.parameter(pog.text(uuid.to_string(assigned_startup_id)))
+  |> pog.parameter(pog.text(uuid.to_string(assigned_segment_id)))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
 // --- Enums -------------------------------------------------------------------
 
 /// Corresponds to the Postgres `lgpd_consent` enum.
