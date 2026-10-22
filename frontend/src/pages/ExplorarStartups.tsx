@@ -1,10 +1,11 @@
 import CartaoStartup, { CartaoStartupCarregando } from '@/components/explorar/CartaoStartup.tsx'
-import PainelDeFiltros, {
+import PainelDeFiltros from '@/components/explorar/PainelDeFiltros.tsx'
+import {
   FILTROS_VAZIOS,
   cidadesDisponiveis,
   contarAtivos,
   type Filtros,
-} from '@/components/explorar/PainelDeFiltros.tsx'
+} from '@/lib/filtros.ts'
 import Footer from '@/components/layout/Footer.tsx'
 import Header from '@/components/layout/Header.tsx'
 import { restaurarSessao } from '@/lib/api.ts'
@@ -45,7 +46,6 @@ export default function ExplorarStartups() {
   const [carregando, setCarregando] = useState(true)
   const [isAutenticado, setIsAutenticado] = useState(false)
 
-  const [buscaDigitada, setBuscaDigitada] = useState('')
   const [busca, setBusca] = useState('')
   const [filtros, setFiltros] = useState<Filtros>(FILTROS_VAZIOS)
   const [ordenar, setOrdenar] = useState<OrdenarPor>('relevancia')
@@ -112,24 +112,18 @@ export default function ExplorarStartups() {
 
             <div className="relative mt-8 inline-block">
               <input
-                value={buscaDigitada}
-                onChange={(e) => {
-                  setBuscaDigitada(e.target.value)
-                  setBusca(e.target.value)
-                }}
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
                 aria-label="O que você está procurando?"
                 placeholder="Buscar..."
                 name="search"
                 type="text"
                 className="input w-56 rounded-xl border border-gray-300 bg-surface pl-5 pr-16 py-3 text-base text-ink-900 shadow-lg outline-none transition-all placeholder:text-ink-500/70 focus:w-64 focus:border-2 focus:border-accent-500"
               />
-              {buscaDigitada && (
+              {busca && (
                 <button
                   type="button"
-                  onClick={() => {
-                    setBuscaDigitada('')
-                    setBusca('')
-                  }}
+                  onClick={() => setBusca('')}
                   aria-label="Limpar busca"
                   className="absolute right-9 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
                 >
@@ -249,7 +243,7 @@ export default function ExplorarStartups() {
             ) : (
               <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
                 {resultados.map((startup) => (
-                  <CartaoStartup key={startup.slug} startup={startup} isAutenticado={isAutenticado} />
+                  <CartaoStartup key={startup.id} startup={startup} isAutenticado={isAutenticado} />
                 ))}
               </div>
             )}

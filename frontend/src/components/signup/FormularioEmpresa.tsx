@@ -1,4 +1,5 @@
 import Botao from '@/components/Botao.tsx'
+import BotaoVoltar from '@/components/BotaoVoltar.tsx'
 import { Campo, CampoSelect } from '@/components/forms/Campo.tsx'
 import { registrarEmpresa, type TamanhoEmpresa } from '@/lib/api.ts'
 import { UFS } from '@/lib/ufs.ts'
@@ -7,34 +8,18 @@ import {
   email,
   formatarCnpj,
   igualA,
+  mapearErroApi,
   minimo,
   obrigatorio,
   validarCampos,
   type Regras,
 } from '@/lib/validacao.ts'
-import axios from 'axios'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 type FormularioEmpresaProps = {
   onVoltar: () => void
 }
-
-const SETORES = [
-  'Agronegócio',
-  'Construção Civil',
-  'Educação',
-  'Energia',
-  'Finanças e Seguros',
-  'Indústria e Manufatura',
-  'Logística e Transporte',
-  'Mineração',
-  'Saúde',
-  'Serviços',
-  'Tecnologia',
-  'Varejo e Consumo',
-  'Outro',
-]
 
 const TAMANHOS: { valor: TamanhoEmpresa; rotulo: string }[] = [
   { valor: 'micro', rotulo: 'Microempresa — até 9 colaboradores' },
@@ -46,12 +31,10 @@ const TAMANHOS: { valor: TamanhoEmpresa; rotulo: string }[] = [
 type Campos = {
   nomeEmpresa: string
   cnpj: string
-  setor: string
   tamanho: string
   cidade: string
   estado: string
   site: string
-  nomeResponsavel: string
   email: string
   senha: string
   confirmarSenha: string
@@ -60,12 +43,10 @@ type Campos = {
 const VAZIO: Campos = {
   nomeEmpresa: '',
   cnpj: '',
-  setor: '',
   tamanho: '',
   cidade: '',
   estado: '',
   site: '',
-  nomeResponsavel: '',
   email: '',
   senha: '',
   confirmarSenha: '',
@@ -73,12 +54,10 @@ const VAZIO: Campos = {
 
 const REGRAS: Regras<Campos> = {
   nomeEmpresa: obrigatorio('Informe o nome da empresa.'),
-  setor: obrigatorio('Selecione o setor.'),
   tamanho: obrigatorio('Selecione o tamanho.'),
   cnpj: [obrigatorio('Informe o CNPJ.'), cnpjCom14Digitos('CNPJ deve ter 14 dígitos.')],
   cidade: obrigatorio('Informe a cidade.'),
   estado: obrigatorio('Selecione o estado.'),
-  nomeResponsavel: obrigatorio('Informe o nome do responsável.'),
   email: [obrigatorio('Informe o e-mail.'), email('E-mail inválido.')],
   senha: [
     obrigatorio('Crie uma senha.', false),
@@ -129,18 +108,8 @@ export default function FormularioEmpresa({ onVoltar }: FormularioEmpresaProps) 
       })
       navigate('/dashboard/empresa')
     } catch (err) {
-      if (axios.isAxiosError(err)) {
-        const msg: string = err.response?.data ?? ''
-        if (err.response?.status === 409 && msg.includes('Email')) {
-          setErrors((prev) => ({ ...prev, email: 'Este e-mail já está em uso.' }))
-        } else if (err.response?.status === 409 && msg.includes('CNPJ')) {
-          setErrors((prev) => ({ ...prev, cnpj: 'Este CNPJ já está cadastrado.' }))
-        } else {
-          setErrors((prev) => ({ ...prev, email: 'Erro ao cadastrar. Tente novamente.' }))
-        }
-      } else {
-        setErrors((prev) => ({ ...prev, email: 'Erro ao conectar. Tente novamente.' }))
-      }
+      const errosApi = mapearErroApi(err)
+      setErrors((prev) => ({ ...prev, ...errosApi }))
     } finally {
       setEnviando(false)
     }
@@ -149,16 +118,7 @@ export default function FormularioEmpresa({ onVoltar }: FormularioEmpresaProps) 
   return (
     <div className="w-full">
       <div className="mb-6">
-        <button
-          type="button"
-          onClick={onVoltar}
-          className="flex items-center gap-1.5 text-sm font-medium text-ink-500 transition-colors hover:text-brand-600"
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="size-4" aria-hidden="true">
-            <path d="M19 12H5M11 6l-6 6 6 6" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-          Voltar
-        </button>
+        <BotaoVoltar onClick={onVoltar} />
         <h1 className="mt-4 font-display text-2xl font-bold tracking-tight text-ink-900 sm:text-3xl">
           Cadastro de Empresa
         </h1>
@@ -192,16 +152,6 @@ export default function FormularioEmpresa({ onVoltar }: FormularioEmpresaProps) 
 
           <div className="grid gap-4 sm:grid-cols-2">
             <CampoSelect
-              id="setor"
-              label="Setor de atuação"
-              required
-              value={campos.setor}
-              onChange={(v) => atualizar('setor', v)}
-              error={errors.setor}
-              opcoes={SETORES}
-              placeholder="Selecione"
-            />
-            <CampoSelect
               id="tamanho"
               label="Tamanho"
               required
@@ -212,16 +162,15 @@ export default function FormularioEmpresa({ onVoltar }: FormularioEmpresaProps) 
               valores={TAMANHOS.map((t) => t.valor)}
               placeholder="Selecione"
             />
+            <Campo
+              id="site"
+              label="Site corporativo"
+              value={campos.site}
+              onChange={(v) => atualizar('site', v)}
+              placeholder="https://empresa.com.br"
+              type="url"
+            />
           </div>
-
-          <Campo
-            id="site"
-            label="Site corporativo"
-            value={campos.site}
-            onChange={(v) => atualizar('site', v)}
-            placeholder="https://empresa.com.br"
-            type="url"
-          />
 
           <div className="grid gap-4 sm:grid-cols-2">
             <Campo
@@ -247,21 +196,11 @@ export default function FormularioEmpresa({ onVoltar }: FormularioEmpresaProps) 
           </div>
         </fieldset>
 
-        {/* Dados do responsável */}
+        {/* Dados de acesso */}
         <fieldset className="flex flex-col gap-4 border-t border-brand-100 pt-4">
           <legend className="mb-1 text-xs font-semibold uppercase tracking-widest text-ink-500">
-            Responsável
+            Acesso à conta
           </legend>
-
-          <Campo
-            id="nomeResponsavel"
-            label="Seu nome"
-            required
-            value={campos.nomeResponsavel}
-            onChange={(v) => atualizar('nomeResponsavel', v)}
-            error={errors.nomeResponsavel}
-            placeholder="João da Silva"
-          />
 
           <Campo
             id="email"

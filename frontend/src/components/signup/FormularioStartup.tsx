@@ -1,13 +1,14 @@
 import Botao from '@/components/Botao.tsx'
+import BotaoVoltar from '@/components/BotaoVoltar.tsx'
 import { Campo, CampoSelect } from '@/components/forms/Campo.tsx'
 import { registrarStartup } from '@/lib/api.ts'
-import { SEGMENTS } from '@/lib/startups.ts'
 import { UFS } from '@/lib/ufs.ts'
 import {
   cnpjCom14Digitos,
   email,
   formatarCnpj,
   igualA,
+  mapearErroApi,
   minimo,
   obrigatorio,
   validarCampos,
@@ -30,12 +31,10 @@ type Campos = {
   nomeStartup: string
   descricao: string
   cnpj: string
-  segmento: string
   estagio: string
   cidade: string
   estado: string
   site: string
-  nomeResponsavel: string
   email: string
   senha: string
   confirmarSenha: string
@@ -44,13 +43,11 @@ type Campos = {
 const VAZIO: Campos = {
   nomeStartup: '',
   cnpj: '',
-  segmento: '',
   descricao: '',
   estagio: '',
   cidade: '',
   estado: '',
   site: '',
-  nomeResponsavel: '',
   email: '',
   senha: '',
   confirmarSenha: '',
@@ -58,12 +55,10 @@ const VAZIO: Campos = {
 
 const REGRAS: Regras<Campos> = {
   nomeStartup: obrigatorio('Informe o nome da startup.'),
-  segmento: obrigatorio('Selecione um segmento.'),
   estagio: obrigatorio('Selecione o estágio.'),
   cnpj: [obrigatorio('Informe o CNPJ.'), cnpjCom14Digitos('CNPJ deve ter 14 dígitos.')],
   cidade: obrigatorio('Informe a cidade.'),
   estado: obrigatorio('Selecione o estado.'),
-  nomeResponsavel: obrigatorio('Informe o nome do responsável.'),
   email: [obrigatorio('Informe o e-mail.'), email('E-mail inválido.')],
   senha: [
     obrigatorio('Crie uma senha.', false),
@@ -123,7 +118,7 @@ export default function FormularioStartup({ onVoltar }: FormularioStartupProps) 
           stage: campos.estagio as 'traction' | 'scaling',
           city: campos.cidade,
           state: campos.estado,
-          website: campos.site.trim() || ""
+          website: campos.site.trim() || ''
         })
       } catch (err) {
         // Se a rota ainda não estiver exposta no backend (404), prossegue para o dashboard em ambiente de desenvolvimento
@@ -134,18 +129,8 @@ export default function FormularioStartup({ onVoltar }: FormularioStartupProps) 
 
       navigate('/dashboard/startup')
     } catch (err) {
-      if (axios.isAxiosError(err)) {
-        const msg: string = err.response?.data ?? ''
-        if (err.response?.status === 409 && msg.includes('Email')) {
-          setErrors((prev) => ({ ...prev, email: 'Este e-mail já está em uso.' }))
-        } else if (err.response?.status === 409 && msg.includes('CNPJ')) {
-          setErrors((prev) => ({ ...prev, cnpj: 'Este CNPJ já está cadastrado.' }))
-        } else {
-          setErrors((prev) => ({ ...prev, email: 'Erro ao cadastrar. Tente novamente.' }))
-        }
-      } else {
-        setErrors((prev) => ({ ...prev, email: 'Erro ao conectar. Tente novamente.' }))
-      }
+      const errosApi = mapearErroApi(err)
+      setErrors((prev) => ({ ...prev, ...errosApi }))
     } finally {
       setEnviando(false)
     }
@@ -154,16 +139,7 @@ export default function FormularioStartup({ onVoltar }: FormularioStartupProps) 
   return (
     <div className="w-full">
       <div className="mb-6">
-        <button
-          type="button"
-          onClick={onVoltar}
-          className="flex items-center gap-1.5 text-sm font-medium text-ink-500 transition-colors hover:text-brand-600"
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="size-4" aria-hidden="true">
-            <path d="M19 12H5M11 6l-6 6 6 6" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-          Voltar
-        </button>
+        <BotaoVoltar onClick={onVoltar} />
         <h1 className="mt-4 font-display text-2xl font-bold tracking-tight text-ink-900 sm:text-3xl">
           Cadastro de Startup
         </h1>
@@ -197,16 +173,6 @@ export default function FormularioStartup({ onVoltar }: FormularioStartupProps) 
 
           <div className="grid gap-4 sm:grid-cols-2">
             <CampoSelect
-              id="segmento"
-              label="Segmento de atuação"
-              required
-              value={campos.segmento}
-              onChange={(v) => atualizar('segmento', v)}
-              error={errors.segmento}
-              opcoes={SEGMENTS}
-              placeholder="Selecione"
-            />
-            <CampoSelect
               id="estagio"
               label="Estágio"
               required
@@ -217,16 +183,15 @@ export default function FormularioStartup({ onVoltar }: FormularioStartupProps) 
               valores={ESTAGIOS.map((e) => e.valor)}
               placeholder="Selecione"
             />
+            <Campo
+              id="site"
+              label="Site ou redes sociais"
+              value={campos.site}
+              onChange={(v) => atualizar('site', v)}
+              placeholder="https://suastartup.com.br"
+              type="url"
+            />
           </div>
-
-          <Campo
-            id="site"
-            label="Site ou redes sociais"
-            value={campos.site}
-            onChange={(v) => atualizar('site', v)}
-            placeholder="https://suastartup.com.br"
-            type="url"
-          />
 
           <div className="grid gap-4 sm:grid-cols-2">
             <Campo
@@ -252,21 +217,11 @@ export default function FormularioStartup({ onVoltar }: FormularioStartupProps) 
           </div>
         </fieldset>
 
-        {/* Dados do responsável */}
+        {/* Dados de acesso */}
         <fieldset className="flex flex-col gap-4 border-t border-brand-100 pt-4">
           <legend className="mb-1 text-xs font-semibold uppercase tracking-widest text-ink-500">
-            Responsável
+            Acesso à conta
           </legend>
-
-          <Campo
-            id="nomeResponsavel"
-            label="Seu nome"
-            required
-            value={campos.nomeResponsavel}
-            onChange={(v) => atualizar('nomeResponsavel', v)}
-            error={errors.nomeResponsavel}
-            placeholder="Maria da Silva"
-          />
 
           <Campo
             id="email"
