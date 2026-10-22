@@ -1,4 +1,5 @@
 import Botao from '@/components/Botao.tsx'
+import BotaoVoltar from '@/components/BotaoVoltar.tsx'
 import { Link } from 'react-router-dom'
 
 type TipoConta = 'startup' | 'empresa'
@@ -39,15 +40,7 @@ export default function EscolhaTipo({ onEscolher }: EscolhaTipoProps) {
     <div className="w-full">
       {/* Botão voltar para a home */}
       <div className="mb-6">
-        <Link
-          to="/"
-          className="flex items-center gap-1.5 text-sm font-medium text-ink-500 transition-colors hover:text-brand-600"
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="size-4" aria-hidden="true">
-            <path d="M19 12H5M11 6l-6 6 6 6" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-          Voltar para a home
-        </Link>
+        <BotaoVoltar to="/">Voltar para a home</BotaoVoltar>
       </div>
 
       <div className="mb-8 text-center">
@@ -102,9 +95,9 @@ export default function EscolhaTipo({ onEscolher }: EscolhaTipoProps) {
 
       <p className="mt-6 text-center text-sm text-ink-500">
         Já tem conta?{' '}
-        <a href="/entrar" className="font-medium text-brand-600 hover:text-brand-700 hover:underline">
+        <Link to="/entrar" className="font-medium text-brand-600 hover:text-brand-700 hover:underline">
           Acessar
-        </a>
+        </Link>
       </p>
     </div>
   )

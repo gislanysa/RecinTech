@@ -28,20 +28,11 @@ export function SearchIcon(props: IconProps) {
   )
 }
 
-export function ArrowRightIcon(props: IconProps) {
-  return (
-    <svg {...stroke} {...props}>
-      <path d="M5 12h14" />
-      <path d="m13 6 6 6-6 6" />
-    </svg>
-  )
-}
 
-export function SparkIcon(props: IconProps) {
+export function ArrowLeftIcon(props: IconProps) {
   return (
     <svg {...stroke} {...props}>
-      <path d="M12 3.5 13.7 9l5.5 1.7-5.5 1.7L12 18l-1.7-5.6L4.8 10.7 10.3 9 12 3.5Z" />
-      <path d="M18.5 3.5v3M20 5h-3" />
+      <path d="M19 12H5M11 6l-6 6 6 6" />
     </svg>
   )
 }
@@ -102,6 +93,16 @@ export function EyeIcon(props: IconProps) {
   )
 }
 
+export function EyeOffIcon(props: IconProps) {
+  return (
+    <svg {...stroke} {...props}>
+      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
+      <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
+      <line x1="1" y1="1" x2="23" y2="23" />
+    </svg>
+  )
+}
+
 export function LinkIcon(props: IconProps) {
   return (
     <svg {...stroke} {...props}>
@@ -145,6 +146,78 @@ export function HandshakeIcon(props: IconProps) {
       <path d="m21 3 1 11h-2" />
       <path d="M3 3 2 14l6.5 6.5a1 1 0 1 0 3-3" />
       <path d="M3 4h8" />
+    </svg>
+  )
+}
+
+export function HomeIcon(props: IconProps) {
+  return (
+    <svg {...stroke} {...props}>
+      <path d="m3 11 9-8 9 8" />
+      <path d="M5 10v10h14V10" />
+      <path d="M10 20v-6h4v6" />
+    </svg>
+  )
+}
+
+export function TargetIcon(props: IconProps) {
+  return (
+    <svg {...stroke} {...props}>
+      <circle cx="12" cy="12" r="9" />
+      <circle cx="12" cy="12" r="5" />
+      <circle cx="12" cy="12" r="1.2" />
+    </svg>
+  )
+}
+
+export function UsersIcon(props: IconProps) {
+  return (
+    <svg {...stroke} {...props}>
+      <circle cx="9" cy="8" r="3.5" />
+      <path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6" />
+      <path d="M16 4.6a3.5 3.5 0 0 1 0 6.8" />
+      <path d="M18 14.4c2 .7 3.5 2.6 3.5 5.6" />
+    </svg>
+  )
+}
+
+export function GridIcon(props: IconProps) {
+  return (
+    <svg {...stroke} {...props}>
+      <rect x="3.5" y="3.5" width="7" height="7" rx="1.5" />
+      <rect x="13.5" y="3.5" width="7" height="7" rx="1.5" />
+      <rect x="3.5" y="13.5" width="7" height="7" rx="1.5" />
+      <rect x="13.5" y="13.5" width="7" height="7" rx="1.5" />
+    </svg>
+  )
+}
+
+export function CreditCardIcon(props: IconProps) {
+  return (
+    <svg {...stroke} {...props}>
+      <rect x="2.5" y="5" width="19" height="14" rx="2.5" />
+      <path d="M2.5 10h19" />
+      <path d="M6.5 15h4" />
+    </svg>
+  )
+}
+
+export function LogOutIcon(props: IconProps) {
+  return (
+    <svg {...stroke} {...props}>
+      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+      <path d="m16 17 5-5-5-5" />
+      <path d="M21 12H9" />
+    </svg>
+  )
+}
+
+export function AlertIcon(props: IconProps) {
+  return (
+    <svg {...stroke} {...props}>
+      <path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" />
+      <path d="M12 9v4" />
+      <path d="M12 17h.01" />
     </svg>
   )
 }
