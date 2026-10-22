@@ -530,7 +530,7 @@ pub fn assign_segment(
   segment.Segment(id: row.id, name: row.name, description: row.description)
 }
 
-/// Unassign a segment from a startup.
+/// Unassign a segment from a Startup.
 ///
 /// ## Examples
 ///
@@ -576,7 +576,7 @@ pub fn unassign_segment(
 ///   context.database,
 ///   startup_id,
 ///   assign: expertise_id,
-///   )
+/// )
 ///
 /// case result {
 ///   Ok(assigned) -> todo as "send response"
@@ -615,6 +615,41 @@ pub fn assign_expertise(
   use row <- result.map(
     list.first(returned.rows)
     |> result.replace_error(AssignmentFailure(id: expertise)),
+  )
+
+  expertise.Expertise(id: row.id, name: row.name, description: row.description)
+}
+
+/// Unassign an Expertise from a Startup.
+///
+/// ## Examples
+///
+/// ```gleam
+/// let result = startup.unassign_expertise(
+///   context.database,
+///   startup_id,
+///   unassign: expertise_id,
+/// )
+///
+/// case result {
+///   Ok(deleted) -> todo as "send response"
+///   Error(startup.AssignmentNotFound(_)) -> wisp.not_found()
+///   Error(_) -> wisp.internal_server_error()
+/// }
+/// ```
+pub fn unassign_expertise(
+  database: pog.Connection,
+  id: uuid.Uuid,
+  unassign expertise: uuid.Uuid,
+) -> Result(expertise.Expertise, StartupError) {
+  use returned <- result.try(
+    sql.unassign_expertise(database, id, expertise)
+    |> result.map_error(DatabaseError),
+  )
+
+  use row <- result.map(
+    list.first(returned.rows)
+    |> result.replace_error(AssignmentNotFound(id: expertise)),
   )
 
   expertise.Expertise(id: row.id, name: row.name, description: row.description)
@@ -767,6 +802,41 @@ pub fn assign_service(
   service.Service(id: row.id, name: row.name, description: row.description)
 }
 
+/// Unassign a Service from a Startup.
+///
+/// ## Examples
+///
+/// ```gleam
+/// let result = startup.unassign_service(
+///   context.database,
+///   startup_id,
+///   unassign: service_id,
+/// )
+///
+/// case result {
+///   Ok(deleted) -> todo as "send response"
+///   Error(startup.AssignmentNotFound(_)) -> wisp.not_found()
+///   Error(_) -> wisp.internal_server_error()
+/// }
+/// ```
+pub fn unassign_service(
+  database: pog.Connection,
+  id: uuid.Uuid,
+  unassign service: uuid.Uuid,
+) -> Result(service.Service, StartupError) {
+  use returned <- result.try(
+    sql.unassign_service(database, id, service)
+    |> result.map_error(DatabaseError),
+  )
+
+  use row <- result.map(
+    list.first(returned.rows)
+    |> result.replace_error(AssignmentNotFound(id: service)),
+  )
+
+  service.Service(id: row.id, name: row.name, description: row.description)
+}
+
 /// Assign a Technology to a Startup and returns the assigned Technology if
 /// successful. You cannot assign a technology to a startup more than once.
 ///
@@ -777,7 +847,7 @@ pub fn assign_service(
 ///   context.database,
 ///   startup_id,
 ///   assign: technology_id,
-///   )
+/// )
 ///
 /// case result {
 ///   Ok(assigned) -> todo as "send response"
@@ -816,6 +886,45 @@ pub fn assign_technology(
   use row <- result.map(
     list.first(returned.rows)
     |> result.replace_error(AssignmentFailure(id: technology)),
+  )
+
+  technology.Technology(
+    id: row.id,
+    name: row.name,
+    description: row.description,
+  )
+}
+
+/// Unassign a Technology from a Startup.
+///
+/// ## Examples
+///
+/// ```gleam
+/// let result = startup.unassign_technology(
+///   context.database,
+///   startup_id,
+///   unassign: technology_id,
+/// )
+///
+/// case result {
+///   Ok(deleted) -> todo as "send response"
+///   Error(startup.AssignmentNotFound(_)) -> wisp.not_found()
+///   Error(_) -> wisp.internal_server_error()
+/// }
+/// ```
+pub fn unassign_technology(
+  database: pog.Connection,
+  id: uuid.Uuid,
+  unassign technology: uuid.Uuid,
+) -> Result(technology.Technology, StartupError) {
+  use returned <- result.try(
+    sql.unassign_technology(database, id, technology)
+    |> result.map_error(DatabaseError),
+  )
+
+  use row <- result.map(
+    list.first(returned.rows)
+    |> result.replace_error(AssignmentNotFound(id: technology)),
   )
 
   technology.Technology(
