@@ -627,12 +627,12 @@ pub fn assign_startup_to_segment_test() -> Nil {
 
   let body =
     json.object([
-      #("startup", json.string(uuid.to_string(startup.id))),
       #("segment", json.string(uuid.to_string(segment.id))),
     ])
 
+  let endpoint = "/api/startup/" <> uuid.to_string(startup.id) <> "/segment"
   let response =
-    simulate.browser_request(http.Post, "/api/startup/segment")
+    simulate.browser_request(http.Post, endpoint)
     |> simulate.json_body(body)
     |> web.handle_request(context)
 
@@ -657,13 +657,13 @@ pub fn assign_startup_to_segment_conflict_test() -> Nil {
 
   let body =
     json.object([
-      #("startup", json.string(uuid.to_string(startup.id))),
       #("segment", json.string(uuid.to_string(segment.id))),
     ])
 
   // assigning twice
+  let endpoint = "/api/startup/" <> uuid.to_string(startup.id) <> "/segment"
   let response =
-    simulate.browser_request(http.Post, "/api/startup/segment")
+    simulate.browser_request(http.Post, endpoint)
     |> simulate.json_body(body)
     |> web.handle_request(context)
 
@@ -680,12 +680,12 @@ pub fn assign_startup_to_technology_test() -> Nil {
 
   let body =
     json.object([
-      #("startup", json.string(uuid.to_string(startup.id))),
       #("technology", json.string(uuid.to_string(techology.id))),
     ])
 
+  let endpoint = "/api/startup/" <> uuid.to_string(startup.id) <> "/technology"
   let response =
-    simulate.browser_request(http.Post, "/api/startup/technology")
+    simulate.browser_request(http.Post, endpoint)
     |> simulate.json_body(body)
     |> web.handle_request(context)
 
@@ -710,13 +710,13 @@ pub fn assign_startup_to_technology_conflict_test() -> Nil {
 
   let body =
     json.object([
-      #("startup", json.string(uuid.to_string(startup.id))),
       #("technology", json.string(uuid.to_string(technology.id))),
     ])
 
   // assigning twice
+  let endpoint = "/api/startup/" <> uuid.to_string(startup.id) <> "/technology"
   let response =
-    simulate.browser_request(http.Post, "/api/startup/technology")
+    simulate.browser_request(http.Post, endpoint)
     |> simulate.json_body(body)
     |> web.handle_request(context)
 
@@ -733,12 +733,12 @@ pub fn assign_startup_to_expertise_test() -> Nil {
 
   let body =
     json.object([
-      #("startup", json.string(uuid.to_string(startup.id))),
       #("expertise", json.string(uuid.to_string(expertise.id))),
     ])
 
+  let endpoint = "/api/startup/" <> uuid.to_string(startup.id) <> "/expertise"
   let response =
-    simulate.browser_request(http.Post, "/api/startup/expertise")
+    simulate.browser_request(http.Post, endpoint)
     |> simulate.json_body(body)
     |> web.handle_request(context)
 
@@ -763,13 +763,13 @@ pub fn assign_startup_to_expertise_conflict_test() -> Nil {
 
   let body =
     json.object([
-      #("startup", json.string(uuid.to_string(startup.id))),
       #("expertise", json.string(uuid.to_string(expertise.id))),
     ])
 
   // assigning twice
+  let endpoint = "/api/startup/" <> uuid.to_string(startup.id) <> "/expertise"
   let response =
-    simulate.browser_request(http.Post, "/api/startup/expertise")
+    simulate.browser_request(http.Post, endpoint)
     |> simulate.json_body(body)
     |> web.handle_request(context)
 
@@ -786,12 +786,12 @@ pub fn assign_startup_to_service_test() -> Nil {
 
   let body =
     json.object([
-      #("startup", json.string(uuid.to_string(startup.id))),
       #("service", json.string(uuid.to_string(service.id))),
     ])
 
+  let endpoint = "/api/startup/" <> uuid.to_string(startup.id) <> "/service"
   let response =
-    simulate.browser_request(http.Post, "/api/startup/service")
+    simulate.browser_request(http.Post, endpoint)
     |> simulate.json_body(body)
     |> web.handle_request(context)
 
@@ -816,13 +816,13 @@ pub fn assign_startup_to_service_conflict_test() -> Nil {
 
   let body =
     json.object([
-      #("startup", json.string(uuid.to_string(startup.id))),
       #("service", json.string(uuid.to_string(service.id))),
     ])
 
   // assigning twice
+  let endpoint = "/api/startup/" <> uuid.to_string(startup.id) <> "/service"
   let response =
-    simulate.browser_request(http.Post, "/api/startup/service")
+    simulate.browser_request(http.Post, endpoint)
     |> simulate.json_body(body)
     |> web.handle_request(context)
 

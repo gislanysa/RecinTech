@@ -100,43 +100,43 @@ pub fn handle_request(request: Request, context: Context) -> Response {
     http.Get, ["api", "startup", id, "segment"] ->
       get_startup_segments(context.database, id)
 
+    http.Post, ["api", "startup", id, "segment"] ->
+      assign_startup_to_segment(request, context.database, id)
+
     http.Delete, ["api", "startup", id, "segment", segment_id] ->
       unassign_startup_from_segment(context.database, id, segment_id)
 
     http.Get, ["api", "segment"] -> get_many_segments(request, context.database)
 
-    http.Post, ["api", "startup", "segment"] ->
-      assign_startup_to_segment(request, context.database)
-
     // == service ==============================================================
     http.Get, ["api", "startup", id, "service"] ->
       get_startup_services(context.database, id)
 
+    http.Post, ["api", "startup", id, "service"] ->
+      assign_startup_to_service(request, context.database, id)
+
     http.Delete, ["api", "startup", id, "service", service_id] ->
       unassign_startup_from_service(context.database, id, service_id)
-
-    http.Post, ["api", "startup", "service"] ->
-      assign_startup_to_service(request, context.database)
 
     // == expertise ============================================================
     http.Get, ["api", "startup", id, "expertise"] ->
       get_startup_expertises(context.database, id)
 
+    http.Post, ["api", "startup", id, "expertise"] ->
+      assign_startup_to_expertise(request, context.database, id)
+
     http.Delete, ["api", "startup", id, "expertise", expertise_id] ->
       unassign_startup_from_expertise(context.database, id, expertise_id)
-
-    http.Post, ["api", "startup", "expertise"] ->
-      assign_startup_to_expertise(request, context.database)
 
     // == technology ===========================================================
     http.Get, ["api", "startup", id, "technology"] ->
       get_startup_technologies(context.database, id)
 
+    http.Post, ["api", "startup", id, "technology"] ->
+      assign_startup_to_technology(request, context.database, id)
+
     http.Delete, ["api", "startup", id, "technology", technology_id] ->
       unassign_startup_from_technology(context.database, id, technology_id)
-
-    http.Post, ["api", "startup", "technology"] ->
-      assign_startup_to_technology(request, context.database)
 
     // +-----------------------------------------------------------------------+
     // | COMPANY                                                               |
@@ -169,7 +169,7 @@ fn get_company_by_id(database: pog.Connection, id: String) -> Response {
   }
 }
 
-/// ## `POST /api/startup/segment`
+/// ## `POST /api/startup/:id/segment`
 ///
 /// Assign a Segment to a Startup
 ///
@@ -177,7 +177,6 @@ fn get_company_by_id(database: pog.Connection, id: String) -> Response {
 ///
 /// ```json
 /// {
-///  "startup": "01a058ae-057f-73e8-b2a0-50986559767b",
 ///  "segment": "01a155b2-69c7-75d7-8cc1-8d2626c6bc9b"
 /// }
 /// ```
@@ -194,29 +193,27 @@ fn get_company_by_id(database: pog.Connection, id: String) -> Response {
 ///
 /// ## Status Codes
 ///
-/// - **200** If successful.
-/// - **400** if :startup or :segment is not a valid UUID.
+/// - **201** If successful.
+/// - **400** if :id or :segment is not a valid UUID.
 /// - **404** If Startup or Segment is not found.
 ///
 fn assign_startup_to_segment(
   request: Request,
   database: pog.Connection,
+  id: String,
 ) -> Response {
+  use id <- require_valid_uuid(id)
   use body <- wisp.require_json(request)
 
   let decoder = {
-    use startup <- decode.field("startup", internal.uuid_decoder())
     use segment <- decode.field("segment", internal.uuid_decoder())
-    decode.success(payload.AssignStartupToSegment(startup:, segment:))
+    decode.success(segment)
   }
 
   case decode.run(body, decoder) {
     Error(_) -> wisp.bad_request("Invalid JSON")
-    Ok(data) -> {
-      let result =
-        startup.assign_segment(database, data.startup, assign: data.segment)
-
-      case result {
+    Ok(segment) ->
+      case startup.assign_segment(database, id, assign: segment) {
         Ok(data) ->
           segment.to_json(data)
           |> json.to_string()
@@ -224,11 +221,10 @@ fn assign_startup_to_segment(
 
         Error(error) -> handle_startup_error(error)
       }
-    }
   }
 }
 
-/// ## `POST /api/startup/technology`
+/// ## `POST /api/startup/:id/technology`
 ///
 /// Assign a Technology to a Startup
 ///
@@ -236,7 +232,6 @@ fn assign_startup_to_segment(
 ///
 /// ```json
 /// {
-///   "startup": "01a058ae-057f-73e8-b2a0-50986559767b",
 ///   "technology": "01a155b2-69c7-75d7-8cc1-8d2626c6bc9b"
 /// }
 /// ```
@@ -253,33 +248,27 @@ fn assign_startup_to_segment(
 ///
 /// ## Status Codes
 ///
-/// - **200** If successful.
-/// - **400** if :startup or :technology is not a valid UUID.
+/// - **201** If successful.
+/// - **400** if :id or :technology is not a valid UUID.
 /// - **404** If Startup or Technology is not found.
 ///
 fn assign_startup_to_technology(
   request: Request,
   database: pog.Connection,
+  id: String,
 ) -> Response {
+  use id <- require_valid_uuid(id)
   use body <- wisp.require_json(request)
 
   let decoder = {
-    use startup <- decode.field("startup", internal.uuid_decoder())
     use technology <- decode.field("technology", internal.uuid_decoder())
-    decode.success(payload.AssignStartupToTechnology(startup:, technology:))
+    decode.success(technology)
   }
 
   case decode.run(body, decoder) {
     Error(_) -> wisp.bad_request("Invalid JSON")
-    Ok(data) -> {
-      let result =
-        startup.assign_technology(
-          database,
-          data.startup,
-          assign: data.technology,
-        )
-
-      case result {
+    Ok(technology) ->
+      case startup.assign_technology(database, id, assign: technology) {
         Ok(data) ->
           technology.to_json(data)
           |> json.to_string()
@@ -287,19 +276,17 @@ fn assign_startup_to_technology(
 
         Error(error) -> handle_startup_error(error)
       }
-    }
   }
 }
 
-/// ## `POST /api/startup/expertise`
+/// ## `POST /api/startup/:id/expertise`
 ///
-/// Assign a Expertise to a Startup
+/// Assign an Expertise to a Startup
 ///
 /// ## Request Body
 ///
 /// ```json
 /// {
-///  "startup": "01a058ae-057f-73e8-b2a0-50986559767b",
 ///  "expertise": "01a155b2-69c7-75d7-8cc1-8d2626c6bc9b"
 /// }
 /// ```
@@ -316,29 +303,27 @@ fn assign_startup_to_technology(
 ///
 /// ## Status Codes
 ///
-/// - **200** If successful.
-/// - **400** if :startup or :Expertise is not a valid UUID.
+/// - **201** If successful.
+/// - **400** if :id or :expertise is not a valid UUID.
 /// - **404** If Startup or Expertise is not found.
 ///
 fn assign_startup_to_expertise(
   request: Request,
   database: pog.Connection,
+  id: String,
 ) -> Response {
+  use id <- require_valid_uuid(id)
   use body <- wisp.require_json(request)
 
   let decoder = {
-    use startup <- decode.field("startup", internal.uuid_decoder())
     use expertise <- decode.field("expertise", internal.uuid_decoder())
-    decode.success(payload.AssignStartupToExpertise(startup:, expertise:))
+    decode.success(expertise)
   }
 
   case decode.run(body, decoder) {
     Error(_) -> wisp.bad_request("Invalid JSON")
-    Ok(data) -> {
-      let result =
-        startup.assign_expertise(database, data.startup, assign: data.expertise)
-
-      case result {
+    Ok(expertise) ->
+      case startup.assign_expertise(database, id, assign: expertise) {
         Ok(data) ->
           expertise.to_json(data)
           |> json.to_string()
@@ -346,11 +331,10 @@ fn assign_startup_to_expertise(
 
         Error(error) -> handle_startup_error(error)
       }
-    }
   }
 }
 
-/// ## `POST /api/startup/service`
+/// ## `POST /api/startup/:id/service`
 ///
 /// Assign a Service to a Startup
 ///
@@ -358,7 +342,6 @@ fn assign_startup_to_expertise(
 ///
 /// ```json
 /// {
-///  "startup": "01a058ae-057f-73e8-b2a0-50986559767b",
 ///  "service": "01a155b2-69c7-75d7-8cc1-8d2626c6bc9b"
 /// }
 /// ```
@@ -375,29 +358,27 @@ fn assign_startup_to_expertise(
 ///
 /// ## Status Codes
 ///
-/// - **200** If successful.
-/// - **400** if :startup or :service is not a valid UUID.
+/// - **201** If successful.
+/// - **400** if :id or :service is not a valid UUID.
 /// - **404** If Startup or Service is not found.
 ///
 fn assign_startup_to_service(
   request: Request,
   database: pog.Connection,
+  id: String,
 ) -> Response {
+  use id <- require_valid_uuid(id)
   use body <- wisp.require_json(request)
 
   let decoder = {
-    use startup <- decode.field("startup", internal.uuid_decoder())
     use service <- decode.field("service", internal.uuid_decoder())
-    decode.success(payload.AssignStartupToService(startup:, service:))
+    decode.success(service)
   }
 
   case decode.run(body, decoder) {
     Error(_) -> wisp.bad_request("Invalid JSON")
-    Ok(data) -> {
-      let result =
-        startup.assign_service(database, data.startup, assign: data.service)
-
-      case result {
+    Ok(service) ->
+      case startup.assign_service(database, id, assign: service) {
         Ok(data) ->
           service.to_json(data)
           |> json.to_string()
@@ -405,7 +386,6 @@ fn assign_startup_to_service(
 
         Error(error) -> handle_startup_error(error)
       }
-    }
   }
 }
 
