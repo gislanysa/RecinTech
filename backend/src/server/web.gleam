@@ -100,6 +100,9 @@ pub fn handle_request(request: Request, context: Context) -> Response {
     http.Get, ["api", "startup", id, "segment"] ->
       get_startup_segments(context.database, id)
 
+    http.Delete, ["api", "startup", id, "segment", segment_id] ->
+      unassign_startup_from_segment(context.database, id, segment_id)
+
     http.Get, ["api", "segment"] -> get_many_segments(request, context.database)
 
     http.Post, ["api", "startup", "segment"] ->
@@ -109,6 +112,9 @@ pub fn handle_request(request: Request, context: Context) -> Response {
     http.Get, ["api", "startup", id, "service"] ->
       get_startup_services(context.database, id)
 
+    http.Delete, ["api", "startup", id, "service", service_id] ->
+      unassign_startup_from_service(context.database, id, service_id)
+
     http.Post, ["api", "startup", "service"] ->
       assign_startup_to_service(request, context.database)
 
@@ -116,12 +122,18 @@ pub fn handle_request(request: Request, context: Context) -> Response {
     http.Get, ["api", "startup", id, "expertise"] ->
       get_startup_expertises(context.database, id)
 
+    http.Delete, ["api", "startup", id, "expertise", expertise_id] ->
+      unassign_startup_from_expertise(context.database, id, expertise_id)
+
     http.Post, ["api", "startup", "expertise"] ->
       assign_startup_to_expertise(request, context.database)
 
     // == technology ===========================================================
     http.Get, ["api", "startup", id, "technology"] ->
       get_startup_technologies(context.database, id)
+
+    http.Delete, ["api", "startup", id, "technology", technology_id] ->
+      unassign_startup_from_technology(context.database, id, technology_id)
 
     http.Post, ["api", "startup", "technology"] ->
       assign_startup_to_technology(request, context.database)
@@ -489,6 +501,44 @@ fn get_startup_expertises(database: pog.Connection, id: String) -> Response {
   }
 }
 
+/// ## `DELETE /api/startup/:id/expertise/:expertise_id`
+///
+/// Unassign an Expertise from a Startup.
+///
+/// ## Response Body
+///
+/// ```json
+/// {
+///   "id": "01a155b2-69c7-75d7-8cc1-8d2626c6bc9b",
+///   "name": "Education",
+///   "description": "May it be free and for everyone"
+/// }
+/// ```
+///
+/// ## Status Codes
+///
+/// - **200** If successful.
+/// - **400** if :id or :expertise_id is not a valid UUID.
+/// - **404** If the Expertise is not assigned to the Startup.
+///
+fn unassign_startup_from_expertise(
+  database: pog.Connection,
+  id: String,
+  expertise_id: String,
+) -> Response {
+  use id <- require_valid_uuid(id)
+  use expertise <- require_valid_uuid(expertise_id)
+
+  case startup.unassign_expertise(database, id, unassign: expertise) {
+    Ok(data) ->
+      expertise.to_json(data)
+      |> json.to_string()
+      |> wisp.json_response(200)
+
+    Error(error) -> handle_startup_error(error)
+  }
+}
+
 /// Return HTTP 401 if the Session token is not found
 ///
 /// ## Examples
@@ -561,6 +611,44 @@ fn get_startup_services(database: pog.Connection, id: String) -> Response {
   }
 }
 
+/// ## `DELETE /api/startup/:id/service/:service_id`
+///
+/// Unassign a Service from a Startup.
+///
+/// ## Response Body
+///
+/// ```json
+/// {
+///   "id": "01a155b2-69c7-75d7-8cc1-8d2626c6bc9b",
+///   "name": "UI/UX",
+///   "description": "user experience"
+/// }
+/// ```
+///
+/// ## Status Codes
+///
+/// - **200** If successful.
+/// - **400** if :id or :service_id is not a valid UUID.
+/// - **404** If the Service is not assigned to the Startup.
+///
+fn unassign_startup_from_service(
+  database: pog.Connection,
+  id: String,
+  service_id: String,
+) -> Response {
+  use id <- require_valid_uuid(id)
+  use service <- require_valid_uuid(service_id)
+
+  case startup.unassign_service(database, id, unassign: service) {
+    Ok(data) ->
+      service.to_json(data)
+      |> json.to_string()
+      |> wisp.json_response(200)
+
+    Error(error) -> handle_startup_error(error)
+  }
+}
+
 /// ## `GET /api/startup/:id/segment`
 ///
 /// Fetch all Segments that a Startup is assigned to.
@@ -601,6 +689,44 @@ fn get_startup_segments(database: pog.Connection, id: String) -> Response {
   }
 }
 
+/// ## `DELETE /api/startup/:id/segment/:segment_id`
+///
+/// Unassign a Segment from a Startup.
+///
+/// ## Response Body
+///
+/// ```json
+/// {
+///   "id": "01a155b2-69c7-75d7-8cc1-8d2626c6bc9b",
+///   "name": "Tech",
+///   "description": "Technology-related stuff"
+/// }
+/// ```
+///
+/// ## Status Codes
+///
+/// - **200** If successful.
+/// - **400** if :id or :segment_id is not a valid UUID.
+/// - **404** If the Segment is not assigned to the Startup.
+///
+fn unassign_startup_from_segment(
+  database: pog.Connection,
+  id: String,
+  segment_id: String,
+) -> Response {
+  use id <- require_valid_uuid(id)
+  use segment <- require_valid_uuid(segment_id)
+
+  case startup.unassign_segment(database, id, unassign: segment) {
+    Ok(data) ->
+      segment.to_json(data)
+      |> json.to_string()
+      |> wisp.json_response(200)
+
+    Error(error) -> handle_startup_error(error)
+  }
+}
+
 /// ## `GET /api/startup/:id/technology`
 ///
 /// Fetch all Technologies that a Startup is assigned to.
@@ -634,6 +760,44 @@ fn get_startup_technologies(database: pog.Connection, id: String) -> Response {
   case startup.get_technologies(database, id) {
     Ok(data) ->
       json.array(data, technology.to_json)
+      |> json.to_string()
+      |> wisp.json_response(200)
+
+    Error(error) -> handle_startup_error(error)
+  }
+}
+
+/// ## `DELETE /api/startup/:id/technology/:technology_id`
+///
+/// Unassign a Technology from a Startup.
+///
+/// ## Response Body
+///
+/// ```json
+/// {
+///   "id": "01a155b2-69c7-75d7-8cc1-8d2626c6bc9b",
+///   "name": "Javascript",
+///   "description": "dont"
+/// }
+/// ```
+///
+/// ## Status Codes
+///
+/// - **200** If successful.
+/// - **400** if :id or :technology_id is not a valid UUID.
+/// - **404** If the Technology is not assigned to the Startup.
+///
+fn unassign_startup_from_technology(
+  database: pog.Connection,
+  id: String,
+  technology_id: String,
+) -> Response {
+  use id <- require_valid_uuid(id)
+  use technology <- require_valid_uuid(technology_id)
+
+  case startup.unassign_technology(database, id, unassign: technology) {
+    Ok(data) ->
+      technology.to_json(data)
       |> json.to_string()
       |> wisp.json_response(200)
 
