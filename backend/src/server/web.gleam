@@ -885,7 +885,7 @@ fn handle_segment_error(error: segment.SegmentError) -> Response {
   }
 }
 
-/// ## `GET /api/segments`
+/// ## `GET /api/segment`
 ///
 /// Fetch a list of registered Startups, pagination is available.
 ///
