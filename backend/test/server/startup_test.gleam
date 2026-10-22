@@ -443,3 +443,55 @@ pub fn get_lgpd_consent_upsert_test() -> Nil {
 
   Nil
 }
+
+pub fn unassign_segment_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+  let segment = dummy.new_segment(context.database)
+
+  let assert Ok(assigned) =
+    startup.assign_segment(context.database, startup.id, assign: segment.id)
+  assert assigned.id == segment.id
+
+  let assert Ok(deleted) =
+    startup.unassign_segment(
+      context.database,
+      startup.id,
+      unassign: assigned.id,
+    )
+  assert deleted.id == assigned.id
+
+  // It should no longer be assigned
+  let assert Ok([]) = startup.get_segments(context.database, startup.id)
+
+  Nil
+}
+
+pub fn unassign_missing_segment_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+  let missing_id = uuid.v7()
+
+  let assert Error(startup.AssignmentNotFound(returned)) =
+    startup.unassign_segment(context.database, startup.id, unassign: missing_id)
+
+  assert returned == missing_id
+
+  Nil
+}
+
+pub fn unassign_segment_missing_startup_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let missing_id = uuid.v7()
+  let segment = dummy.new_segment(context.database)
+
+  let assert Error(startup.AssignmentNotFound(returned)) =
+    startup.unassign_segment(context.database, missing_id, unassign: segment.id)
+
+  assert returned == segment.id
+
+  Nil
+}

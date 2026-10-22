@@ -22,19 +22,15 @@ import youid/uuid
 pub type StartupError {
   /// Failed to connect to the Database
   DatabaseError(error: pog.QueryError)
+  /// Failed to hash the Startup password
+  HashError(argus.HashError)
+
   /// Something went wrong when registering a Startup
   FailedToRegisterStartup
   /// Startup was not found in the Database
   NotFound(id: uuid.Uuid)
-  /// Segment, technology, etc is already assigned
-  AssignmentConflict(id: uuid.Uuid)
-  /// Tried to assign an entity that is not registered
-  AssignedMissingEntity(id: uuid.Uuid)
-  /// Failed to assign entity to a startup for unknown reasons
-  AssignmentFailure(id: uuid.Uuid)
-  /// Failed to hash the Startup password
-  HashError(argus.HashError)
-
+  /// Startup provided an incorrect password when during login
+  WrongPassword
   /// CPNJ should have 14 characters
   InvalidCnpj(value: String)
   /// Startup has an invalid website
@@ -53,10 +49,16 @@ pub type StartupError {
   /// Startup email has invalid format
   InvalidEmail(value: String)
 
-  // Auth related errors -------------------------------------------------------
+  // Assignment errors --------------------------------------------------------
   //
-  /// Startup provided an incorrect password when during login
-  WrongPassword
+  /// Segment, technology, etc is already assigned
+  AssignmentConflict(id: uuid.Uuid)
+  /// Tried to assign an entity that is not registered
+  AssignedMissingEntity(id: uuid.Uuid)
+  /// Failed to assign entity to a startup for unknown reasons
+  AssignmentFailure(id: uuid.Uuid)
+  /// Failed to unassign entity to a startup for unknown reasons
+  AssignmentNotFound(id: uuid.Uuid)
 }
 
 pub type Startup {
@@ -486,7 +488,7 @@ pub fn ensure_exists(
 ///   context.database,
 ///   startup_id,
 ///   assign: segment_id,
-///   )
+/// )
 ///
 /// case result {
 ///   Ok(assigned) -> todo as "send response"
@@ -523,6 +525,41 @@ pub fn assign_segment(
   use row <- result.map(
     list.first(returned.rows)
     |> result.replace_error(AssignmentFailure(id: segment)),
+  )
+
+  segment.Segment(id: row.id, name: row.name, description: row.description)
+}
+
+/// Unassign a segment from a startup.
+///
+/// ## Examples
+///
+/// ```gleam
+/// let result = startup.unassign_segment(
+///   context.database,
+///   startup_id,
+///   unassign: segment_id,
+/// )
+///
+/// case result {
+///   Ok(deleted) -> todo as "send response"
+///   Error(startup.AssignmentNotFound(_)) -> wisp.not_found()
+///   Error(_) -> wisp.internal_server_error()
+/// }
+/// ```
+pub fn unassign_segment(
+  database: pog.Connection,
+  id: uuid.Uuid,
+  unassign segment: uuid.Uuid,
+) -> Result(segment.Segment, StartupError) {
+  use returned <- result.try(
+    sql.unassign_segment(database, id, segment)
+    |> result.map_error(DatabaseError),
+  )
+
+  use row <- result.map(
+    list.first(returned.rows)
+    |> result.replace_error(AssignmentNotFound(id: segment)),
   )
 
   segment.Segment(id: row.id, name: row.name, description: row.description)
