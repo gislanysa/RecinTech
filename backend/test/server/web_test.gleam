@@ -831,6 +831,340 @@ pub fn assign_startup_to_service_conflict_test() -> Nil {
   Nil
 }
 
+pub fn unassign_startup_from_segment_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+  let segment = dummy.new_segment(context.database)
+
+  let assert Ok(_) =
+    startup.assign_segment(context.database, startup.id, assign: segment.id)
+
+  let endpoint =
+    "/api/startup/"
+    <> uuid.to_string(startup.id)
+    <> "/segment/"
+    <> uuid.to_string(segment.id)
+
+  let response =
+    simulate.browser_request(http.Delete, endpoint)
+    |> web.handle_request(context)
+
+  assert response.status == 200
+  assert response.get_header(response, "content-type")
+    == Ok("application/json; charset=utf-8")
+
+  let body = simulate.read_body(response)
+  let assert Ok(returned) = json.parse(body, segment.decoder())
+  assert returned == segment
+
+  // It should no longer be assigned
+  let assert Ok([]) = startup.get_segments(context.database, startup.id)
+
+  Nil
+}
+
+pub fn unassign_missing_segment_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+  let missing_id = uuid.v7()
+
+  let endpoint =
+    "/api/startup/"
+    <> uuid.to_string(startup.id)
+    <> "/segment/"
+    <> uuid.to_string(missing_id)
+
+  let response =
+    simulate.browser_request(http.Delete, endpoint)
+    |> web.handle_request(context)
+
+  assert response.status == 404
+
+  Nil
+}
+
+pub fn unassign_segment_invalid_id_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+  let segment = dummy.new_segment(context.database)
+
+  // Invalid startup ID
+  let endpoint = "/api/startup/wibble/segment/" <> uuid.to_string(segment.id)
+
+  let response =
+    simulate.browser_request(http.Delete, endpoint)
+    |> web.handle_request(context)
+
+  assert response.status == 400
+
+  // Invalid segment ID
+  let endpoint =
+    "/api/startup/" <> uuid.to_string(startup.id) <> "/segment/wibble"
+
+  let response =
+    simulate.browser_request(http.Delete, endpoint)
+    |> web.handle_request(context)
+
+  assert response.status == 400
+
+  Nil
+}
+
+pub fn unassign_startup_from_service_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+  let service = dummy.new_service(context.database)
+
+  let assert Ok(_) =
+    startup.assign_service(context.database, startup.id, assign: service.id)
+
+  let endpoint =
+    "/api/startup/"
+    <> uuid.to_string(startup.id)
+    <> "/service/"
+    <> uuid.to_string(service.id)
+
+  let response =
+    simulate.browser_request(http.Delete, endpoint)
+    |> web.handle_request(context)
+
+  assert response.status == 200
+  assert response.get_header(response, "content-type")
+    == Ok("application/json; charset=utf-8")
+
+  let body = simulate.read_body(response)
+  let assert Ok(returned) = json.parse(body, service.decoder())
+  assert returned == service
+
+  // It should no longer be assigned
+  let assert Ok([]) = startup.get_services(context.database, startup.id)
+
+  Nil
+}
+
+pub fn unassign_missing_service_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+  let missing_id = uuid.v7()
+
+  let endpoint =
+    "/api/startup/"
+    <> uuid.to_string(startup.id)
+    <> "/service/"
+    <> uuid.to_string(missing_id)
+
+  let response =
+    simulate.browser_request(http.Delete, endpoint)
+    |> web.handle_request(context)
+
+  assert response.status == 404
+
+  Nil
+}
+
+pub fn unassign_service_invalid_id_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+  let service = dummy.new_service(context.database)
+
+  // Invalid startup ID
+  let endpoint = "/api/startup/wibble/service/" <> uuid.to_string(service.id)
+
+  let response =
+    simulate.browser_request(http.Delete, endpoint)
+    |> web.handle_request(context)
+
+  assert response.status == 400
+
+  // Invalid service ID
+  let endpoint =
+    "/api/startup/" <> uuid.to_string(startup.id) <> "/service/wibble"
+
+  let response =
+    simulate.browser_request(http.Delete, endpoint)
+    |> web.handle_request(context)
+
+  assert response.status == 400
+
+  Nil
+}
+
+pub fn unassign_startup_from_expertise_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+  let expertise = dummy.new_expertise(context.database)
+
+  let assert Ok(_) =
+    startup.assign_expertise(context.database, startup.id, assign: expertise.id)
+
+  let endpoint =
+    "/api/startup/"
+    <> uuid.to_string(startup.id)
+    <> "/expertise/"
+    <> uuid.to_string(expertise.id)
+
+  let response =
+    simulate.browser_request(http.Delete, endpoint)
+    |> web.handle_request(context)
+
+  assert response.status == 200
+  assert response.get_header(response, "content-type")
+    == Ok("application/json; charset=utf-8")
+
+  let body = simulate.read_body(response)
+  let assert Ok(returned) = json.parse(body, expertise.decoder())
+  assert returned == expertise
+
+  // It should no longer be assigned
+  let assert Ok([]) = startup.get_expertises(context.database, startup.id)
+
+  Nil
+}
+
+pub fn unassign_missing_expertise_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+  let missing_id = uuid.v7()
+
+  let endpoint =
+    "/api/startup/"
+    <> uuid.to_string(startup.id)
+    <> "/expertise/"
+    <> uuid.to_string(missing_id)
+
+  let response =
+    simulate.browser_request(http.Delete, endpoint)
+    |> web.handle_request(context)
+
+  assert response.status == 404
+
+  Nil
+}
+
+pub fn unassign_expertise_invalid_id_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+  let expertise = dummy.new_expertise(context.database)
+
+  // Invalid startup ID
+  let endpoint =
+    "/api/startup/wibble/expertise/" <> uuid.to_string(expertise.id)
+
+  let response =
+    simulate.browser_request(http.Delete, endpoint)
+    |> web.handle_request(context)
+
+  assert response.status == 400
+
+  // Invalid expertise ID
+  let endpoint =
+    "/api/startup/" <> uuid.to_string(startup.id) <> "/expertise/wibble"
+
+  let response =
+    simulate.browser_request(http.Delete, endpoint)
+    |> web.handle_request(context)
+
+  assert response.status == 400
+
+  Nil
+}
+
+pub fn unassign_startup_from_technology_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+  let technology = dummy.new_technology(context.database)
+
+  let assert Ok(_) =
+    startup.assign_technology(
+      context.database,
+      startup.id,
+      assign: technology.id,
+    )
+
+  let endpoint =
+    "/api/startup/"
+    <> uuid.to_string(startup.id)
+    <> "/technology/"
+    <> uuid.to_string(technology.id)
+
+  let response =
+    simulate.browser_request(http.Delete, endpoint)
+    |> web.handle_request(context)
+
+  assert response.status == 200
+  assert response.get_header(response, "content-type")
+    == Ok("application/json; charset=utf-8")
+
+  let body = simulate.read_body(response)
+  let assert Ok(returned) = json.parse(body, technology.decoder())
+  assert returned == technology
+
+  // It should no longer be assigned
+  let assert Ok([]) = startup.get_technologies(context.database, startup.id)
+
+  Nil
+}
+
+pub fn unassign_missing_technology_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+  let missing_id = uuid.v7()
+
+  let endpoint =
+    "/api/startup/"
+    <> uuid.to_string(startup.id)
+    <> "/technology/"
+    <> uuid.to_string(missing_id)
+
+  let response =
+    simulate.browser_request(http.Delete, endpoint)
+    |> web.handle_request(context)
+
+  assert response.status == 404
+
+  Nil
+}
+
+pub fn unassign_technology_invalid_id_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+  let technology = dummy.new_technology(context.database)
+
+  // Invalid startup ID
+  let endpoint =
+    "/api/startup/wibble/technology/" <> uuid.to_string(technology.id)
+
+  let response =
+    simulate.browser_request(http.Delete, endpoint)
+    |> web.handle_request(context)
+
+  assert response.status == 400
+
+  // Invalid technology ID
+  let endpoint =
+    "/api/startup/" <> uuid.to_string(startup.id) <> "/technology/wibble"
+
+  let response =
+    simulate.browser_request(http.Delete, endpoint)
+    |> web.handle_request(context)
+
+  assert response.status == 400
+
+  Nil
+}
+
 pub fn get_many_segments_test() -> Nil {
   use context <- server_test.with_context()
   let max = 6
