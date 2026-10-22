@@ -23,11 +23,18 @@ export default function DashboardStartup() {
 
   return (
     <div className="flex flex-col gap-8">
+      {/* O backend não guarda nome de pessoa — só o da startup. Por isso o
+          nome vira o título, e a linha de apoio traz o contexto que temos:
+          área de atuação e localização. */}
       <header>
-        <h1 className="font-display text-2xl font-bold tracking-tight text-ink-900 sm:text-3xl">
-          Olá, {startup.name}!
+        <h1 className="truncate font-display text-2xl font-bold tracking-tight text-ink-900 sm:text-3xl">
+          {startup.name}
         </h1>
-        <p className="mt-1 text-sm text-ink-500">Acompanhe seu perfil e descubra novas oportunidades.</p>
+        <p className="mt-1 truncate text-sm text-ink-500">
+          {[tags?.area, [startup.city, startup.state].filter(Boolean).join(', ')]
+            .filter(Boolean)
+            .join(' · ') || 'Conta de startup'}
+        </p>
       </header>
 
       <PainelSaudePerfil startup={startup} tags={tags} />

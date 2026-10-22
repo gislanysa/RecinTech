@@ -44,55 +44,75 @@ function ListaDeTags({ titulo, itens }: { titulo: string; itens: string[] }) {
 
 export default function PerfilStartup() {
   const { id } = useParams<{ id: string }>()
-  const [estado, setEstado] = useState<Estado>({ situacao: 'carregando' })
-
-  useEffect(() => {
-    if (!id) return setEstado({ situacao: 'nao-encontrada' })
-
-    setEstado({ situacao: 'carregando' })
-
-    buscarStartupPorId(id)
-      .then((startup) => {
-        setEstado({ situacao: 'encontrada', startup, tags: null })
-        // As tags vêm de quatro rotas separadas; o perfil aparece antes delas
-        // e se completa quando chegam, como no resto da aplicação.
-        return carregarTagsDaStartup(id).then((tags) =>
-          setEstado({ situacao: 'encontrada', startup, tags }),
-        )
-      })
-      .catch((erro) => {
-        const naoExiste = axios.isAxiosError(erro) && erro.response?.status === 404
-        setEstado({ situacao: naoExiste ? 'nao-encontrada' : 'erro' })
-      })
-  }, [id])
 
   return (
     <>
       <Header />
       <main className="min-h-[60vh]">
-        {estado.situacao === 'carregando' && <Esqueleto />}
-
-        {estado.situacao === 'nao-encontrada' && (
+        {/* A `key` remonta o carregador quando o id muda, o que zera o estado
+            sem precisar de um setState dentro do efeito. */}
+        {id ? (
+          <CarregaPerfil key={id} id={id} />
+        ) : (
           <Aviso
             titulo="Startup não encontrada"
             texto="O endereço pode estar errado, ou esta startup saiu da plataforma."
           />
         )}
-
-        {estado.situacao === 'erro' && (
-          <Aviso
-            titulo="Não foi possível carregar o perfil"
-            texto="Houve uma falha ao falar com o servidor. Tente novamente em instantes."
-          />
-        )}
-
-        {estado.situacao === 'encontrada' && (
-          <Conteudo startup={estado.startup} tags={estado.tags} />
-        )}
       </main>
       <Footer />
     </>
   )
+}
+
+function CarregaPerfil({ id }: { id: string }) {
+  const [estado, setEstado] = useState<Estado>({ situacao: 'carregando' })
+
+  useEffect(() => {
+    let ativo = true
+
+    buscarStartupPorId(id)
+      .then((startup) => {
+        if (!ativo) return
+        setEstado({ situacao: 'encontrada', startup, tags: null })
+        // As tags vêm de quatro rotas separadas; o perfil aparece antes delas
+        // e se completa quando chegam, como no resto da aplicação.
+        return carregarTagsDaStartup(id).then((tags) => {
+          if (ativo) setEstado({ situacao: 'encontrada', startup, tags })
+        })
+      })
+      .catch((erro) => {
+        if (!ativo) return
+        const naoExiste = axios.isAxiosError(erro) && erro.response?.status === 404
+        setEstado({ situacao: naoExiste ? 'nao-encontrada' : 'erro' })
+      })
+
+    return () => {
+      ativo = false
+    }
+  }, [id])
+
+  if (estado.situacao === 'carregando') return <Esqueleto />
+
+  if (estado.situacao === 'nao-encontrada') {
+    return (
+      <Aviso
+        titulo="Startup não encontrada"
+        texto="O endereço pode estar errado, ou esta startup saiu da plataforma."
+      />
+    )
+  }
+
+  if (estado.situacao === 'erro') {
+    return (
+      <Aviso
+        titulo="Não foi possível carregar o perfil"
+        texto="Houve uma falha ao falar com o servidor. Tente novamente em instantes."
+      />
+    )
+  }
+
+  return <Conteudo startup={estado.startup} tags={estado.tags} />
 }
 
 function Conteudo({ startup, tags }: { startup: Startup; tags: Tags | null }) {
