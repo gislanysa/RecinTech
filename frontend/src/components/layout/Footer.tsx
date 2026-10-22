@@ -30,12 +30,12 @@ const COLUNAS = [
 
 export default function Footer() {
   return (
-    <footer className="border-t border-brand-100 bg-canvas">
+    <footer className="bg-brand-950">
       <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6">
         <div className="grid gap-10 md:grid-cols-[minmax(0,1.4fr)_repeat(3,minmax(0,1fr))]">
           <div>
-            <Logo />
-            <p className="mt-4 max-w-xs text-sm leading-relaxed text-ink-500">
+            <Logo sobreEscuro />
+            <p className="mt-4 max-w-xs text-sm leading-relaxed text-brand-200">
               A ponte entre empresas que precisam de soluções e as startups do Porto Digital que
               já as constroem.
             </p>
@@ -43,13 +43,13 @@ export default function Footer() {
 
           {COLUNAS.map((coluna) => (
             <div key={coluna.titulo}>
-              <h2 className="font-display text-sm font-semibold text-ink-900">{coluna.titulo}</h2>
+              <h2 className="font-display text-sm font-semibold text-white">{coluna.titulo}</h2>
               <ul className="mt-4 space-y-3">
                 {coluna.links.map((link) => (
                   <li key={link.to}>
                     <Link
                       to={link.to}
-                      className="text-sm text-ink-500 transition-colors hover:text-brand-700"
+                      className="text-sm text-brand-200 transition-colors hover:text-white"
                     >
                       {link.label}
                     </Link>
@@ -60,9 +60,9 @@ export default function Footer() {
           ))}
         </div>
 
-        <div className="mt-12 flex flex-col gap-2 border-t border-brand-100 pt-6 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-xs text-ink-500">© 2026 RecInTech</p>
-          <p className="text-xs text-ink-500">
+        <div className="mt-12 flex flex-col gap-2 border-t border-brand-600 pt-6 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-xs text-brand-300">© 2026 RecInTech</p>
+          <p className="text-xs text-brand-300">
             Projeto Integrador Multidisciplinar · Faculdade Senac de Pernambuco
           </p>
         </div>
