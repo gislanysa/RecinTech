@@ -60,15 +60,21 @@ pub fn new_startup(database: pog.Connection) -> startup.Startup {
 }
 
 /// Send a request while including a Startup session token.
-pub fn with_startup_session(
-  startup: startup.Startup,
+pub fn with_session(
   request: wisp.Request,
   context: web.Context,
+  session: web.Session,
+  email: email.Email,
 ) -> wisp.Request {
+  let session_string = case session {
+    web.Startup(_) -> "startup"
+    web.Company(_) -> "company"
+  }
+
   let login_body =
     json.object([
-      #("session", json.string("startup")),
-      #("email", json.string(email.to_string(startup.email))),
+      #("session", json.string(session_string)),
+      #("email", json.string(email.to_string(email))),
       #("password", json.string(password)),
     ])
 

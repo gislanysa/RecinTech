@@ -69,6 +69,15 @@ The startup or company object for the authenticated account, e.g.:
 - 400: Invalid JSON, invalid email format or invalid session type
 - 401: Wrong email or password
 
+## POST /api/auth/logout
+
+Deletes the session cookie stored in the user request.
+
+### Status Codes
+
+- 204: Successful
+- 401: Missing cookie
+
 ## GET /api/auth/restore
 
 Check for an active session token and restore it. On success, the server
@@ -95,7 +104,7 @@ Requires the `SESSION` cookie.
 
 ### Status Codes
 
-- 200: Successful
+- 204: Successful
 - 401: Missing session cookie
 
 ## POST /api/startup

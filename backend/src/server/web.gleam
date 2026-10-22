@@ -1,6 +1,7 @@
 //// Http handlers and middlewares
 
 import gleam/dynamic/decode
+import gleam/float
 import gleam/http
 import gleam/http/request
 import gleam/int
@@ -8,6 +9,7 @@ import gleam/json
 import gleam/list
 import gleam/result
 import gleam/string
+import gleam/time/duration
 import lustre/attribute
 import lustre/element
 import lustre/element/html
@@ -22,7 +24,7 @@ import server/startup
 import server/startup/expertise
 import server/startup/service
 import server/startup/technology
-import wisp
+import wisp.{type Request, type Response}
 import youid/uuid
 
 pub type Context {
@@ -36,13 +38,13 @@ pub type Context {
 
 type WebError {
   /// Startup related errors
-  StartupError(startup.StartupError)
+  StartupError(error: startup.StartupError)
+  /// Segment related errors
+  SegmentError(error: segment.SegmentError)
   /// Missing request query
   MissingQuery
   /// Invalid query parameter
   InvalidQueryParameter(key: String)
-  /// Segment related errors
-  SegmentError(segment.SegmentError)
 }
 
 /// Handle incoming HTTP requests
@@ -53,10 +55,7 @@ type WebError {
 /// let response = web.handle_request(request, context)
 /// assert response.status == 200
 /// ```
-pub fn handle_request(
-  request: wisp.Request,
-  context: Context,
-) -> wisp.Response {
+pub fn handle_request(request: Request, context: Context) -> Response {
   use request <- middleware(request, context)
   case request.method, request.path_segments(request) {
     // ## HEALTHCHECK
@@ -74,6 +73,8 @@ pub fn handle_request(
     // Authorization / Authentication related routes.
     http.Post, ["api", "auth", "login"] ->
       handle_login(request, context.database)
+
+    http.Post, ["api", "auth", "logout"] -> handle_logout(request)
 
     // Restore user session
     http.Get, ["api", "auth", "restore"] ->
@@ -143,7 +144,7 @@ pub fn handle_request(
   }
 }
 
-fn get_company_by_id(database: pog.Connection, id: String) -> wisp.Response {
+fn get_company_by_id(database: pog.Connection, id: String) -> Response {
   use id <- require_valid_uuid(id)
 
   case company.get(database, id) {
@@ -186,9 +187,9 @@ fn get_company_by_id(database: pog.Connection, id: String) -> wisp.Response {
 /// - **404** If Startup or Segment is not found.
 ///
 fn assign_startup_to_segment(
-  request: wisp.Request,
+  request: Request,
   database: pog.Connection,
-) -> wisp.Response {
+) -> Response {
   use body <- wisp.require_json(request)
 
   let decoder = {
@@ -245,9 +246,9 @@ fn assign_startup_to_segment(
 /// - **404** If Startup or Technology is not found.
 ///
 fn assign_startup_to_technology(
-  request: wisp.Request,
+  request: Request,
   database: pog.Connection,
-) -> wisp.Response {
+) -> Response {
   use body <- wisp.require_json(request)
 
   let decoder = {
@@ -308,9 +309,9 @@ fn assign_startup_to_technology(
 /// - **404** If Startup or Expertise is not found.
 ///
 fn assign_startup_to_expertise(
-  request: wisp.Request,
+  request: Request,
   database: pog.Connection,
-) -> wisp.Response {
+) -> Response {
   use body <- wisp.require_json(request)
 
   let decoder = {
@@ -367,9 +368,9 @@ fn assign_startup_to_expertise(
 /// - **404** If Startup or Service is not found.
 ///
 fn assign_startup_to_service(
-  request: wisp.Request,
+  request: Request,
   database: pog.Connection,
-) -> wisp.Response {
+) -> Response {
   use body <- wisp.require_json(request)
 
   let decoder = {
@@ -402,10 +403,7 @@ fn assign_startup_to_service(
 ///
 /// > **NOTE:**  
 /// > This function **does not** refresh the session token duration.
-pub fn restore_session(
-  request: wisp.Request,
-  database: pog.Connection,
-) -> wisp.Response {
+pub fn restore_session(request: Request, database: pog.Connection) -> Response {
   use session <- require_session(request)
 
   case session {
@@ -435,9 +433,20 @@ pub fn restore_session(
 ///
 /// - 200 if successfull
 /// - 401 if token is missing
-pub fn refresh_session(request: wisp.Request) -> wisp.Response {
+pub fn refresh_session(request: Request) -> Response {
   use session <- require_session(request)
-  set_session_token(wisp.ok(), request, session)
+  set_session_token(wisp.no_content(), request, session, duration.hours(1))
+}
+
+/// Sets to cookie duration to 0.
+///
+/// ## Status Codes
+///
+/// - 200 if successfull
+/// - 401 if token is missing
+fn handle_logout(request: Request) -> Response {
+  use session <- require_session(request)
+  set_session_token(wisp.no_content(), request, session, duration.seconds(0))
 }
 
 /// ## `GET /api/startup/expertise/:id`
@@ -467,10 +476,7 @@ pub fn refresh_session(request: wisp.Request) -> wisp.Response {
 /// - **400** if ID is not a valid UUID.
 /// - **404** If Startup is not found.
 ///
-fn get_startup_expertises(
-  database: pog.Connection,
-  id: String,
-) -> wisp.Response {
+fn get_startup_expertises(database: pog.Connection, id: String) -> Response {
   use id <- require_valid_uuid(id)
 
   case startup.get_expertises(database, id) {
@@ -494,9 +500,9 @@ fn get_startup_expertises(
 /// }
 /// ```
 pub fn require_session(
-  request: wisp.Request,
-  next: fn(Session) -> wisp.Response,
-) -> wisp.Response {
+  request: Request,
+  next: fn(Session) -> Response,
+) -> Response {
   let decode_session = fn(value) {
     json.parse(value, session_decoder())
     |> result.replace_error(Nil)
@@ -542,7 +548,7 @@ pub fn require_session(
 /// - **400** if ID is not a valid UUID.
 /// - **404** If Startup is not found.
 ///
-fn get_startup_services(database: pog.Connection, id: String) -> wisp.Response {
+fn get_startup_services(database: pog.Connection, id: String) -> Response {
   use id <- require_valid_uuid(id)
 
   case startup.get_services(database, id) {
@@ -582,7 +588,7 @@ fn get_startup_services(database: pog.Connection, id: String) -> wisp.Response {
 /// - **400** if ID is not a valid UUID.
 /// - **404** If Startup is not found.
 ///
-fn get_startup_segments(database: pog.Connection, id: String) -> wisp.Response {
+fn get_startup_segments(database: pog.Connection, id: String) -> Response {
   use id <- require_valid_uuid(id)
 
   case startup.get_segments(database, id) {
@@ -622,10 +628,7 @@ fn get_startup_segments(database: pog.Connection, id: String) -> wisp.Response {
 /// - **400** if ID is not a valid UUID.
 /// - **404** If Startup is not found.
 ///
-fn get_startup_technologies(
-  database: pog.Connection,
-  id: String,
-) -> wisp.Response {
+fn get_startup_technologies(database: pog.Connection, id: String) -> Response {
   use id <- require_valid_uuid(id)
 
   case startup.get_technologies(database, id) {
@@ -684,10 +687,7 @@ fn get_startup_technologies(
 /// - **200** if successful
 /// - **400** if query is missing, invalid or incomplete.
 ///
-fn get_many_startups(
-  request: wisp.Request,
-  database: pog.Connection,
-) -> wisp.Response {
+fn get_many_startups(request: Request, database: pog.Connection) -> Response {
   let result = {
     use query <- result.try(
       request.get_query(request)
@@ -721,16 +721,16 @@ fn get_many_startups(
 }
 
 /// Handle [WebError](#WebError)
-fn handle_error(error: WebError) -> wisp.Response {
+fn handle_error(error: WebError) -> Response {
   case error {
     StartupError(error) -> handle_startup_error(error)
     SegmentError(error) -> handle_segment_error(error)
     MissingQuery -> wisp.bad_request("Missing query")
-    InvalidQueryParameter(key:) -> wisp.bad_request("Invalid " <> key)
+    InvalidQueryParameter(key:) -> wisp.bad_request("Invalid query: " <> key)
   }
 }
 
-fn handle_segment_error(error: segment.SegmentError) -> wisp.Response {
+fn handle_segment_error(error: segment.SegmentError) -> Response {
   case error {
     segment.DatabaseError(error:) -> handle_database_error(error)
     segment.FailedToRegisterSegment -> wisp.internal_server_error()
@@ -771,10 +771,7 @@ fn handle_segment_error(error: segment.SegmentError) -> wisp.Response {
 /// - **200** if successful
 /// - **400** if query is missing, invalid or incomplete.
 ///
-fn get_many_segments(
-  request: wisp.Request,
-  database: pog.Connection,
-) -> wisp.Response {
+fn get_many_segments(request: Request, database: pog.Connection) -> Response {
   let result = {
     use query <- result.try(
       request.get_query(request)
@@ -809,7 +806,7 @@ fn get_many_segments(
 
 /// Send the necessary HTML for the client-side application. The user will
 /// use it to communicate with the Server.
-fn get_root_document() -> wisp.Response {
+fn get_root_document() -> Response {
   let body =
     html.html([attribute.lang("pt-BR")], [
       html.head([], [
@@ -892,10 +889,10 @@ fn get_root_document() -> wisp.Response {
 }
 
 fn middleware(
-  request: wisp.Request,
+  request: Request,
   context: Context,
-  next: fn(wisp.Request) -> wisp.Response,
-) -> wisp.Response {
+  next: fn(Request) -> Response,
+) -> Response {
   let request = wisp.method_override(request)
   use <- wisp.log_request(request)
   use <- wisp.rescue_crashes()
@@ -922,8 +919,8 @@ fn middleware(
 /// ```
 pub fn require_valid_uuid(
   id: String,
-  next: fn(uuid.Uuid) -> wisp.Response,
-) -> wisp.Response {
+  next: fn(uuid.Uuid) -> Response,
+) -> Response {
   case uuid.from_string(id) {
     Ok(uuid) -> next(uuid)
     Error(_) -> wisp.bad_request("Invalid UUID: " <> id)
@@ -957,7 +954,7 @@ pub fn require_valid_uuid(
 /// - 200 If successful.
 /// - 404 If Startup is not found.
 ///
-fn get_startup_by_id(database: pog.Connection, id: String) -> wisp.Response {
+fn get_startup_by_id(database: pog.Connection, id: String) -> Response {
   use id <- require_valid_uuid(id)
 
   case startup.get(database, id) {
@@ -971,7 +968,7 @@ fn get_startup_by_id(database: pog.Connection, id: String) -> wisp.Response {
 }
 
 /// Handle startup.StartupError errors
-fn handle_startup_error(error: startup.StartupError) -> wisp.Response {
+fn handle_startup_error(error: startup.StartupError) -> Response {
   case error {
     startup.DatabaseError(error) -> handle_database_error(error)
     startup.FailedToRegisterStartup -> wisp.internal_server_error()
@@ -1019,12 +1016,12 @@ fn handle_startup_error(error: startup.StartupError) -> wisp.Response {
 
     startup.InvalidWebsite(value:) ->
       { "Invalid website: " <> value }
-      |> wisp.bad_request()
+      |> wisp.bad_request
   }
 }
 
 /// Handle pog.QueryError errors
-fn handle_database_error(error: pog.QueryError) -> wisp.Response {
+fn handle_database_error(error: pog.QueryError) -> Response {
   case error {
     pog.QueryTimeout | pog.ConnectionUnavailable -> wisp.response(503)
 
@@ -1103,11 +1100,9 @@ pub const session_cookie = "SESSION"
 /// - 401 If email or password is incorrect.
 /// - 400 If email is not a valid format.
 ///
-fn handle_login(
-  request: wisp.Request,
-  database: pog.Connection,
-) -> wisp.Response {
+fn handle_login(request: Request, database: pog.Connection) -> Response {
   use body <- wisp.require_json(request)
+  let duration = duration.hours(1)
 
   // Custom decoder for the `Login` request body
   let decoder = {
@@ -1135,7 +1130,7 @@ fn handle_login(
           startup.to_json(startup)
           |> json.to_string
           |> wisp.json_response(200)
-          |> set_session_token(request, Startup(startup.id))
+          |> set_session_token(request, Startup(startup.id), duration)
       }
 
     // Company session
@@ -1146,7 +1141,7 @@ fn handle_login(
           company.to_json(company)
           |> json.to_string
           |> wisp.json_response(200)
-          |> set_session_token(request, Company(company.id))
+          |> set_session_token(request, Company(company.id), duration)
       }
 
     // Correct Json but invalid session type
@@ -1160,10 +1155,16 @@ fn handle_login(
 
 /// Set a session cookie on the request.
 fn set_session_token(
-  response: wisp.Response,
-  request: wisp.Request,
+  response: Response,
+  request: Request,
   session: Session,
-) -> wisp.Response {
+  duration: duration.Duration,
+) -> Response {
+  let max_age =
+    duration
+    |> duration.to_seconds
+    |> float.round
+
   session_to_json(session)
   |> json.to_string
   |> wisp.set_cookie(
@@ -1172,7 +1173,7 @@ fn set_session_token(
     name: session_cookie,
     value: _,
     security: wisp.Signed,
-    max_age: 60 * 60,
+    max_age:,
   )
 }
 
@@ -1201,10 +1202,7 @@ fn set_session_token(
 /// - 200 If successful.
 /// - 409 If duplicated email or cnpj.
 ///
-fn register_startup(
-  request: wisp.Request,
-  database: pog.Connection,
-) -> wisp.Response {
+fn register_startup(request: Request, database: pog.Connection) -> Response {
   use body <- wisp.require_json(request)
 
   let decoder = {
@@ -1285,10 +1283,7 @@ fn register_startup(
 /// - 200 If successful.
 /// - 409 If duplicated email or cnpj.
 ///
-fn register_company(
-  request: wisp.Request,
-  database: pog.Connection,
-) -> wisp.Response {
+fn register_company(request: Request, database: pog.Connection) -> Response {
   use body <- wisp.require_json(request)
 
   let decoder = {
@@ -1342,7 +1337,7 @@ fn register_company(
   }
 }
 
-fn handle_company_error(error: company.CompanyError) -> wisp.Response {
+fn handle_company_error(error: company.CompanyError) -> Response {
   case error {
     company.DatabaseError(error:) -> handle_database_error(error)
     company.InvalidEmail(value:) -> wisp.bad_request("Invalid email: " <> value)
