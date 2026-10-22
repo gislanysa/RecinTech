@@ -265,7 +265,7 @@ type Tags = {
 const SEM_TAGS: Tags = { area: '', services: [], technologies: [], segments: [] }
 
 /** Iniciais para o avatar do card: "Mobilize Labs" -> "ML". */
-function iniciais(nome: string): string {
+export function iniciais(nome: string): string {
   return nome
     .split(/\s+/)
     .slice(0, 2)
@@ -335,6 +335,17 @@ export async function buscarStartups(
  * `expertise` (área de atuação) vira o campo `area`, que a tela trata como um
  * valor só — usamos a primeira da lista.
  */
+/**
+ * GET /startup/:id — uma startup só, para a tela de perfil.
+ *
+ * Deixa o erro subir: a tela precisa distinguir "não existe" (404) de
+ * "o servidor caiu", e tratar aqui esconderia os dois.
+ */
+export async function buscarStartupPorId(id: string): Promise<StartupReal> {
+  const { data } = await api.get<StartupReal>(`/startup/${id}`)
+  return data
+}
+
 export async function carregarTagsDaStartup(id: string): Promise<Tags> {
   const chaves = Object.keys(RECURSOS_DE_TAG) as (keyof typeof RECURSOS_DE_TAG)[]
 
