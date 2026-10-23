@@ -1330,3 +1330,40 @@ pub fn logout_missing_session_test() -> Nil {
 
   Nil
 }
+
+pub fn get_segment_by_id_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let segment = dummy.new_segment(context.database)
+  let endpoint = "/api/segment/" <> uuid.to_string(segment.id)
+
+  let response =
+    simulate.browser_request(http.Get, endpoint)
+    |> web.handle_request(context)
+
+  assert response.status == 200
+  assert response.get_header(response, "content-type")
+    == Ok("application/json; charset=utf-8")
+
+  let body = simulate.read_body(response)
+  let assert Ok(returned) = json.parse(body, segment.decoder())
+
+  assert returned.id == segment.id
+
+  Nil
+}
+
+pub fn get_missing_segment_by_id_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let missing_id = uuid.v7()
+  let endpoint = "/api/segment/" <> uuid.to_string(missing_id)
+
+  let response =
+    simulate.browser_request(http.Get, endpoint)
+    |> web.handle_request(context)
+
+  assert response.status == 404
+
+  Nil
+}
