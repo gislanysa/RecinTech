@@ -1,5 +1,3 @@
-import gleam/int
-import gleam/list
 import server/dummy
 import server/startup/service
 import server_test
@@ -46,12 +44,7 @@ pub fn get_many_services_test() -> Nil {
   use context <- server_test.with_context()
   let max = 6
 
-  let services =
-    int.range(from: 1, to: max, with: [], run: fn(acc, _) {
-      let service = dummy.new_service(context.database)
-      [service, ..acc]
-    })
-    |> list.reverse
+  let services = dummy.many(max, fn() { dummy.new_service(context.database) })
 
   let assert Ok(returned) =
     service.get_many(context.database, limit: max, offset: 0)
