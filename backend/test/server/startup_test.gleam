@@ -58,6 +58,7 @@ pub fn register_cnpj_conflict_test() -> Nil {
 
   let email = dummy.new_email()
   let cnpj = dummy.new_cnpj()
+
   let assert Ok(_startup) =
     startup.register(
       context.database,
@@ -440,6 +441,191 @@ pub fn get_lgpd_consent_upsert_test() -> Nil {
 
   assert returned != [old]
   assert returned == [new]
+
+  Nil
+}
+
+pub fn unassign_segment_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+  let segment = dummy.new_segment(context.database)
+
+  let assert Ok(assigned) =
+    startup.assign_segment(context.database, startup.id, assign: segment.id)
+
+  assert assigned.id == segment.id
+
+  let assert Ok(deleted) =
+    startup.unassign_segment(
+      context.database,
+      startup.id,
+      unassign: assigned.id,
+    )
+  assert deleted.id == assigned.id
+
+  // It should no longer be assigned
+  let assert Ok([]) = startup.get_segments(context.database, startup.id)
+
+  Nil
+}
+
+pub fn unassign_missing_segment_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+  let missing_id = uuid.v7()
+
+  let assert Error(startup.AssignmentNotFound(returned)) =
+    startup.unassign_segment(context.database, startup.id, unassign: missing_id)
+
+  assert returned == missing_id
+
+  Nil
+}
+
+pub fn unassign_segment_missing_startup_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let missing_id = uuid.v7()
+  let segment = dummy.new_segment(context.database)
+
+  let assert Error(startup.AssignmentNotFound(returned)) =
+    startup.unassign_segment(context.database, missing_id, unassign: segment.id)
+
+  assert returned == segment.id
+
+  Nil
+}
+
+pub fn unassign_expertise_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+  let expertise = dummy.new_expertise(context.database)
+
+  let assert Ok(assigned) =
+    startup.assign_expertise(context.database, startup.id, assign: expertise.id)
+
+  assert assigned.id == expertise.id
+
+  let assert Ok(deleted) =
+    startup.unassign_expertise(
+      context.database,
+      startup.id,
+      unassign: assigned.id,
+    )
+
+  assert deleted.id == assigned.id
+
+  // It should no longer be assigned
+  let assert Ok([]) = startup.get_expertises(context.database, startup.id)
+
+  Nil
+}
+
+pub fn unassign_missing_expertise_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+  let missing_id = uuid.v7()
+
+  let assert Error(startup.AssignmentNotFound(returned)) =
+    startup.unassign_expertise(
+      context.database,
+      startup.id,
+      unassign: missing_id,
+    )
+
+  assert returned == missing_id
+
+  Nil
+}
+
+pub fn unassign_service_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+  let service = dummy.new_service(context.database)
+
+  let assert Ok(assigned) =
+    startup.assign_service(context.database, startup.id, assign: service.id)
+
+  assert assigned.id == service.id
+
+  let assert Ok(deleted) =
+    startup.unassign_service(
+      context.database,
+      startup.id,
+      unassign: assigned.id,
+    )
+
+  assert deleted.id == assigned.id
+
+  // It should no longer be assigned
+  let assert Ok([]) = startup.get_services(context.database, startup.id)
+
+  Nil
+}
+
+pub fn unassign_missing_service_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+  let missing_id = uuid.v7()
+
+  let assert Error(startup.AssignmentNotFound(returned)) =
+    startup.unassign_service(context.database, startup.id, unassign: missing_id)
+
+  assert returned == missing_id
+
+  Nil
+}
+
+pub fn unassign_technology_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+  let technology = dummy.new_technology(context.database)
+
+  let assert Ok(assigned) =
+    startup.assign_technology(
+      context.database,
+      startup.id,
+      assign: technology.id,
+    )
+
+  assert assigned.id == technology.id
+
+  let assert Ok(deleted) =
+    startup.unassign_technology(
+      context.database,
+      startup.id,
+      unassign: assigned.id,
+    )
+
+  assert deleted.id == assigned.id
+
+  // It should no longer be assigned
+  let assert Ok([]) = startup.get_technologies(context.database, startup.id)
+
+  Nil
+}
+
+pub fn unassign_missing_technology_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+  let missing_id = uuid.v7()
+
+  let assert Error(startup.AssignmentNotFound(returned)) =
+    startup.unassign_technology(
+      context.database,
+      startup.id,
+      unassign: missing_id,
+    )
+
+  assert returned == missing_id
 
   Nil
 }

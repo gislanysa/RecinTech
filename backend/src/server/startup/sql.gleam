@@ -103,7 +103,8 @@ SELECT
     s.description
 FROM
     public.segment AS s
-    INNER JOIN assigned AS a ON a.segment_id = s.id;"
+    INNER JOIN assigned AS a ON a.segment_id = s.id;
+"
   |> pog.query
   |> pog.parameter(pog.text(uuid.to_string(arg_1)))
   |> pog.parameter(pog.text(uuid.to_string(arg_2)))
@@ -810,6 +811,214 @@ RETURNING
   |> pog.parameter(pog.text(arg_7))
   |> pog.parameter(pog.text(arg_8))
   |> pog.parameter(pog.text(arg_9))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
+/// A row you get from running the `unassign_expertise` query
+/// defined in `./src/server/startup/sql/unassign_expertise.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v4.7.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type UnassignExpertiseRow {
+  UnassignExpertiseRow(id: Uuid, name: String, description: String)
+}
+
+/// unassign an expertise from a startup
+///
+/// > 🐿️ This function was generated automatically using v4.7.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn unassign_expertise(
+  db: pog.Connection,
+  assigned_startup_id: Uuid,
+  assigned_expertise_id: Uuid,
+) -> Result(pog.Returned(UnassignExpertiseRow), pog.QueryError) {
+  let decoder = {
+    use id <- decode.field(0, uuid_decoder())
+    use name <- decode.field(1, decode.string)
+    use description <- decode.field(2, decode.string)
+    decode.success(UnassignExpertiseRow(id:, name:, description:))
+  }
+
+  "-- unassign an expertise from a startup
+WITH deleted AS (
+    DELETE FROM
+        public.startup_expertise AS assigned
+    WHERE
+        assigned.startup_id = $1
+        AND assigned.expertise_id = $2
+    RETURNING
+        assigned.expertise_id
+)
+SELECT
+    expertise.id,
+    expertise.name,
+    expertise.description
+FROM
+    deleted
+    JOIN expertise ON expertise.id = deleted.expertise_id;
+"
+  |> pog.query
+  |> pog.parameter(pog.text(uuid.to_string(assigned_startup_id)))
+  |> pog.parameter(pog.text(uuid.to_string(assigned_expertise_id)))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
+/// A row you get from running the `unassign_segment` query
+/// defined in `./src/server/startup/sql/unassign_segment.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v4.7.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type UnassignSegmentRow {
+  UnassignSegmentRow(id: Uuid, name: String, description: String)
+}
+
+/// unassign a segment from a startup
+///
+/// > 🐿️ This function was generated automatically using v4.7.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn unassign_segment(
+  db: pog.Connection,
+  assigned_startup_id: Uuid,
+  assigned_segment_id: Uuid,
+) -> Result(pog.Returned(UnassignSegmentRow), pog.QueryError) {
+  let decoder = {
+    use id <- decode.field(0, uuid_decoder())
+    use name <- decode.field(1, decode.string)
+    use description <- decode.field(2, decode.string)
+    decode.success(UnassignSegmentRow(id:, name:, description:))
+  }
+
+  "-- unassign a segment from a startup
+WITH deleted AS (
+    DELETE FROM
+        public.startup_segment AS assigned
+    WHERE
+        assigned.startup_id = $1
+        AND assigned.segment_id = $2
+    RETURNING
+        assigned.segment_id
+)
+SELECT
+    segment.id,
+    segment.name,
+    segment.description
+FROM
+    deleted
+    JOIN segment ON segment.id = deleted.segment_id;
+"
+  |> pog.query
+  |> pog.parameter(pog.text(uuid.to_string(assigned_startup_id)))
+  |> pog.parameter(pog.text(uuid.to_string(assigned_segment_id)))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
+/// A row you get from running the `unassign_service` query
+/// defined in `./src/server/startup/sql/unassign_service.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v4.7.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type UnassignServiceRow {
+  UnassignServiceRow(id: Uuid, name: String, description: String)
+}
+
+/// unassign a service from a startup
+///
+/// > 🐿️ This function was generated automatically using v4.7.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn unassign_service(
+  db: pog.Connection,
+  assigned_startup_id: Uuid,
+  assigned_service_id: Uuid,
+) -> Result(pog.Returned(UnassignServiceRow), pog.QueryError) {
+  let decoder = {
+    use id <- decode.field(0, uuid_decoder())
+    use name <- decode.field(1, decode.string)
+    use description <- decode.field(2, decode.string)
+    decode.success(UnassignServiceRow(id:, name:, description:))
+  }
+
+  "-- unassign a service from a startup
+WITH deleted AS (
+    DELETE FROM
+        public.startup_service AS assigned
+    WHERE
+        assigned.startup_id = $1
+        AND assigned.service_id = $2
+    RETURNING
+        assigned.service_id
+)
+SELECT
+    service.id,
+    service.name,
+    service.description
+FROM
+    deleted
+    JOIN service ON service.id = deleted.service_id;
+"
+  |> pog.query
+  |> pog.parameter(pog.text(uuid.to_string(assigned_startup_id)))
+  |> pog.parameter(pog.text(uuid.to_string(assigned_service_id)))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
+/// A row you get from running the `unassign_technology` query
+/// defined in `./src/server/startup/sql/unassign_technology.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v4.7.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type UnassignTechnologyRow {
+  UnassignTechnologyRow(id: Uuid, name: String, description: String)
+}
+
+/// unassign a technology from a startup
+///
+/// > 🐿️ This function was generated automatically using v4.7.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn unassign_technology(
+  db: pog.Connection,
+  assigned_startup_id: Uuid,
+  assigned_technology_id: Uuid,
+) -> Result(pog.Returned(UnassignTechnologyRow), pog.QueryError) {
+  let decoder = {
+    use id <- decode.field(0, uuid_decoder())
+    use name <- decode.field(1, decode.string)
+    use description <- decode.field(2, decode.string)
+    decode.success(UnassignTechnologyRow(id:, name:, description:))
+  }
+
+  "-- unassign a technology from a startup
+WITH deleted AS (
+    DELETE FROM
+        public.startup_technology AS assigned
+    WHERE
+        assigned.startup_id = $1
+        AND assigned.technology_id = $2
+    RETURNING
+        assigned.technology_id
+)
+SELECT
+    technology.id,
+    technology.name,
+    technology.description
+FROM
+    deleted
+    JOIN technology ON technology.id = deleted.technology_id;
+"
+  |> pog.query
+  |> pog.parameter(pog.text(uuid.to_string(assigned_startup_id)))
+  |> pog.parameter(pog.text(uuid.to_string(assigned_technology_id)))
   |> pog.returning(decoder)
   |> pog.execute(db)
 }
