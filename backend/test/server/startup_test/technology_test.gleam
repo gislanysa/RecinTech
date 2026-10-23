@@ -1,5 +1,3 @@
-import gleam/int
-import gleam/list
 import server/dummy
 import server/startup/technology
 import server_test
@@ -47,11 +45,7 @@ pub fn get_many_technologies_test() -> Nil {
   let max = 6
 
   let technologies =
-    int.range(from: 1, to: max, with: [], run: fn(acc, _) {
-      let technology = dummy.new_technology(context.database)
-      [technology, ..acc]
-    })
-    |> list.reverse
+    dummy.many(max, fn() { dummy.new_technology(context.database) })
 
   let assert Ok(returned) =
     technology.get_many(context.database, limit: max, offset: 0)
