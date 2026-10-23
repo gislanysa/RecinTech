@@ -6,7 +6,7 @@ import gleam/list
 import gleam/result
 import pog
 import server/internal
-import server/segment/sql
+import server/startup/segment/sql
 import youid/uuid
 
 pub type SegmentError {

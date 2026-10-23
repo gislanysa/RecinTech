@@ -1,5 +1,5 @@
 //// This module contains the code to run the sql queries defined in
-//// `./src/server/segment/sql`.
+//// `./src/server/startup/segment/sql`.
 //// > 🐿️ This module was generated automatically using v4.7.0 of
 //// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
 ////
@@ -9,7 +9,7 @@ import pog
 import youid/uuid.{type Uuid}
 
 /// A row you get from running the `get` query
-/// defined in `./src/server/segment/sql/get.sql`.
+/// defined in `./src/server/startup/segment/sql/get.sql`.
 ///
 /// > 🐿️ This type definition was generated automatically using v4.7.0 of the
 /// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
@@ -51,7 +51,7 @@ WHERE
 }
 
 /// A row you get from running the `get_many` query
-/// defined in `./src/server/segment/sql/get_many.sql`.
+/// defined in `./src/server/startup/segment/sql/get_many.sql`.
 ///
 /// > 🐿️ This type definition was generated automatically using v4.7.0 of the
 /// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
@@ -60,7 +60,7 @@ pub type GetManyRow {
   GetManyRow(id: Uuid, name: String, description: String)
 }
 
-/// get a maximum of $2 segments from the database
+/// get a maximum of $1 segments from the database
 ///
 /// > 🐿️ This function was generated automatically using v4.7.0 of
 /// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
@@ -77,7 +77,7 @@ pub fn get_many(
     decode.success(GetManyRow(id:, name:, description:))
   }
 
-  "-- get a maximum of $2 segments from the database
+  "-- get a maximum of $1 segments from the database
 SELECT
     s.id,
     s.name,
@@ -97,7 +97,7 @@ LIMIT
 }
 
 /// A row you get from running the `register` query
-/// defined in `./src/server/segment/sql/register.sql`.
+/// defined in `./src/server/startup/segment/sql/register.sql`.
 ///
 /// > 🐿️ This type definition was generated automatically using v4.7.0 of the
 /// > [squirrel package](https://github.com/giacomocavalieri/squirrel).

@@ -12,8 +12,8 @@ import server/cnpj
 import server/email
 import server/internal
 import server/lgpd
-import server/segment
 import server/startup/expertise
+import server/startup/segment
 import server/startup/service
 import server/startup/sql
 import server/startup/technology
