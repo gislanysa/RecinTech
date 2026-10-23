@@ -1190,6 +1190,156 @@ pub fn get_many_segments_test() -> Nil {
   Nil
 }
 
+pub fn get_many_technologies_test() -> Nil {
+  use context <- server_test.with_context()
+  let max = 6
+
+  let technologies =
+    int.range(from: 1, to: max, with: [], run: fn(acc, _) {
+      let technology = dummy.new_technology(context.database)
+      [technology, ..acc]
+    })
+    |> list.reverse
+
+  let response =
+    simulate.browser_request(http.Get, "/api/technology")
+    |> request.set_query([#("limit", int.to_string(max)), #("offset", "0")])
+    |> web.handle_request(context)
+
+  assert response.status == 200
+  let body = simulate.read_body(response)
+
+  let assert Ok(returned) = json.parse(body, decode.list(technology.decoder()))
+  assert returned == technologies
+
+  Nil
+}
+
+pub fn get_many_technologies_missing_query_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let response =
+    simulate.browser_request(http.Get, "/api/technology")
+    |> web.handle_request(context)
+
+  assert response.status == 400
+
+  Nil
+}
+
+pub fn get_many_technologies_invalid_query_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let response =
+    simulate.browser_request(http.Get, "/api/technology")
+    |> request.set_query([#("limit", "wibble"), #("offset", "0")])
+    |> web.handle_request(context)
+
+  assert response.status == 400
+
+  Nil
+}
+
+pub fn get_many_expertises_test() -> Nil {
+  use context <- server_test.with_context()
+  let max = 6
+
+  let expertises =
+    int.range(from: 1, to: max, with: [], run: fn(acc, _) {
+      let expertise = dummy.new_expertise(context.database)
+      [expertise, ..acc]
+    })
+    |> list.reverse
+
+  let response =
+    simulate.browser_request(http.Get, "/api/expertise")
+    |> request.set_query([#("limit", int.to_string(max)), #("offset", "0")])
+    |> web.handle_request(context)
+
+  assert response.status == 200
+  let body = simulate.read_body(response)
+
+  let assert Ok(returned) = json.parse(body, decode.list(expertise.decoder()))
+  assert returned == expertises
+
+  Nil
+}
+
+pub fn get_many_expertises_missing_query_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let response =
+    simulate.browser_request(http.Get, "/api/expertise")
+    |> web.handle_request(context)
+
+  assert response.status == 400
+
+  Nil
+}
+
+pub fn get_many_expertises_invalid_query_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let response =
+    simulate.browser_request(http.Get, "/api/expertise")
+    |> request.set_query([#("limit", "wibble"), #("offset", "0")])
+    |> web.handle_request(context)
+
+  assert response.status == 400
+
+  Nil
+}
+
+pub fn get_many_services_test() -> Nil {
+  use context <- server_test.with_context()
+  let max = 6
+
+  let services =
+    int.range(from: 1, to: max, with: [], run: fn(acc, _) {
+      let service = dummy.new_service(context.database)
+      [service, ..acc]
+    })
+    |> list.reverse
+
+  let response =
+    simulate.browser_request(http.Get, "/api/service")
+    |> request.set_query([#("limit", int.to_string(max)), #("offset", "0")])
+    |> web.handle_request(context)
+
+  assert response.status == 200
+  let body = simulate.read_body(response)
+
+  let assert Ok(returned) = json.parse(body, decode.list(service.decoder()))
+  assert returned == services
+
+  Nil
+}
+
+pub fn get_many_services_missing_query_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let response =
+    simulate.browser_request(http.Get, "/api/service")
+    |> web.handle_request(context)
+
+  assert response.status == 400
+
+  Nil
+}
+
+pub fn get_many_services_invalid_query_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let response =
+    simulate.browser_request(http.Get, "/api/service")
+    |> request.set_query([#("limit", "wibble"), #("offset", "0")])
+    |> web.handle_request(context)
+
+  assert response.status == 400
+
+  Nil
+}
+
 pub fn register_company_test() -> Nil {
   use context <- server_test.with_context()
 

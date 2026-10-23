@@ -41,6 +41,12 @@ type WebError {
   StartupError(error: startup.StartupError)
   /// Segment related errors
   SegmentError(error: segment.SegmentError)
+  /// Technology related errors
+  TechnologyError(error: technology.TechnologyError)
+  /// Expertise related errors
+  ExpertiseError(error: expertise.ExpertiseError)
+  /// Service related errors
+  ServiceError(error: service.ServiceError)
   /// Missing request query
   MissingQuery
   /// Invalid query parameter
@@ -97,6 +103,10 @@ pub fn handle_request(request: Request, context: Context) -> Response {
     // Fetching specific information about startups
     //
     // == segment ==============================================================
+    http.Get, ["api", "segment", id] -> get_segment_by_id(context.database, id)
+
+    http.Get, ["api", "segment"] -> get_many_segments(request, context.database)
+
     http.Get, ["api", "startup", id, "segment"] ->
       get_startup_segments(context.database, id)
 
@@ -106,9 +116,9 @@ pub fn handle_request(request: Request, context: Context) -> Response {
     http.Delete, ["api", "startup", id, "segment", segment_id] ->
       unassign_startup_from_segment(context.database, id, segment_id)
 
-    http.Get, ["api", "segment"] -> get_many_segments(request, context.database)
-
     // == service ==============================================================
+    http.Get, ["api", "service"] -> get_many_services(request, context.database)
+
     http.Get, ["api", "startup", id, "service"] ->
       get_startup_services(context.database, id)
 
@@ -119,6 +129,9 @@ pub fn handle_request(request: Request, context: Context) -> Response {
       unassign_startup_from_service(context.database, id, service_id)
 
     // == expertise ============================================================
+    http.Get, ["api", "expertise"] ->
+      get_many_expertises(request, context.database)
+
     http.Get, ["api", "startup", id, "expertise"] ->
       get_startup_expertises(context.database, id)
 
@@ -129,6 +142,9 @@ pub fn handle_request(request: Request, context: Context) -> Response {
       unassign_startup_from_expertise(context.database, id, expertise_id)
 
     // == technology ===========================================================
+    http.Get, ["api", "technology"] ->
+      get_many_technologies(request, context.database)
+
     http.Get, ["api", "startup", id, "technology"] ->
       get_startup_technologies(context.database, id)
 
@@ -143,12 +159,6 @@ pub fn handle_request(request: Request, context: Context) -> Response {
     // +-----------------------------------------------------------------------+
     http.Post, ["api", "company"] -> register_company(request, context.database)
     http.Get, ["api", "company", id] -> get_company_by_id(context.database, id)
-
-    // +-----------------------------------------------------------------------+
-    // | SEGMENT                                                               |
-    // +-----------------------------------------------------------------------+
-    //
-    http.Get, ["api", "segment", id] -> get_segment_by_id(context.database, id)
 
     // +-----------------------------------------------------------------------+
     // | NOT FOUND                                                             |
@@ -934,6 +944,9 @@ fn handle_error(error: WebError) -> Response {
   case error {
     StartupError(error) -> handle_startup_error(error)
     SegmentError(error) -> handle_segment_error(error)
+    TechnologyError(error) -> handle_technology_error(error)
+    ExpertiseError(error) -> handle_expertise_error(error)
+    ServiceError(error) -> handle_service_error(error)
     MissingQuery -> wisp.bad_request("Missing query")
     InvalidQueryParameter(key:) -> wisp.bad_request("Invalid query: " <> key)
   }
@@ -944,6 +957,30 @@ fn handle_segment_error(error: segment.SegmentError) -> Response {
     segment.DatabaseError(error:) -> handle_database_error(error)
     segment.FailedToRegisterSegment -> wisp.internal_server_error()
     segment.NotFound(_) -> wisp.not_found()
+  }
+}
+
+fn handle_technology_error(error: technology.TechnologyError) -> Response {
+  case error {
+    technology.DatabaseError(error:) -> handle_database_error(error)
+    technology.FailedToRegisterTechnology -> wisp.internal_server_error()
+    technology.NotFound(_) -> wisp.not_found()
+  }
+}
+
+fn handle_expertise_error(error: expertise.ExpertiseError) -> Response {
+  case error {
+    expertise.DatabaseError(error) -> handle_database_error(error)
+    expertise.FailedToRegisterExpertise -> wisp.internal_server_error()
+    expertise.NotFound(_) -> wisp.not_found()
+  }
+}
+
+fn handle_service_error(error: service.ServiceError) -> Response {
+  case error {
+    service.DatabaseError(error:) -> handle_database_error(error)
+    service.FailedToRegisterService -> wisp.internal_server_error()
+    service.NotFound(_) -> wisp.not_found()
   }
 }
 
@@ -1003,6 +1040,198 @@ fn get_many_segments(request: Request, database: pog.Connection) -> Response {
   case result {
     Ok(data) ->
       json.array(data, segment.to_json)
+      |> json.to_string
+      |> wisp.json_response(200)
+
+    Error(error) -> handle_error(error)
+  }
+}
+
+/// ## `GET /api/technology`
+///
+/// Fetch a list of registered Technologies, pagination is available.
+///
+/// Required parameters:
+/// - limit: `Int`
+/// - offset: `Int`
+///
+/// ## Response Body
+///
+/// ```json
+/// [
+///   {
+///    "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+///    "name": "Gleam",
+///    "description": "A friendly language for building type-safe systems"
+///   },
+///   {
+///    "id": "01a0dbb3-153a-7b84-8c3d-631788972d4a",
+///    "name": "PostgreSQL",
+///    "description": "The world's most advanced open source database"
+///   }
+/// ]
+/// ```
+///
+/// ## Status Codes
+///
+/// - **200** if successful
+/// - **400** if query is missing, invalid or incomplete.
+///
+fn get_many_technologies(
+  request: Request,
+  database: pog.Connection,
+) -> Response {
+  let result = {
+    use query <- result.try(
+      request.get_query(request)
+      |> result.replace_error(MissingQuery),
+    )
+
+    use limit <- result.try(
+      list.key_find(query, "limit")
+      |> result.try(int.parse)
+      |> result.replace_error(InvalidQueryParameter(key: "limit")),
+    )
+
+    use offset <- result.try(
+      list.key_find(query, "offset")
+      |> result.try(int.parse)
+      |> result.replace_error(InvalidQueryParameter(key: "offset")),
+    )
+
+    technology.get_many(database, limit:, offset:)
+    |> result.map_error(TechnologyError)
+  }
+
+  case result {
+    Ok(data) ->
+      json.array(data, technology.to_json)
+      |> json.to_string
+      |> wisp.json_response(200)
+
+    Error(error) -> handle_error(error)
+  }
+}
+
+/// ## `GET /api/expertise`
+///
+/// Fetch a list of registered Expertises, pagination is available.
+///
+/// Required parameters:
+/// - limit: `Int`
+/// - offset: `Int`
+///
+/// ## Response Body
+///
+/// ```json
+/// [
+///   {
+///    "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+///    "name": "Education",
+///    "description": "Teaching and learning"
+///   },
+///   {
+///    "id": "01a0dbb3-153a-7b84-8c3d-631788972d4a",
+///    "name": "Health",
+///    "description": "Medical stuff"
+///   }
+/// ]
+/// ```
+///
+/// ## Status Codes
+///
+/// - **200** if successful
+/// - **400** if query is missing, invalid or incomplete.
+///
+fn get_many_expertises(request: Request, database: pog.Connection) -> Response {
+  let result = {
+    use query <- result.try(
+      request.get_query(request)
+      |> result.replace_error(MissingQuery),
+    )
+
+    use limit <- result.try(
+      list.key_find(query, "limit")
+      |> result.try(int.parse)
+      |> result.replace_error(InvalidQueryParameter(key: "limit")),
+    )
+
+    use offset <- result.try(
+      list.key_find(query, "offset")
+      |> result.try(int.parse)
+      |> result.replace_error(InvalidQueryParameter(key: "offset")),
+    )
+
+    expertise.get_many(database, limit:, offset:)
+    |> result.map_error(ExpertiseError)
+  }
+
+  case result {
+    Ok(data) ->
+      json.array(data, expertise.to_json)
+      |> json.to_string
+      |> wisp.json_response(200)
+
+    Error(error) -> handle_error(error)
+  }
+}
+
+/// ## `GET /api/service`
+///
+/// Fetch a list of registered Services, pagination is available.
+///
+/// Required parameters:
+/// - limit: `Int`
+/// - offset: `Int`
+///
+/// ## Response Body
+///
+/// ```json
+/// [
+///   {
+///    "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+///    "name": "Web development",
+///    "description": "Websites and http servers"
+///   },
+///   {
+///    "id": "01a0dbb3-153a-7b84-8c3d-631788972d4a",
+///    "name": "UI/UX",
+///    "description": "user experience"
+///   }
+/// ]
+/// ```
+///
+/// ## Status Codes
+///
+/// - **200** if successful
+/// - **400** if query is missing, invalid or incomplete.
+///
+fn get_many_services(request: Request, database: pog.Connection) -> Response {
+  let result = {
+    use query <- result.try(
+      request.get_query(request)
+      |> result.replace_error(MissingQuery),
+    )
+
+    use limit <- result.try(
+      list.key_find(query, "limit")
+      |> result.try(int.parse)
+      |> result.replace_error(InvalidQueryParameter(key: "limit")),
+    )
+
+    use offset <- result.try(
+      list.key_find(query, "offset")
+      |> result.try(int.parse)
+      |> result.replace_error(InvalidQueryParameter(key: "offset")),
+    )
+
+    service.get_many(database, limit:, offset:)
+    |> result.map_error(ServiceError)
+  }
+
+  case result {
+    Ok(data) ->
+      json.array(data, service.to_json)
       |> json.to_string
       |> wisp.json_response(200)
 
