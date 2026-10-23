@@ -84,12 +84,20 @@ export default function MeuPerfilStartup() {
             É isto que as empresas veem quando encontram sua startup.
           </p>
         </div>
-        <Link
-          to={`/startups/${startup.id}`}
-          className="text-sm font-medium text-brand-600 underline-offset-4 hover:underline"
-        >
-          Ver meu perfil público
-        </Link>
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+          <Link
+            to={`/startups/${startup.id}`}
+            className="text-sm font-medium text-brand-600 underline-offset-4 hover:underline"
+          >
+            Ver meu perfil público
+          </Link>
+          <Link
+            to="/startups"
+            className="text-sm font-medium text-brand-600 underline-offset-4 hover:underline"
+          >
+            Ver outras startups
+          </Link>
+        </div>
       </header>
 
       <div className="flex items-start gap-3 rounded-card border border-accent-300 bg-accent-100 p-4">
