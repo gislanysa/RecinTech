@@ -1,7 +1,6 @@
 import RotaProtegida from '@/components/RotaProtegida.tsx'
 import LayoutDashboardEmpresa from '@/components/dashboard-empresa/LayoutDashboardEmpresa.tsx'
 import LayoutDashboardStartup from '@/components/dashboard-startup/LayoutDashboardStartup.tsx'
-import SecaoEmBreve from '@/components/dashboard-startup/SecaoEmBreve.tsx'
 import CriarConta from '@/pages/CriarConta.tsx'
 import DashboardEmpresa from '@/pages/DashboardEmpresa.tsx'
 import DashboardStartup from '@/pages/DashboardStartup.tsx'
@@ -11,8 +10,10 @@ import ExplorarStartups from '@/pages/ExplorarStartups.tsx'
 import Home from '@/pages/Home.tsx'
 import MeuPerfilStartup from '@/pages/MeuPerfilStartup.tsx'
 import PaginaConexoesEmpresa from '@/pages/PaginaConexoesEmpresa.tsx'
+import PaginaConexoesStartup from '@/pages/PaginaConexoesStartup.tsx'
 import PaginaDemandasEmpresa from '@/pages/PaginaDemandasEmpresa.tsx'
 import PaginaOportunidadesStartup from '@/pages/PaginaOportunidadesStartup.tsx'
+import PaginaPlanoStartup from '@/pages/PaginaPlanoStartup.tsx'
 import PaginaRecomendacoesEmpresa from '@/pages/PaginaRecomendacoesEmpresa.tsx'
 import { AuthProvider } from '@/contexts/AuthContext.tsx'
 import ParaEmpresas from '@/pages/ParaEmpresas.tsx'
@@ -45,8 +46,8 @@ export default function App() {
               <Route path="/dashboard/startup" element={<DashboardStartup />} />
               <Route path="/dashboard/startup/perfil" element={<MeuPerfilStartup />} />
               <Route path="/dashboard/startup/oportunidades" element={<PaginaOportunidadesStartup />} />
-              <Route path="/dashboard/startup/conexoes" element={<SecaoEmBreve titulo="Conexões" />} />
-              <Route path="/dashboard/startup/plano" element={<SecaoEmBreve titulo="Plano" />} />
+              <Route path="/dashboard/startup/conexoes" element={<PaginaConexoesStartup />} />
+              <Route path="/dashboard/startup/plano" element={<PaginaPlanoStartup />} />
             </Route>
           </Route>
           <Route element={<RotaProtegida tipo="company" />}>
