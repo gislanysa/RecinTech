@@ -145,6 +145,12 @@ pub fn handle_request(request: Request, context: Context) -> Response {
     http.Get, ["api", "company", id] -> get_company_by_id(context.database, id)
 
     // +-----------------------------------------------------------------------+
+    // | SEGMENT                                                               |
+    // +-----------------------------------------------------------------------+
+    //
+    http.Get, ["api", "segment", id] -> get_segment_by_id(context.database, id)
+
+    // +-----------------------------------------------------------------------+
     // | NOT FOUND                                                             |
     // +-----------------------------------------------------------------------+
     //
@@ -156,6 +162,65 @@ pub fn handle_request(request: Request, context: Context) -> Response {
   }
 }
 
+/// ## `GET /api/segment/:id`
+///
+/// Fetch information about a Segment
+///
+/// ## Response Body
+///
+/// ```json
+/// {
+///   "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+///   "name": "Tech",
+///   "description": "Modern technology"
+/// }
+/// ```
+///
+/// ## Status Codes
+///
+/// - **200** If successful.
+/// - **400** if ID is not a valid UUID.
+/// - **404** If Segment is not found.
+///
+fn get_segment_by_id(database: pog.Connection, id: String) -> Response {
+  use id <- require_valid_uuid(id)
+
+  case segment.get(database, id) {
+    Ok(data) ->
+      segment.to_json(data)
+      |> json.to_string
+      |> wisp.json_response(200)
+
+    Error(error) -> handle_segment_error(error)
+  }
+}
+
+/// ## `GET /api/company/:id`
+///
+/// Fetch information about a Company.
+///
+/// ## Examples
+///
+/// ```json
+/// {
+///   "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+///   "name": "Porto Digital",
+///   "email": "porto@email.com",
+///   "size": "micro",
+///   "cnpj": "12345678901234",
+///   "city": "Recife",
+///   "state": "Pernambuco",
+///   "created_at": "2026-09-14T20:08:02.000Z",
+///   "is_active": true,
+///   "website": "https://portodigital.org"
+/// }
+/// ```
+///
+/// ## Status Codes
+///
+/// - 200 If successful.
+/// - 404 If Startup is not found.
+///
 fn get_company_by_id(database: pog.Connection, id: String) -> Response {
   use id <- require_valid_uuid(id)
 
@@ -878,10 +943,7 @@ fn handle_segment_error(error: segment.SegmentError) -> Response {
   case error {
     segment.DatabaseError(error:) -> handle_database_error(error)
     segment.FailedToRegisterSegment -> wisp.internal_server_error()
-
-    segment.NotFound(id:) ->
-      { "Not found: " <> uuid.to_string(id) }
-      |> wisp.string_body(wisp.response(404), _)
+    segment.NotFound(_) -> wisp.not_found()
   }
 }
 
