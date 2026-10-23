@@ -1340,6 +1340,150 @@ pub fn get_many_services_invalid_query_test() -> Nil {
   Nil
 }
 
+pub fn get_technology_by_id_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let technology = dummy.new_technology(context.database)
+  let endpoint = "/api/technology/" <> uuid.to_string(technology.id)
+
+  let response =
+    simulate.browser_request(http.Get, endpoint)
+    |> web.handle_request(context)
+
+  assert response.status == 200
+  assert response.get_header(response, "content-type")
+    == Ok("application/json; charset=utf-8")
+
+  let body = simulate.read_body(response)
+  let assert Ok(returned) = json.parse(body, technology.decoder())
+
+  assert returned == technology
+
+  Nil
+}
+
+pub fn get_missing_technology_by_id_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let endpoint = "/api/technology/" <> uuid.v7_string()
+
+  let response =
+    simulate.browser_request(http.Get, endpoint)
+    |> web.handle_request(context)
+
+  assert response.status == 404
+
+  Nil
+}
+
+pub fn get_technology_by_invalid_id_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let response =
+    simulate.browser_request(http.Get, "/api/technology/wibble")
+    |> web.handle_request(context)
+
+  assert response.status == 400
+
+  Nil
+}
+
+pub fn get_expertise_by_id_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let expertise = dummy.new_expertise(context.database)
+  let endpoint = "/api/expertise/" <> uuid.to_string(expertise.id)
+
+  let response =
+    simulate.browser_request(http.Get, endpoint)
+    |> web.handle_request(context)
+
+  assert response.status == 200
+  assert response.get_header(response, "content-type")
+    == Ok("application/json; charset=utf-8")
+
+  let body = simulate.read_body(response)
+  let assert Ok(returned) = json.parse(body, expertise.decoder())
+
+  assert returned == expertise
+
+  Nil
+}
+
+pub fn get_missing_expertise_by_id_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let endpoint = "/api/expertise/" <> uuid.v7_string()
+
+  let response =
+    simulate.browser_request(http.Get, endpoint)
+    |> web.handle_request(context)
+
+  assert response.status == 404
+
+  Nil
+}
+
+pub fn get_expertise_by_invalid_id_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let response =
+    simulate.browser_request(http.Get, "/api/expertise/wibble")
+    |> web.handle_request(context)
+
+  assert response.status == 400
+
+  Nil
+}
+
+pub fn get_service_by_id_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let service = dummy.new_service(context.database)
+  let endpoint = "/api/service/" <> uuid.to_string(service.id)
+
+  let response =
+    simulate.browser_request(http.Get, endpoint)
+    |> web.handle_request(context)
+
+  assert response.status == 200
+  assert response.get_header(response, "content-type")
+    == Ok("application/json; charset=utf-8")
+
+  let body = simulate.read_body(response)
+  let assert Ok(returned) = json.parse(body, service.decoder())
+
+  assert returned == service
+
+  Nil
+}
+
+pub fn get_missing_service_by_id_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let endpoint = "/api/service/" <> uuid.v7_string()
+
+  let response =
+    simulate.browser_request(http.Get, endpoint)
+    |> web.handle_request(context)
+
+  assert response.status == 404
+
+  Nil
+}
+
+pub fn get_service_by_invalid_id_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let response =
+    simulate.browser_request(http.Get, "/api/service/wibble")
+    |> web.handle_request(context)
+
+  assert response.status == 400
+
+  Nil
+}
+
 pub fn register_company_test() -> Nil {
   use context <- server_test.with_context()
 

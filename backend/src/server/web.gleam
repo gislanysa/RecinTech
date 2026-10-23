@@ -117,6 +117,8 @@ pub fn handle_request(request: Request, context: Context) -> Response {
       unassign_startup_from_segment(context.database, id, segment_id)
 
     // == service ==============================================================
+    http.Get, ["api", "service", id] -> get_service_by_id(context.database, id)
+
     http.Get, ["api", "service"] -> get_many_services(request, context.database)
 
     http.Get, ["api", "startup", id, "service"] ->
@@ -129,6 +131,9 @@ pub fn handle_request(request: Request, context: Context) -> Response {
       unassign_startup_from_service(context.database, id, service_id)
 
     // == expertise ============================================================
+    http.Get, ["api", "expertise", id] ->
+      get_expertise_by_id(context.database, id)
+
     http.Get, ["api", "expertise"] ->
       get_many_expertises(request, context.database)
 
@@ -142,6 +147,9 @@ pub fn handle_request(request: Request, context: Context) -> Response {
       unassign_startup_from_expertise(context.database, id, expertise_id)
 
     // == technology ===========================================================
+    http.Get, ["api", "technology", id] ->
+      get_technology_by_id(context.database, id)
+
     http.Get, ["api", "technology"] ->
       get_many_technologies(request, context.database)
 
@@ -202,6 +210,105 @@ fn get_segment_by_id(database: pog.Connection, id: String) -> Response {
       |> wisp.json_response(200)
 
     Error(error) -> handle_segment_error(error)
+  }
+}
+
+/// ## `GET /api/technology/:id`
+///
+/// Fetch information about a Technology.
+///
+/// ## Response Body
+///
+/// ```json
+/// {
+///   "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+///   "name": "Gleam",
+///   "description": "A friendly language for building type-safe systems"
+/// }
+/// ```
+///
+/// ## Status Codes
+///
+/// - **200** If successful.
+/// - **400** if ID is not a valid UUID.
+/// - **404** If Technology is not found.
+///
+fn get_technology_by_id(database: pog.Connection, id: String) -> Response {
+  use id <- require_valid_uuid(id)
+
+  case technology.get(database, id) {
+    Ok(data) ->
+      technology.to_json(data)
+      |> json.to_string
+      |> wisp.json_response(200)
+
+    Error(error) -> handle_technology_error(error)
+  }
+}
+
+/// ## `GET /api/expertise/:id`
+///
+/// Fetch information about an Expertise.
+///
+/// ## Response Body
+///
+/// ```json
+/// {
+///   "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+///   "name": "Education",
+///   "description": "Teaching and learning"
+/// }
+/// ```
+///
+/// ## Status Codes
+///
+/// - **200** If successful.
+/// - **400** if ID is not a valid UUID.
+/// - **404** If Expertise is not found.
+///
+fn get_expertise_by_id(database: pog.Connection, id: String) -> Response {
+  use id <- require_valid_uuid(id)
+
+  case expertise.get(database, id) {
+    Ok(data) ->
+      expertise.to_json(data)
+      |> json.to_string
+      |> wisp.json_response(200)
+
+    Error(error) -> handle_expertise_error(error)
+  }
+}
+
+/// ## `GET /api/service/:id`
+///
+/// Fetch information about a Service.
+///
+/// ## Response Body
+///
+/// ```json
+/// {
+///   "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+///   "name": "Web development",
+///   "description": "Websites and http servers"
+/// }
+/// ```
+///
+/// ## Status Codes
+///
+/// - **200** If successful.
+/// - **400** if ID is not a valid UUID.
+/// - **404** If Service is not found.
+///
+fn get_service_by_id(database: pog.Connection, id: String) -> Response {
+  use id <- require_valid_uuid(id)
+
+  case service.get(database, id) {
+    Ok(data) ->
+      service.to_json(data)
+      |> json.to_string
+      |> wisp.json_response(200)
+
+    Error(error) -> handle_service_error(error)
   }
 }
 
