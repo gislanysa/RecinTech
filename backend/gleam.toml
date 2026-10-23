@@ -1,11 +1,7 @@
 name = "server"
 version = "1.0.0"
 
-internal_modules = [
-  "server/**/sql",
-  "server/internal",
-  "server/internal/*.gleam",
-]
+internal_modules = ["server/**/sql", "server/internal", "server/internal/*"]
 
 [documentation]
 pages = [
