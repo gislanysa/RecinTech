@@ -69,6 +69,35 @@ pub fn get(
   Service(id: row.id, name: row.name, description: row.description)
 }
 
+/// Fetch many Services from the database, specifying the max number of
+/// returned rows, and how many to skip.
+///
+/// ## Examples
+///
+/// ```gleam
+/// let result =
+///   service.get_many(context.database, limit: 3, offset: 6)
+///
+/// case result {
+///   Ok(data) -> todo as "send response"
+///   Error(_) -> wisp.internal_server_error()
+/// }
+/// ```
+pub fn get_many(
+  database: pog.Connection,
+  limit limit: Int,
+  offset offset: Int,
+) -> Result(List(Service), ServiceError) {
+  use returned <- result.map(
+    sql.get_many(database, limit, offset)
+    |> result.map_error(DatabaseError),
+  )
+
+  list.map(returned.rows, fn(row) {
+    Service(id: row.id, name: row.name, description: row.description)
+  })
+}
+
 /// Register an Service in the Database
 ///
 /// ## Examples

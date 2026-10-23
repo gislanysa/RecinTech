@@ -1,3 +1,5 @@
+import gleam/int
+import gleam/list
 import server/dummy
 import server/startup/technology
 import server_test
@@ -36,6 +38,25 @@ pub fn get_missing_technology_test() -> Nil {
     technology.get(context.database, id)
 
   assert returned == id
+
+  Nil
+}
+
+pub fn get_many_technologies_test() -> Nil {
+  use context <- server_test.with_context()
+  let max = 6
+
+  let technologies =
+    int.range(from: 1, to: max, with: [], run: fn(acc, _) {
+      let technology = dummy.new_technology(context.database)
+      [technology, ..acc]
+    })
+    |> list.reverse
+
+  let assert Ok(returned) =
+    technology.get_many(context.database, limit: max, offset: 0)
+
+  assert returned == technologies
 
   Nil
 }

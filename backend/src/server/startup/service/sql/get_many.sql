@@ -1,10 +1,10 @@
--- get a maximum of $2 segments from the database
+-- get a maximum of $1 services from the database
 SELECT
     s.id,
     s.name,
     s.description
 FROM
-    public.segment AS s
+    public.service AS s
 ORDER BY
     id
 LIMIT

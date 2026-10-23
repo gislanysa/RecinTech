@@ -184,6 +184,171 @@ Fetch a list of registered segments.
 - 200: Successful
 - 400: Missing, invalid or incomplete query parameters
 
+## GET /api/technology
+
+Fetch a list of registered technologies.
+
+### Query Parameters
+
+- `limit` (int, required)
+- `offset` (int, required)
+
+### Response Body
+
+```json
+[
+  {
+    "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+    "name": "Gleam",
+    "description": "A friendly language for building type-safe systems"
+  },
+  {
+    "id": "01a0dbb3-153a-7b84-8c3d-631788972d4a",
+    "name": "PostgreSQL",
+    "description": "The world's most advanced open source database"
+  }
+]
+```
+
+### Status Codes
+
+- 200: Successful
+- 400: Missing, invalid or incomplete query parameters
+
+## GET /api/technology/:id
+
+Fetch information about a technology.
+
+### Path Parameters
+
+- `id` (UUID, required)
+
+### Response Body
+
+```json
+{
+  "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+  "name": "Gleam",
+  "description": "A friendly language for building type-safe systems"
+}
+```
+
+### Status Codes
+
+- 200: Successful
+- 400: Invalid UUID format
+- 404: Technology not found
+
+## GET /api/expertise
+
+Fetch a list of registered expertises.
+
+### Query Parameters
+
+- `limit` (int, required)
+- `offset` (int, required)
+
+### Response Body
+
+```json
+[
+  {
+    "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+    "name": "Education",
+    "description": "Teaching and learning"
+  },
+  {
+    "id": "01a0dbb3-153a-7b84-8c3d-631788972d4a",
+    "name": "Health",
+    "description": "Medical stuff"
+  }
+]
+```
+
+### Status Codes
+
+- 200: Successful
+- 400: Missing, invalid or incomplete query parameters
+
+## GET /api/expertise/:id
+
+Fetch information about an expertise.
+
+### Path Parameters
+
+- `id` (UUID, required)
+
+### Response Body
+
+```json
+{
+  "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+  "name": "Education",
+  "description": "Teaching and learning"
+}
+```
+
+### Status Codes
+
+- 200: Successful
+- 400: Invalid UUID format
+- 404: Expertise not found
+
+## GET /api/service
+
+Fetch a list of registered services.
+
+### Query Parameters
+
+- `limit` (int, required)
+- `offset` (int, required)
+
+### Response Body
+
+```json
+[
+  {
+    "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+    "name": "Web development",
+    "description": "Websites and http servers"
+  },
+  {
+    "id": "01a0dbb3-153a-7b84-8c3d-631788972d4a",
+    "name": "UI/UX",
+    "description": "user experience"
+  }
+]
+```
+
+### Status Codes
+
+- 200: Successful
+- 400: Missing, invalid or incomplete query parameters
+
+## GET /api/service/:id
+
+Fetch information about a service.
+
+### Path Parameters
+
+- `id` (UUID, required)
+
+### Response Body
+
+```json
+{
+  "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+  "name": "Web development",
+  "description": "Websites and http servers"
+}
+```
+
+### Status Codes
+
+- 200: Successful
+- 400: Invalid UUID format
+- 404: Service not found
+
 ## GET /api/startup
 
 Fetch a list of registered startups.
