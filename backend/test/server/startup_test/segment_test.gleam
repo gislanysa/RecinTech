@@ -1,7 +1,7 @@
 import gleam/int
 import gleam/list
 import server/dummy
-import server/segment
+import server/startup/segment
 import server_test
 import youid/uuid
 

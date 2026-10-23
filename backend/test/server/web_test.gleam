@@ -9,9 +9,9 @@ import server/cnpj
 import server/company
 import server/dummy
 import server/email
-import server/segment
 import server/startup
 import server/startup/expertise
+import server/startup/segment
 import server/startup/service
 import server/startup/technology
 import server/web

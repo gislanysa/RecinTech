@@ -19,9 +19,9 @@ import server/company
 import server/email
 import server/internal
 import server/internal/payload
-import server/segment
 import server/startup
 import server/startup/expertise
+import server/startup/segment
 import server/startup/service
 import server/startup/technology
 import wisp.{type Request, type Response}
