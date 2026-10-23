@@ -12,14 +12,14 @@ export default function PaginaOportunidadesStartup() {
     <div className="flex flex-col gap-8">
       <header>
         <h1 className="font-display text-2xl font-bold tracking-tight text-ink-900 sm:text-3xl">
-          Oportunidades
+          Oportunidades recomendadas para sua startup
         </h1>
         <p className="mt-1 text-sm text-ink-500">
-          Demandas de empresas compatíveis com as tecnologias, serviços e especialidades do seu perfil.
+          Baseadas nas tecnologias, serviços e especialidades que você cadastrou no seu perfil.
         </p>
       </header>
 
-      <PainelOportunidades />
+      <PainelOportunidades comCabecalho={false} />
     </div>
   )
 }
