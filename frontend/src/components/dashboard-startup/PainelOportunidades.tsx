@@ -10,6 +10,7 @@ import {
   type OrigemDosDados,
 } from '@/lib/oportunidades.ts'
 import { useCallback, useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 
 type Carga =
   | { status: 'carregando' }
@@ -17,7 +18,21 @@ type Carga =
   | { status: 'ok'; origem: OrigemDosDados }
 
 /** Seção "Oportunidades recomendadas". */
-export default function PainelOportunidades() {
+/**
+ * Painel de oportunidades recomendadas.
+ *
+ * Aparece em dois lugares: na home do dashboard, onde divide espaço com
+ * outros painéis e precisa do próprio título, e na página de Oportunidades,
+ * onde o título da página já diz a mesma coisa. Daí `comCabecalho`.
+ */
+export default function PainelOportunidades({
+  comCabecalho = true,
+  limite,
+}: {
+  comCabecalho?: boolean
+  /** Quantos cards mostrar. Sem limite, mostra todos. */
+  limite?: number
+}) {
   const [carga, setCarga] = useState<Carga>({ status: 'carregando' })
   const [oportunidades, setOportunidades] = useState<Oportunidade[]>([])
   const [estados, setEstados] = useState<Record<string, EstadoDoCard>>({})
@@ -66,7 +81,7 @@ export default function PainelOportunidades() {
     try {
       await manifestarInteresse(o.id)
       definirEstado(o.id, 'interessado')
-      setAviso({ tipo: 'sucesso', texto: `Interesse em ${o.empresa} registrado.` })
+      setAviso({ tipo: 'sucesso', texto: `Interesse em ${o.empresa} enviado. Acompanhe em Conexões.` })
     } catch {
       definirEstado(o.id, null)
       setAviso({ tipo: 'erro', texto: `Não foi possível registrar o interesse em ${o.empresa}. Tente novamente.` })
@@ -87,24 +102,33 @@ export default function PainelOportunidades() {
     }
   }
 
+  const simulado = carga.status === 'ok' && carga.origem === 'simulado'
+  // No dashboard o painel é resumo: mostra algumas e manda o resto para a
+  // página de Oportunidades, para a home não virar uma rolagem longa.
+  const visiveis = limite ? oportunidades.slice(0, limite) : oportunidades
+  const sobrando = oportunidades.length - visiveis.length
+
   return (
-    <section aria-labelledby="titulo-oportunidades">
-      <div className="flex flex-wrap items-center gap-3">
-        <h2 id="titulo-oportunidades" className="text-lg font-semibold">
-          Oportunidades recomendadas
-        </h2>
-        {carga.status === 'ok' && carga.origem === 'simulado' && (
-          <span
-            title="O backend ainda não tem endpoints de oportunidades e compatibilidade. Estes cards são exemplos."
-            className="rounded-full bg-brand-100 px-2.5 py-1 text-xs font-medium text-brand-700"
-          >
-            Dados de exemplo
-          </span>
-        )}
-      </div>
-      <p className="mt-1 text-sm text-ink-500">
-        Empresas com demandas compatíveis com as tecnologias, serviços e especialidades do seu perfil.
-      </p>
+    <section aria-labelledby={comCabecalho ? 'titulo-oportunidades' : undefined}>
+      {comCabecalho ? (
+        <>
+          <div className="flex flex-wrap items-center gap-3">
+            <h2 id="titulo-oportunidades" className="text-lg font-semibold">
+              Oportunidades recomendadas
+            </h2>
+            {simulado && <SeloExemplo />}
+          </div>
+          <p className="mt-1 text-sm text-ink-500">
+            Empresas com demandas compatíveis com as tecnologias, serviços e especialidades do seu perfil.
+          </p>
+        </>
+      ) : (
+        simulado && (
+          <div className="mb-4">
+            <SeloExemplo />
+          </div>
+        )
+      )}
 
       {aviso && (
         <p
@@ -149,8 +173,9 @@ export default function PainelOportunidades() {
         )}
 
         {carga.status === 'ok' && oportunidades.length > 0 && (
+          <>
           <ul className="grid gap-4 sm:grid-cols-2">
-            {oportunidades.map((o) => (
+            {visiveis.map((o) => (
               <CartaoOportunidade
                 key={o.id}
                 oportunidade={o}
@@ -160,8 +185,31 @@ export default function PainelOportunidades() {
               />
             ))}
           </ul>
+
+          {sobrando > 0 && (
+            <div className="mt-4">
+              <Link
+                to="/dashboard/startup/oportunidades"
+                className="text-sm font-medium text-brand-600 underline-offset-4 hover:underline"
+              >
+                Ver mais {sobrando} {sobrando === 1 ? 'oportunidade' : 'oportunidades'}
+              </Link>
+            </div>
+          )}
+          </>
         )}
       </div>
     </section>
+  )
+}
+
+function SeloExemplo() {
+  return (
+    <span
+      title="O backend ainda não tem endpoints de oportunidades e compatibilidade. Estes cards são exemplos."
+      className="inline-flex rounded-full bg-brand-100 px-2.5 py-1 text-xs font-medium text-brand-700"
+    >
+      Dados de exemplo
+    </span>
   )
 }

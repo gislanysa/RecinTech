@@ -1,6 +1,7 @@
 import Botao from '@/components/Botao.tsx'
 import { CheckIcon } from '@/components/icons.tsx'
 import type { Oportunidade } from '@/lib/oportunidades.ts'
+import { Link } from 'react-router-dom'
 
 export type EstadoDoCard = 'ocioso' | 'interessando' | 'ignorando' | 'interessado'
 
@@ -64,9 +65,12 @@ export default function CartaoOportunidade({
 
         <div className="mt-auto flex flex-wrap items-center gap-2 pt-1">
           {interessado ? (
-            <p role="status" className="inline-flex items-center gap-1.5 text-sm font-medium text-brand-700">
-              <CheckIcon className="size-4" />
-              Interesse registrado
+            <p role="status" className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm font-medium text-brand-700">
+              <CheckIcon className="size-4 shrink-0" />
+              Interesse enviado.
+              <Link to="/dashboard/startup/conexoes" className="underline underline-offset-4 hover:text-brand-800">
+                Acompanhe em Conexões
+              </Link>
             </p>
           ) : (
             <>
