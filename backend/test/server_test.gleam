@@ -1,13 +1,13 @@
 import envoy
 import gleam/erlang/process
-import gleeunit
 import global_value
 import pog
 import server
 import server/web
 
 pub fn main() -> Nil {
-  gleeunit.main()
+  use _ <- with_context()
+  run_tests()
 }
 
 fn global_context() -> web.Context {
@@ -26,7 +26,7 @@ fn global_context() -> web.Context {
 }
 
 /// Create a persistent `Context` value, available to all processes.
-/// SQL queries will be rolled back at the end of the function scope.
+/// SQL queries are rolled back at the end of each test.
 ///
 /// ## Examples
 ///
@@ -53,3 +53,9 @@ pub fn with_context(next: fn(web.Context) -> a) -> Nil {
 
   Nil
 }
+
+/// Run gleeunit with parallel tests enabled.
+///
+/// https://curling.io/blog/parallel-tests-for-free
+@external(erlang, "server_test_ffi", "main")
+fn run_tests() -> Nil
