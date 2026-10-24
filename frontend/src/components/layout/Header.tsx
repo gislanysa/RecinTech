@@ -1,6 +1,7 @@
 import Botao from '@/components/Botao.tsx'
 import { CloseIcon, MenuIcon } from '@/components/icons.tsx'
 import Logo from '@/components/Logo.tsx'
+import { useAuth } from '@/contexts/useAuth.ts'
 import { useEffect, useState } from 'react'
 import { Link, NavLink } from 'react-router-dom'
 
@@ -18,6 +19,14 @@ type HeaderProps = {
 export default function Header({ overlay = false }: HeaderProps) {
   const [scrolled, setScrolled] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
+
+  // Estas telas públicas (catálogo e perfil de startup) também são abertas por
+  // quem já entrou. Sem olhar a sessão, o cabeçalho oferecia "Acessar" e
+  // "Criar conta" a quem já estava logado, o que dava a impressão de ter caído
+  // a sessão.
+  const { estado, tipoConta } = useAuth()
+  const logado = estado === 'autenticado'
+  const rotaDoPainel = tipoConta === 'company' ? '/dashboard/empresa' : '/dashboard/startup'
 
   useEffect(() => {
     if (!overlay) return
@@ -60,14 +69,18 @@ export default function Header({ overlay = false }: HeaderProps) {
         </nav>
 
         <div className="ml-auto flex items-center gap-3">
-          {/* O span existe só para esconder o "Acessar" no mobile sem brigar com o
-              display do próprio botão. */}
-          <span className="hidden sm:block">
-            <Botao to="/entrar">
-              Acessar
-            </Botao>
-          </span>
-          <Botao to="/criar-conta">Criar conta</Botao>
+          {logado ? (
+            <Botao to={rotaDoPainel}>Meu painel</Botao>
+          ) : (
+            <>
+              {/* O span existe só para esconder o "Acessar" no mobile sem brigar
+                  com o display do próprio botão. */}
+              <span className="hidden sm:block">
+                <Botao to="/entrar">Acessar</Botao>
+              </span>
+              <Botao to="/criar-conta">Criar conta</Botao>
+            </>
+          )}
 
           <button
             type="button"
@@ -94,11 +107,11 @@ export default function Header({ overlay = false }: HeaderProps) {
             </NavLink>
           ))}
           <Link
-            to="/entrar"
+            to={logado ? rotaDoPainel : '/entrar'}
             onClick={() => setMenuOpen(false)}
             className="block rounded-lg px-2 py-2.5 text-sm font-medium text-ink-700 sm:hidden"
           >
-            Acessar
+            {logado ? 'Meu painel' : 'Acessar'}
           </Link>
         </nav>
       )}
