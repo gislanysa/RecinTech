@@ -1,5 +1,3 @@
-import gleam/int
-import gleam/list
 import server/dummy
 import server/startup/expertise
 import server_test
@@ -47,11 +45,7 @@ pub fn get_many_expertises_test() -> Nil {
   let max = 6
 
   let expertises =
-    int.range(from: 1, to: max, with: [], run: fn(acc, _) {
-      let expertise = dummy.new_expertise(context.database)
-      [expertise, ..acc]
-    })
-    |> list.reverse
+    dummy.many(max, fn() { dummy.new_expertise(context.database) })
 
   let assert Ok(returned) =
     expertise.get_many(context.database, limit: max, offset: 0)

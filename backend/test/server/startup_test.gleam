@@ -1,5 +1,3 @@
-import gleam/int
-import gleam/list
 import gleam/uri
 import server/dummy
 import server/lgpd
@@ -371,12 +369,7 @@ pub fn get_many_startup_test() -> Nil {
   use context <- server_test.with_context()
   let max = 6
 
-  let startups =
-    int.range(from: 1, to: max, with: [], run: fn(acc, _) {
-      let startup = dummy.new_startup(context.database)
-      [startup, ..acc]
-    })
-    |> list.reverse
+  let startups = dummy.many(max, fn() { dummy.new_startup(context.database) })
 
   let assert Ok(returned) =
     startup.get_many(context.database, limit: max, offset: 0)

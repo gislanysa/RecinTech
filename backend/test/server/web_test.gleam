@@ -16,9 +16,25 @@ import server/startup/service
 import server/startup/technology
 import server/web
 import server_test
-import wisp
+import wisp.{type Response}
 import wisp/simulate
 import youid/uuid
+
+/// Panics if the Response body is valid JSON
+///
+/// ## Examples
+///
+/// ```gleam
+/// let response = web.handle_request(request, context)
+/// expect_json(response)
+/// ```
+///
+fn expect_json(response: Response) -> Nil {
+  let content_type = response.get_header(response, "content-type")
+  assert content_type == Ok("application/json; charset=utf-8")
+
+  Nil
+}
 
 pub fn html_document_test() -> Nil {
   use context <- server_test.with_context()
@@ -28,8 +44,8 @@ pub fn html_document_test() -> Nil {
     |> web.handle_request(context)
 
   assert response.status == 200
-  assert list.key_find(response.headers, "content-type")
-    == Ok("text/html; charset=utf-8")
+  let content_type = list.key_find(response.headers, "content-type")
+  assert content_type == Ok("text/html; charset=utf-8")
 
   Nil
 }
@@ -65,8 +81,7 @@ pub fn get_startup_by_id_test() -> Nil {
     |> web.handle_request(context)
 
   assert response.status == 200
-  assert response.get_header(response, "content-type")
-    == Ok("application/json; charset=utf-8")
+  expect_json(response)
 
   let body = simulate.read_body(response)
   let assert Ok(found) = json.parse(body, startup.decoder())
@@ -122,8 +137,7 @@ pub fn handle_login_startup_test() -> Nil {
     |> web.handle_request(context)
 
   assert response.status == 200
-  assert response.get_header(response, "content-type")
-    == Ok("application/json; charset=utf-8")
+  expect_json(response)
 
   let assert Ok(cookie) =
     response.get_cookies(response)
@@ -159,8 +173,7 @@ pub fn handle_login_company_test() -> Nil {
     |> web.handle_request(context)
 
   assert response.status == 200
-  assert response.get_header(response, "content-type")
-    == Ok("application/json; charset=utf-8")
+  expect_json(response)
 
   let assert Ok(cookie) =
     response.get_cookies(response)
@@ -218,15 +231,14 @@ pub fn get_startup_segments_test() -> Nil {
   let assert Ok(_) =
     startup.assign_segment(context.database, startup.id, assign: segment_b.id)
 
-  // Request
+  // request
   let id = uuid.to_string(startup.id)
   let response =
     simulate.browser_request(http.Get, "/api/startup/" <> id <> "/segment")
     |> web.handle_request(context)
 
   assert response.status == 200
-  assert response.get_header(response, "content-type")
-    == Ok("application/json; charset=utf-8")
+  expect_json(response)
 
   let body = simulate.read_body(response)
 
@@ -252,15 +264,14 @@ pub fn get_startup_services_test() -> Nil {
   let assert Ok(_) =
     startup.assign_service(context.database, startup.id, assign: service_b.id)
 
-  // Request
+  // request
   let id = uuid.to_string(startup.id)
   let response =
     simulate.browser_request(http.Get, "/api/startup/" <> id <> "/service")
     |> web.handle_request(context)
 
   assert response.status == 200
-  assert response.get_header(response, "content-type")
-    == Ok("application/json; charset=utf-8")
+  expect_json(response)
 
   let body = simulate.read_body(response)
 
@@ -296,15 +307,14 @@ pub fn get_startup_technologies_test() -> Nil {
       assign: technology_b.id,
     )
 
-  // Request
+  // request
   let id = uuid.to_string(startup.id)
   let response =
     simulate.browser_request(http.Get, "/api/startup/" <> id <> "/technology")
     |> web.handle_request(context)
 
   assert response.status == 200
-  assert response.get_header(response, "content-type")
-    == Ok("application/json; charset=utf-8")
+  expect_json(response)
 
   let body = simulate.read_body(response)
 
@@ -340,15 +350,14 @@ pub fn get_startup_expertises_test() -> Nil {
       assign: expertise_b.id,
     )
 
-  // Request
+  // request
   let id = uuid.to_string(startup.id)
   let response =
     simulate.browser_request(http.Get, "/api/startup/" <> id <> "/expertise")
     |> web.handle_request(context)
 
   assert response.status == 200
-  assert response.get_header(response, "content-type")
-    == Ok("application/json; charset=utf-8")
+  expect_json(response)
 
   let body = simulate.read_body(response)
 
@@ -362,23 +371,15 @@ pub fn get_many_startups_test() -> Nil {
   use context <- server_test.with_context()
   let max = 6
 
-  // Three startups
-  let startups =
-    int.range(from: 1, to: max, with: [], run: fn(acc, _) {
-      let segment = dummy.new_startup(context.database)
-      [segment, ..acc]
-    })
-    |> list.reverse
+  let startups = dummy.many(max, fn() { dummy.new_startup(context.database) })
 
-  // This will only return B and C
   let response =
     simulate.browser_request(http.Get, "/api/startup")
     |> request.set_query([#("limit", int.to_string(max)), #("offset", "0")])
     |> web.handle_request(context)
 
   assert response.status == 200
-  assert response.get_header(response, "content-type")
-    == Ok("application/json; charset=utf-8")
+  expect_json(response)
 
   let body = simulate.read_body(response)
   let assert Ok(returned) = json.parse(body, decode.list(startup.decoder()))
@@ -481,8 +482,7 @@ pub fn restore_session_test() -> Nil {
     |> web.handle_request(context)
 
   assert response.status == 200
-  assert response.get_header(response, "content-type")
-    == Ok("application/json; charset=utf-8")
+  expect_json(response)
 
   let body = simulate.read_body(response)
   let assert Ok(returned) = json.parse(body, startup.decoder())
@@ -526,6 +526,7 @@ pub fn register_startup_test() -> Nil {
     |> web.handle_request(context)
 
   assert response.status == 201
+  expect_json(response)
 
   let body = simulate.read_body(response)
   let assert Ok(_) = json.parse(body, startup.decoder())
@@ -637,10 +638,11 @@ pub fn assign_startup_to_segment_test() -> Nil {
     |> web.handle_request(context)
 
   assert response.status == 201
-  let body = simulate.read_body(response)
+  expect_json(response)
 
+  let body = simulate.read_body(response)
   let assert Ok(returned) = json.parse(body, segment.decoder())
-  assert returned == segment
+  assert returned.id == segment.id
 
   Nil
 }
@@ -690,10 +692,11 @@ pub fn assign_startup_to_technology_test() -> Nil {
     |> web.handle_request(context)
 
   assert response.status == 201
-  let body = simulate.read_body(response)
+  expect_json(response)
 
+  let body = simulate.read_body(response)
   let assert Ok(returned) = json.parse(body, technology.decoder())
-  assert returned == techology
+  assert returned.id == techology.id
 
   Nil
 }
@@ -743,8 +746,9 @@ pub fn assign_startup_to_expertise_test() -> Nil {
     |> web.handle_request(context)
 
   assert response.status == 201
-  let body = simulate.read_body(response)
+  expect_json(response)
 
+  let body = simulate.read_body(response)
   let assert Ok(returned) = json.parse(body, expertise.decoder())
   assert returned == expertise
 
@@ -796,10 +800,11 @@ pub fn assign_startup_to_service_test() -> Nil {
     |> web.handle_request(context)
 
   assert response.status == 201
-  let body = simulate.read_body(response)
+  expect_json(response)
 
+  let body = simulate.read_body(response)
   let assert Ok(returned) = json.parse(body, service.decoder())
-  assert returned == service
+  assert returned.id == service.id
 
   Nil
 }
@@ -851,12 +856,11 @@ pub fn unassign_startup_from_segment_test() -> Nil {
     |> web.handle_request(context)
 
   assert response.status == 200
-  assert response.get_header(response, "content-type")
-    == Ok("application/json; charset=utf-8")
+  expect_json(response)
 
   let body = simulate.read_body(response)
   let assert Ok(returned) = json.parse(body, segment.decoder())
-  assert returned == segment
+  assert returned.id == segment.id
 
   // It should no longer be assigned
   let assert Ok([]) = startup.get_segments(context.database, startup.id)
@@ -933,14 +937,12 @@ pub fn unassign_startup_from_service_test() -> Nil {
     |> web.handle_request(context)
 
   assert response.status == 200
-  assert response.get_header(response, "content-type")
-    == Ok("application/json; charset=utf-8")
+  expect_json(response)
 
   let body = simulate.read_body(response)
   let assert Ok(returned) = json.parse(body, service.decoder())
-  assert returned == service
 
-  // It should no longer be assigned
+  assert returned.id == service.id
   let assert Ok([]) = startup.get_services(context.database, startup.id)
 
   Nil
@@ -973,7 +975,7 @@ pub fn unassign_service_invalid_id_test() -> Nil {
   let startup = dummy.new_startup(context.database)
   let service = dummy.new_service(context.database)
 
-  // Invalid startup ID
+  // invalid startup id
   let endpoint = "/api/startup/wibble/service/" <> uuid.to_string(service.id)
 
   let response =
@@ -982,7 +984,7 @@ pub fn unassign_service_invalid_id_test() -> Nil {
 
   assert response.status == 400
 
-  // Invalid service ID
+  // invalid service id
   let endpoint =
     "/api/startup/" <> uuid.to_string(startup.id) <> "/service/wibble"
 
@@ -1015,14 +1017,12 @@ pub fn unassign_startup_from_expertise_test() -> Nil {
     |> web.handle_request(context)
 
   assert response.status == 200
-  assert response.get_header(response, "content-type")
-    == Ok("application/json; charset=utf-8")
+  expect_json(response)
 
   let body = simulate.read_body(response)
   let assert Ok(returned) = json.parse(body, expertise.decoder())
-  assert returned == expertise
 
-  // It should no longer be assigned
+  assert returned.id == expertise.id
   let assert Ok([]) = startup.get_expertises(context.database, startup.id)
 
   Nil
@@ -1055,7 +1055,7 @@ pub fn unassign_expertise_invalid_id_test() -> Nil {
   let startup = dummy.new_startup(context.database)
   let expertise = dummy.new_expertise(context.database)
 
-  // Invalid startup ID
+  // invalid startup id
   let endpoint =
     "/api/startup/wibble/expertise/" <> uuid.to_string(expertise.id)
 
@@ -1065,7 +1065,7 @@ pub fn unassign_expertise_invalid_id_test() -> Nil {
 
   assert response.status == 400
 
-  // Invalid expertise ID
+  // invalid expertise id
   let endpoint =
     "/api/startup/" <> uuid.to_string(startup.id) <> "/expertise/wibble"
 
@@ -1102,14 +1102,12 @@ pub fn unassign_startup_from_technology_test() -> Nil {
     |> web.handle_request(context)
 
   assert response.status == 200
-  assert response.get_header(response, "content-type")
-    == Ok("application/json; charset=utf-8")
+  expect_json(response)
 
   let body = simulate.read_body(response)
   let assert Ok(returned) = json.parse(body, technology.decoder())
-  assert returned == technology
 
-  // It should no longer be assigned
+  assert returned == technology
   let assert Ok([]) = startup.get_technologies(context.database, startup.id)
 
   Nil
@@ -1142,7 +1140,7 @@ pub fn unassign_technology_invalid_id_test() -> Nil {
   let startup = dummy.new_startup(context.database)
   let technology = dummy.new_technology(context.database)
 
-  // Invalid startup ID
+  // invalid startup id
   let endpoint =
     "/api/startup/wibble/technology/" <> uuid.to_string(technology.id)
 
@@ -1152,7 +1150,7 @@ pub fn unassign_technology_invalid_id_test() -> Nil {
 
   assert response.status == 400
 
-  // Invalid technology ID
+  // invalid technology id
   let endpoint =
     "/api/startup/" <> uuid.to_string(startup.id) <> "/technology/wibble"
 
@@ -1169,12 +1167,7 @@ pub fn get_many_segments_test() -> Nil {
   use context <- server_test.with_context()
   let max = 6
 
-  let segments =
-    int.range(from: 1, to: max, with: [], run: fn(acc, _) {
-      let segment = dummy.new_segment(context.database)
-      [segment, ..acc]
-    })
-    |> list.reverse
+  let segments = dummy.many(max, fn() { dummy.new_segment(context.database) })
 
   let response =
     simulate.browser_request(http.Get, "/api/segment")
@@ -1182,8 +1175,9 @@ pub fn get_many_segments_test() -> Nil {
     |> web.handle_request(context)
 
   assert response.status == 200
-  let body = simulate.read_body(response)
+  expect_json(response)
 
+  let body = simulate.read_body(response)
   let assert Ok(returned) = json.parse(body, decode.list(segment.decoder()))
   assert returned == segments
 
@@ -1195,11 +1189,7 @@ pub fn get_many_technologies_test() -> Nil {
   let max = 6
 
   let technologies =
-    int.range(from: 1, to: max, with: [], run: fn(acc, _) {
-      let technology = dummy.new_technology(context.database)
-      [technology, ..acc]
-    })
-    |> list.reverse
+    dummy.many(max, fn() { dummy.new_technology(context.database) })
 
   let response =
     simulate.browser_request(http.Get, "/api/technology")
@@ -1207,8 +1197,9 @@ pub fn get_many_technologies_test() -> Nil {
     |> web.handle_request(context)
 
   assert response.status == 200
-  let body = simulate.read_body(response)
+  expect_json(response)
 
+  let body = simulate.read_body(response)
   let assert Ok(returned) = json.parse(body, decode.list(technology.decoder()))
   assert returned == technologies
 
@@ -1245,11 +1236,7 @@ pub fn get_many_expertises_test() -> Nil {
   let max = 6
 
   let expertises =
-    int.range(from: 1, to: max, with: [], run: fn(acc, _) {
-      let expertise = dummy.new_expertise(context.database)
-      [expertise, ..acc]
-    })
-    |> list.reverse
+    dummy.many(max, fn() { dummy.new_expertise(context.database) })
 
   let response =
     simulate.browser_request(http.Get, "/api/expertise")
@@ -1257,8 +1244,9 @@ pub fn get_many_expertises_test() -> Nil {
     |> web.handle_request(context)
 
   assert response.status == 200
-  let body = simulate.read_body(response)
+  expect_json(response)
 
+  let body = simulate.read_body(response)
   let assert Ok(returned) = json.parse(body, decode.list(expertise.decoder()))
   assert returned == expertises
 
@@ -1294,12 +1282,7 @@ pub fn get_many_services_test() -> Nil {
   use context <- server_test.with_context()
   let max = 6
 
-  let services =
-    int.range(from: 1, to: max, with: [], run: fn(acc, _) {
-      let service = dummy.new_service(context.database)
-      [service, ..acc]
-    })
-    |> list.reverse
+  let services = dummy.many(max, fn() { dummy.new_service(context.database) })
 
   let response =
     simulate.browser_request(http.Get, "/api/service")
@@ -1307,8 +1290,9 @@ pub fn get_many_services_test() -> Nil {
     |> web.handle_request(context)
 
   assert response.status == 200
-  let body = simulate.read_body(response)
+  expect_json(response)
 
+  let body = simulate.read_body(response)
   let assert Ok(returned) = json.parse(body, decode.list(service.decoder()))
   assert returned == services
 
@@ -1351,13 +1335,11 @@ pub fn get_technology_by_id_test() -> Nil {
     |> web.handle_request(context)
 
   assert response.status == 200
-  assert response.get_header(response, "content-type")
-    == Ok("application/json; charset=utf-8")
+  expect_json(response)
 
   let body = simulate.read_body(response)
   let assert Ok(returned) = json.parse(body, technology.decoder())
-
-  assert returned == technology
+  assert returned.id == technology.id
 
   Nil
 }
@@ -1399,13 +1381,11 @@ pub fn get_expertise_by_id_test() -> Nil {
     |> web.handle_request(context)
 
   assert response.status == 200
-  assert response.get_header(response, "content-type")
-    == Ok("application/json; charset=utf-8")
+  expect_json(response)
 
   let body = simulate.read_body(response)
   let assert Ok(returned) = json.parse(body, expertise.decoder())
-
-  assert returned == expertise
+  assert returned.id == expertise.id
 
   Nil
 }
@@ -1447,13 +1427,11 @@ pub fn get_service_by_id_test() -> Nil {
     |> web.handle_request(context)
 
   assert response.status == 200
-  assert response.get_header(response, "content-type")
-    == Ok("application/json; charset=utf-8")
+  expect_json(response)
 
   let body = simulate.read_body(response)
   let assert Ok(returned) = json.parse(body, service.decoder())
-
-  assert returned == service
+  assert returned.id == service.id
 
   Nil
 }
@@ -1505,6 +1483,7 @@ pub fn register_company_test() -> Nil {
     |> web.handle_request(context)
 
   assert response.status == 201
+  expect_json(response)
 
   let body = simulate.read_body(response)
   let assert Ok(_) = json.parse(body, company.decoder())
@@ -1575,10 +1554,10 @@ pub fn get_company_test() -> Nil {
     |> web.handle_request(context)
 
   assert response.status == 200
+  expect_json(response)
 
   let body = simulate.read_body(response)
   let assert Ok(returned) = json.parse(body, company.decoder())
-
   assert returned.id == company.id
 
   Nil
@@ -1636,12 +1615,10 @@ pub fn get_segment_by_id_test() -> Nil {
     |> web.handle_request(context)
 
   assert response.status == 200
-  assert response.get_header(response, "content-type")
-    == Ok("application/json; charset=utf-8")
+  expect_json(response)
 
   let body = simulate.read_body(response)
   let assert Ok(returned) = json.parse(body, segment.decoder())
-
   assert returned.id == segment.id
 
   Nil

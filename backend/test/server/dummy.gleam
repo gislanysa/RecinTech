@@ -1,6 +1,7 @@
 //// Quickly generate Data for unit tests.
 
 import gleam/http
+import gleam/int
 import gleam/json
 import gleam/list
 import gleam/uri
@@ -137,4 +138,13 @@ pub fn new_company(database: pog.Connection) -> company.Company {
     Error(_) -> panic as "failed to generate dummy company"
     Ok(data) -> data
   }
+}
+
+/// Run a function multiple times, useful for generating a list of values.
+pub fn many(amount: Int, new: fn() -> a) -> List(a) {
+  int.range(from: 1, to: amount, with: [], run: fn(acc, _) {
+    let item = new()
+    [item, ..acc]
+  })
+  |> list.reverse
 }
