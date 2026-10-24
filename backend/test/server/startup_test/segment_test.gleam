@@ -1,5 +1,5 @@
 import server/dummy
-import server/startup/segment
+import server/segment
 import server_test
 import youid/uuid
 

@@ -1,5 +1,5 @@
 import server/dummy
-import server/startup/technology
+import server/technology
 import server_test
 import youid/uuid
 

@@ -10,13 +10,13 @@ import gleam/uri
 import pog
 import server/cnpj
 import server/email
+import server/expertise
 import server/internal
 import server/lgpd
-import server/startup/expertise
-import server/startup/segment
-import server/startup/service
+import server/segment
+import server/service
 import server/startup/sql
-import server/startup/technology
+import server/technology
 import youid/uuid
 
 pub type StartupError {

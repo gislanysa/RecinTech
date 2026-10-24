@@ -1,5 +1,5 @@
 //// This module contains the code to run the sql queries defined in
-//// `./src/server/startup/expertise/sql`.
+//// `./src/server/segment/sql`.
 //// > 🐿️ This module was generated automatically using v4.7.0 of
 //// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
 ////
@@ -9,7 +9,7 @@ import pog
 import youid/uuid.{type Uuid}
 
 /// A row you get from running the `get` query
-/// defined in `./src/server/startup/expertise/sql/get.sql`.
+/// defined in `./src/server/segment/sql/get.sql`.
 ///
 /// > 🐿️ This type definition was generated automatically using v4.7.0 of the
 /// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
@@ -18,7 +18,7 @@ pub type GetRow {
   GetRow(id: Uuid, name: String, description: String)
 }
 
-/// find an expertise by its ID
+/// get a segment from the database
 ///
 /// > 🐿️ This function was generated automatically using v4.7.0 of
 /// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
@@ -34,15 +34,15 @@ pub fn get(
     decode.success(GetRow(id:, name:, description:))
   }
 
-  "-- find an expertise by its ID
+  "-- get a segment from the database
 SELECT
-    e.id,
-    e.name,
-    e.description
+    s.id,
+    s.name,
+    s.description
 FROM
-    public.expertise AS e
+    public.segment AS s
 WHERE
-    e.id = $1::uuid;
+    s.id = $1::uuid;
 "
   |> pog.query
   |> pog.parameter(pog.text(uuid.to_string(arg_1)))
@@ -51,7 +51,7 @@ WHERE
 }
 
 /// A row you get from running the `get_many` query
-/// defined in `./src/server/startup/expertise/sql/get_many.sql`.
+/// defined in `./src/server/segment/sql/get_many.sql`.
 ///
 /// > 🐿️ This type definition was generated automatically using v4.7.0 of the
 /// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
@@ -60,7 +60,7 @@ pub type GetManyRow {
   GetManyRow(id: Uuid, name: String, description: String)
 }
 
-/// get a maximum of $1 expertises from the database
+/// get a maximum of $1 segments from the database
 ///
 /// > 🐿️ This function was generated automatically using v4.7.0 of
 /// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
@@ -77,13 +77,13 @@ pub fn get_many(
     decode.success(GetManyRow(id:, name:, description:))
   }
 
-  "-- get a maximum of $1 expertises from the database
+  "-- get a maximum of $1 segments from the database
 SELECT
-    e.id,
-    e.name,
-    e.description
+    s.id,
+    s.name,
+    s.description
 FROM
-    public.expertise AS e
+    public.segment AS s
 ORDER BY
     id
 LIMIT
@@ -97,7 +97,7 @@ LIMIT
 }
 
 /// A row you get from running the `register` query
-/// defined in `./src/server/startup/expertise/sql/register.sql`.
+/// defined in `./src/server/segment/sql/register.sql`.
 ///
 /// > 🐿️ This type definition was generated automatically using v4.7.0 of the
 /// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
@@ -106,7 +106,7 @@ pub type RegisterRow {
   RegisterRow(id: Uuid, name: String, description: String)
 }
 
-/// register a new startup expertise
+/// register a new segment for startups and investors
 ///
 /// > 🐿️ This function was generated automatically using v4.7.0 of
 /// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
@@ -123,9 +123,9 @@ pub fn register(
     decode.success(RegisterRow(id:, name:, description:))
   }
 
-  "-- register a new startup expertise
+  "-- register a new segment for startups and investors
 INSERT INTO
-    public.expertise (name, description)
+    public.segment(name, description)
 VALUES
     ($1::text, $2::text)
 RETURNING

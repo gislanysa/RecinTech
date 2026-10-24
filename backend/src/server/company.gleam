@@ -12,8 +12,12 @@ import pog
 import server/cnpj
 import server/company/sql
 import server/email
+import server/expertise
 import server/internal
 import server/lgpd
+import server/segment
+import server/service
+import server/technology
 import youid/uuid
 
 pub type CompanyError {
@@ -477,5 +481,13 @@ pub type Demand {
     created_at: timestamp.Timestamp,
     /// Timestamp of when the demand was last updated.
     updated_at: timestamp.Timestamp,
+    /// Segments required by the Demand
+    segments: List(segment.Segment),
+    /// Expertises required by the Demand
+    expertises: List(expertise.Expertise),
+    /// Technologies required by the Demand
+    technologies: List(technology.Technology),
+    /// Services required by the Demand
+    services: List(service.Service),
   )
 }

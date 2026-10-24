@@ -1,5 +1,5 @@
 //// This module contains the code to run the sql queries defined in
-//// `./src/server/startup/technology/sql`.
+//// `./src/server/technology/sql`.
 //// > 🐿️ This module was generated automatically using v4.7.0 of
 //// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
 ////
@@ -9,7 +9,7 @@ import pog
 import youid/uuid.{type Uuid}
 
 /// A row you get from running the `get` query
-/// defined in `./src/server/startup/technology/sql/get.sql`.
+/// defined in `./src/server/technology/sql/get.sql`.
 ///
 /// > 🐿️ This type definition was generated automatically using v4.7.0 of the
 /// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
@@ -51,7 +51,7 @@ WHERE
 }
 
 /// A row you get from running the `get_many` query
-/// defined in `./src/server/startup/technology/sql/get_many.sql`.
+/// defined in `./src/server/technology/sql/get_many.sql`.
 ///
 /// > 🐿️ This type definition was generated automatically using v4.7.0 of the
 /// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
@@ -97,7 +97,7 @@ LIMIT
 }
 
 /// A row you get from running the `register` query
-/// defined in `./src/server/startup/technology/sql/register.sql`.
+/// defined in `./src/server/technology/sql/register.sql`.
 ///
 /// > 🐿️ This type definition was generated automatically using v4.7.0 of the
 /// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
