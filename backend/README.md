@@ -105,6 +105,24 @@ erDiagram
     uuid segment_id PK, FK
   }
 
+  DEMAND }o..|| company : has
+  DEMAND {
+    uuid id PK
+    uuid company_id FK
+    text title
+    text description
+    demand_status demand_status "open | closed | canceled"
+    timestamp created_at
+    timestamp updated_at
+  }
+
+  DEMAND_SEGMENT }o..|| DEMAND : has
+  DEMAND_SEGMENT }o..|| SEGMENT : has
+  DEMAND_SEGMENT {
+    uuid demand_id PK, FK
+    uuid segment_id PK, FK
+  }
+
   EXPERTISE {
     uuid id PK
     text name
@@ -115,6 +133,13 @@ erDiagram
   STARTUP_EXPERTISE }o..|| EXPERTISE : has
   STARTUP_EXPERTISE {
     uuid startup_id PK, FK
+    uuid expertise_id PK, FK
+  }
+
+  DEMAND_EXPERTISE }o..|| DEMAND : has
+  DEMAND_EXPERTISE }o..|| EXPERTISE : has
+  DEMAND_EXPERTISE {
+    uuid demand_id PK, FK
     uuid expertise_id PK, FK
   }
 
@@ -131,6 +156,13 @@ erDiagram
     uuid service_id PK, FK
   }
 
+  DEMAND_SERVICE }o..|| DEMAND : has
+  DEMAND_SERVICE }o..|| SERVICE : has
+  DEMAND_SERVICE {
+    uuid demand_id PK, FK
+    uuid service_id PK, FK
+  }
+
   TECHNOLOGY {
     uuid id PK
     text name
@@ -141,6 +173,13 @@ erDiagram
   STARTUP_TECHNOLOGY }o..|| TECHNOLOGY : has
   STARTUP_TECHNOLOGY {
     uuid startup_id PK, FK
+    uuid technology_id PK, FK
+  }
+
+  DEMAND_TECHNOLOGY }o..|| DEMAND : has
+  DEMAND_TECHNOLOGY }o..|| TECHNOLOGY : has
+  DEMAND_TECHNOLOGY {
+    uuid demand_id PK, FK
     uuid technology_id PK, FK
   }
 ```
