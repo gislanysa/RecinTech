@@ -39,6 +39,8 @@ CREATE TABLE startup_lgpd_consent (
 
 CREATE INDEX idx_startup_lgpd_consent_startup ON startup_lgpd_consent (startup_id);
 
+CREATE INDEX idx_startup_lgpd_consent_consent ON startup_lgpd_consent (consent);
+
 CREATE TYPE company_size AS enum ('micro', 'small', 'medium', 'big');
 
 CREATE TABLE company (
@@ -67,6 +69,8 @@ CREATE TABLE company_lgpd_consent (
 );
 
 CREATE INDEX idx_company_lgpd_consent_company ON company_lgpd_consent (company_id);
+
+CREATE INDEX idx_company_lgpd_consent_consent ON company_lgpd_consent (consent);
 
 CREATE TABLE startup_segment (
     startup_id uuid REFERENCES startup (id) ON DELETE CASCADE,
