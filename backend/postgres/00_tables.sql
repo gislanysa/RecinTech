@@ -142,3 +142,60 @@ CREATE TABLE startup_technology (
 CREATE INDEX idx_startup_technology_startup_id ON startup_technology (startup_id);
 
 CREATE INDEX idx_startup_technology_technology_id ON startup_technology (technology_id);
+
+CREATE TYPE demand_status AS enum ('open', 'closed', 'canceled');
+
+CREATE TABLE demand (
+    id uuid DEFAULT uuidv7(),
+    company_id uuid NOT NULL REFERENCES company (id) ON DELETE CASCADE,
+    title text NOT NULL,
+    description text NOT NULL,
+    demand_status demand_status NOT NULL DEFAULT 'open',
+    created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id)
+);
+
+CREATE INDEX idx_demand_company ON demand (company_id);
+
+CREATE INDEX idx_demand_status ON demand (demand_status);
+
+CREATE TABLE demand_segment (
+    demand_id uuid NOT NULL REFERENCES demand (id) ON DELETE CASCADE,
+    segment_id uuid NOT NULL REFERENCES segment (id) ON DELETE CASCADE,
+    PRIMARY KEY (demand_id, segment_id)
+);
+
+CREATE INDEX idx_demand_segment_demand ON demand_segment (demand_id);
+
+CREATE INDEX idx_demand_segment_segment ON demand_segment (segment_id);
+
+CREATE TABLE demand_expertise (
+    demand_id uuid NOT NULL REFERENCES demand (id) ON DELETE CASCADE,
+    expertise_id uuid NOT NULL REFERENCES expertise (id) ON DELETE CASCADE,
+    PRIMARY KEY (demand_id, expertise_id)
+);
+
+CREATE INDEX idx_demand_expertise_demand ON demand_expertise (demand_id);
+
+CREATE INDEX idx_demand_expertise_expertise ON demand_expertise (expertise_id);
+
+CREATE TABLE demand_service (
+    demand_id uuid NOT NULL REFERENCES demand (id) ON DELETE CASCADE,
+    service_id uuid NOT NULL REFERENCES service (id) ON DELETE CASCADE,
+    PRIMARY KEY (demand_id, service_id)
+);
+
+CREATE INDEX idx_demand_service_demand ON demand_service (demand_id);
+
+CREATE INDEX idx_demand_service_service ON demand_service (service_id);
+
+CREATE TABLE demand_technology (
+    demand_id uuid NOT NULL REFERENCES demand (id) ON DELETE CASCADE,
+    technology_id uuid NOT NULL REFERENCES technology (id) ON DELETE CASCADE,
+    PRIMARY KEY (demand_id, technology_id)
+);
+
+CREATE INDEX idx_demand_technology_demand ON demand_technology (demand_id);
+
+CREATE INDEX idx_demand_technology_technology ON demand_technology (technology_id);
