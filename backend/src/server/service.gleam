@@ -1,5 +1,5 @@
-//// Startups can use plenty of technologies for their projects,
-//// like gleam, javascript (unfortunately), postgresql or tailwind.
+//// Startups can offer a lot of different services, like UI/UX design,
+//// web development, AI training, automation, etc.
 
 import gleam/dynamic/decode
 import gleam/json
@@ -7,33 +7,31 @@ import gleam/list
 import gleam/result
 import pog
 import server/internal
-import server/startup/technology/sql
+import server/service/sql
 import youid/uuid
 
-pub type TechnologyError {
+pub type ServiceError {
   /// Failed o the query the Database
   DatabaseError(error: pog.QueryError)
-  /// Technology was not found in the Database
+  /// Service was not found in the Database
   NotFound(id: uuid.Uuid)
-  /// Something went wrong when registering a new Technology
-  FailedToRegisterTechnology
+  /// Something went wrong when registering a new Service
+  FailedToRegisterService
 }
 
-pub type Technology {
-  Technology(id: uuid.Uuid, name: String, description: String)
+pub type Service {
+  Service(id: uuid.Uuid, name: String, description: String)
 }
 
-/// A decoder that decodes `Technology` values.
-pub fn decoder() -> decode.Decoder(Technology) {
+pub fn decoder() -> decode.Decoder(Service) {
   use id <- decode.field("id", internal.uuid_decoder())
   use name <- decode.field("name", decode.string)
   use description <- decode.field("description", decode.string)
-  decode.success(Technology(id:, name:, description:))
+  decode.success(Service(id:, name:, description:))
 }
 
-/// Encode a Technology into JSON
-pub fn to_json(technology: Technology) -> json.Json {
-  let Technology(id:, name:, description:) = technology
+pub fn to_json(service: Service) -> json.Json {
+  let Service(id:, name:, description:) = service
   json.object([
     #("id", internal.uuid_to_json(id)),
     #("name", json.string(name)),
@@ -41,23 +39,23 @@ pub fn to_json(technology: Technology) -> json.Json {
   ])
 }
 
-/// Search a Technology in the Database using their ID.
+/// Search a Service in the Database using their ID.
 ///
 /// ## Examples
 ///
 /// ```gleam
-/// let result = technology.get(context.database, id)
+/// let result = service.get(context.database, id)
 ///
 /// case result {
 ///   Ok(data) -> todo as "send response"
-///   Error(technology.NotFound(_)) -> wisp.not_found()
+///   Error(service.NotFound(_)) -> wisp.not_found()
 ///   Error(_) -> wisp.internal_server_error()
 /// }
 /// ```
 pub fn get(
   database: pog.Connection,
   id: uuid.Uuid,
-) -> Result(Technology, TechnologyError) {
+) -> Result(Service, ServiceError) {
   use returned <- result.try(
     sql.get(database, id)
     |> result.map_error(DatabaseError),
@@ -68,17 +66,17 @@ pub fn get(
     |> result.replace_error(NotFound(id:)),
   )
 
-  Technology(id: row.id, name: row.name, description: row.description)
+  Service(id: row.id, name: row.name, description: row.description)
 }
 
-/// Fetch many Technologies from the database, specifying the max number of
+/// Fetch many Services from the database, specifying the max number of
 /// returned rows, and how many to skip.
 ///
 /// ## Examples
 ///
 /// ```gleam
 /// let result =
-///   technology.get_many(context.database, limit: 3, offset: 6)
+///   service.get_many(context.database, limit: 3, offset: 6)
 ///
 /// case result {
 ///   Ok(data) -> todo as "send response"
@@ -89,26 +87,26 @@ pub fn get_many(
   database: pog.Connection,
   limit limit: Int,
   offset offset: Int,
-) -> Result(List(Technology), TechnologyError) {
+) -> Result(List(Service), ServiceError) {
   use returned <- result.map(
     sql.get_many(database, limit, offset)
     |> result.map_error(DatabaseError),
   )
 
   list.map(returned.rows, fn(row) {
-    Technology(id: row.id, name: row.name, description: row.description)
+    Service(id: row.id, name: row.name, description: row.description)
   })
 }
 
-/// Register an Technology in the Database
+/// Register an Service in the Database
 ///
 /// ## Examples
 ///
 /// ```gleam
-/// let result = technology.register(
+/// let result = service.register(
 ///   context.database,
-///   name: "Javascript",
-///   description: "dont use this",
+///   name: "Data Analysis",
+///   description: "Databases, graphics and stuff",
 /// )
 ///
 /// case result {
@@ -120,7 +118,7 @@ pub fn register(
   database: pog.Connection,
   name name: String,
   description description: String,
-) -> Result(Technology, TechnologyError) {
+) -> Result(Service, ServiceError) {
   use returned <- result.try(
     sql.register(database, name, description)
     |> result.map_error(DatabaseError),
@@ -128,8 +126,8 @@ pub fn register(
 
   use row <- result.map(
     list.first(returned.rows)
-    |> result.replace_error(FailedToRegisterTechnology),
+    |> result.replace_error(FailedToRegisterService),
   )
 
-  Technology(id: row.id, name: row.name, description: row.description)
+  Service(id: row.id, name: row.name, description: row.description)
 }

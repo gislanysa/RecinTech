@@ -17,13 +17,13 @@ import pog
 import server/cnpj
 import server/company
 import server/email
+import server/expertise
 import server/internal
 import server/internal/payload
+import server/segment
+import server/service
 import server/startup
-import server/startup/expertise
-import server/startup/segment
-import server/startup/service
-import server/startup/technology
+import server/technology
 import wisp.{type Request, type Response}
 import youid/uuid
 

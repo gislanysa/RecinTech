@@ -6,8 +6,8 @@ import gleam/json
 import gleam/list
 import gleam/result
 import pog
+import server/expertise/sql
 import server/internal
-import server/startup/expertise/sql
 import youid/uuid
 
 pub type ExpertiseError {
