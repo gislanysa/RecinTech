@@ -1471,7 +1471,8 @@ fn unassign_startup_from_expertise(
 /// ```gleam
 /// pub fn handle_request(request, context, id) -> wisp.Response {
 ///   use session <- require_session(request)
-///   todo as "query protected data"
+///
+///   // rest of the code
 /// }
 /// ```
 pub fn require_session(
@@ -1819,7 +1820,7 @@ fn handle_error(error: WebError) -> Response {
     ServiceError(error) -> handle_service_error(error)
     DemandError(error) -> handle_demand_error(error)
     MissingQuery -> wisp.bad_request("Missing query")
-    InvalidQueryParameter(key:) -> wisp.bad_request("Invalid query: " <> key)
+    InvalidQueryParameter(key) -> wisp.bad_request("Invalid query: " <> key)
     CompanyError(error) -> handle_company_error(error)
   }
 }
@@ -2219,8 +2220,8 @@ fn middleware(
 ///   use id <- require_valid_uuid(id)
 ///
 ///   case startup.get(database, id) {
-///     Ok(data) -> todo as "send response"
-///     Error(error) -> todo as "handle error"
+///     Ok(data) -> wisp.ok()
+///     Error(error) -> handle_error(error)
 ///   }
 /// }
 /// ```
@@ -2682,30 +2683,30 @@ fn handle_demand_error(error: demand.DemandError) -> Response {
 
 fn handle_company_error(error: company.CompanyError) -> Response {
   case error {
-    company.DatabaseError(error:) -> handle_database_error(error)
+    company.DatabaseError(error) -> handle_database_error(error)
 
-    company.InvalidEmail(value:) -> wisp.bad_request("Invalid email: " <> value)
+    company.InvalidEmail(value) -> wisp.bad_request("Invalid email: " <> value)
 
     company.HashError(_) -> wisp.internal_server_error()
 
-    company.NotFound(id:) ->
+    company.NotFound(id) ->
       { "Company not found: " <> uuid.to_string(id) }
       |> wisp.string_body(wisp.not_found(), _)
 
-    company.InvalidCnpj(value:) -> wisp.bad_request("Invalid CNPJ: " <> value)
+    company.InvalidCnpj(value) -> wisp.bad_request("Invalid CNPJ: " <> value)
 
-    company.InvalidWebsite(value:) ->
+    company.InvalidWebsite(value) ->
       wisp.bad_request("Invalid website: " <> value)
 
     company.EmailNotFound(_) | company.WrongPassword ->
       { "Wrong email or password" }
       |> wisp.string_body(wisp.response(401), _)
 
-    company.CnpjConflict(value:) ->
+    company.CnpjConflict(value) ->
       { "CNPJ already registered: " <> cnpj.to_string(value) }
       |> wisp.string_body(wisp.response(409), _)
 
-    company.EmailConflict(value:) ->
+    company.EmailConflict(value) ->
       { "Email already registered: " <> email.to_string(value) }
       |> wisp.string_body(wisp.response(409), _)
 

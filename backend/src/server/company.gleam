@@ -192,7 +192,7 @@ pub fn to_json(company: Company) -> json.Json {
 ///   Error(company.CnpjConflict(..))
 ///   | Error(company.EmailConflict(..)) -> wisp.response(409)
 ///
-///   Ok(data) -> todo as "send response"
+///   Ok(data) -> wisp.response(201)
 ///   Error(_) -> wisp.internal_server_error()
 /// }
 /// ```
@@ -293,7 +293,7 @@ pub fn register(
 /// )
 ///
 /// case result {
-///   Ok(data) -> todo as "send response"
+///   Ok(data) -> wisp.ok()
 ///   Error(company.NotFound(_)) -> wisp.not_found()
 ///   Error(company.WrongPassword) -> wisp.response(401)
 ///   Error(_) -> wisp.internal_server_error()
@@ -336,7 +336,7 @@ pub fn verify(
 /// let result = company.get(context.database, id)
 ///
 /// case result {
-///   Ok(data) -> todo as "send response"
+///   Ok(data) -> wisp.ok()
 ///   Error(company.NotFound(_)) -> wisp.not_found()
 ///   Error(_) -> wisp.internal_server_error()
 /// }
@@ -410,7 +410,7 @@ fn size_to_enum(size: Size) -> sql.CompanySize {
 /// let result = company.get_lgpd_consent(context.database, id)
 ///
 /// case returned {
-///   Ok(data) -> todo as "send response"
+///   Ok(data) -> wisp.ok()
 ///   Error(company.NotFound(_)) -> wisp.not_found()
 ///   Error(_) -> wisp.internal_server_error()
 /// }
@@ -461,7 +461,7 @@ pub fn get_lgpd_consent(
 /// )
 ///
 /// case result {
-///   Ok(data) -> todo as "send response"
+///   Ok(data) -> wisp.ok()
 ///   Error(_) -> wisp.internal_server_error()
 /// }
 /// ```

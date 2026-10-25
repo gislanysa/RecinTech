@@ -47,7 +47,7 @@ pub fn to_json(service: Service) -> json.Json {
 /// let result = service.get(context.database, id)
 ///
 /// case result {
-///   Ok(data) -> todo as "send response"
+///   Ok(data) -> wisp.ok()
 ///   Error(service.NotFound(_)) -> wisp.not_found()
 ///   Error(_) -> wisp.internal_server_error()
 /// }
@@ -79,7 +79,7 @@ pub fn get(
 ///   service.get_many(context.database, limit: 3, offset: 6)
 ///
 /// case result {
-///   Ok(data) -> todo as "send response"
+///   Ok(data) -> wisp.ok()
 ///   Error(_) -> wisp.internal_server_error()
 /// }
 /// ```
@@ -110,7 +110,7 @@ pub fn get_many(
 /// )
 ///
 /// case result {
-///   Ok(data) -> todo as "send response"
+///   Ok(data) -> wisp.response(201)
 ///   Error(_) -> wisp.internal_server_error()
 /// }
 /// ```

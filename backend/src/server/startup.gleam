@@ -221,7 +221,7 @@ pub fn to_json(startup: Startup) -> json.Json {
 ///   Error(startup.CnpjConflict(..))
 ///   | Error(startup.EmailConflict(..)) -> wisp.response(409)
 ///
-///   Ok(data) -> todo as "send response"
+///   Ok(data) -> wisp.response(201)
 ///   Error(_) -> wisp.internal_server_error()
 /// }
 /// ```
@@ -323,7 +323,7 @@ pub fn register(
 /// )
 ///
 /// case result {
-///   Ok(data) -> todo as "send response"
+///   Ok(data) -> wisp.ok()
 ///   Error(startup.NotFound(_)) -> wisp.not_found()
 ///   Error(startup.WrongPassword) -> wisp.response(401)
 ///   Error(_) -> wisp.internal_server_error()
@@ -382,7 +382,7 @@ fn stage_to_enum(stage: Stage) -> sql.StartupStage {
 /// let result = startup.get(context.database, id)
 ///
 /// case result {
-///   Ok(data) -> todo as "send response"
+///   Ok(data) -> wisp.ok()
 ///   Error(startup.NotFound(_)) -> wisp.not_found()
 ///   Error(_) -> wisp.internal_server_error()
 /// }
@@ -439,7 +439,7 @@ pub fn get(
 /// let result = startup.get_segments(context.database, id)
 ///
 /// case result {
-///   Ok(segments) -> todo as "send response"
+///   Ok(segments) -> wisp.ok()
 ///   Error(startup.NotFound(_)) -> wisp.not_found()
 ///   Error(_) -> wisp.internal_server_error()
 /// }
@@ -501,7 +501,7 @@ pub fn ensure_exists(
 /// )
 ///
 /// case result {
-///   Ok(assigned) -> todo as "send response"
+///   Ok(assigned) -> wisp.response(201)
 ///   Error(startup.NotFound(_)) -> wisp.not_found()
 ///   Error(_) -> wisp.internal_server_error()
 /// }
@@ -552,7 +552,7 @@ pub fn assign_segment(
 /// )
 ///
 /// case result {
-///   Ok(deleted) -> todo as "send response"
+///   Ok(deleted) -> wisp.ok()
 ///   Error(startup.AssignmentNotFound(_)) -> wisp.not_found()
 ///   Error(_) -> wisp.internal_server_error()
 /// }
@@ -589,7 +589,7 @@ pub fn unassign_segment(
 /// )
 ///
 /// case result {
-///   Ok(assigned) -> todo as "send response"
+///   Ok(assigned) -> wisp.response(201)
 ///   Error(startup.NotFound(_)) -> wisp.not_found()
 ///   Error(_) -> wisp.internal_server_error()
 /// }
@@ -642,7 +642,7 @@ pub fn assign_expertise(
 /// )
 ///
 /// case result {
-///   Ok(deleted) -> todo as "send response"
+///   Ok(deleted) -> wisp.ok()
 ///   Error(startup.AssignmentNotFound(_)) -> wisp.not_found()
 ///   Error(_) -> wisp.internal_server_error()
 /// }
@@ -673,7 +673,7 @@ pub fn unassign_expertise(
 /// let result = startup.get_expertises(context.database, id)
 ///
 /// case result {
-///   Ok(segments) -> todo as "send response"
+///   Ok(segments) -> wisp.ok()
 ///   Error(startup.NotFound(_)) -> wisp.not_found()
 ///   Error(_) -> wisp.internal_server_error()
 /// }
@@ -704,7 +704,7 @@ pub fn get_expertises(
 /// let result = startup.get_technologies(context.database, id)
 ///
 /// case result {
-///   Ok(technologies) -> todo as "send response"
+///   Ok(technologies) -> wisp.ok()
 ///   Error(startup.NotFound(_)) -> wisp.not_found()
 ///   Error(_) -> wisp.internal_server_error()
 /// }
@@ -735,7 +735,7 @@ pub fn get_technologies(
 /// let result = startup.get_services(context.database, id)
 ///
 /// case result {
-///   Ok(services) -> todo as "send response"
+///   Ok(services) -> wisp.ok()
 ///   Error(startup.NotFound(_)) -> wisp.not_found()
 ///   Error(_) -> wisp.internal_server_error()
 /// }
@@ -767,7 +767,7 @@ pub fn get_services(
 ///   )
 ///
 /// case result {
-///   Ok(assigned) -> todo as "send response"
+///   Ok(assigned) -> wisp.response(201)
 ///   Error(startup.NotFound(_)) -> wisp.not_found()
 ///   Error(_) -> wisp.internal_server_error()
 /// }
@@ -818,7 +818,7 @@ pub fn assign_service(
 /// )
 ///
 /// case result {
-///   Ok(deleted) -> todo as "send response"
+///   Ok(deleted) -> wisp.ok()
 ///   Error(startup.AssignmentNotFound(_)) -> wisp.not_found()
 ///   Error(_) -> wisp.internal_server_error()
 /// }
@@ -854,7 +854,7 @@ pub fn unassign_service(
 /// )
 ///
 /// case result {
-///   Ok(assigned) -> todo as "send response"
+///   Ok(assigned) -> wisp.response(201)
 ///   Error(startup.NotFound(_)) -> wisp.not_found()
 ///   Error(_) -> wisp.internal_server_error()
 /// }
@@ -911,7 +911,7 @@ pub fn assign_technology(
 /// )
 ///
 /// case result {
-///   Ok(deleted) -> todo as "send response"
+///   Ok(deleted) -> wisp.ok()
 ///   Error(startup.AssignmentNotFound(_)) -> wisp.not_found()
 ///   Error(_) -> wisp.internal_server_error()
 /// }
@@ -948,7 +948,7 @@ pub fn unassign_technology(
 ///   startup.get_many(context.database, limit: 3, offset: 6)
 ///
 /// case result {
-///   Ok(data) -> todo as "send response"
+///   Ok(data) -> wisp.ok()
 ///   Error(_) -> wisp.internal_server_error()
 /// }
 /// ```
@@ -1002,7 +1002,7 @@ pub fn get_many(
 /// let result = startup.get_lgpd_consent(context.database, id)
 ///
 /// case returned {
-///   Ok(data) -> todo as "send response"
+///   Ok(data) -> wisp.ok()
 ///   Error(startup.NotFound(_)) -> wisp.not_found()
 ///   Error(_) -> wisp.internal_server_error()
 /// }

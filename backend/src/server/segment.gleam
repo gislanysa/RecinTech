@@ -55,7 +55,7 @@ pub fn to_json(segment: Segment) -> json.Json {
 /// let result = segment.register(context.database, name:, description:)
 ///
 /// case result {
-///   Ok(data) -> todo as "send response"
+///   Ok(data) -> wisp.response(201)
 ///   Error(segment.NotFound) -> wisp.not_found()
 ///   Error(_) -> wisp.internal_server_error()
 /// }
@@ -86,7 +86,7 @@ pub fn register(
 /// let result = segment.get(context.database, id)
 ///
 /// case result {
-///   Ok(data) -> todo as "send response"
+///   Ok(data) -> wisp.ok()
 ///   Error(segment.NotFound) -> wisp.not_found()
 ///   Error(_) -> wisp.internal_server_error()
 /// }
@@ -118,7 +118,7 @@ pub fn get(
 ///   segment.get_many(context.database, limit: 3, offset: 6)
 ///
 /// case result {
-///   Ok(data) -> todo as "send response"
+///   Ok(data) -> wisp.ok()
 ///   Error(_) -> wisp.internal_server_error()
 /// }
 /// ```
