@@ -639,7 +639,7 @@ pub fn open_missing_demand_test() -> Nil {
   use context <- server_test.with_context()
 
   let demand_id = uuid.v7()
-  let assert Error(demand.FailedToUpdateDemand(returned)) =
+  let assert Error(demand.NotFound(returned)) =
     demand.open(context.database, demand_id)
 
   assert returned == demand_id
@@ -665,7 +665,7 @@ pub fn close_missing_demand_test() -> Nil {
   use context <- server_test.with_context()
 
   let demand_id = uuid.v7()
-  let assert Error(demand.FailedToUpdateDemand(returned)) =
+  let assert Error(demand.NotFound(returned)) =
     demand.close(context.database, demand_id)
 
   assert returned == demand_id
@@ -691,7 +691,7 @@ pub fn canceled_missing_demand_test() -> Nil {
   use context <- server_test.with_context()
 
   let demand_id = uuid.v7()
-  let assert Error(demand.FailedToUpdateDemand(returned)) =
+  let assert Error(demand.NotFound(returned)) =
     demand.cancel(context.database, demand_id)
 
   assert returned == demand_id

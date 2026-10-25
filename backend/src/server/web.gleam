@@ -2560,10 +2560,6 @@ fn handle_demand_error(error: demand.DemandError) -> Response {
     demand.AssignedMissingEntity(id) ->
       { "Entity " <> uuid.to_string(id) <> " was not found" }
       |> wisp.string_body(wisp.not_found(), _)
-
-    demand.FailedToUpdateDemand(id) ->
-      { "Failed to update Demand: " <> uuid.to_string(id) }
-      |> wisp.string_body(wisp.internal_server_error(), _)
   }
 }
 
