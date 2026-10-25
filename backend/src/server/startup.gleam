@@ -448,7 +448,7 @@ pub fn get_segments(
   })
 }
 
-/// Sometime it can be a good idea to check if a Startup exists before
+/// Sometimes it can be a good idea to check if a Startup exists before
 /// performing a query. This middleware returns `Error(NotFound(_))`
 /// if a Startup is not registered.
 ///
