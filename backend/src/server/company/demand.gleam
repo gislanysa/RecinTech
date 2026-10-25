@@ -106,7 +106,7 @@ pub fn to_json(demand: Demand) -> json.Json {
 /// let result = demand.get(context.database, id)
 ///
 /// case result {
-///   Ok(data) -> todo as "send response"
+///   Ok(data) -> wisp.ok()
 ///   Error(demand.NotFound(_)) -> wisp.not_found()
 ///   Error(_) -> wisp.internal_server_error()
 /// }

@@ -136,7 +136,7 @@ pub fn consent_decoder() -> decode.Decoder(Consent) {
 ///   lgpd.grant_consent(context.database, for: lgpd.Startup(id), version: 1)
 ///
 /// case result {
-///   Ok(lgpd.Granted(..)) -> todo as "send response"
+///   Ok(lgpd.Granted(..)) -> wisp.ok()
 ///   Ok(_) -> wisp.internal_server_error()
 ///   Error(error) -> handle_error(error)
 /// }
@@ -158,7 +158,7 @@ pub fn grant_consent(
 ///   lgpd.revoke_consent(context.database, for: lgpd.Startup(id), version: 1)
 ///
 /// case result {
-///   Ok(lgpd.Revoked(..)) -> todo as "send response"
+///   Ok(lgpd.Revoked(..)) -> wisp.ok()
 ///   Ok(_) -> wisp.internal_server_error()
 ///   Error(error) -> handle_error(error)
 /// }

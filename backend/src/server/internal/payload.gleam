@@ -1,4 +1,3 @@
-import gleam/dynamic/decode
 import gleam/uri
 import server/cnpj
 import server/company

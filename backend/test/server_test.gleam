@@ -7,7 +7,7 @@ import server/web
 
 pub fn main() -> Nil {
   use _ <- with_context()
-  run_tests()
+  run_tests_in_paralel()
 }
 
 fn global_context() -> web.Context {
@@ -34,11 +34,7 @@ fn global_context() -> web.Context {
 /// pub fn wibble_test() -> Nil {
 ///   use context <- server_test.with_context()
 ///
-///   // resources will be cleaned up
-///   case startup.register(context.database, todo) {
-///     Ok(_data) -> todo as "handle data"
-///     Error(_error) -> todo as "handle error"
-///   }
+///   // resources will be cleaned up after the test finishes
 /// }
 /// ```
 pub fn with_context(next: fn(web.Context) -> a) -> Nil {
@@ -58,4 +54,4 @@ pub fn with_context(next: fn(web.Context) -> a) -> Nil {
 ///
 /// https://curling.io/blog/parallel-tests-for-free
 @external(erlang, "server_test_ffi", "main")
-fn run_tests() -> Nil
+fn run_tests_in_paralel() -> Nil
