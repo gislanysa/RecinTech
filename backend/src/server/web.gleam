@@ -2534,6 +2534,7 @@ fn register_company(request: Request, database: pog.Connection) -> Response {
 fn handle_demand_error(error: demand.DemandError) -> Response {
   case error {
     demand.DatabaseError(error) -> handle_database_error(error)
+
     demand.FailedToRegisterDemand -> wisp.internal_server_error()
 
     demand.NotFound(id) ->
@@ -2559,13 +2560,19 @@ fn handle_demand_error(error: demand.DemandError) -> Response {
     demand.AssignedMissingEntity(id) ->
       { "Entity " <> uuid.to_string(id) <> " was not found" }
       |> wisp.string_body(wisp.not_found(), _)
+
+    demand.FailedToUpdateDemand(id) ->
+      { "Failed to update Demand: " <> uuid.to_string(id) }
+      |> wisp.string_body(wisp.internal_server_error(), _)
   }
 }
 
 fn handle_company_error(error: company.CompanyError) -> Response {
   case error {
     company.DatabaseError(error:) -> handle_database_error(error)
+
     company.InvalidEmail(value:) -> wisp.bad_request("Invalid email: " <> value)
+
     company.HashError(_) -> wisp.internal_server_error()
 
     company.NotFound(id:) ->
