@@ -50,6 +50,8 @@ type WebError {
   ExpertiseError(error: expertise.ExpertiseError)
   /// Service related errors
   ServiceError(error: service.ServiceError)
+  /// Demand related errors
+  DemandError(error: demand.DemandError)
   /// Missing request query
   MissingQuery
   /// Invalid query parameter
@@ -96,11 +98,10 @@ pub fn handle_request(request: Request, context: Context) -> Response {
     // | STARTUP                                                               |
     // +-----------------------------------------------------------------------+
     //
-    // Querying, registering and assigning entities to startups.
-    //
     http.Post, ["api", "startup"] -> register_startup(request, context.database)
 
     http.Get, ["api", "startup"] -> get_many_startups(request, context.database)
+
     http.Get, ["api", "startup", id] -> get_startup_by_id(context.database, id)
 
     // Fetching specific information about startups
@@ -169,9 +170,43 @@ pub fn handle_request(request: Request, context: Context) -> Response {
     // | COMPANY                                                               |
     // +-----------------------------------------------------------------------+
     http.Post, ["api", "company"] -> register_company(request, context.database)
+
     http.Get, ["api", "company", id] -> get_company_by_id(context.database, id)
+
     http.Get, ["api", "company", id, "demand"] ->
       get_company_demands(request, context.database, id)
+
+    // +-----------------------------------------------------------------------+
+    // | DEMAND                                                                |
+    // +-----------------------------------------------------------------------+
+    //
+    // == segment ==============================================================
+    http.Post, ["api", "demand", id, "segment"] ->
+      assign_demand_to_segment(request, context.database, id)
+
+    http.Delete, ["api", "demand", id, "segment", segment_id] ->
+      unassign_demand_from_segment(context.database, id, segment_id)
+
+    // == service ==============================================================
+    http.Post, ["api", "demand", id, "service"] ->
+      assign_demand_to_service(request, context.database, id)
+
+    http.Delete, ["api", "demand", id, "service", service_id] ->
+      unassign_demand_from_service(context.database, id, service_id)
+
+    // == technology ===========================================================
+    http.Post, ["api", "demand", id, "technology"] ->
+      assign_demand_to_technology(request, context.database, id)
+
+    http.Delete, ["api", "demand", id, "technology", technology_id] ->
+      unassign_demand_from_technology(context.database, id, technology_id)
+
+    // == expertise ============================================================
+    http.Post, ["api", "demand", id, "expertise"] ->
+      assign_demand_to_expertise(request, context.database, id)
+
+    http.Delete, ["api", "demand", id, "expertise", expertise_id] ->
+      unassign_demand_from_expertise(context.database, id, expertise_id)
 
     // +-----------------------------------------------------------------------+
     // | NOT FOUND                                                             |
@@ -244,6 +279,382 @@ fn get_company_demands(
       |> wisp.json_response(200)
 
     Error(error) -> handle_error(error)
+  }
+}
+
+/// ## `POST /api/demand/:id/segment`
+///
+/// Assign a Segment to a Company's Demand.
+///
+/// ## Request Body
+///
+/// ```json
+/// {
+///  "segment": "01a155b2-69c7-75d7-8cc1-8d2626c6bc9b"
+/// }
+/// ```
+///
+/// ## Response Body
+///
+/// ```json
+/// {
+///   "id": "01a155b2-69c7-75d7-8cc1-8d2626c6bc9b",
+///   "name": "Tech",
+///   "description": "Technology-related stuff"
+/// }
+/// ```
+///
+/// ## Status Codes
+///
+/// - **201** If successful.
+/// - **400** if :id or :segment is not a valid UUID.
+/// - **404** If Demand or Segment is not found.
+/// - **409** If Segment is already assigned to the Demand.
+///
+fn assign_demand_to_segment(
+  request: Request,
+  database: pog.Connection,
+  id: String,
+) -> Response {
+  use id <- require_valid_uuid(id)
+  use body <- wisp.require_json(request)
+
+  let decoder = {
+    use segment <- decode.field("segment", internal.uuid_decoder())
+    decode.success(segment)
+  }
+
+  case decode.run(body, decoder) {
+    Error(_) -> wisp.bad_request("Invalid JSON")
+    Ok(segment) ->
+      case demand.assign_segment(database, id, assign: segment) {
+        Ok(data) ->
+          segment.to_json(data)
+          |> json.to_string()
+          |> wisp.json_response(201)
+
+        Error(error) -> handle_demand_error(error)
+      }
+  }
+}
+
+/// ## `DELETE /api/demand/:id/segment/:segment_id`
+///
+/// Unassign a Segment from a Company's Demand.
+///
+/// ## Response Body
+///
+/// ```json
+/// {
+///   "id": "01a155b2-69c7-75d7-8cc1-8d2626c6bc9b",
+///   "name": "Tech",
+///   "description": "Technology-related stuff"
+/// }
+/// ```
+///
+/// ## Status Codes
+///
+/// - **200** If successful.
+/// - **400** if :id or :segment_id is not a valid UUID.
+/// - **404** If the Segment is not assigned to the Demand.
+///
+fn unassign_demand_from_segment(
+  database: pog.Connection,
+  id: String,
+  segment_id: String,
+) -> Response {
+  use id <- require_valid_uuid(id)
+  use segment <- require_valid_uuid(segment_id)
+
+  case demand.unassign_segment(database, id, unassign: segment) {
+    Ok(data) ->
+      segment.to_json(data)
+      |> json.to_string()
+      |> wisp.json_response(200)
+
+    Error(error) -> handle_demand_error(error)
+  }
+}
+
+/// ## `POST /api/demand/:id/service`
+///
+/// Assign a Service to a Company's Demand.
+///
+/// ## Request Body
+///
+/// ```json
+/// {
+///  "service": "01a155b2-69c7-75d7-8cc1-8d2626c6bc9b"
+/// }
+/// ```
+///
+/// ## Response Body
+///
+/// ```json
+/// {
+///   "id": "01a155b2-69c7-75d7-8cc1-8d2626c6bc9b",
+///   "name": "UI/UX",
+///   "description": "user experience"
+/// }
+/// ```
+///
+/// ## Status Codes
+///
+/// - **201** If successful.
+/// - **400** if :id or :service is not a valid UUID.
+/// - **404** If Demand or Service is not found.
+/// - **409** If Service is already assigned to the Demand.
+///
+fn assign_demand_to_service(
+  request: Request,
+  database: pog.Connection,
+  id: String,
+) -> Response {
+  use id <- require_valid_uuid(id)
+  use body <- wisp.require_json(request)
+
+  let decoder = {
+    use service <- decode.field("service", internal.uuid_decoder())
+    decode.success(service)
+  }
+
+  case decode.run(body, decoder) {
+    Error(_) -> wisp.bad_request("Invalid JSON")
+    Ok(service) ->
+      case demand.assign_service(database, id, assign: service) {
+        Ok(data) ->
+          service.to_json(data)
+          |> json.to_string()
+          |> wisp.json_response(201)
+
+        Error(error) -> handle_demand_error(error)
+      }
+  }
+}
+
+/// ## `DELETE /api/demand/:id/service/:service_id`
+///
+/// Unassign a Service from a Company's Demand.
+///
+/// ## Response Body
+///
+/// ```json
+/// {
+///   "id": "01a155b2-69c7-75d7-8cc1-8d2626c6bc9b",
+///   "name": "UI/UX",
+///   "description": "user experience"
+/// }
+/// ```
+///
+/// ## Status Codes
+///
+/// - **200** If successful.
+/// - **400** if :id or :service_id is not a valid UUID.
+/// - **404** If the Service is not assigned to the Demand.
+///
+fn unassign_demand_from_service(
+  database: pog.Connection,
+  id: String,
+  service_id: String,
+) -> Response {
+  use id <- require_valid_uuid(id)
+  use service <- require_valid_uuid(service_id)
+
+  case demand.unassign_service(database, id, unassign: service) {
+    Ok(data) ->
+      service.to_json(data)
+      |> json.to_string()
+      |> wisp.json_response(200)
+
+    Error(error) -> handle_demand_error(error)
+  }
+}
+
+/// ## `POST /api/demand/:id/technology`
+///
+/// Assign a Technology to a Company's Demand.
+///
+/// ## Request Body
+///
+/// ```json
+/// {
+///  "technology": "01a155b2-69c7-75d7-8cc1-8d2626c6bc9b"
+/// }
+/// ```
+///
+/// ## Response Body
+///
+/// ```json
+/// {
+///   "id": "01a155b2-69c7-75d7-8cc1-8d2626c6bc9b",
+///   "name": "Gleam",
+///   "description": "A friendly language for building type-safe systems"
+/// }
+/// ```
+///
+/// ## Status Codes
+///
+/// - **201** If successful.
+/// - **400** if :id or :technology is not a valid UUID.
+/// - **404** If Demand or Technology is not found.
+/// - **409** If Technology is already assigned to the Demand.
+///
+fn assign_demand_to_technology(
+  request: Request,
+  database: pog.Connection,
+  id: String,
+) -> Response {
+  use id <- require_valid_uuid(id)
+  use body <- wisp.require_json(request)
+
+  let decoder = {
+    use technology <- decode.field("technology", internal.uuid_decoder())
+    decode.success(technology)
+  }
+
+  case decode.run(body, decoder) {
+    Error(_) -> wisp.bad_request("Invalid JSON")
+    Ok(technology) ->
+      case demand.assign_technology(database, id, assign: technology) {
+        Ok(data) ->
+          technology.to_json(data)
+          |> json.to_string()
+          |> wisp.json_response(201)
+
+        Error(error) -> handle_demand_error(error)
+      }
+  }
+}
+
+/// ## `DELETE /api/demand/:id/technology/:technology_id`
+///
+/// Unassign a Technology from a Company's Demand.
+///
+/// ## Response Body
+///
+/// ```json
+/// {
+///   "id": "01a155b2-69c7-75d7-8cc1-8d2626c6bc9b",
+///   "name": "Gleam",
+///   "description": "A friendly language for building type-safe systems"
+/// }
+/// ```
+///
+/// ## Status Codes
+///
+/// - **200** If successful.
+/// - **400** if :id or :technology_id is not a valid UUID.
+/// - **404** If the Technology is not assigned to the Demand.
+///
+fn unassign_demand_from_technology(
+  database: pog.Connection,
+  id: String,
+  technology_id: String,
+) -> Response {
+  use id <- require_valid_uuid(id)
+  use technology <- require_valid_uuid(technology_id)
+
+  case demand.unassign_technology(database, id, unassign: technology) {
+    Ok(data) ->
+      technology.to_json(data)
+      |> json.to_string()
+      |> wisp.json_response(200)
+
+    Error(error) -> handle_demand_error(error)
+  }
+}
+
+/// ## `POST /api/demand/:id/expertise`
+///
+/// Assign an Expertise to a Company's Demand.
+///
+/// ## Request Body
+///
+/// ```json
+/// {
+///  "expertise": "01a155b2-69c7-75d7-8cc1-8d2626c6bc9b"
+/// }
+/// ```
+///
+/// ## Response Body
+///
+/// ```json
+/// {
+///   "id": "01a155b2-69c7-75d7-8cc1-8d2626c6bc9b",
+///   "name": "Education",
+///   "description": "May it be free and for everyone"
+/// }
+/// ```
+///
+/// ## Status Codes
+///
+/// - **201** If successful.
+/// - **400** if :id or :expertise is not a valid UUID.
+/// - **404** If Demand or Expertise is not found.
+/// - **409** If Expertise is already assigned to the Demand.
+///
+fn assign_demand_to_expertise(
+  request: Request,
+  database: pog.Connection,
+  id: String,
+) -> Response {
+  use id <- require_valid_uuid(id)
+  use body <- wisp.require_json(request)
+
+  let decoder = {
+    use expertise <- decode.field("expertise", internal.uuid_decoder())
+    decode.success(expertise)
+  }
+
+  case decode.run(body, decoder) {
+    Error(_) -> wisp.bad_request("Invalid JSON")
+    Ok(expertise) ->
+      case demand.assign_expertise(database, id, assign: expertise) {
+        Ok(data) ->
+          expertise.to_json(data)
+          |> json.to_string()
+          |> wisp.json_response(201)
+
+        Error(error) -> handle_demand_error(error)
+      }
+  }
+}
+
+/// ## `DELETE /api/demand/:id/expertise/:expertise_id`
+///
+/// Unassign an Expertise from a Company's Demand.
+///
+/// ## Response Body
+///
+/// ```json
+/// {
+///   "id": "01a155b2-69c7-75d7-8cc1-8d2626c6bc9b",
+///   "name": "Education",
+///   "description": "May it be free and for everyone"
+/// }
+/// ```
+///
+/// ## Status Codes
+///
+/// - **200** If successful.
+/// - **400** if :id or :expertise_id is not a valid UUID.
+/// - **404** If the Expertise is not assigned to the Demand.
+///
+fn unassign_demand_from_expertise(
+  database: pog.Connection,
+  id: String,
+  expertise_id: String,
+) -> Response {
+  use id <- require_valid_uuid(id)
+  use expertise <- require_valid_uuid(expertise_id)
+
+  case demand.unassign_expertise(database, id, unassign: expertise) {
+    Ok(data) ->
+      expertise.to_json(data)
+      |> json.to_string()
+      |> wisp.json_response(200)
+
+    Error(error) -> handle_demand_error(error)
   }
 }
 
@@ -1121,6 +1532,7 @@ fn handle_error(error: WebError) -> Response {
     TechnologyError(error) -> handle_technology_error(error)
     ExpertiseError(error) -> handle_expertise_error(error)
     ServiceError(error) -> handle_service_error(error)
+    DemandError(error) -> handle_demand_error(error)
     MissingQuery -> wisp.bad_request("Missing query")
     InvalidQueryParameter(key:) -> wisp.bad_request("Invalid query: " <> key)
     CompanyError(error) -> handle_company_error(error)
@@ -1948,6 +2360,37 @@ fn register_company(request: Request, database: pog.Connection) -> Response {
         Error(error) -> handle_company_error(error)
       }
     }
+  }
+}
+
+fn handle_demand_error(error: demand.DemandError) -> Response {
+  case error {
+    demand.DatabaseError(error) -> handle_database_error(error)
+    demand.FailedToRegisterDemand -> wisp.internal_server_error()
+
+    demand.NotFound(id) ->
+      { "Demand " <> uuid.to_string(id) <> " not found" }
+      |> wisp.string_body(wisp.not_found(), _)
+
+    demand.CompanyNotFound(id) ->
+      { "Company " <> uuid.to_string(id) <> " not found" }
+      |> wisp.string_body(wisp.not_found(), _)
+
+    demand.AssignmentFailure(id) ->
+      { "Failed to assign " <> uuid.to_string(id) }
+      |> wisp.string_body(wisp.internal_server_error(), _)
+
+    demand.AssignmentConflict(id) ->
+      { uuid.to_string(id) <> " is already assigned" }
+      |> wisp.string_body(wisp.response(409), _)
+
+    demand.AssignmentNotFound(id) ->
+      { "Entity " <> uuid.to_string(id) <> " is not assigned to the Demand" }
+      |> wisp.string_body(wisp.not_found(), _)
+
+    demand.AssignedMissingEntity(id) ->
+      { "Entity " <> uuid.to_string(id) <> " was not found" }
+      |> wisp.string_body(wisp.not_found(), _)
   }
 }
 

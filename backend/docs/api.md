@@ -894,3 +894,235 @@ Fetch all demands assigned to a company.
 
 - 200: Successful
 - 400: Invalid UUID, or missing, invalid or incomplete query parameters
+
+## POST /api/demand/:id/segment
+
+Assign a segment to a company's demand.
+
+### Path Parameters
+
+- `id` (UUID, required)
+
+### Request Body
+
+```json
+{
+  "segment": "01a058ae-057f-73e8-b2a0-50986559767b"
+}
+```
+
+### Response Body
+
+```json
+{
+  "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+  "name": "Tech",
+  "description": "Technology-related stuff"
+}
+```
+
+### Status Codes
+
+- 201: Successful
+- 400: Invalid JSON or invalid UUID
+- 404: Demand or Segment not found
+- 409: Already assigned
+
+## DELETE /api/demand/:id/segment/:segment_id
+
+Unassign a segment from a company's demand.
+
+### Path Parameters
+
+- `id` (UUID, required)
+- `segment_id` (UUID, required)
+
+### Response Body
+
+```json
+{
+  "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+  "name": "Tech",
+  "description": "Technology-related stuff"
+}
+```
+
+### Status Codes
+
+- 200: Successful
+- 400: Invalid UUID format
+- 404: Segment is not assigned to the demand
+
+## POST /api/demand/:id/service
+
+Assign a service to a company's demand.
+
+### Path Parameters
+
+- `id` (UUID, required)
+
+### Request Body
+
+```json
+{
+  "service": "01a058ae-057f-73e8-b2a0-50986559767b"
+}
+```
+
+### Response Body
+
+```json
+{
+  "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+  "name": "UI/UX",
+  "description": "user experience"
+}
+```
+
+### Status Codes
+
+- 201: Successful
+- 400: Invalid JSON or invalid UUID
+- 404: Demand or Service not found
+- 409: Already assigned
+
+## DELETE /api/demand/:id/service/:service_id
+
+Unassign a service from a company's demand.
+
+### Path Parameters
+
+- `id` (UUID, required)
+- `service_id` (UUID, required)
+
+### Response Body
+
+```json
+{
+  "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+  "name": "UI/UX",
+  "description": "user experience"
+}
+```
+
+### Status Codes
+
+- 200: Successful
+- 400: Invalid UUID format
+- 404: Service is not assigned to the demand
+
+## POST /api/demand/:id/technology
+
+Assign a technology to a company's demand.
+
+### Path Parameters
+
+- `id` (UUID, required)
+
+### Request Body
+
+```json
+{
+  "technology": "01a058ae-057f-73e8-b2a0-50986559767b"
+}
+```
+
+### Response Body
+
+```json
+{
+  "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+  "name": "Gleam",
+  "description": "A friendly language for building type-safe systems"
+}
+```
+
+### Status Codes
+
+- 201: Successful
+- 400: Invalid JSON or invalid UUID
+- 404: Demand or Technology not found
+- 409: Already assigned
+
+## DELETE /api/demand/:id/technology/:technology_id
+
+Unassign a technology from a company's demand.
+
+### Path Parameters
+
+- `id` (UUID, required)
+- `technology_id` (UUID, required)
+
+### Response Body
+
+```json
+{
+  "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+  "name": "Gleam",
+  "description": "A friendly language for building type-safe systems"
+}
+```
+
+### Status Codes
+
+- 200: Successful
+- 400: Invalid UUID format
+- 404: Technology is not assigned to the demand
+
+## POST /api/demand/:id/expertise
+
+Assign an expertise to a company's demand.
+
+### Path Parameters
+
+- `id` (UUID, required)
+
+### Request Body
+
+```json
+{
+  "expertise": "01a058ae-057f-73e8-b2a0-50986559767b"
+}
+```
+
+### Response Body
+
+```json
+{
+  "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+  "name": "Education",
+  "description": "May it be free and for everyone"
+}
+```
+
+### Status Codes
+
+- 201: Successful
+- 400: Invalid JSON or invalid UUID
+- 404: Demand or Expertise not found
+- 409: Already assigned
+
+## DELETE /api/demand/:id/expertise/:expertise_id
+
+Unassign an expertise from a company's demand.
+
+### Path Parameters
+
+- `id` (UUID, required)
+- `expertise_id` (UUID, required)
+
+### Response Body
+
+```json
+{
+  "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+  "name": "Education",
+  "description": "May it be free and for everyone"
+}
+```
+
+### Status Codes
+
+- 200: Successful
+- 400: Invalid UUID format
+- 404: Expertise is not assigned to the demand
