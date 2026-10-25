@@ -258,7 +258,7 @@ pub fn register(
 
   use returned <- result.try(
     case sql.register(database, company_id, title, description, status) {
-      Error(pog.ConstraintViolated(constraint: "demand_startup_id_fkey", ..)) ->
+      Error(pog.ConstraintViolated(constraint: "demand_company_id_fkey", ..)) ->
         Error(CompanyNotFound(company_id))
 
       Ok(data) -> Ok(data)
