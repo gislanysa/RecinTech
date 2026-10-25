@@ -1,5 +1,16 @@
+import gleam/list
+import gleam/result
 import gleam/time/timestamp
+import pog
+import server/company/demand/sql
 import youid/uuid
+
+pub type DemandError {
+  /// Failed to query the Database
+  DatabaseError(pog.QueryError)
+  /// Demand was not found in the Database
+  NotFound(uuid.Uuid)
+}
 
 /// The lifecycle state of a Company's [Demand](#Demand).
 pub type Status {
@@ -32,4 +43,50 @@ pub type Demand {
     /// Timestamp of when the demand was last updated.
     updated_at: timestamp.Timestamp,
   )
+}
+
+/// Search a Demand in the Database using their ID
+///
+/// ## Examples
+///
+/// ```gleam
+/// let result = demand.get(context.database, id)
+///
+/// case result {
+///   Ok(data) -> todo as "send response"
+///   Error(demand.NotFound(_)) -> wisp.not_found()
+///   Error(_) -> wisp.internal_server_error()
+/// }
+/// ```
+pub fn get(
+  database: pog.Connection,
+  id: uuid.Uuid,
+) -> Result(Demand, DemandError) {
+  use returned <- result.try(
+    sql.get(database, id)
+    |> result.map_error(DatabaseError),
+  )
+
+  use row <- result.map(
+    list.first(returned.rows)
+    |> result.replace_error(NotFound(id)),
+  )
+
+  Demand(
+    id: row.id,
+    company_id: row.company_id,
+    title: row.title,
+    description: row.description,
+    status: status_from_enum(row.demand_status),
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  )
+}
+
+fn status_from_enum(enum: sql.DemandStatus) -> Status {
+  case enum {
+    sql.Open -> Open
+    sql.Closed -> Closed
+    sql.Canceled -> Canceled
+  }
 }
