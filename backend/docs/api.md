@@ -895,7 +895,7 @@ Fetch all demands assigned to a company.
 - 200: Successful
 - 400: Invalid UUID, or missing, invalid or incomplete query parameters
 
-## GET /api/demand/:id/segment
+## GET /api/company/demand/:id/segment
 
 Fetch all segments that a company's demand is assigned to.
 
@@ -925,7 +925,7 @@ Fetch all segments that a company's demand is assigned to.
 - 200: Successful
 - 400: Invalid UUID format
 
-## POST /api/demand/:id/segment
+## POST /api/company/demand/:id/segment
 
 Assign a segment to a company's demand.
 
@@ -958,7 +958,7 @@ Assign a segment to a company's demand.
 - 404: Demand or Segment not found
 - 409: Already assigned
 
-## DELETE /api/demand/:id/segment/:segment_id
+## DELETE /api/company/demand/:id/segment/:segment_id
 
 Unassign a segment from a company's demand.
 
@@ -983,7 +983,7 @@ Unassign a segment from a company's demand.
 - 400: Invalid UUID format
 - 404: Segment is not assigned to the demand
 
-## GET /api/demand/:id/service
+## GET /api/company/demand/:id/service
 
 Fetch all services that a company's demand is assigned to.
 
@@ -1013,7 +1013,7 @@ Fetch all services that a company's demand is assigned to.
 - 200: Successful
 - 400: Invalid UUID format
 
-## POST /api/demand/:id/service
+## POST /api/company/demand/:id/service
 
 Assign a service to a company's demand.
 
@@ -1046,7 +1046,7 @@ Assign a service to a company's demand.
 - 404: Demand or Service not found
 - 409: Already assigned
 
-## DELETE /api/demand/:id/service/:service_id
+## DELETE /api/company/demand/:id/service/:service_id
 
 Unassign a service from a company's demand.
 
@@ -1071,7 +1071,7 @@ Unassign a service from a company's demand.
 - 400: Invalid UUID format
 - 404: Service is not assigned to the demand
 
-## GET /api/demand/:id/technology
+## GET /api/company/demand/:id/technology
 
 Fetch all technologies that a company's demand is assigned to.
 
@@ -1101,7 +1101,7 @@ Fetch all technologies that a company's demand is assigned to.
 - 200: Successful
 - 400: Invalid UUID format
 
-## POST /api/demand/:id/technology
+## POST /api/company/demand/:id/technology
 
 Assign a technology to a company's demand.
 
@@ -1134,7 +1134,7 @@ Assign a technology to a company's demand.
 - 404: Demand or Technology not found
 - 409: Already assigned
 
-## DELETE /api/demand/:id/technology/:technology_id
+## DELETE /api/company/demand/:id/technology/:technology_id
 
 Unassign a technology from a company's demand.
 
@@ -1159,7 +1159,7 @@ Unassign a technology from a company's demand.
 - 400: Invalid UUID format
 - 404: Technology is not assigned to the demand
 
-## GET /api/demand/:id/expertise
+## GET /api/company/demand/:id/expertise
 
 Fetch all expertises that a company's demand is assigned to.
 
@@ -1189,7 +1189,7 @@ Fetch all expertises that a company's demand is assigned to.
 - 200: Successful
 - 400: Invalid UUID format
 
-## POST /api/demand/:id/expertise
+## POST /api/company/demand/:id/expertise
 
 Assign an expertise to a company's demand.
 
@@ -1222,7 +1222,7 @@ Assign an expertise to a company's demand.
 - 404: Demand or Expertise not found
 - 409: Already assigned
 
-## DELETE /api/demand/:id/expertise/:expertise_id
+## DELETE /api/company/demand/:id/expertise/:expertise_id
 
 Unassign an expertise from a company's demand.
 

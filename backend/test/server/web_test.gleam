@@ -1654,7 +1654,8 @@ pub fn get_demand_segments_test() -> Nil {
   let assert Ok(_) =
     demand.assign_segment(context.database, demand.id, assign: segment_b.id)
 
-  let endpoint = "/api/demand/" <> uuid.to_string(demand.id) <> "/segment"
+  let endpoint =
+    "/api/company/demand/" <> uuid.to_string(demand.id) <> "/segment"
   let response =
     simulate.browser_request(http.Get, endpoint)
     |> web.handle_request(context)
@@ -1683,7 +1684,8 @@ pub fn get_demand_services_test() -> Nil {
   let assert Ok(_) =
     demand.assign_service(context.database, demand.id, assign: service_b.id)
 
-  let endpoint = "/api/demand/" <> uuid.to_string(demand.id) <> "/service"
+  let endpoint =
+    "/api/company/demand/" <> uuid.to_string(demand.id) <> "/service"
   let response =
     simulate.browser_request(http.Get, endpoint)
     |> web.handle_request(context)
@@ -1720,7 +1722,8 @@ pub fn get_demand_technologies_test() -> Nil {
       assign: technology_b.id,
     )
 
-  let endpoint = "/api/demand/" <> uuid.to_string(demand.id) <> "/technology"
+  let endpoint =
+    "/api/company/demand/" <> uuid.to_string(demand.id) <> "/technology"
   let response =
     simulate.browser_request(http.Get, endpoint)
     |> web.handle_request(context)
@@ -1749,7 +1752,8 @@ pub fn get_demand_expertises_test() -> Nil {
   let assert Ok(_) =
     demand.assign_expertise(context.database, demand.id, assign: expertise_b.id)
 
-  let endpoint = "/api/demand/" <> uuid.to_string(demand.id) <> "/expertise"
+  let endpoint =
+    "/api/company/demand/" <> uuid.to_string(demand.id) <> "/expertise"
   let response =
     simulate.browser_request(http.Get, endpoint)
     |> web.handle_request(context)
@@ -1768,7 +1772,7 @@ pub fn get_demand_segments_invalid_id_test() -> Nil {
   use context <- server_test.with_context()
 
   let response =
-    simulate.browser_request(http.Get, "/api/demand/wibble/segment")
+    simulate.browser_request(http.Get, "/api/company/demand/wibble/segment")
     |> web.handle_request(context)
 
   assert response.status == 400
@@ -1786,7 +1790,8 @@ pub fn assign_demand_to_segment_test() -> Nil {
   let body =
     json.object([#("segment", json.string(uuid.to_string(segment.id)))])
 
-  let endpoint = "/api/demand/" <> uuid.to_string(demand.id) <> "/segment"
+  let endpoint =
+    "/api/company/demand/" <> uuid.to_string(demand.id) <> "/segment"
   let response =
     simulate.browser_request(http.Post, endpoint)
     |> simulate.json_body(body)
@@ -1817,7 +1822,8 @@ pub fn assign_demand_to_segment_conflict_test() -> Nil {
     json.object([#("segment", json.string(uuid.to_string(segment.id)))])
 
   // assign twice
-  let endpoint = "/api/demand/" <> uuid.to_string(demand.id) <> "/segment"
+  let endpoint =
+    "/api/company/demand/" <> uuid.to_string(demand.id) <> "/segment"
   let response =
     simulate.browser_request(http.Post, endpoint)
     |> simulate.json_body(body)
@@ -1839,7 +1845,7 @@ pub fn unassign_demand_from_segment_test() -> Nil {
     demand.assign_segment(context.database, record.id, assign: segment.id)
 
   let endpoint =
-    "/api/demand/"
+    "/api/company/demand/"
     <> uuid.to_string(record.id)
     <> "/segment/"
     <> uuid.to_string(segment.id)
@@ -1868,7 +1874,7 @@ pub fn unassign_missing_segment_from_demand_test() -> Nil {
   let missing_id = uuid.v7()
 
   let endpoint =
-    "/api/demand/"
+    "/api/company/demand/"
     <> uuid.to_string(record.id)
     <> "/segment/"
     <> uuid.to_string(missing_id)
@@ -1892,7 +1898,8 @@ pub fn assign_service_to_demand_test() -> Nil {
   let body =
     json.object([#("service", json.string(uuid.to_string(service.id)))])
 
-  let endpoint = "/api/demand/" <> uuid.to_string(demand.id) <> "/service"
+  let endpoint =
+    "/api/company/demand/" <> uuid.to_string(demand.id) <> "/service"
   let response =
     simulate.browser_request(http.Post, endpoint)
     |> simulate.json_body(body)
@@ -1921,7 +1928,8 @@ pub fn assign_service_to_demand_conflict_test() -> Nil {
   let body =
     json.object([#("service", json.string(uuid.to_string(service.id)))])
 
-  let endpoint = "/api/demand/" <> uuid.to_string(demand.id) <> "/service"
+  let endpoint =
+    "/api/company/demand/" <> uuid.to_string(demand.id) <> "/service"
   let response =
     simulate.browser_request(http.Post, endpoint)
     |> simulate.json_body(body)
@@ -1943,7 +1951,7 @@ pub fn unassign_demand_from_service_test() -> Nil {
     demand.assign_service(context.database, record.id, assign: service.id)
 
   let endpoint =
-    "/api/demand/"
+    "/api/company/demand/"
     <> uuid.to_string(record.id)
     <> "/service/"
     <> uuid.to_string(service.id)
@@ -1972,7 +1980,7 @@ pub fn unassign_missing_service_from_demand_test() -> Nil {
   let missing_id = uuid.v7()
 
   let endpoint =
-    "/api/demand/"
+    "/api/company/demand/"
     <> uuid.to_string(demand.id)
     <> "/service/"
     <> uuid.to_string(missing_id)
@@ -1996,7 +2004,8 @@ pub fn assign_technology_to_demand_test() -> Nil {
   let body =
     json.object([#("technology", json.string(uuid.to_string(technology.id)))])
 
-  let endpoint = "/api/demand/" <> uuid.to_string(demand.id) <> "/technology"
+  let endpoint =
+    "/api/company/demand/" <> uuid.to_string(demand.id) <> "/technology"
   let response =
     simulate.browser_request(http.Post, endpoint)
     |> simulate.json_body(body)
@@ -2025,7 +2034,8 @@ pub fn assign_technology_to_demand_conflict_test() -> Nil {
   let body =
     json.object([#("technology", json.string(uuid.to_string(technology.id)))])
 
-  let endpoint = "/api/demand/" <> uuid.to_string(demand.id) <> "/technology"
+  let endpoint =
+    "/api/company/demand/" <> uuid.to_string(demand.id) <> "/technology"
   let response =
     simulate.browser_request(http.Post, endpoint)
     |> simulate.json_body(body)
@@ -2047,7 +2057,7 @@ pub fn unassign_demand_from_technology_test() -> Nil {
     demand.assign_technology(context.database, record.id, assign: technology.id)
 
   let endpoint =
-    "/api/demand/"
+    "/api/company/demand/"
     <> uuid.to_string(record.id)
     <> "/technology/"
     <> uuid.to_string(technology.id)
@@ -2076,7 +2086,7 @@ pub fn unassign_missing_technology_from_demand_test() -> Nil {
   let missing_id = uuid.v7()
 
   let endpoint =
-    "/api/demand/"
+    "/api/company/demand/"
     <> uuid.to_string(demand.id)
     <> "/technology/"
     <> uuid.to_string(missing_id)
@@ -2100,7 +2110,8 @@ pub fn assign_expertise_to_demand_test() -> Nil {
   let body =
     json.object([#("expertise", json.string(uuid.to_string(expertise.id)))])
 
-  let endpoint = "/api/demand/" <> uuid.to_string(demand.id) <> "/expertise"
+  let endpoint =
+    "/api/company/demand/" <> uuid.to_string(demand.id) <> "/expertise"
   let response =
     simulate.browser_request(http.Post, endpoint)
     |> simulate.json_body(body)
@@ -2129,7 +2140,8 @@ pub fn assign_expertise_to_demand_conflict_test() -> Nil {
   let body =
     json.object([#("expertise", json.string(uuid.to_string(expertise.id)))])
 
-  let endpoint = "/api/demand/" <> uuid.to_string(demand.id) <> "/expertise"
+  let endpoint =
+    "/api/company/demand/" <> uuid.to_string(demand.id) <> "/expertise"
   let response =
     simulate.browser_request(http.Post, endpoint)
     |> simulate.json_body(body)
@@ -2151,7 +2163,7 @@ pub fn unassign_demand_from_expertise_test() -> Nil {
     demand.assign_expertise(context.database, demand.id, assign: expertise.id)
 
   let endpoint =
-    "/api/demand/"
+    "/api/company/demand/"
     <> uuid.to_string(demand.id)
     <> "/expertise/"
     <> uuid.to_string(expertise.id)
@@ -2180,7 +2192,7 @@ pub fn unassign_missing_expertise_from_demand_test() -> Nil {
   let missing_id = uuid.v7()
 
   let endpoint =
-    "/api/demand/"
+    "/api/company/demand/"
     <> uuid.to_string(demand.id)
     <> "/expertise/"
     <> uuid.to_string(missing_id)
@@ -2201,7 +2213,7 @@ pub fn assign_segment_to_missing_demand_test() -> Nil {
   let body =
     json.object([#("segment", json.string(uuid.to_string(segment.id)))])
 
-  let endpoint = "/api/demand/" <> uuid.v7_string() <> "/segment"
+  let endpoint = "/api/company/demand/" <> uuid.v7_string() <> "/segment"
   let response =
     simulate.browser_request(http.Post, endpoint)
     |> simulate.json_body(body)
@@ -2220,7 +2232,8 @@ pub fn assign_missing_segment_to_demand_test() -> Nil {
 
   let body = json.object([#("segment", json.string(uuid.v7_string()))])
 
-  let endpoint = "/api/demand/" <> uuid.to_string(demand.id) <> "/segment"
+  let endpoint =
+    "/api/company/demand/" <> uuid.to_string(demand.id) <> "/segment"
   let response =
     simulate.browser_request(http.Post, endpoint)
     |> simulate.json_body(body)
@@ -2239,7 +2252,7 @@ pub fn assign_demand_invalid_id_test() -> Nil {
     json.object([#("segment", json.string(uuid.to_string(segment.id)))])
 
   let response =
-    simulate.browser_request(http.Post, "/api/demand/wibble/segment")
+    simulate.browser_request(http.Post, "/api/company/demand/wibble/segment")
     |> simulate.json_body(body)
     |> web.handle_request(context)
 
