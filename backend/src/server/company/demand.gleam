@@ -14,6 +14,10 @@ pub type DemandError {
   DatabaseError(pog.QueryError)
   /// Demand was not found in the Database
   NotFound(uuid.Uuid)
+  /// Tried to created a Demand for a Company that is not registered
+  CompanyNotFound(uuid.Uuid)
+  /// Something went wrong when registering a new Demand
+  FailedToRegisterDemand
 
   // Assignment errors --------------------------------------------------------
   //
@@ -213,6 +217,69 @@ pub fn get_expertises(
       description: row.description,
     )
   })
+}
+
+fn status_to_enum(status: Status) -> sql.DemandStatus {
+  case status {
+    Open -> sql.Open
+    Closed -> sql.Closed
+    Canceled -> sql.Canceled
+  }
+}
+
+/// Register a new demand in the Database
+///
+/// ## Examples
+///
+/// ```gleam
+/// let result = demand.register(
+///   context.database,
+///   company_id: company_id,
+///   title: "Need more gleam developers",
+///   description: "A lot more of them",
+///   status: demand.Open,
+/// )
+///
+/// case result {
+///   Ok(demand) -> wisp.response(201)
+///   Error(demand.CompanyNotFound(..)) -> wisp.not_found()
+///   Error(_) -> wisp.internal_server_error()
+/// }
+/// ```
+///
+pub fn register(
+  database: pog.Connection,
+  company_id company_id: uuid.Uuid,
+  title title: String,
+  description description: String,
+  status status: Status,
+) -> Result(Demand, DemandError) {
+  let status = status_to_enum(status)
+
+  use returned <- result.try(
+    case sql.register(database, company_id, title, description, status) {
+      Error(pog.ConstraintViolated(constraint: "demand_startup_id_fkey", ..)) ->
+        Error(CompanyNotFound(company_id))
+
+      Ok(data) -> Ok(data)
+      Error(error) -> Error(DatabaseError(error))
+    },
+  )
+
+  use row <- result.map(
+    list.first(returned.rows)
+    |> result.replace_error(FailedToRegisterDemand),
+  )
+
+  Demand(
+    id: row.id,
+    company_id: row.company_id,
+    title: row.title,
+    description: row.description,
+    status: status_from_enum(row.demand_status),
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  )
 }
 
 /// Assign an Expertise to a Demand and returns the assigned Expertise if

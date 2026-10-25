@@ -501,6 +501,88 @@ ORDER BY
   |> pog.execute(db)
 }
 
+/// A row you get from running the `register` query
+/// defined in `./src/server/company/demand/sql/register.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v4.7.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type RegisterRow {
+  RegisterRow(
+    id: Uuid,
+    company_id: Uuid,
+    title: String,
+    description: String,
+    demand_status: DemandStatus,
+    created_at: Timestamp,
+    updated_at: Timestamp,
+  )
+}
+
+/// register a new demand on the database
+///
+/// > 🐿️ This function was generated automatically using v4.7.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn register(
+  db: pog.Connection,
+  arg_1: Uuid,
+  arg_2: String,
+  arg_3: String,
+  arg_4: DemandStatus,
+) -> Result(pog.Returned(RegisterRow), pog.QueryError) {
+  let decoder = {
+    use id <- decode.field(0, uuid_decoder())
+    use company_id <- decode.field(1, uuid_decoder())
+    use title <- decode.field(2, decode.string)
+    use description <- decode.field(3, decode.string)
+    use demand_status <- decode.field(4, demand_status_decoder())
+    use created_at <- decode.field(5, pog.timestamp_decoder())
+    use updated_at <- decode.field(6, pog.timestamp_decoder())
+    decode.success(RegisterRow(
+      id:,
+      company_id:,
+      title:,
+      description:,
+      demand_status:,
+      created_at:,
+      updated_at:,
+    ))
+  }
+
+  "-- register a new demand on the database
+INSERT INTO
+    public.demand (
+        company_id,
+        title,
+        description,
+        demand_status
+    )
+VALUES
+    (
+        $1::uuid,
+        $2::text,
+        $3::text,
+        $4::demand_status
+    )
+RETURNING
+    id,
+    company_id,
+    title,
+    description,
+    demand_status,
+    created_at,
+    updated_at;
+"
+  |> pog.query
+  |> pog.parameter(pog.text(uuid.to_string(arg_1)))
+  |> pog.parameter(pog.text(arg_2))
+  |> pog.parameter(pog.text(arg_3))
+  |> pog.parameter(demand_status_encoder(arg_4))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
 /// A row you get from running the `unassign_expertise` query
 /// defined in `./src/server/company/demand/sql/unassign_expertise.sql`.
 ///
@@ -730,6 +812,15 @@ fn demand_status_decoder() -> decode.Decoder(DemandStatus) {
     "open" -> decode.success(Open)
     _ -> decode.failure(Canceled, "DemandStatus")
   }
+}
+
+fn demand_status_encoder(demand_status) -> pog.Value {
+  case demand_status {
+    Canceled -> "canceled"
+    Closed -> "closed"
+    Open -> "open"
+  }
+  |> pog.text
 }
 
 // --- Encoding/decoding utils -------------------------------------------------
