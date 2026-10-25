@@ -168,18 +168,32 @@ pub fn decoder() -> decode.Decoder(Startup) {
 
 /// Encode a Startup into JSON
 pub fn to_json(startup: Startup) -> json.Json {
+  let Startup(
+    id:,
+    name:,
+    email:,
+    stage:,
+    cnpj:,
+    description:,
+    city:,
+    state:,
+    created_at:,
+    is_active:,
+    website:,
+  ) = startup
+
   json.object([
-    #("id", internal.uuid_to_json(startup.id)),
-    #("name", json.string(startup.name)),
-    #("email", json.string(email.to_string(startup.email))),
-    #("stage", stage_to_json(startup.stage)),
-    #("cnpj", json.string(cnpj.to_string(startup.cnpj))),
-    #("description", json.string(startup.description)),
-    #("city", json.string(startup.city)),
-    #("state", json.string(startup.state)),
-    #("created_at", internal.timestamp_to_json(startup.created_at)),
-    #("is_active", json.bool(startup.is_active)),
-    #("website", internal.uri_to_json(startup.website)),
+    #("id", internal.uuid_to_json(id)),
+    #("name", json.string(name)),
+    #("email", json.string(email.to_string(email))),
+    #("stage", stage_to_json(stage)),
+    #("cnpj", json.string(cnpj.to_string(cnpj))),
+    #("description", json.string(description)),
+    #("city", json.string(city)),
+    #("state", json.string(state)),
+    #("created_at", internal.timestamp_to_json(created_at)),
+    #("is_active", json.bool(is_active)),
+    #("website", internal.uri_to_json(website)),
   ])
 }
 
@@ -223,8 +237,6 @@ pub fn register(
   state state: String,
   website website: uri.Uri,
 ) -> Result(Startup, StartupError) {
-  let stage = stage_to_enum(stage)
-
   use hash <- result.try(
     argus.hasher()
     |> argus.hash(password)
@@ -236,7 +248,7 @@ pub fn register(
     sql.register(
       database,
       name,
-      stage,
+      stage_to_enum(stage),
       email.to_string(email),
       hash,
       cnpj.to_string(cnpj),
