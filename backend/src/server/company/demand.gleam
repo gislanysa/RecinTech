@@ -21,8 +21,6 @@ pub type DemandError {
   CompanyNotFound(uuid.Uuid)
   /// Something went wrong when registering a new Demand
   FailedToRegisterDemand
-  /// Something went wrong when updating a Demand
-  FailedToUpdateDemand(uuid.Uuid)
 
   // Assignment errors --------------------------------------------------------
   //
@@ -523,16 +521,14 @@ fn do_update_status(
   id: uuid.Uuid,
   to status: Status,
 ) -> Result(Demand, DemandError) {
-  let status = status_to_enum(status)
-
   use returned <- result.try(
-    sql.update_status(database, id, status)
+    sql.update_status(database, id, status_to_enum(status))
     |> result.map_error(DatabaseError),
   )
 
   use row <- result.map(
     list.first(returned.rows)
-    |> result.replace_error(FailedToUpdateDemand(id)),
+    |> result.replace_error(NotFound(id)),
   )
 
   Demand(
