@@ -1,3 +1,4 @@
+import gleam/dynamic/decode
 import gleam/uri
 import server/cnpj
 import server/company
@@ -33,4 +34,8 @@ pub type RegisterCompany {
     state: String,
     website: uri.Uri,
   )
+}
+
+pub type UpdateDemand {
+  UpdateDemand(title: String, description: String)
 }
