@@ -1,3 +1,4 @@
+import gleam/option
 import server/company/demand
 import server/dummy
 import server_test
@@ -694,6 +695,44 @@ pub fn canceled_missing_demand_test() -> Nil {
     demand.cancel(context.database, demand_id)
 
   assert returned == demand_id
+
+  Nil
+}
+
+pub fn update_demand_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let demand = dummy.new_demand(context.database, from: company.id)
+
+  let new_title = "This is a new title"
+  let assert Ok(returned) =
+    demand.update(
+      context.database,
+      demand.id,
+      new_title: option.Some(new_title),
+      new_description: option.None,
+    )
+
+  assert returned.id == demand.id
+  assert returned.title == new_title
+
+  Nil
+}
+
+pub fn update_missing_demand_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let missing_id = uuid.v7()
+  let assert Error(demand.NotFound(returned)) =
+    demand.update(
+      context.database,
+      missing_id,
+      new_title: option.None,
+      new_description: option.None,
+    )
+
+  assert returned == missing_id
 
   Nil
 }

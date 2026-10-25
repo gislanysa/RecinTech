@@ -1,5 +1,6 @@
 import gleam/json
 import gleam/list
+import gleam/option.{type Option}
 import gleam/result
 import gleam/time/timestamp
 import pog
@@ -567,4 +568,53 @@ pub fn cancel(
   id: uuid.Uuid,
 ) -> Result(Demand, DemandError) {
   do_update_status(database, id, to: Canceled)
+}
+
+/// Updates a Demand's information.
+/// Passing `option.None` leaves a field unchanged.
+///
+/// ## Examples
+///
+/// ```gleam
+/// let result = demand.update(
+///   context.database,
+///   id,
+///   new_title: option.Some("Need more Odin developers"),
+///   new_description: option.None,
+/// )
+///
+/// case result {
+///   Ok(demand) -> wisp.ok()
+///   Error(demand.NotFound(_)) -> wisp.not_found()
+///   Error(_) -> wisp.internal_server_error()
+/// }
+/// ````
+pub fn update(
+  database: pog.Connection,
+  id: uuid.Uuid,
+  new_title title: Option(String),
+  new_description description: Option(String),
+) -> Result(Demand, DemandError) {
+  let title = option.unwrap(title, or: "")
+  let description = option.unwrap(description, or: "")
+
+  use returned <- result.try(
+    sql.update(database, id, title, description)
+    |> result.map_error(DatabaseError),
+  )
+
+  use row <- result.map(
+    list.first(returned.rows)
+    |> result.replace_error(NotFound(id)),
+  )
+
+  Demand(
+    id: row.id,
+    company_id: row.company_id,
+    title: row.title,
+    description: row.description,
+    status: status_from_enum(row.demand_status),
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  )
 }
