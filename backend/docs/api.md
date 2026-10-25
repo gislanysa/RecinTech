@@ -858,3 +858,39 @@ Fetch information about a company.
 - 200: Successful
 - 400: Invalid UUID format
 - 404: Company not found
+
+## GET /api/company/:id/demand
+
+Fetch all demands assigned to a company.
+
+### Path Parameters
+
+- `id` (UUID, required)
+
+### Query Parameters
+
+- `limit` (int, required)
+- `offset` (int, required)
+
+### Response Body
+
+```json
+[
+  {
+    "id": "01a173cb-9533-7ebd-87a0-590965ef3653",
+    "company_id": "01a173cb-9533-7eb5-9522-9686fef4f2a4",
+    "title": "Need more gleam projects",
+    "description": "A lot more of them",
+    "status": "open",
+    "created_at": "2026-09-14T20:08:02.000Z",
+    "updated_at": "2026-09-14T20:08:02.000Z"
+  }
+]
+```
+
+- `status`: one of `"open"`, `"closed"` or `"canceled"`
+
+### Status Codes
+
+- 200: Successful
+- 400: Invalid UUID, or missing, invalid or incomplete query parameters
