@@ -895,6 +895,36 @@ Fetch all demands assigned to a company.
 - 200: Successful
 - 400: Invalid UUID, or missing, invalid or incomplete query parameters
 
+## GET /api/demand/:id/segment
+
+Fetch all segments that a company's demand is assigned to.
+
+### Path Parameters
+
+- `id` (UUID, required)
+
+### Response Body
+
+```json
+[
+  {
+    "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+    "name": "Tech",
+    "description": "Technology"
+  },
+  {
+    "id": "01a0dbb3-153a-7b84-8c3d-631788972d4a",
+    "name": "Biotech",
+    "description": "Technology, but Bio"
+  }
+]
+```
+
+### Status Codes
+
+- 200: Successful
+- 400: Invalid UUID format
+
 ## POST /api/demand/:id/segment
 
 Assign a segment to a company's demand.
@@ -952,6 +982,36 @@ Unassign a segment from a company's demand.
 - 200: Successful
 - 400: Invalid UUID format
 - 404: Segment is not assigned to the demand
+
+## GET /api/demand/:id/service
+
+Fetch all services that a company's demand is assigned to.
+
+### Path Parameters
+
+- `id` (UUID, required)
+
+### Response Body
+
+```json
+[
+  {
+    "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+    "name": "UI/UX",
+    "description": "user experience"
+  },
+  {
+    "id": "01a0dbb3-153a-7b84-8c3d-631788972d4a",
+    "name": "Web development",
+    "description": "Websites and http servers"
+  }
+]
+```
+
+### Status Codes
+
+- 200: Successful
+- 400: Invalid UUID format
 
 ## POST /api/demand/:id/service
 
@@ -1011,6 +1071,36 @@ Unassign a service from a company's demand.
 - 400: Invalid UUID format
 - 404: Service is not assigned to the demand
 
+## GET /api/demand/:id/technology
+
+Fetch all technologies that a company's demand is assigned to.
+
+### Path Parameters
+
+- `id` (UUID, required)
+
+### Response Body
+
+```json
+[
+  {
+    "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+    "name": "Gleam",
+    "description": "A friendly language for building type-safe systems"
+  },
+  {
+    "id": "01a0dbb3-153a-7b84-8c3d-631788972d4a",
+    "name": "PostgreSQL",
+    "description": "The world's most advanced open source database"
+  }
+]
+```
+
+### Status Codes
+
+- 200: Successful
+- 400: Invalid UUID format
+
 ## POST /api/demand/:id/technology
 
 Assign a technology to a company's demand.
@@ -1068,6 +1158,36 @@ Unassign a technology from a company's demand.
 - 200: Successful
 - 400: Invalid UUID format
 - 404: Technology is not assigned to the demand
+
+## GET /api/demand/:id/expertise
+
+Fetch all expertises that a company's demand is assigned to.
+
+### Path Parameters
+
+- `id` (UUID, required)
+
+### Response Body
+
+```json
+[
+  {
+    "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+    "name": "Education",
+    "description": "Teaching and learning"
+  },
+  {
+    "id": "01a0dbb3-153a-7b84-8c3d-631788972d4a",
+    "name": "Health",
+    "description": "Medical stuff"
+  }
+]
+```
+
+### Status Codes
+
+- 200: Successful
+- 400: Invalid UUID format
 
 ## POST /api/demand/:id/expertise
 

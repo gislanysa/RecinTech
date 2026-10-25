@@ -181,6 +181,9 @@ pub fn handle_request(request: Request, context: Context) -> Response {
     // +-----------------------------------------------------------------------+
     //
     // == segment ==============================================================
+    http.Get, ["api", "demand", id, "segment"] ->
+      get_demand_segments(context.database, id)
+
     http.Post, ["api", "demand", id, "segment"] ->
       assign_demand_to_segment(request, context.database, id)
 
@@ -188,6 +191,9 @@ pub fn handle_request(request: Request, context: Context) -> Response {
       unassign_demand_from_segment(context.database, id, segment_id)
 
     // == service ==============================================================
+    http.Get, ["api", "demand", id, "service"] ->
+      get_demand_services(context.database, id)
+
     http.Post, ["api", "demand", id, "service"] ->
       assign_demand_to_service(request, context.database, id)
 
@@ -195,6 +201,9 @@ pub fn handle_request(request: Request, context: Context) -> Response {
       unassign_demand_from_service(context.database, id, service_id)
 
     // == technology ===========================================================
+    http.Get, ["api", "demand", id, "technology"] ->
+      get_demand_technologies(context.database, id)
+
     http.Post, ["api", "demand", id, "technology"] ->
       assign_demand_to_technology(request, context.database, id)
 
@@ -202,6 +211,9 @@ pub fn handle_request(request: Request, context: Context) -> Response {
       unassign_demand_from_technology(context.database, id, technology_id)
 
     // == expertise ============================================================
+    http.Get, ["api", "demand", id, "expertise"] ->
+      get_demand_expertises(context.database, id)
+
     http.Post, ["api", "demand", id, "expertise"] ->
       assign_demand_to_expertise(request, context.database, id)
 
@@ -279,6 +291,162 @@ fn get_company_demands(
       |> wisp.json_response(200)
 
     Error(error) -> handle_error(error)
+  }
+}
+
+/// ## `GET /api/demand/:id/segment`
+///
+/// Fetch all Segments that a Demand is assigned to.
+///
+/// ## Response Body
+///
+/// ```json
+/// [
+///   {
+///    "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+///    "name": "Tech",
+///    "description": "Technology"
+///   },
+///   {
+///    "id": "01a0dbb3-153a-7b84-8c3d-631788972d4a",
+///    "name": "Biotech",
+///    "description": "Technology, but Bio"
+///   }
+/// ]
+/// ```
+///
+/// ## Status Codes
+///
+/// - **200** If successful.
+/// - **400** if ID is not a valid UUID.
+///
+fn get_demand_segments(database: pog.Connection, id: String) -> Response {
+  use id <- require_valid_uuid(id)
+
+  case demand.get_segments(database, id) {
+    Ok(data) ->
+      json.array(data, segment.to_json)
+      |> json.to_string()
+      |> wisp.json_response(200)
+
+    Error(error) -> handle_demand_error(error)
+  }
+}
+
+/// ## `GET /api/demand/:id/service`
+///
+/// Fetch all Services that a Demand is assigned to.
+///
+/// ## Response Body
+///
+/// ```json
+/// [
+///   {
+///    "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+///    "name": "UI/UX",
+///    "description": "user experience"
+///   },
+///   {
+///    "id": "01a0dbb3-153a-7b84-8c3d-631788972d4a",
+///    "name": "Web development",
+///    "description": "Websites and http servers"
+///   }
+/// ]
+/// ```
+///
+/// ## Status Codes
+///
+/// - **200** If successful.
+/// - **400** if ID is not a valid UUID.
+///
+fn get_demand_services(database: pog.Connection, id: String) -> Response {
+  use id <- require_valid_uuid(id)
+
+  case demand.get_services(database, id) {
+    Ok(data) ->
+      json.array(data, service.to_json)
+      |> json.to_string()
+      |> wisp.json_response(200)
+
+    Error(error) -> handle_demand_error(error)
+  }
+}
+
+/// ## `GET /api/demand/:id/technology`
+///
+/// Fetch all Technologies that a Demand is assigned to.
+///
+/// ## Response Body
+///
+/// ```json
+/// [
+///   {
+///    "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+///    "name": "Gleam",
+///    "description": "A friendly language for building type-safe systems"
+///   },
+///   {
+///    "id": "01a0dbb3-153a-7b84-8c3d-631788972d4a",
+///    "name": "PostgreSQL",
+///    "description": "The world's most advanced open source database"
+///   }
+/// ]
+/// ```
+///
+/// ## Status Codes
+///
+/// - **200** If successful.
+/// - **400** if ID is not a valid UUID.
+///
+fn get_demand_technologies(database: pog.Connection, id: String) -> Response {
+  use id <- require_valid_uuid(id)
+
+  case demand.get_technologies(database, id) {
+    Ok(data) ->
+      json.array(data, technology.to_json)
+      |> json.to_string()
+      |> wisp.json_response(200)
+
+    Error(error) -> handle_demand_error(error)
+  }
+}
+
+/// ## `GET /api/demand/:id/expertise`
+///
+/// Fetch all Expertises that a Demand is assigned to.
+///
+/// ## Response Body
+///
+/// ```json
+/// [
+///   {
+///    "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+///    "name": "Education",
+///    "description": "Teaching and learning"
+///   },
+///   {
+///    "id": "01a0dbb3-153a-7b84-8c3d-631788972d4a",
+///    "name": "Health",
+///    "description": "Medical stuff"
+///   }
+/// ]
+/// ```
+///
+/// ## Status Codes
+///
+/// - **200** If successful.
+/// - **400** if ID is not a valid UUID.
+///
+fn get_demand_expertises(database: pog.Connection, id: String) -> Response {
+  use id <- require_valid_uuid(id)
+
+  case demand.get_expertises(database, id) {
+    Ok(data) ->
+      json.array(data, expertise.to_json)
+      |> json.to_string()
+      |> wisp.json_response(200)
+
+    Error(error) -> handle_demand_error(error)
   }
 }
 

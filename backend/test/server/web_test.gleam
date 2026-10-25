@@ -1640,6 +1640,142 @@ pub fn get_missing_segment_by_id_test() -> Nil {
   Nil
 }
 
+pub fn get_demand_segments_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let demand = dummy.new_demand(context.database, from: company.id)
+
+  let segment_a = dummy.new_segment(context.database)
+  let assert Ok(_) =
+    demand.assign_segment(context.database, demand.id, assign: segment_a.id)
+
+  let segment_b = dummy.new_segment(context.database)
+  let assert Ok(_) =
+    demand.assign_segment(context.database, demand.id, assign: segment_b.id)
+
+  let endpoint = "/api/demand/" <> uuid.to_string(demand.id) <> "/segment"
+  let response =
+    simulate.browser_request(http.Get, endpoint)
+    |> web.handle_request(context)
+
+  assert response.status == 200
+  expect_json(response)
+
+  let body = simulate.read_body(response)
+  let assert Ok(returned) = json.parse(body, decode.list(segment.decoder()))
+  assert returned == [segment_a, segment_b]
+
+  Nil
+}
+
+pub fn get_demand_services_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let demand = dummy.new_demand(context.database, from: company.id)
+
+  let service_a = dummy.new_service(context.database)
+  let assert Ok(_) =
+    demand.assign_service(context.database, demand.id, assign: service_a.id)
+
+  let service_b = dummy.new_service(context.database)
+  let assert Ok(_) =
+    demand.assign_service(context.database, demand.id, assign: service_b.id)
+
+  let endpoint = "/api/demand/" <> uuid.to_string(demand.id) <> "/service"
+  let response =
+    simulate.browser_request(http.Get, endpoint)
+    |> web.handle_request(context)
+
+  assert response.status == 200
+  expect_json(response)
+
+  let body = simulate.read_body(response)
+  let assert Ok(returned) = json.parse(body, decode.list(service.decoder()))
+  assert returned == [service_a, service_b]
+
+  Nil
+}
+
+pub fn get_demand_technologies_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let demand = dummy.new_demand(context.database, from: company.id)
+
+  let technology_a = dummy.new_technology(context.database)
+  let assert Ok(_) =
+    demand.assign_technology(
+      context.database,
+      demand.id,
+      assign: technology_a.id,
+    )
+
+  let technology_b = dummy.new_technology(context.database)
+  let assert Ok(_) =
+    demand.assign_technology(
+      context.database,
+      demand.id,
+      assign: technology_b.id,
+    )
+
+  let endpoint = "/api/demand/" <> uuid.to_string(demand.id) <> "/technology"
+  let response =
+    simulate.browser_request(http.Get, endpoint)
+    |> web.handle_request(context)
+
+  assert response.status == 200
+  expect_json(response)
+
+  let body = simulate.read_body(response)
+  let assert Ok(returned) = json.parse(body, decode.list(technology.decoder()))
+  assert returned == [technology_a, technology_b]
+
+  Nil
+}
+
+pub fn get_demand_expertises_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let demand = dummy.new_demand(context.database, from: company.id)
+
+  let expertise_a = dummy.new_expertise(context.database)
+  let assert Ok(_) =
+    demand.assign_expertise(context.database, demand.id, assign: expertise_a.id)
+
+  let expertise_b = dummy.new_expertise(context.database)
+  let assert Ok(_) =
+    demand.assign_expertise(context.database, demand.id, assign: expertise_b.id)
+
+  let endpoint = "/api/demand/" <> uuid.to_string(demand.id) <> "/expertise"
+  let response =
+    simulate.browser_request(http.Get, endpoint)
+    |> web.handle_request(context)
+
+  assert response.status == 200
+  expect_json(response)
+
+  let body = simulate.read_body(response)
+  let assert Ok(returned) = json.parse(body, decode.list(expertise.decoder()))
+  assert returned == [expertise_a, expertise_b]
+
+  Nil
+}
+
+pub fn get_demand_segments_invalid_id_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let response =
+    simulate.browser_request(http.Get, "/api/demand/wibble/segment")
+    |> web.handle_request(context)
+
+  assert response.status == 400
+
+  Nil
+}
+
 pub fn assign_demand_to_segment_test() -> Nil {
   use context <- server_test.with_context()
 
