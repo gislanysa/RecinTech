@@ -127,6 +127,80 @@ WHERE
   |> pog.execute(db)
 }
 
+/// A row you get from running the `get_demands` query
+/// defined in `./src/server/company/sql/get_demands.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v4.7.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type GetDemandsRow {
+  GetDemandsRow(
+    id: Uuid,
+    company_id: Uuid,
+    title: String,
+    description: String,
+    demand_status: DemandStatus,
+    created_at: Timestamp,
+    updated_at: Timestamp,
+  )
+}
+
+/// get all demands assigned to a company
+///
+/// > 🐿️ This function was generated automatically using v4.7.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn get_demands(
+  db: pog.Connection,
+  demand_company_id: Uuid,
+  arg_2: Int,
+  arg_3: Int,
+) -> Result(pog.Returned(GetDemandsRow), pog.QueryError) {
+  let decoder = {
+    use id <- decode.field(0, uuid_decoder())
+    use company_id <- decode.field(1, uuid_decoder())
+    use title <- decode.field(2, decode.string)
+    use description <- decode.field(3, decode.string)
+    use demand_status <- decode.field(4, demand_status_decoder())
+    use created_at <- decode.field(5, pog.timestamp_decoder())
+    use updated_at <- decode.field(6, pog.timestamp_decoder())
+    decode.success(GetDemandsRow(
+      id:,
+      company_id:,
+      title:,
+      description:,
+      demand_status:,
+      created_at:,
+      updated_at:,
+    ))
+  }
+
+  "-- get all demands assigned to a company
+SELECT
+    demand.id,
+    demand.company_id,
+    demand.title,
+    demand.description,
+    demand.demand_status,
+    demand.created_at,
+    demand.updated_at
+FROM
+    demand
+WHERE
+    demand.company_id = $1
+ORDER BY
+    demand.id
+LIMIT
+    $2 OFFSET $3
+"
+  |> pog.query
+  |> pog.parameter(pog.text(uuid.to_string(demand_company_id)))
+  |> pog.parameter(pog.int(arg_2))
+  |> pog.parameter(pog.int(arg_3))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
 /// A row you get from running the `get_lgpd_consent` query
 /// defined in `./src/server/company/sql/get_lgpd_consent.sql`.
 ///
@@ -326,6 +400,27 @@ fn company_size_encoder(company_size) -> pog.Value {
     Micro -> "micro"
   }
   |> pog.text
+}
+
+/// Corresponds to the Postgres `demand_status` enum.
+///
+/// > 🐿️ This type definition was generated automatically using v4.7.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type DemandStatus {
+  Canceled
+  Closed
+  Open
+}
+
+fn demand_status_decoder() -> decode.Decoder(DemandStatus) {
+  use demand_status <- decode.then(decode.string)
+  case demand_status {
+    "canceled" -> decode.success(Canceled)
+    "closed" -> decode.success(Closed)
+    "open" -> decode.success(Open)
+    _ -> decode.failure(Canceled, "DemandStatus")
+  }
 }
 
 /// Corresponds to the Postgres `lgpd_consent` enum.
