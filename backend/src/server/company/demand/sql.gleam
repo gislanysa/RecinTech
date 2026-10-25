@@ -791,6 +791,80 @@ FROM
   |> pog.execute(db)
 }
 
+/// A row you get from running the `update` query
+/// defined in `./src/server/company/demand/sql/update.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v4.7.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type UpdateRow {
+  UpdateRow(
+    id: Uuid,
+    company_id: Uuid,
+    title: String,
+    description: String,
+    demand_status: DemandStatus,
+    created_at: Timestamp,
+    updated_at: Timestamp,
+  )
+}
+
+/// updates a demand's information
+///
+/// > 🐿️ This function was generated automatically using v4.7.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn update(
+  db: pog.Connection,
+  demand_id: Uuid,
+  arg_2: String,
+  arg_3: String,
+) -> Result(pog.Returned(UpdateRow), pog.QueryError) {
+  let decoder = {
+    use id <- decode.field(0, uuid_decoder())
+    use company_id <- decode.field(1, uuid_decoder())
+    use title <- decode.field(2, decode.string)
+    use description <- decode.field(3, decode.string)
+    use demand_status <- decode.field(4, demand_status_decoder())
+    use created_at <- decode.field(5, pog.timestamp_decoder())
+    use updated_at <- decode.field(6, pog.timestamp_decoder())
+    decode.success(UpdateRow(
+      id:,
+      company_id:,
+      title:,
+      description:,
+      demand_status:,
+      created_at:,
+      updated_at:,
+    ))
+  }
+
+  "-- updates a demand's information
+UPDATE
+    public.demand
+SET
+    title = coalesce(nullif($2::text, ''), title),
+    description = coalesce(nullif($3::text, ''), description),
+    updated_at = CURRENT_TIMESTAMP
+WHERE
+    demand.id = $1
+RETURNING
+    demand.id,
+    demand.company_id,
+    demand.title,
+    demand.description,
+    demand.demand_status,
+    demand.created_at,
+    demand.updated_at
+"
+  |> pog.query
+  |> pog.parameter(pog.text(uuid.to_string(demand_id)))
+  |> pog.parameter(pog.text(arg_2))
+  |> pog.parameter(pog.text(arg_3))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
 /// A row you get from running the `update_status` query
 /// defined in `./src/server/company/demand/sql/update_status.sql`.
 ///
