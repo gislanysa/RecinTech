@@ -12,12 +12,8 @@ import pog
 import server/cnpj
 import server/company/sql
 import server/email
-import server/expertise
 import server/internal
 import server/lgpd
-import server/segment
-import server/service
-import server/technology
 import youid/uuid
 
 pub type CompanyError {
@@ -449,45 +445,4 @@ pub fn get_lgpd_consent(
         )
     }
   })
-}
-
-/// The lifecycle state of a Company's [Demand](#Demand).
-pub type DemandStatus {
-  /// The Company is accepting matches or proposals for this demand.
-  Open
-  /// The Company has finished the demand, either because it was fulfilled
-  /// or because it is no longer accepting proposals.
-  Closed
-  /// The Company withdrew the demand before it was fulfilled.
-  Canceled
-}
-
-/// A technological solution requested by a [Company](#Company).
-///
-/// A demand describes what the Company is looking for.
-pub type Demand {
-  Demand(
-    /// Unique identifier for the demand.
-    id: uuid.Uuid,
-    /// The Company that created the demand.
-    company: Company,
-    /// A short summary of what the Company needs.
-    title: String,
-    /// A detailed description of the problem, context, and requirements.
-    description: String,
-    /// Current lifecycle state of the demand.
-    status: DemandStatus,
-    /// Timestamp of when the demand was created.
-    created_at: timestamp.Timestamp,
-    /// Timestamp of when the demand was last updated.
-    updated_at: timestamp.Timestamp,
-    /// Segments required by the Demand
-    segments: List(segment.Segment),
-    /// Expertises required by the Demand
-    expertises: List(expertise.Expertise),
-    /// Technologies required by the Demand
-    technologies: List(technology.Technology),
-    /// Services required by the Demand
-    services: List(service.Service),
-  )
 }
