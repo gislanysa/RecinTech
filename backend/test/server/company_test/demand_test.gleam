@@ -619,3 +619,81 @@ pub fn unassign_missing_service_test() -> Nil {
 
   Nil
 }
+
+pub fn open_demand_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let demand = dummy.new_demand(context.database, from: company.id)
+
+  let assert Ok(returned) = demand.open(context.database, demand.id)
+
+  assert returned.id == demand.id
+  assert returned.status == demand.Open
+
+  Nil
+}
+
+pub fn open_missing_demand_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let demand_id = uuid.v7()
+  let assert Error(demand.FailedToUpdateDemand(returned)) =
+    demand.open(context.database, demand_id)
+
+  assert returned == demand_id
+
+  Nil
+}
+
+pub fn close_demand_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let demand = dummy.new_demand(context.database, from: company.id)
+
+  let assert Ok(returned) = demand.close(context.database, demand.id)
+
+  assert returned.id == demand.id
+  assert returned.status == demand.Closed
+
+  Nil
+}
+
+pub fn close_missing_demand_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let demand_id = uuid.v7()
+  let assert Error(demand.FailedToUpdateDemand(returned)) =
+    demand.close(context.database, demand_id)
+
+  assert returned == demand_id
+
+  Nil
+}
+
+pub fn cancel_demand_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let demand = dummy.new_demand(context.database, from: company.id)
+
+  let assert Ok(returned) = demand.cancel(context.database, demand.id)
+
+  assert returned.id == demand.id
+  assert returned.status == demand.Canceled
+
+  Nil
+}
+
+pub fn canceled_missing_demand_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let demand_id = uuid.v7()
+  let assert Error(demand.FailedToUpdateDemand(returned)) =
+    demand.cancel(context.database, demand_id)
+
+  assert returned == demand_id
+
+  Nil
+}

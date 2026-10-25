@@ -791,6 +791,77 @@ FROM
   |> pog.execute(db)
 }
 
+/// A row you get from running the `update_status` query
+/// defined in `./src/server/company/demand/sql/update_status.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v4.7.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type UpdateStatusRow {
+  UpdateStatusRow(
+    id: Uuid,
+    company_id: Uuid,
+    title: String,
+    description: String,
+    demand_status: DemandStatus,
+    created_at: Timestamp,
+    updated_at: Timestamp,
+  )
+}
+
+/// update a demand status
+///
+/// > 🐿️ This function was generated automatically using v4.7.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn update_status(
+  db: pog.Connection,
+  demand_id: Uuid,
+  arg_2: DemandStatus,
+) -> Result(pog.Returned(UpdateStatusRow), pog.QueryError) {
+  let decoder = {
+    use id <- decode.field(0, uuid_decoder())
+    use company_id <- decode.field(1, uuid_decoder())
+    use title <- decode.field(2, decode.string)
+    use description <- decode.field(3, decode.string)
+    use demand_status <- decode.field(4, demand_status_decoder())
+    use created_at <- decode.field(5, pog.timestamp_decoder())
+    use updated_at <- decode.field(6, pog.timestamp_decoder())
+    decode.success(UpdateStatusRow(
+      id:,
+      company_id:,
+      title:,
+      description:,
+      demand_status:,
+      created_at:,
+      updated_at:,
+    ))
+  }
+
+  "-- update a demand status
+UPDATE
+    public.demand
+SET
+    demand_status = $2,
+    updated_at = CURRENT_TIMESTAMP
+WHERE
+    demand.id = $1
+RETURNING
+    demand.id,
+    demand.company_id,
+    demand.title,
+    demand.description,
+    demand.demand_status,
+    demand.created_at,
+    demand.updated_at;
+"
+  |> pog.query
+  |> pog.parameter(pog.text(uuid.to_string(demand_id)))
+  |> pog.parameter(demand_status_encoder(arg_2))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
 // --- Enums -------------------------------------------------------------------
 
 /// Corresponds to the Postgres `demand_status` enum.

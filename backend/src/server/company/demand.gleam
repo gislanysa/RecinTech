@@ -20,6 +20,8 @@ pub type DemandError {
   CompanyNotFound(uuid.Uuid)
   /// Something went wrong when registering a new Demand
   FailedToRegisterDemand
+  /// Something went wrong when updating a Demand
+  FailedToUpdateDemand(uuid.Uuid)
 
   // Assignment errors --------------------------------------------------------
   //
@@ -512,4 +514,57 @@ pub fn unassign_technology(
     name: row.name,
     description: row.description,
   )
+}
+
+/// Update a Demand's status
+fn do_update_status(
+  database: pog.Connection,
+  id: uuid.Uuid,
+  to status: Status,
+) -> Result(Demand, DemandError) {
+  let status = status_to_enum(status)
+
+  use returned <- result.try(
+    sql.update_status(database, id, status)
+    |> result.map_error(DatabaseError),
+  )
+
+  use row <- result.map(
+    list.first(returned.rows)
+    |> result.replace_error(FailedToUpdateDemand(id)),
+  )
+
+  Demand(
+    id: row.id,
+    company_id: row.company_id,
+    title: row.title,
+    description: row.description,
+    status: status_from_enum(row.demand_status),
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  )
+}
+
+/// Update a Demand's status to `Open`
+pub fn open(
+  database: pog.Connection,
+  id: uuid.Uuid,
+) -> Result(Demand, DemandError) {
+  do_update_status(database, id, to: Open)
+}
+
+/// Update a Demand's status to `Closed`
+pub fn close(
+  database: pog.Connection,
+  id: uuid.Uuid,
+) -> Result(Demand, DemandError) {
+  do_update_status(database, id, to: Closed)
+}
+
+/// Update a Demand's status to `Canceled`
+pub fn cancel(
+  database: pog.Connection,
+  id: uuid.Uuid,
+) -> Result(Demand, DemandError) {
+  do_update_status(database, id, to: Canceled)
 }
