@@ -16,6 +16,7 @@ import lustre/element/html
 import pog
 import server/cnpj
 import server/company
+import server/company/demand
 import server/email
 import server/expertise
 import server/internal
@@ -41,6 +42,8 @@ type WebError {
   StartupError(error: startup.StartupError)
   /// Segment related errors
   SegmentError(error: segment.SegmentError)
+  /// Company related errors
+  CompanyError(error: company.CompanyError)
   /// Technology related errors
   TechnologyError(error: technology.TechnologyError)
   /// Expertise related errors
@@ -167,6 +170,8 @@ pub fn handle_request(request: Request, context: Context) -> Response {
     // +-----------------------------------------------------------------------+
     http.Post, ["api", "company"] -> register_company(request, context.database)
     http.Get, ["api", "company", id] -> get_company_by_id(context.database, id)
+    http.Get, ["api", "company", id, "demand"] ->
+      get_company_demands(request, context.database, id)
 
     // +-----------------------------------------------------------------------+
     // | NOT FOUND                                                             |
@@ -177,6 +182,68 @@ pub fn handle_request(request: Request, context: Context) -> Response {
 
     // Page not found in the frontend
     _, _ -> get_root_document()
+  }
+}
+
+/// ## GET `/api/company/{id}/demand`
+///
+/// Get all Demands assigned to a given Company.
+///
+/// ## Response
+///
+/// ```json
+/// {
+///   "id": "01a173cb-9533-7ebd-87a0-590965ef3653",
+///   "company_id": "01a173cb-9533-7eb5-9522-9686fef4f2a4",
+///   "title": "Need more gleam projects",
+///   "description": "A lot more of them",
+///   "status": "open",
+///   "created_at": "2026-09-14T20:08:02.000Z",
+///   "updated_at": "2026-09-14T20:08:02.000Z"
+/// }
+/// ```
+///
+/// ## Status Codes
+///
+/// - **200** If successful.
+/// - **400** if ID is not a valid UUID.
+///
+fn get_company_demands(
+  request: Request,
+  database: pog.Connection,
+  id: String,
+) -> Response {
+  use id <- require_valid_uuid(id)
+
+  let result = {
+    use query <- result.try(
+      request.get_query(request)
+      |> result.replace_error(MissingQuery),
+    )
+
+    use limit <- result.try(
+      list.key_find(query, "limit")
+      |> result.try(int.parse)
+      |> result.replace_error(InvalidQueryParameter("limit")),
+    )
+
+    use offset <- result.try(
+      list.key_find(query, "offset")
+      |> result.try(int.parse)
+      |> result.replace_error(InvalidQueryParameter("offset")),
+    )
+
+    company.get_demands(database, from: id, limit:, offset:)
+    |> result.map_error(CompanyError)
+  }
+
+  case result {
+    Ok(demands) ->
+      json.array(demands, demand.to_json)
+      |> json.to_string
+      |> wisp.json_response(200)
+
+    Error(error) -> handle_error(error)
   }
 }
 
@@ -1056,6 +1123,7 @@ fn handle_error(error: WebError) -> Response {
     ServiceError(error) -> handle_service_error(error)
     MissingQuery -> wisp.bad_request("Missing query")
     InvalidQueryParameter(key:) -> wisp.bad_request("Invalid query: " <> key)
+    CompanyError(error) -> handle_company_error(error)
   }
 }
 

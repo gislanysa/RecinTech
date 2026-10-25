@@ -1,9 +1,11 @@
+import gleam/json
 import gleam/list
 import gleam/result
 import gleam/time/timestamp
 import pog
 import server/company/demand/sql
 import server/expertise
+import server/internal
 import server/segment
 import server/service
 import server/technology
@@ -42,6 +44,14 @@ pub type Status {
   Canceled
 }
 
+fn status_to_json(status: Status) -> json.Json {
+  case status {
+    Open -> json.string("open")
+    Closed -> json.string("closed")
+    Canceled -> json.string("canceled")
+  }
+}
+
 /// A technological solution requested by a [Company](#Company).
 ///
 /// A demand describes what the Company is looking for.
@@ -62,6 +72,29 @@ pub type Demand {
     /// Timestamp of when the demand was last updated.
     updated_at: timestamp.Timestamp,
   )
+}
+
+/// Encode a `Demand` into JSON
+pub fn to_json(demand: Demand) -> json.Json {
+  let Demand(
+    id:,
+    company_id:,
+    title:,
+    description:,
+    status:,
+    created_at:,
+    updated_at:,
+  ) = demand
+
+  json.object([
+    #("id", internal.uuid_to_json(id)),
+    #("company_id", internal.uuid_to_json(company_id)),
+    #("title", json.string(title)),
+    #("description", json.string(description)),
+    #("status", status_to_json(status)),
+    #("created_at", internal.timestamp_to_json(created_at)),
+    #("updated_at", internal.timestamp_to_json(updated_at)),
+  ])
 }
 
 /// Search a Demand in the Database using their ID
