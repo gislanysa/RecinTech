@@ -179,45 +179,47 @@ pub fn handle_request(request: Request, context: Context) -> Response {
     // +-----------------------------------------------------------------------+
     // | DEMAND                                                                |
     // +-----------------------------------------------------------------------+
-    //
+    http.Get, ["api", "company", "demand", id] ->
+      get_demand_by_id(context.database, id)
+
     // == segment ==============================================================
-    http.Get, ["api", "demand", id, "segment"] ->
+    http.Get, ["api", "company", "demand", id, "segment"] ->
       get_demand_segments(context.database, id)
 
-    http.Post, ["api", "demand", id, "segment"] ->
+    http.Post, ["api", "company", "demand", id, "segment"] ->
       assign_demand_to_segment(request, context.database, id)
 
-    http.Delete, ["api", "demand", id, "segment", segment_id] ->
+    http.Delete, ["api", "company", "demand", id, "segment", segment_id] ->
       unassign_demand_from_segment(context.database, id, segment_id)
 
     // == service ==============================================================
-    http.Get, ["api", "demand", id, "service"] ->
+    http.Get, ["api", "company", "demand", id, "service"] ->
       get_demand_services(context.database, id)
 
-    http.Post, ["api", "demand", id, "service"] ->
+    http.Post, ["api", "company", "demand", id, "service"] ->
       assign_demand_to_service(request, context.database, id)
 
-    http.Delete, ["api", "demand", id, "service", service_id] ->
+    http.Delete, ["api", "company", "demand", id, "service", service_id] ->
       unassign_demand_from_service(context.database, id, service_id)
 
     // == technology ===========================================================
-    http.Get, ["api", "demand", id, "technology"] ->
+    http.Get, ["api", "company", "demand", id, "technology"] ->
       get_demand_technologies(context.database, id)
 
-    http.Post, ["api", "demand", id, "technology"] ->
+    http.Post, ["api", "company", "demand", id, "technology"] ->
       assign_demand_to_technology(request, context.database, id)
 
-    http.Delete, ["api", "demand", id, "technology", technology_id] ->
-      unassign_demand_from_technology(context.database, id, technology_id)
+    http.Delete, ["api", "company", "demand", id, "technology", technology_id]
+    -> unassign_demand_from_technology(context.database, id, technology_id)
 
     // == expertise ============================================================
-    http.Get, ["api", "demand", id, "expertise"] ->
+    http.Get, ["api", "company", "demand", id, "expertise"] ->
       get_demand_expertises(context.database, id)
 
-    http.Post, ["api", "demand", id, "expertise"] ->
+    http.Post, ["api", "company", "demand", id, "expertise"] ->
       assign_demand_to_expertise(request, context.database, id)
 
-    http.Delete, ["api", "demand", id, "expertise", expertise_id] ->
+    http.Delete, ["api", "company", "demand", id, "expertise", expertise_id] ->
       unassign_demand_from_expertise(context.database, id, expertise_id)
 
     // +-----------------------------------------------------------------------+
@@ -232,9 +234,9 @@ pub fn handle_request(request: Request, context: Context) -> Response {
   }
 }
 
-/// ## GET `/api/company/{id}/demand`
+/// ## GET `/api/company/demand/{id}`
 ///
-/// Get all Demands assigned to a given Company.
+/// Get information about a Demand
 ///
 /// ## Response
 ///
@@ -245,9 +247,56 @@ pub fn handle_request(request: Request, context: Context) -> Response {
 ///   "title": "Need more gleam projects",
 ///   "description": "A lot more of them",
 ///   "status": "open",
-///   "created_at": "2026-09-14T20:08:02.000Z",
-///   "updated_at": "2026-09-14T20:08:02.000Z"
+///   "created_at": "2025-09-14T20:08:02.000Z",
+///   "updated_at": "2025-09-14T20:08:02.000Z"
 /// }
+/// ```
+///
+/// ## Status Codes
+///
+/// - **200** If successful.
+/// - **400** if ID is not a valid UUID.
+///
+fn get_demand_by_id(database: pog.Connection, id: String) -> Response {
+  use id <- require_valid_uuid(id)
+
+  case demand.get(database, id) {
+    Ok(demand) ->
+      demand.to_json(demand)
+      |> json.to_string
+      |> wisp.json_response(200)
+
+    Error(error) -> handle_demand_error(error)
+  }
+}
+
+/// ## GET `/api/company/{id}/demand`
+///
+/// Get all Demands assigned to a given Company.
+///
+/// ## Response
+///
+/// ```json
+/// [
+///   {
+///     "id": "01a173cb-9533-7ebd-87a0-590965ef3653",
+///     "company_id": "01a173cb-9533-7eb5-9522-9686fef4f2a4",
+///     "title": "Need more gleam projects",
+///     "description": "A lot more of them",
+///     "status": "open",
+///     "created_at": "2025-09-14T20:08:02.000Z",
+///     "updated_at": "2025-09-14T20:08:02.000Z"
+///   },
+///   {
+///     "id": "01a173cb-9533-7ebd-87a0-283915ef3653",
+///     "company_id": "01a173cb-9533-7eb5-9522-9686fef4f2a4",
+///     "title": "Need more Zig projects",
+///     "description": "",
+///     "status": "open",
+///     "created_at": "2026-09-19T20:08:02.000Z",
+///     "updated_at": "2026-09-19T20:08:02.000Z"
+///   }
+/// ]
 /// ```
 ///
 /// ## Status Codes
@@ -294,7 +343,7 @@ fn get_company_demands(
   }
 }
 
-/// ## `GET /api/demand/:id/segment`
+/// ## `GET /api/company/demand/:id/segment`
 ///
 /// Fetch all Segments that a Demand is assigned to.
 ///
@@ -333,7 +382,7 @@ fn get_demand_segments(database: pog.Connection, id: String) -> Response {
   }
 }
 
-/// ## `GET /api/demand/:id/service`
+/// ## `GET /api/company/demand/:id/service`
 ///
 /// Fetch all Services that a Demand is assigned to.
 ///
@@ -372,7 +421,7 @@ fn get_demand_services(database: pog.Connection, id: String) -> Response {
   }
 }
 
-/// ## `GET /api/demand/:id/technology`
+/// ## `GET /api/company/demand/:id/technology`
 ///
 /// Fetch all Technologies that a Demand is assigned to.
 ///
@@ -411,7 +460,7 @@ fn get_demand_technologies(database: pog.Connection, id: String) -> Response {
   }
 }
 
-/// ## `GET /api/demand/:id/expertise`
+/// ## `GET /api/company/demand/:id/expertise`
 ///
 /// Fetch all Expertises that a Demand is assigned to.
 ///
@@ -450,7 +499,7 @@ fn get_demand_expertises(database: pog.Connection, id: String) -> Response {
   }
 }
 
-/// ## `POST /api/demand/:id/segment`
+/// ## `POST /api/company/demand/:id/segment`
 ///
 /// Assign a Segment to a Company's Demand.
 ///
@@ -506,7 +555,7 @@ fn assign_demand_to_segment(
   }
 }
 
-/// ## `DELETE /api/demand/:id/segment/:segment_id`
+/// ## `DELETE /api/company/demand/:id/segment/:segment_id`
 ///
 /// Unassign a Segment from a Company's Demand.
 ///
@@ -544,7 +593,7 @@ fn unassign_demand_from_segment(
   }
 }
 
-/// ## `POST /api/demand/:id/service`
+/// ## `POST /api/company/demand/:id/service`
 ///
 /// Assign a Service to a Company's Demand.
 ///
@@ -600,7 +649,7 @@ fn assign_demand_to_service(
   }
 }
 
-/// ## `DELETE /api/demand/:id/service/:service_id`
+/// ## `DELETE /api/company/demand/:id/service/:service_id`
 ///
 /// Unassign a Service from a Company's Demand.
 ///
@@ -638,7 +687,7 @@ fn unassign_demand_from_service(
   }
 }
 
-/// ## `POST /api/demand/:id/technology`
+/// ## `POST /api/company/demand/:id/technology`
 ///
 /// Assign a Technology to a Company's Demand.
 ///
@@ -694,7 +743,7 @@ fn assign_demand_to_technology(
   }
 }
 
-/// ## `DELETE /api/demand/:id/technology/:technology_id`
+/// ## `DELETE /api/company/demand/:id/technology/:technology_id`
 ///
 /// Unassign a Technology from a Company's Demand.
 ///
@@ -732,7 +781,7 @@ fn unassign_demand_from_technology(
   }
 }
 
-/// ## `POST /api/demand/:id/expertise`
+/// ## `POST /api/company/demand/:id/expertise`
 ///
 /// Assign an Expertise to a Company's Demand.
 ///
@@ -788,7 +837,7 @@ fn assign_demand_to_expertise(
   }
 }
 
-/// ## `DELETE /api/demand/:id/expertise/:expertise_id`
+/// ## `DELETE /api/company/demand/:id/expertise/:expertise_id`
 ///
 /// Unassign an Expertise from a Company's Demand.
 ///
