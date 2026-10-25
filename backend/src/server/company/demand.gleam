@@ -134,8 +134,6 @@ pub fn get_segments(
   database: pog.Connection,
   from id: uuid.Uuid,
 ) -> Result(List(segment.Segment), DemandError) {
-  use <- ensure_exists(database, id)
-
   use returned <- result.map(
     sql.get_segments(database, id)
     |> result.map_error(DatabaseError),
@@ -203,8 +201,6 @@ pub fn get_expertises(
   database: pog.Connection,
   id: uuid.Uuid,
 ) -> Result(List(expertise.Expertise), DemandError) {
-  use <- ensure_exists(database, id)
-
   use returned <- result.map(
     sql.get_expertises(database, id)
     |> result.map_error(DatabaseError),
@@ -342,8 +338,6 @@ pub fn get_services(
   database: pog.Connection,
   id: uuid.Uuid,
 ) -> Result(List(service.Service), DemandError) {
-  use <- ensure_exists(database, id)
-
   use returned <- result.map(
     sql.get_services(database, id)
     |> result.map_error(DatabaseError),
@@ -411,8 +405,6 @@ pub fn get_technologies(
   database: pog.Connection,
   id: uuid.Uuid,
 ) -> Result(List(technology.Technology), DemandError) {
-  use <- ensure_exists(database, id)
-
   use returned <- result.map(
     sql.get_technologies(database, id)
     |> result.map_error(DatabaseError),
