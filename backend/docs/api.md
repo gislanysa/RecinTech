@@ -184,6 +184,30 @@ Fetch a list of registered segments.
 - 200: Successful
 - 400: Missing, invalid or incomplete query parameters
 
+## GET /api/segment/:id
+
+Fetch information about a segment.
+
+### Path Parameters
+
+- `id` (UUID, required)
+
+### Response Body
+
+```json
+{
+  "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+  "name": "Tech",
+  "description": "Modern technology"
+}
+```
+
+### Status Codes
+
+- 200: Successful
+- 400: Invalid UUID format
+- 404: Segment not found
+
 ## GET /api/technology
 
 Fetch a list of registered technologies.
@@ -858,3 +882,567 @@ Fetch information about a company.
 - 200: Successful
 - 400: Invalid UUID format
 - 404: Company not found
+
+## GET /api/company/:id/demand
+
+Fetch all demands assigned to a company.
+
+### Path Parameters
+
+- `id` (UUID, required)
+
+### Query Parameters
+
+- `limit` (int, required)
+- `offset` (int, required)
+
+### Response Body
+
+```json
+[
+  {
+    "id": "01a173cb-9533-7ebd-87a0-590965ef3653",
+    "company_id": "01a173cb-9533-7eb5-9522-9686fef4f2a4",
+    "title": "Need more gleam projects",
+    "description": "A lot more of them",
+    "status": "open",
+    "created_at": "2026-09-14T20:08:02.000Z",
+    "updated_at": "2026-09-14T20:08:02.000Z"
+  }
+]
+```
+
+- `status`: one of `"open"`, `"closed"` or `"canceled"`
+
+### Status Codes
+
+- 200: Successful
+- 400: Invalid UUID, or missing, invalid or incomplete query parameters
+
+## POST /api/company/:id/demand
+
+Register a new demand for a company. Segments, services, expertises and
+technologies can be assigned to the demand in the same request.
+
+### Path Parameters
+
+- `id` (UUID, required): the company's ID.
+
+### Request Body
+
+```json
+{
+  "title": "Need more gleam projects",
+  "description": "A lot more of them",
+  "status": "open",
+  "segments": ["01a058ae-057f-73e8-b2a0-50986559767b"],
+  "services": ["01a0dbb3-153a-7b84-8c3d-631788972d4a"],
+  "expertises": ["01a173cb-9533-7ebd-87a0-590965ef3653"],
+  "technologies": ["01a173cb-9533-7eb5-9522-9686fef4f2a4"]
+}
+```
+
+- `status`: one of `"open"`, `"closed"` or `"canceled"`
+- `segments`, `services`, `expertises` and `technologies`: lists of UUIDs.
+  The lists may be empty, but all four fields are required.
+
+### Response Body
+
+```json
+{
+  "demand": {
+    "id": "01a173cb-9533-7ebd-87a0-590965ef3653",
+    "company_id": "01a173cb-9533-7eb5-9522-9686fef4f2a4",
+    "title": "Need more gleam projects",
+    "description": "A lot more of them",
+    "status": "open",
+    "created_at": "2025-09-14T20:08:02.000Z",
+    "updated_at": "2025-09-14T20:08:02.000Z"
+  },
+  "expertises": [
+    {
+      "id": "01a173cb-9533-7ebd-87a0-590965ef3653",
+      "name": "Education",
+      "description": "Teaching and learning"
+    }
+  ],
+  "segments": [
+    {
+      "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+      "name": "Tech",
+      "description": "Technology"
+    }
+  ],
+  "services": [
+    {
+      "id": "01a0dbb3-153a-7b84-8c3d-631788972d4a",
+      "name": "Web development",
+      "description": "Websites and http servers"
+    }
+  ],
+  "technologies": [
+    {
+      "id": "01a173cb-9533-7eb5-9522-9686fef4f2a4",
+      "name": "Gleam",
+      "description": "A friendly language for building type-safe systems"
+    }
+  ]
+}
+```
+
+### Status Codes
+
+- 201: Successful
+- 400: Invalid JSON or invalid UUID
+- 404: Company or assigned entity not found
+- 409: An entity is already assigned to the demand
+
+## GET /api/company/demand/:id
+
+Fetch information about a demand.
+
+### Path Parameters
+
+- `id` (UUID, required)
+
+### Response Body
+
+```json
+{
+  "id": "01a173cb-9533-7ebd-87a0-590965ef3653",
+  "company_id": "01a173cb-9533-7eb5-9522-9686fef4f2a4",
+  "title": "Need more gleam projects",
+  "description": "A lot more of them",
+  "status": "open",
+  "created_at": "2025-09-14T20:08:02.000Z",
+  "updated_at": "2025-09-14T20:08:02.000Z"
+}
+```
+
+- `status`: one of `"open"`, `"closed"` or `"canceled"`
+
+### Status Codes
+
+- 200: Successful
+- 400: Invalid UUID format
+- 404: Demand not found
+
+## PATCH /api/company/demand/:id
+
+Update information about a demand. Missing fields and empty strings are
+ignored.
+
+### Path Parameters
+
+- `id` (UUID, required)
+
+### Request Body
+
+```json
+{
+  "title": "new title",
+  "description": "new description"
+}
+```
+
+- `title` and `description` are optional strings.
+
+### Response Body
+
+```json
+{
+  "id": "01a173cb-9533-7ebd-87a0-590965ef3653",
+  "company_id": "01a173cb-9533-7eb5-9522-9686fef4f2a4",
+  "title": "new title",
+  "description": "new description",
+  "status": "open",
+  "created_at": "2025-09-14T20:08:02.000Z",
+  "updated_at": "2025-09-14T20:08:02.000Z"
+}
+```
+
+### Status Codes
+
+- 200: Successful
+- 400: Invalid JSON or invalid UUID format
+- 404: Demand not found
+
+## DELETE /api/company/demand/:id
+
+Delete a registered demand.
+
+### Path Parameters
+
+- `id` (UUID, required)
+
+### Response Body
+
+```json
+{
+  "id": "01a173cb-9533-7ebd-87a0-590965ef3653",
+  "company_id": "01a173cb-9533-7eb5-9522-9686fef4f2a4",
+  "title": "Need more gleam projects",
+  "description": "A lot more of them",
+  "status": "open",
+  "created_at": "2025-09-14T20:08:02.000Z",
+  "updated_at": "2025-09-14T20:08:02.000Z"
+}
+```
+
+### Status Codes
+
+- 200: Successful
+- 400: Invalid UUID format
+- 404: Demand not found
+
+## GET /api/company/demand/:id/segment
+
+Fetch all segments that a company's demand is assigned to.
+
+### Path Parameters
+
+- `id` (UUID, required)
+
+### Response Body
+
+```json
+[
+  {
+    "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+    "name": "Tech",
+    "description": "Technology"
+  },
+  {
+    "id": "01a0dbb3-153a-7b84-8c3d-631788972d4a",
+    "name": "Biotech",
+    "description": "Technology, but Bio"
+  }
+]
+```
+
+### Status Codes
+
+- 200: Successful
+- 400: Invalid UUID format
+
+## POST /api/company/demand/:id/segment
+
+Assign a segment to a company's demand.
+
+### Path Parameters
+
+- `id` (UUID, required)
+
+### Request Body
+
+```json
+{
+  "segment": "01a058ae-057f-73e8-b2a0-50986559767b"
+}
+```
+
+### Response Body
+
+```json
+{
+  "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+  "name": "Tech",
+  "description": "Technology-related stuff"
+}
+```
+
+### Status Codes
+
+- 201: Successful
+- 400: Invalid JSON or invalid UUID
+- 404: Demand or Segment not found
+- 409: Already assigned
+
+## DELETE /api/company/demand/:id/segment/:segment_id
+
+Unassign a segment from a company's demand.
+
+### Path Parameters
+
+- `id` (UUID, required)
+- `segment_id` (UUID, required)
+
+### Response Body
+
+```json
+{
+  "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+  "name": "Tech",
+  "description": "Technology-related stuff"
+}
+```
+
+### Status Codes
+
+- 200: Successful
+- 400: Invalid UUID format
+- 404: Segment is not assigned to the demand
+
+## GET /api/company/demand/:id/service
+
+Fetch all services that a company's demand is assigned to.
+
+### Path Parameters
+
+- `id` (UUID, required)
+
+### Response Body
+
+```json
+[
+  {
+    "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+    "name": "UI/UX",
+    "description": "user experience"
+  },
+  {
+    "id": "01a0dbb3-153a-7b84-8c3d-631788972d4a",
+    "name": "Web development",
+    "description": "Websites and http servers"
+  }
+]
+```
+
+### Status Codes
+
+- 200: Successful
+- 400: Invalid UUID format
+
+## POST /api/company/demand/:id/service
+
+Assign a service to a company's demand.
+
+### Path Parameters
+
+- `id` (UUID, required)
+
+### Request Body
+
+```json
+{
+  "service": "01a058ae-057f-73e8-b2a0-50986559767b"
+}
+```
+
+### Response Body
+
+```json
+{
+  "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+  "name": "UI/UX",
+  "description": "user experience"
+}
+```
+
+### Status Codes
+
+- 201: Successful
+- 400: Invalid JSON or invalid UUID
+- 404: Demand or Service not found
+- 409: Already assigned
+
+## DELETE /api/company/demand/:id/service/:service_id
+
+Unassign a service from a company's demand.
+
+### Path Parameters
+
+- `id` (UUID, required)
+- `service_id` (UUID, required)
+
+### Response Body
+
+```json
+{
+  "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+  "name": "UI/UX",
+  "description": "user experience"
+}
+```
+
+### Status Codes
+
+- 200: Successful
+- 400: Invalid UUID format
+- 404: Service is not assigned to the demand
+
+## GET /api/company/demand/:id/technology
+
+Fetch all technologies that a company's demand is assigned to.
+
+### Path Parameters
+
+- `id` (UUID, required)
+
+### Response Body
+
+```json
+[
+  {
+    "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+    "name": "Gleam",
+    "description": "A friendly language for building type-safe systems"
+  },
+  {
+    "id": "01a0dbb3-153a-7b84-8c3d-631788972d4a",
+    "name": "PostgreSQL",
+    "description": "The world's most advanced open source database"
+  }
+]
+```
+
+### Status Codes
+
+- 200: Successful
+- 400: Invalid UUID format
+
+## POST /api/company/demand/:id/technology
+
+Assign a technology to a company's demand.
+
+### Path Parameters
+
+- `id` (UUID, required)
+
+### Request Body
+
+```json
+{
+  "technology": "01a058ae-057f-73e8-b2a0-50986559767b"
+}
+```
+
+### Response Body
+
+```json
+{
+  "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+  "name": "Gleam",
+  "description": "A friendly language for building type-safe systems"
+}
+```
+
+### Status Codes
+
+- 201: Successful
+- 400: Invalid JSON or invalid UUID
+- 404: Demand or Technology not found
+- 409: Already assigned
+
+## DELETE /api/company/demand/:id/technology/:technology_id
+
+Unassign a technology from a company's demand.
+
+### Path Parameters
+
+- `id` (UUID, required)
+- `technology_id` (UUID, required)
+
+### Response Body
+
+```json
+{
+  "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+  "name": "Gleam",
+  "description": "A friendly language for building type-safe systems"
+}
+```
+
+### Status Codes
+
+- 200: Successful
+- 400: Invalid UUID format
+- 404: Technology is not assigned to the demand
+
+## GET /api/company/demand/:id/expertise
+
+Fetch all expertises that a company's demand is assigned to.
+
+### Path Parameters
+
+- `id` (UUID, required)
+
+### Response Body
+
+```json
+[
+  {
+    "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+    "name": "Education",
+    "description": "Teaching and learning"
+  },
+  {
+    "id": "01a0dbb3-153a-7b84-8c3d-631788972d4a",
+    "name": "Health",
+    "description": "Medical stuff"
+  }
+]
+```
+
+### Status Codes
+
+- 200: Successful
+- 400: Invalid UUID format
+
+## POST /api/company/demand/:id/expertise
+
+Assign an expertise to a company's demand.
+
+### Path Parameters
+
+- `id` (UUID, required)
+
+### Request Body
+
+```json
+{
+  "expertise": "01a058ae-057f-73e8-b2a0-50986559767b"
+}
+```
+
+### Response Body
+
+```json
+{
+  "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+  "name": "Education",
+  "description": "May it be free and for everyone"
+}
+```
+
+### Status Codes
+
+- 201: Successful
+- 400: Invalid JSON or invalid UUID
+- 404: Demand or Expertise not found
+- 409: Already assigned
+
+## DELETE /api/company/demand/:id/expertise/:expertise_id
+
+Unassign an expertise from a company's demand.
+
+### Path Parameters
+
+- `id` (UUID, required)
+- `expertise_id` (UUID, required)
+
+### Response Body
+
+```json
+{
+  "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+  "name": "Education",
+  "description": "May it be free and for everyone"
+}
+```
+
+### Status Codes
+
+- 200: Successful
+- 400: Invalid UUID format
+- 404: Expertise is not assigned to the demand

@@ -8,15 +8,17 @@ import gleam/uri
 import pog
 import server/cnpj
 import server/company
+import server/company/demand
 import server/email
+import server/expertise
+import server/segment
+import server/service
 import server/startup
-import server/startup/expertise
-import server/startup/segment
-import server/startup/service
-import server/startup/technology
+import server/technology
 import server/web
 import wisp
 import wisp/simulate
+import youid/uuid
 
 /// Default password for all dummy entities
 pub const password = "root"
@@ -147,4 +149,23 @@ pub fn many(amount: Int, new: fn() -> a) -> List(a) {
     [item, ..acc]
   })
   |> list.reverse
+}
+
+pub fn new_demand(
+  database: pog.Connection,
+  from company_id: uuid.Uuid,
+) -> demand.Demand {
+  let result =
+    demand.register(
+      database,
+      company_id: company_id,
+      title: "wibble_title",
+      description: "wibble_description",
+      status: demand.Open,
+    )
+
+  case result {
+    Ok(data) -> data
+    Error(_) -> panic as "failed to generate dummy demand"
+  }
 }

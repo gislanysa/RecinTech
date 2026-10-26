@@ -1,5 +1,5 @@
 import server/dummy
-import server/startup/service
+import server/service
 import server_test
 import youid/uuid
 

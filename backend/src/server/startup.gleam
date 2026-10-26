@@ -10,13 +10,13 @@ import gleam/uri
 import pog
 import server/cnpj
 import server/email
+import server/expertise
 import server/internal
 import server/lgpd
-import server/startup/expertise
-import server/startup/segment
-import server/startup/service
+import server/segment
+import server/service
 import server/startup/sql
-import server/startup/technology
+import server/technology
 import youid/uuid
 
 pub type StartupError {
@@ -168,18 +168,32 @@ pub fn decoder() -> decode.Decoder(Startup) {
 
 /// Encode a Startup into JSON
 pub fn to_json(startup: Startup) -> json.Json {
+  let Startup(
+    id:,
+    name:,
+    email:,
+    stage:,
+    cnpj:,
+    description:,
+    city:,
+    state:,
+    created_at:,
+    is_active:,
+    website:,
+  ) = startup
+
   json.object([
-    #("id", internal.uuid_to_json(startup.id)),
-    #("name", json.string(startup.name)),
-    #("email", json.string(email.to_string(startup.email))),
-    #("stage", stage_to_json(startup.stage)),
-    #("cnpj", json.string(cnpj.to_string(startup.cnpj))),
-    #("description", json.string(startup.description)),
-    #("city", json.string(startup.city)),
-    #("state", json.string(startup.state)),
-    #("created_at", internal.timestamp_to_json(startup.created_at)),
-    #("is_active", json.bool(startup.is_active)),
-    #("website", internal.uri_to_json(startup.website)),
+    #("id", internal.uuid_to_json(id)),
+    #("name", json.string(name)),
+    #("email", json.string(email.to_string(email))),
+    #("stage", stage_to_json(stage)),
+    #("cnpj", json.string(cnpj.to_string(cnpj))),
+    #("description", json.string(description)),
+    #("city", json.string(city)),
+    #("state", json.string(state)),
+    #("created_at", internal.timestamp_to_json(created_at)),
+    #("is_active", json.bool(is_active)),
+    #("website", internal.uri_to_json(website)),
   ])
 }
 
@@ -207,7 +221,7 @@ pub fn to_json(startup: Startup) -> json.Json {
 ///   Error(startup.CnpjConflict(..))
 ///   | Error(startup.EmailConflict(..)) -> wisp.response(409)
 ///
-///   Ok(data) -> todo as "send response"
+///   Ok(data) -> wisp.response(201)
 ///   Error(_) -> wisp.internal_server_error()
 /// }
 /// ```
@@ -223,8 +237,6 @@ pub fn register(
   state state: String,
   website website: uri.Uri,
 ) -> Result(Startup, StartupError) {
-  let stage = stage_to_enum(stage)
-
   use hash <- result.try(
     argus.hasher()
     |> argus.hash(password)
@@ -236,7 +248,7 @@ pub fn register(
     sql.register(
       database,
       name,
-      stage,
+      stage_to_enum(stage),
       email.to_string(email),
       hash,
       cnpj.to_string(cnpj),
@@ -311,7 +323,7 @@ pub fn register(
 /// )
 ///
 /// case result {
-///   Ok(data) -> todo as "send response"
+///   Ok(data) -> wisp.ok()
 ///   Error(startup.NotFound(_)) -> wisp.not_found()
 ///   Error(startup.WrongPassword) -> wisp.response(401)
 ///   Error(_) -> wisp.internal_server_error()
@@ -370,7 +382,7 @@ fn stage_to_enum(stage: Stage) -> sql.StartupStage {
 /// let result = startup.get(context.database, id)
 ///
 /// case result {
-///   Ok(data) -> todo as "send response"
+///   Ok(data) -> wisp.ok()
 ///   Error(startup.NotFound(_)) -> wisp.not_found()
 ///   Error(_) -> wisp.internal_server_error()
 /// }
@@ -427,7 +439,7 @@ pub fn get(
 /// let result = startup.get_segments(context.database, id)
 ///
 /// case result {
-///   Ok(segments) -> todo as "send response"
+///   Ok(segments) -> wisp.ok()
 ///   Error(startup.NotFound(_)) -> wisp.not_found()
 ///   Error(_) -> wisp.internal_server_error()
 /// }
@@ -436,8 +448,6 @@ pub fn get_segments(
   database: pog.Connection,
   from id: uuid.Uuid,
 ) -> Result(List(segment.Segment), StartupError) {
-  use <- ensure_exists(database, id)
-
   use returned <- result.map(
     sql.get_segments(database, id)
     |> result.map_error(DatabaseError),
@@ -448,7 +458,7 @@ pub fn get_segments(
   })
 }
 
-/// Sometime it can be a good idea to check if a Startup exists before
+/// Sometimes it can be a good idea to check if a Startup exists before
 /// performing a query. This middleware returns `Error(NotFound(_))`
 /// if a Startup is not registered.
 ///
@@ -491,7 +501,7 @@ pub fn ensure_exists(
 /// )
 ///
 /// case result {
-///   Ok(assigned) -> todo as "send response"
+///   Ok(assigned) -> wisp.response(201)
 ///   Error(startup.NotFound(_)) -> wisp.not_found()
 ///   Error(_) -> wisp.internal_server_error()
 /// }
@@ -542,7 +552,7 @@ pub fn assign_segment(
 /// )
 ///
 /// case result {
-///   Ok(deleted) -> todo as "send response"
+///   Ok(deleted) -> wisp.ok()
 ///   Error(startup.AssignmentNotFound(_)) -> wisp.not_found()
 ///   Error(_) -> wisp.internal_server_error()
 /// }
@@ -579,7 +589,7 @@ pub fn unassign_segment(
 /// )
 ///
 /// case result {
-///   Ok(assigned) -> todo as "send response"
+///   Ok(assigned) -> wisp.response(201)
 ///   Error(startup.NotFound(_)) -> wisp.not_found()
 ///   Error(_) -> wisp.internal_server_error()
 /// }
@@ -632,7 +642,7 @@ pub fn assign_expertise(
 /// )
 ///
 /// case result {
-///   Ok(deleted) -> todo as "send response"
+///   Ok(deleted) -> wisp.ok()
 ///   Error(startup.AssignmentNotFound(_)) -> wisp.not_found()
 ///   Error(_) -> wisp.internal_server_error()
 /// }
@@ -663,7 +673,7 @@ pub fn unassign_expertise(
 /// let result = startup.get_expertises(context.database, id)
 ///
 /// case result {
-///   Ok(segments) -> todo as "send response"
+///   Ok(segments) -> wisp.ok()
 ///   Error(startup.NotFound(_)) -> wisp.not_found()
 ///   Error(_) -> wisp.internal_server_error()
 /// }
@@ -672,8 +682,6 @@ pub fn get_expertises(
   database: pog.Connection,
   id: uuid.Uuid,
 ) -> Result(List(expertise.Expertise), StartupError) {
-  use <- ensure_exists(database, id)
-
   use returned <- result.map(
     sql.get_expertises(database, id)
     |> result.map_error(DatabaseError),
@@ -696,7 +704,7 @@ pub fn get_expertises(
 /// let result = startup.get_technologies(context.database, id)
 ///
 /// case result {
-///   Ok(technologies) -> todo as "send response"
+///   Ok(technologies) -> wisp.ok()
 ///   Error(startup.NotFound(_)) -> wisp.not_found()
 ///   Error(_) -> wisp.internal_server_error()
 /// }
@@ -705,8 +713,6 @@ pub fn get_technologies(
   database: pog.Connection,
   id: uuid.Uuid,
 ) -> Result(List(technology.Technology), StartupError) {
-  use <- ensure_exists(database, id)
-
   use returned <- result.map(
     sql.get_technologies(database, id)
     |> result.map_error(DatabaseError),
@@ -729,7 +735,7 @@ pub fn get_technologies(
 /// let result = startup.get_services(context.database, id)
 ///
 /// case result {
-///   Ok(services) -> todo as "send response"
+///   Ok(services) -> wisp.ok()
 ///   Error(startup.NotFound(_)) -> wisp.not_found()
 ///   Error(_) -> wisp.internal_server_error()
 /// }
@@ -738,8 +744,6 @@ pub fn get_services(
   database: pog.Connection,
   id: uuid.Uuid,
 ) -> Result(List(service.Service), StartupError) {
-  use <- ensure_exists(database, id)
-
   use returned <- result.map(
     sql.get_services(database, id)
     |> result.map_error(DatabaseError),
@@ -763,7 +767,7 @@ pub fn get_services(
 ///   )
 ///
 /// case result {
-///   Ok(assigned) -> todo as "send response"
+///   Ok(assigned) -> wisp.response(201)
 ///   Error(startup.NotFound(_)) -> wisp.not_found()
 ///   Error(_) -> wisp.internal_server_error()
 /// }
@@ -814,7 +818,7 @@ pub fn assign_service(
 /// )
 ///
 /// case result {
-///   Ok(deleted) -> todo as "send response"
+///   Ok(deleted) -> wisp.ok()
 ///   Error(startup.AssignmentNotFound(_)) -> wisp.not_found()
 ///   Error(_) -> wisp.internal_server_error()
 /// }
@@ -850,7 +854,7 @@ pub fn unassign_service(
 /// )
 ///
 /// case result {
-///   Ok(assigned) -> todo as "send response"
+///   Ok(assigned) -> wisp.response(201)
 ///   Error(startup.NotFound(_)) -> wisp.not_found()
 ///   Error(_) -> wisp.internal_server_error()
 /// }
@@ -907,7 +911,7 @@ pub fn assign_technology(
 /// )
 ///
 /// case result {
-///   Ok(deleted) -> todo as "send response"
+///   Ok(deleted) -> wisp.ok()
 ///   Error(startup.AssignmentNotFound(_)) -> wisp.not_found()
 ///   Error(_) -> wisp.internal_server_error()
 /// }
@@ -944,7 +948,7 @@ pub fn unassign_technology(
 ///   startup.get_many(context.database, limit: 3, offset: 6)
 ///
 /// case result {
-///   Ok(data) -> todo as "send response"
+///   Ok(data) -> wisp.ok()
 ///   Error(_) -> wisp.internal_server_error()
 /// }
 /// ```
@@ -998,7 +1002,7 @@ pub fn get_many(
 /// let result = startup.get_lgpd_consent(context.database, id)
 ///
 /// case returned {
-///   Ok(data) -> todo as "send response"
+///   Ok(data) -> wisp.ok()
 ///   Error(startup.NotFound(_)) -> wisp.not_found()
 ///   Error(_) -> wisp.internal_server_error()
 /// }

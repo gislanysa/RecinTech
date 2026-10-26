@@ -10,6 +10,7 @@ import gleam/time/timestamp
 import gleam/uri
 import pog
 import server/cnpj
+import server/company/demand
 import server/company/sql
 import server/email
 import server/internal
@@ -191,7 +192,7 @@ pub fn to_json(company: Company) -> json.Json {
 ///   Error(company.CnpjConflict(..))
 ///   | Error(company.EmailConflict(..)) -> wisp.response(409)
 ///
-///   Ok(data) -> todo as "send response"
+///   Ok(data) -> wisp.response(201)
 ///   Error(_) -> wisp.internal_server_error()
 /// }
 /// ```
@@ -292,7 +293,7 @@ pub fn register(
 /// )
 ///
 /// case result {
-///   Ok(data) -> todo as "send response"
+///   Ok(data) -> wisp.ok()
 ///   Error(company.NotFound(_)) -> wisp.not_found()
 ///   Error(company.WrongPassword) -> wisp.response(401)
 ///   Error(_) -> wisp.internal_server_error()
@@ -335,7 +336,7 @@ pub fn verify(
 /// let result = company.get(context.database, id)
 ///
 /// case result {
-///   Ok(data) -> todo as "send response"
+///   Ok(data) -> wisp.ok()
 ///   Error(company.NotFound(_)) -> wisp.not_found()
 ///   Error(_) -> wisp.internal_server_error()
 /// }
@@ -409,7 +410,7 @@ fn size_to_enum(size: Size) -> sql.CompanySize {
 /// let result = company.get_lgpd_consent(context.database, id)
 ///
 /// case returned {
-///   Ok(data) -> todo as "send response"
+///   Ok(data) -> wisp.ok()
 ///   Error(company.NotFound(_)) -> wisp.not_found()
 ///   Error(_) -> wisp.internal_server_error()
 /// }
@@ -444,5 +445,52 @@ pub fn get_lgpd_consent(
           version: row.policy_version,
         )
     }
+  })
+}
+
+/// Get all Demands assigned to a given company
+///
+/// ## Examples
+///
+/// ```gleam
+/// let result = company.get(
+///   context.database,
+///   from: company_id,
+///   limit: 100,
+///   offset: 0,
+/// )
+///
+/// case result {
+///   Ok(data) -> wisp.ok()
+///   Error(_) -> wisp.internal_server_error()
+/// }
+/// ```
+pub fn get_demands(
+  database: pog.Connection,
+  from id: uuid.Uuid,
+  limit limit: Int,
+  offset offset: Int,
+) -> Result(List(demand.Demand), CompanyError) {
+  use returned <- result.map(
+    sql.get_demands(database, id, limit, offset)
+    |> result.map_error(DatabaseError),
+  )
+
+  list.map(returned.rows, fn(row) {
+    let status = case row.demand_status {
+      sql.Open -> demand.Open
+      sql.Closed -> demand.Closed
+      sql.Canceled -> demand.Canceled
+    }
+
+    demand.Demand(
+      id: row.id,
+      company_id: row.company_id,
+      title: row.title,
+      description: row.description,
+      status: status,
+      created_at: row.created_at,
+      updated_at: row.updated_at,
+    )
   })
 }

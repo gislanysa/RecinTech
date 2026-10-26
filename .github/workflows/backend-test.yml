@@ -33,6 +33,7 @@ jobs:
           POSTGRES_USER: aluno
           POSTGRES_PASSWORD: "123"
           POSTGRES_DB: senac
+          IN_PARALLEL: true
         options: >-
           --health-cmd "pg_isready -U aluno -d senac" --health-interval 10s --health-timeout 5s --health-retries 5
         ports:

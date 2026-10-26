@@ -6,8 +6,8 @@ import gleam/json
 import gleam/list
 import gleam/result
 import pog
+import server/expertise/sql
 import server/internal
-import server/startup/expertise/sql
 import youid/uuid
 
 pub type ExpertiseError {
@@ -49,7 +49,7 @@ pub fn decoder() -> decode.Decoder(Expertise) {
 /// let result = expertise.get(context.database, id)
 ///
 /// case result {
-///   Ok(data) -> todo as "send response"
+///   Ok(data) -> wisp.ok()
 ///   Error(expertise.NotFound(_)) -> wisp.not_found()
 ///   Error(_) -> wisp.internal_server_error()
 /// }
@@ -81,7 +81,7 @@ pub fn get(
 ///   expertise.get_many(context.database, limit: 3, offset: 6)
 ///
 /// case result {
-///   Ok(data) -> todo as "send response"
+///   Ok(data) -> wisp.ok()
 ///   Error(_) -> wisp.internal_server_error()
 /// }
 /// ```
@@ -112,7 +112,7 @@ pub fn get_many(
 /// )
 ///
 /// case result {
-///   Ok(data) -> todo as "send response"
+///   Ok(data) -> wisp.response(201)
 ///   Error(_) -> wisp.internal_server_error()
 /// }
 /// ```

@@ -1,8 +1,10 @@
 import gleam/uri
 import server/cnpj
 import server/company
+import server/company/demand
 import server/email
 import server/startup
+import youid/uuid
 
 pub type Login {
   Login(session: String, email: email.Email, password: String)
@@ -33,4 +35,20 @@ pub type RegisterCompany {
     state: String,
     website: uri.Uri,
   )
+}
+
+pub type RegisterDemand {
+  RegisterDemand(
+    title: String,
+    description: String,
+    status: demand.Status,
+    expertises: List(uuid.Uuid),
+    segments: List(uuid.Uuid),
+    services: List(uuid.Uuid),
+    technologies: List(uuid.Uuid),
+  )
+}
+
+pub type UpdateDemand {
+  UpdateDemand(title: String, description: String)
 }

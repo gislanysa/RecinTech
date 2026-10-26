@@ -262,7 +262,6 @@ pub fn assign_missing_segment_to_startup_test() -> Nil {
 pub fn get_startup_segments_test() -> Nil {
   use context <- server_test.with_context()
 
-  // First one
   let segment_a = dummy.new_segment(context.database)
   let segment_b = dummy.new_segment(context.database)
 
@@ -278,8 +277,126 @@ pub fn get_startup_segments_test() -> Nil {
 
   let assert Ok(returned) =
     startup.get_segments(context.database, from: startup.id)
-
   assert returned == [segment_a, segment_b]
+
+  Nil
+}
+
+pub fn get_missing_startup_segments() -> Nil {
+  use context <- server_test.with_context()
+
+  let missing_id = uuid.v7()
+  let assert Ok([]) = startup.get_segments(context.database, from: missing_id)
+
+  Nil
+}
+
+pub fn get_startup_expertises_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let expertise_a = dummy.new_expertise(context.database)
+  let expertise_b = dummy.new_expertise(context.database)
+
+  let startup = dummy.new_startup(context.database)
+
+  // Assigning first expertise
+  let assert Ok(_) =
+    startup.assign_expertise(
+      context.database,
+      startup.id,
+      assign: expertise_a.id,
+    )
+
+  // Assigning a second expertise
+  let assert Ok(_) =
+    startup.assign_expertise(
+      context.database,
+      startup.id,
+      assign: expertise_b.id,
+    )
+
+  let assert Ok(returned) = startup.get_expertises(context.database, startup.id)
+  assert returned == [expertise_a, expertise_b]
+
+  Nil
+}
+
+pub fn get_missing_startup_expertises_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let missing_id = uuid.v7()
+  let assert Ok([]) = startup.get_expertises(context.database, missing_id)
+
+  Nil
+}
+
+pub fn get_startup_services_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let service_a = dummy.new_service(context.database)
+  let service_b = dummy.new_service(context.database)
+
+  let startup = dummy.new_startup(context.database)
+
+  // Assigning first service
+  let assert Ok(_) =
+    startup.assign_service(context.database, startup.id, assign: service_a.id)
+
+  // Assigning a second service
+  let assert Ok(_) =
+    startup.assign_service(context.database, startup.id, assign: service_b.id)
+
+  let assert Ok(returned) = startup.get_services(context.database, startup.id)
+  assert returned == [service_a, service_b]
+
+  Nil
+}
+
+pub fn get_missing_startup_services_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let missing_id = uuid.v7()
+  let assert Ok([]) = startup.get_services(context.database, missing_id)
+
+  Nil
+}
+
+pub fn get_startup_technologies_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let technology_a = dummy.new_technology(context.database)
+  let technology_b = dummy.new_technology(context.database)
+
+  let startup = dummy.new_startup(context.database)
+
+  // Assigning first technology
+  let assert Ok(_) =
+    startup.assign_technology(
+      context.database,
+      startup.id,
+      assign: technology_a.id,
+    )
+
+  // Assigning a second technology
+  let assert Ok(_) =
+    startup.assign_technology(
+      context.database,
+      startup.id,
+      assign: technology_b.id,
+    )
+
+  let assert Ok(returned) =
+    startup.get_technologies(context.database, startup.id)
+  assert returned == [technology_a, technology_b]
+
+  Nil
+}
+
+pub fn get_missing_startup_technologies_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let missing_id = uuid.v7()
+  let assert Ok([]) = startup.get_technologies(context.database, missing_id)
 
   Nil
 }
