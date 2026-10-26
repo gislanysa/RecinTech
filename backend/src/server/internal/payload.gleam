@@ -1,3 +1,4 @@
+import gleam/option
 import gleam/uri
 import server/cnpj
 import server/company
@@ -51,4 +52,17 @@ pub type RegisterDemand {
 
 pub type UpdateDemand {
   UpdateDemand(title: String, description: String)
+}
+
+pub type UpdateStartup {
+  UpdateStartup(
+    name: String,
+    stage: option.Option(startup.Stage),
+    email: option.Option(email.Email),
+    cnpj: option.Option(cnpj.Cnpj),
+    description: String,
+    city: String,
+    state: String,
+    website: uri.Uri,
+  )
 }

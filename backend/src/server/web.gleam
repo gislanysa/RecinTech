@@ -7,9 +7,11 @@ import gleam/http/request
 import gleam/int
 import gleam/json
 import gleam/list
+import gleam/option.{None, Some}
 import gleam/result
 import gleam/string
 import gleam/time/duration
+import gleam/uri
 import lustre/attribute
 import lustre/element
 import lustre/element/html
@@ -99,6 +101,9 @@ pub fn handle_request(request: Request, context: Context) -> Response {
     // +-----------------------------------------------------------------------+
     //
     http.Post, ["api", "startup"] -> register_startup(request, context.database)
+
+    http.Patch, ["api", "startup", id] ->
+      update_startup(request, context.database, id)
 
     http.Get, ["api", "startup"] -> get_many_startups(request, context.database)
 
@@ -240,6 +245,93 @@ pub fn handle_request(request: Request, context: Context) -> Response {
 
     // Page not found in the frontend
     _, _ -> get_root_document()
+  }
+}
+
+fn update_startup(
+  request: request.Request(wisp.Connection),
+  database: pog.Connection,
+  id: String,
+) -> Response {
+  use body <- wisp.require_json(request)
+  use id <- require_valid_uuid(id)
+
+  let decoder = {
+    use name <- decode.optional_field("name", "", decode.string)
+    use description <- decode.optional_field("description", "", decode.string)
+    use city <- decode.optional_field("city", "", decode.string)
+    use state <- decode.optional_field("state", "", decode.string)
+
+    use website <- decode.optional_field(
+      "website",
+      uri.empty,
+      internal.uri_decoder(),
+    )
+
+    use stage <- decode.optional_field(
+      "stage",
+      None,
+      decode.optional(startup.stage_decoder()),
+    )
+
+    use email <- decode.optional_field(
+      "email",
+      None,
+      decode.optional(email.decoder()),
+    )
+
+    use cnpj <- decode.optional_field(
+      "cnpj",
+      None,
+      decode.optional(cnpj.decoder()),
+    )
+
+    decode.success(payload.UpdateStartup(
+      name:,
+      stage:,
+      email:,
+      cnpj:,
+      description:,
+      city:,
+      state:,
+      website:,
+    ))
+  }
+
+  case decode.run(body, decoder) {
+    Error(_) -> wisp.bad_request("Invalid JSON")
+
+    Ok(payload) -> {
+      let website = case uri.to_string(payload.website) {
+        "" -> None
+        _ -> Some(payload.website)
+      }
+
+      let result = {
+        startup.update(
+          database,
+          id,
+          new_name: string.to_option(payload.name),
+          new_stage: payload.stage,
+          new_email: payload.email,
+          new_cnpj: payload.cnpj,
+          new_description: string.to_option(payload.description),
+          new_city: string.to_option(payload.city),
+          new_state: string.to_option(payload.state),
+          new_website: website,
+        )
+        |> result.map_error(StartupError)
+      }
+
+      case result {
+        Ok(startup) ->
+          startup.to_json(startup)
+          |> json.to_string
+          |> wisp.json_response(200)
+
+        Error(error) -> handle_error(error)
+      }
+    }
   }
 }
 
