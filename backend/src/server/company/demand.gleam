@@ -543,6 +543,15 @@ fn do_update_status(
 }
 
 /// Update a Demand's status to `Open`
+///
+/// ## Examples
+///
+/// ```gleam
+/// let assert Ok(demand) = demand.open(context.database, id)
+///
+/// // demand is now marked as open
+/// assert demand.status == demand.Open
+/// ```
 pub fn open(
   database: pog.Connection,
   id: uuid.Uuid,
@@ -551,6 +560,15 @@ pub fn open(
 }
 
 /// Update a Demand's status to `Closed`
+///
+/// ## Examples
+///
+/// ```gleam
+/// let assert Ok(demand) = demand.close(context.database, id)
+///
+/// // demand is now marked as closed
+/// assert demand.status == demand.Closed
+/// ```
 pub fn close(
   database: pog.Connection,
   id: uuid.Uuid,
@@ -559,6 +577,15 @@ pub fn close(
 }
 
 /// Update a Demand's status to `Canceled`
+///
+/// ## Examples
+///
+/// ```gleam
+/// let assert Ok(demand) = demand.cancel(context.database, id)
+///
+/// // demand is now marked as canceled
+/// assert demand.status == demand.Canceled
+/// ```
 pub fn cancel(
   database: pog.Connection,
   id: uuid.Uuid,
@@ -580,7 +607,7 @@ pub fn cancel(
 /// )
 ///
 /// case result {
-///   Ok(demand) -> wisp.ok()
+///   Ok(demand) -> handle_data(demand)
 ///   Error(demand.NotFound(_)) -> wisp.not_found()
 ///   Error(_) -> wisp.internal_server_error()
 /// }
