@@ -1,3 +1,4 @@
+import gleam/dynamic/decode
 import gleam/json
 import gleam/list
 import gleam/option.{type Option}
@@ -45,7 +46,19 @@ pub type Status {
   Canceled
 }
 
-fn status_to_json(status: Status) -> json.Json {
+@internal
+pub fn status_decoder() -> decode.Decoder(Status) {
+  use variant <- decode.then(decode.string)
+  case variant {
+    "open" -> decode.success(Open)
+    "closed" -> decode.success(Closed)
+    "canceled" -> decode.success(Canceled)
+    _ -> decode.failure(Open, "Status")
+  }
+}
+
+@internal
+pub fn status_to_json(status: Status) -> json.Json {
   case status {
     Open -> json.string("open")
     Closed -> json.string("closed")
@@ -73,6 +86,27 @@ pub type Demand {
     /// Timestamp of when the demand was last updated.
     updated_at: timestamp.Timestamp,
   )
+}
+
+/// A decoder that decodes `Demand` values.
+pub fn decoder() -> decode.Decoder(Demand) {
+  use id <- decode.field("id", internal.uuid_decoder())
+  use company_id <- decode.field("company_id", internal.uuid_decoder())
+  use title <- decode.field("title", decode.string)
+  use description <- decode.field("description", decode.string)
+  use status <- decode.field("status", status_decoder())
+  use created_at <- decode.field("created_at", internal.timestamp_decoder())
+  use updated_at <- decode.field("updated_at", internal.timestamp_decoder())
+
+  decode.success(Demand(
+    id:,
+    company_id:,
+    title:,
+    description:,
+    status:,
+    created_at:,
+    updated_at:,
+  ))
 }
 
 /// Encode a `Demand` into JSON
