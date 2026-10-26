@@ -4,6 +4,7 @@ import argus
 import gleam/dynamic/decode
 import gleam/json
 import gleam/list
+import gleam/option.{type Option}
 import gleam/result
 import gleam/time/timestamp
 import gleam/uri
@@ -983,13 +984,13 @@ pub fn get_many(
       name: row.name,
       email:,
       stage: stage_from_enum(row.stage),
-      cnpj: cnpj,
+      cnpj:,
       description: row.description,
       city: row.city,
       state: row.state,
       created_at: row.created_at,
       is_active: row.is_active,
-      website: website,
+      website:,
     )
   })
 }
@@ -1038,4 +1039,100 @@ pub fn get_lgpd_consent(
         )
     }
   })
+}
+
+/// Convert a `Stage` into a String
+fn stage_to_string(stage: Stage) -> String {
+  case stage {
+    Traction -> "traction"
+    Scaling -> "scaling"
+  }
+}
+
+/// Updates a Startup's information.
+/// Passing `option.None` leaves a field unchanged.
+///
+/// ## Examples
+///
+/// ```gleam
+/// let result = startup.update(
+///   context.database,
+///   id,
+///   new_name: option.Some("Virada no Cafe"),
+///   new_stage: option.Some(startup.Scaling),
+///   new_email: option.None,
+///   new_cnpj: option.None,
+///   new_description: option.Some("Inovacao periferica que transforma"),
+///   new_city: option.None,
+///   new_state: option.None,
+///   new_website: option.None,
+/// )
+///
+/// case result {
+///   Ok(startup) -> wisp.ok()
+///   Error(startup.NotFound(_)) -> wisp.not_found()
+///   Error(_) -> wisp.internal_server_error()
+/// }
+/// ```
+pub fn update(
+  database: pog.Connection,
+  id: uuid.Uuid,
+  new_name name: Option(String),
+  new_stage stage: Option(Stage),
+  new_email email: Option(email.Email),
+  new_cnpj cnpj: Option(cnpj.Cnpj),
+  new_description description: option.Option(String),
+  new_city city: option.Option(String),
+  new_state state: option.Option(String),
+  new_website website: option.Option(uri.Uri),
+) -> Result(Startup, StartupError) {
+  use returned <- result.try(
+    sql.update(
+      database,
+      id,
+      option.unwrap(name, ""),
+      option.map(stage, stage_to_string) |> option.unwrap(""),
+      option.map(email, email.to_string) |> option.unwrap(""),
+      option.map(cnpj, cnpj.to_string) |> option.unwrap(""),
+      option.unwrap(description, ""),
+      option.unwrap(city, ""),
+      option.unwrap(state, ""),
+      option.map(website, uri.to_string) |> option.unwrap(""),
+    )
+    |> result.map_error(DatabaseError),
+  )
+
+  use row <- result.try(
+    list.first(returned.rows)
+    |> result.replace_error(NotFound(id)),
+  )
+
+  use cnpj <- result.try(
+    cnpj.parse(row.cnpj)
+    |> result.replace_error(InvalidCnpj(value: row.cnpj)),
+  )
+
+  use email <- result.try(
+    email.parse(row.email)
+    |> result.replace_error(InvalidEmail(value: row.email)),
+  )
+
+  use website <- result.map(
+    uri.parse(row.website)
+    |> result.replace_error(InvalidWebsite(value: row.website)),
+  )
+
+  Startup(
+    id: row.id,
+    name: row.name,
+    email:,
+    stage: stage_from_enum(row.stage),
+    cnpj:,
+    description: row.description,
+    city: row.city,
+    state: row.state,
+    created_at: row.created_at,
+    is_active: row.is_active,
+    website:,
+  )
 }
