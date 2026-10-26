@@ -270,6 +270,7 @@ pub type GetRow {
     city: String,
     state: String,
     created_at: Timestamp,
+    updated_at: Timestamp,
     is_active: Bool,
     website: String,
   )
@@ -294,8 +295,9 @@ pub fn get(
     use city <- decode.field(6, decode.string)
     use state <- decode.field(7, decode.string)
     use created_at <- decode.field(8, pog.timestamp_decoder())
-    use is_active <- decode.field(9, decode.bool)
-    use website <- decode.field(10, decode.string)
+    use updated_at <- decode.field(9, pog.timestamp_decoder())
+    use is_active <- decode.field(10, decode.bool)
+    use website <- decode.field(11, decode.string)
     decode.success(GetRow(
       id:,
       name:,
@@ -306,6 +308,7 @@ pub fn get(
       city:,
       state:,
       created_at:,
+      updated_at:,
       is_active:,
       website:,
     ))
@@ -322,6 +325,7 @@ SELECT
     s.city,
     s.state,
     s.created_at,
+    s.updated_at,
     s.is_active,
     s.website
 FROM
@@ -493,6 +497,7 @@ pub type GetManyRow {
     city: String,
     state: String,
     created_at: Timestamp,
+    updated_at: Timestamp,
     is_active: Bool,
     website: String,
   )
@@ -518,8 +523,9 @@ pub fn get_many(
     use city <- decode.field(6, decode.string)
     use state <- decode.field(7, decode.string)
     use created_at <- decode.field(8, pog.timestamp_decoder())
-    use is_active <- decode.field(9, decode.bool)
-    use website <- decode.field(10, decode.string)
+    use updated_at <- decode.field(9, pog.timestamp_decoder())
+    use is_active <- decode.field(10, decode.bool)
+    use website <- decode.field(11, decode.string)
     decode.success(GetManyRow(
       id:,
       name:,
@@ -530,6 +536,7 @@ pub fn get_many(
       city:,
       state:,
       created_at:,
+      updated_at:,
       is_active:,
       website:,
     ))
@@ -546,6 +553,7 @@ SELECT
     s.city,
     s.state,
     s.created_at,
+    s.updated_at,
     s.is_active,
     s.website
 FROM
@@ -713,9 +721,10 @@ pub type RegisterRow {
     description: String,
     city: String,
     state: String,
-    created_at: Timestamp,
-    is_active: Bool,
     website: String,
+    is_active: Bool,
+    created_at: Timestamp,
+    updated_at: Timestamp,
   )
 }
 
@@ -745,9 +754,10 @@ pub fn register(
     use description <- decode.field(5, decode.string)
     use city <- decode.field(6, decode.string)
     use state <- decode.field(7, decode.string)
-    use created_at <- decode.field(8, pog.timestamp_decoder())
+    use website <- decode.field(8, decode.string)
     use is_active <- decode.field(9, decode.bool)
-    use website <- decode.field(10, decode.string)
+    use created_at <- decode.field(10, pog.timestamp_decoder())
+    use updated_at <- decode.field(11, pog.timestamp_decoder())
     decode.success(RegisterRow(
       id:,
       name:,
@@ -757,9 +767,10 @@ pub fn register(
       description:,
       city:,
       state:,
-      created_at:,
-      is_active:,
       website:,
+      is_active:,
+      created_at:,
+      updated_at:,
     ))
   }
 
@@ -797,9 +808,10 @@ RETURNING
     description,
     city,
     state,
-    created_at,
+    website,
     is_active,
-    website;
+    created_at,
+    updated_at;
 "
   |> pog.query
   |> pog.parameter(pog.text(arg_1))
@@ -1039,9 +1051,10 @@ pub type UpdateRow {
     description: String,
     city: String,
     state: String,
-    created_at: Timestamp,
-    is_active: Bool,
     website: String,
+    is_active: Bool,
+    created_at: Timestamp,
+    updated_at: Timestamp,
   )
 }
 
@@ -1071,9 +1084,10 @@ pub fn update(
     use description <- decode.field(5, decode.string)
     use city <- decode.field(6, decode.string)
     use state <- decode.field(7, decode.string)
-    use created_at <- decode.field(8, pog.timestamp_decoder())
+    use website <- decode.field(8, decode.string)
     use is_active <- decode.field(9, decode.bool)
-    use website <- decode.field(10, decode.string)
+    use created_at <- decode.field(10, pog.timestamp_decoder())
+    use updated_at <- decode.field(11, pog.timestamp_decoder())
     decode.success(UpdateRow(
       id:,
       name:,
@@ -1083,9 +1097,10 @@ pub fn update(
       description:,
       city:,
       state:,
-      created_at:,
-      is_active:,
       website:,
+      is_active:,
+      created_at:,
+      updated_at:,
     ))
   }
 
@@ -1100,7 +1115,8 @@ SET
     description = coalesce(nullif($6::text, ''), description),
     city = coalesce(nullif($7::text, ''), city),
     state = coalesce(nullif($8::text, ''), state),
-    website = coalesce(nullif($9::text, ''), website)
+    website = coalesce(nullif($9::text, ''), website),
+    updated_at = CURRENT_TIMESTAMP
 WHERE
     startup.id = $1
 RETURNING
@@ -1112,9 +1128,10 @@ RETURNING
     startup.description,
     startup.city,
     startup.state,
-    startup.created_at,
+    startup.website,
     startup.is_active,
-    startup.website;
+    startup.created_at,
+    startup.updated_at;
 "
   |> pog.query
   |> pog.parameter(pog.text(uuid.to_string(startup_id)))

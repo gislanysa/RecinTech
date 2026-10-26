@@ -9,6 +9,7 @@ SELECT
     s.city,
     s.state,
     s.created_at,
+    s.updated_at,
     s.is_active,
     s.website
 FROM

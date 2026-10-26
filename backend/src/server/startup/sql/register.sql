@@ -32,6 +32,7 @@ RETURNING
     description,
     city,
     state,
-    created_at,
+    website,
     is_active,
-    website;
+    created_at,
+    updated_at;

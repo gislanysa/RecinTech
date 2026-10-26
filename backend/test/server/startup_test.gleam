@@ -1,3 +1,4 @@
+import gleam/option
 import gleam/uri
 import server/dummy
 import server/lgpd
@@ -44,6 +45,7 @@ pub fn register_startup_test() -> Nil {
       city:,
       state:,
       created_at: returned.created_at,
+      updated_at: returned.updated_at,
       is_active: True,
       website:,
     )
@@ -193,6 +195,144 @@ pub fn get_missing_startup_test() -> Nil {
     startup.get(context.database, id)
 
   assert returned == id
+
+  Nil
+}
+
+pub fn update_startup_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+
+  let new_name = "Virada no Cafe"
+  let new_stage = startup.Scaling
+  let new_email = dummy.new_email()
+  let new_cnpj = dummy.new_cnpj()
+  let new_description = "Inovacao periferica que transforma"
+  let new_city = "Olinda"
+  let new_state = "PE"
+  let assert Ok(new_website) = uri.parse("https://viradanocafe.com")
+
+  let assert Ok(returned) =
+    startup.update(
+      context.database,
+      startup.id,
+      new_name: option.Some(new_name),
+      new_stage: option.Some(new_stage),
+      new_email: option.Some(new_email),
+      new_cnpj: option.Some(new_cnpj),
+      new_description: option.Some(new_description),
+      new_city: option.Some(new_city),
+      new_state: option.Some(new_state),
+      new_website: option.Some(new_website),
+    )
+
+  assert returned
+    == startup.Startup(
+      id: startup.id,
+      name: new_name,
+      email: new_email,
+      stage: new_stage,
+      cnpj: new_cnpj,
+      description: new_description,
+      city: new_city,
+      state: new_state,
+      created_at: startup.created_at,
+      updated_at: returned.updated_at,
+      is_active: startup.is_active,
+      website: new_website,
+    )
+
+  assert returned.id == startup.id
+  assert returned.created_at == startup.created_at
+  assert returned.is_active == startup.is_active
+
+  Nil
+}
+
+pub fn update_startup_with_none_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+
+  let assert Ok(returned) =
+    startup.update(
+      context.database,
+      startup.id,
+      new_name: option.None,
+      new_stage: option.None,
+      new_email: option.None,
+      new_cnpj: option.None,
+      new_description: option.None,
+      new_city: option.None,
+      new_state: option.None,
+      new_website: option.None,
+    )
+
+  assert returned == startup
+
+  Nil
+}
+
+pub fn update_startup_partial_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+  let new_name = "Virada no Cafe"
+
+  let assert Ok(returned) =
+    startup.update(
+      context.database,
+      startup.id,
+      new_name: option.Some(new_name),
+      new_stage: option.None,
+      new_email: option.None,
+      new_cnpj: option.None,
+      new_description: option.None,
+      new_city: option.None,
+      new_state: option.None,
+      new_website: option.None,
+    )
+
+  assert returned
+    == startup.Startup(
+      id: startup.id,
+      name: new_name,
+      email: startup.email,
+      stage: startup.stage,
+      cnpj: startup.cnpj,
+      description: startup.description,
+      city: startup.city,
+      state: startup.state,
+      created_at: startup.created_at,
+      updated_at: returned.updated_at,
+      is_active: startup.is_active,
+      website: startup.website,
+    )
+
+  Nil
+}
+
+pub fn update_missing_startup_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let missing_id = uuid.v7()
+
+  let assert Error(startup.NotFound(returned)) =
+    startup.update(
+      context.database,
+      missing_id,
+      new_name: option.None,
+      new_stage: option.None,
+      new_email: option.None,
+      new_cnpj: option.None,
+      new_description: option.None,
+      new_city: option.None,
+      new_state: option.None,
+      new_website: option.None,
+    )
+
+  assert returned == missing_id
 
   Nil
 }

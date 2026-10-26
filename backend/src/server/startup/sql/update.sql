@@ -9,7 +9,8 @@ SET
     description = coalesce(nullif($6::text, ''), description),
     city = coalesce(nullif($7::text, ''), city),
     state = coalesce(nullif($8::text, ''), state),
-    website = coalesce(nullif($9::text, ''), website)
+    website = coalesce(nullif($9::text, ''), website),
+    updated_at = CURRENT_TIMESTAMP
 WHERE
     startup.id = $1
 RETURNING
@@ -21,6 +22,7 @@ RETURNING
     startup.description,
     startup.city,
     startup.state,
-    startup.created_at,
+    startup.website,
     startup.is_active,
-    startup.website;
+    startup.created_at,
+    startup.updated_at;
