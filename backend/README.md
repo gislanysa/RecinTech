@@ -217,6 +217,7 @@ and will crash if they are not set:
 | --- | --- | --- |
 | `DATABASE_URL` | PostgreSQL connection string | `postgres://aluno:123@localhost:5432/senac` |
 | `SECRET_KEY` | Key used by Wisp to sign session cookies | `senac` |
+| `IN_PARALLEL` | Conditionally run unit tests in parallel | `false` |
 
 To build the frontend, compile its assets and copy them into `priv/static`:
 

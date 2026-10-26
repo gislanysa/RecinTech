@@ -1,5 +1,6 @@
 import envoy
 import gleam/erlang/process
+import gleeunit
 import global_value
 import pog
 import server
@@ -7,7 +8,11 @@ import server/web
 
 pub fn main() -> Nil {
   use _ <- with_context()
-  run_tests_in_paralel()
+
+  case envoy.get("IN_PARALLEL") {
+    Ok("true") -> run_tests_in_parallel()
+    Ok("false") | Ok(_) | Error(_) -> gleeunit.main()
+  }
 }
 
 fn global_context() -> web.Context {
@@ -54,4 +59,4 @@ pub fn with_context(next: fn(web.Context) -> a) -> Nil {
 ///
 /// https://curling.io/blog/parallel-tests-for-free
 @external(erlang, "server_test_ffi", "main")
-fn run_tests_in_paralel() -> Nil
+fn run_tests_in_parallel() -> Nil
