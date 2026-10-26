@@ -472,7 +472,7 @@ fn register_demand(
   }
 }
 
-/// PUT `/api/company/demand/{id}/`
+/// PATCH `/api/company/demand/{id}/`
 ///
 /// Update information about a Demand. Missing fields and empty strings will be
 /// ignored.
