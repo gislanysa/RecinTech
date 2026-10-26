@@ -28,6 +28,8 @@ pub type StartupError {
 
   /// Something went wrong when registering a Startup
   FailedToRegisterStartup
+  /// Something went wrong when updating a Startup
+  FailedToUpdateStartup(uuid.Uuid)
   /// Startup was not found in the Database
   NotFound(id: uuid.Uuid)
   /// Startup provided an incorrect password when during login
@@ -1095,7 +1097,7 @@ pub fn update(
   new_state state: option.Option(String),
   new_website website: option.Option(uri.Uri),
 ) -> Result(Startup, StartupError) {
-  use returned <- result.try(
+  let update_result =
     sql.update(
       database,
       id,
@@ -1108,8 +1110,33 @@ pub fn update(
       option.unwrap(state, ""),
       option.map(website, uri.to_string) |> option.unwrap(""),
     )
-    |> result.map_error(DatabaseError),
-  )
+
+  // Im not sure how an update can fail with a conflict while the key being
+  // `option.None`, so im returning a generic `FailedToUpdateStartup` error.
+  use returned <- result.try(case update_result {
+    Error(pog.ConstraintViolated(constraint: "startup_cnpj_key", ..)) ->
+      case cnpj {
+        option.None -> Error(FailedToUpdateStartup(id))
+        option.Some(cnpj) -> Error(CnpjConflict(value: cnpj))
+      }
+
+    // A CNPJ needs to have exactly 14 digits.
+    Error(pog.ConstraintViolated(constraint: "startup_cnpj_check", ..)) ->
+      case cnpj {
+        option.None -> Error(FailedToUpdateStartup(id))
+        option.Some(cnpj) -> Error(InvalidCnpj(value: cnpj.to_string(cnpj)))
+      }
+
+    // Every Startup Email needs to be unique.
+    Error(pog.ConstraintViolated(constraint: "startup_email_key", ..)) ->
+      case email {
+        option.None -> Error(FailedToUpdateStartup(id))
+        option.Some(email) -> Error(EmailConflict(value: email))
+      }
+
+    Ok(data) -> Ok(data)
+    Error(error) -> Error(DatabaseError(error))
+  })
 
   use row <- result.try(
     list.first(returned.rows)

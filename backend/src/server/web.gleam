@@ -249,7 +249,7 @@ pub fn handle_request(request: Request, context: Context) -> Response {
 }
 
 fn update_startup(
-  request: request.Request(wisp.Connection),
+  request: Request,
   database: pog.Connection,
   id: String,
 ) -> Response {
@@ -307,7 +307,7 @@ fn update_startup(
         _ -> Some(payload.website)
       }
 
-      let result = {
+      let result =
         startup.update(
           database,
           id,
@@ -321,7 +321,6 @@ fn update_startup(
           new_website: website,
         )
         |> result.map_error(StartupError)
-      }
 
       case result {
         Ok(startup) ->
@@ -2606,7 +2605,12 @@ fn get_startup_by_id(database: pog.Connection, id: String) -> Response {
 fn handle_startup_error(error: startup.StartupError) -> Response {
   case error {
     startup.DatabaseError(error) -> handle_database_error(error)
+
     startup.FailedToRegisterStartup -> wisp.internal_server_error()
+
+    startup.FailedToUpdateStartup(id) ->
+      { "Failed to update Startup: " <> uuid.to_string(id) }
+      |> wisp.string_body(wisp.internal_server_error(), _)
 
     startup.InvalidStage(error) ->
       { "Invalid stage: " <> error }
