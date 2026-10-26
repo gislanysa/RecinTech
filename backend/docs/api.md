@@ -895,6 +895,84 @@ Fetch all demands assigned to a company.
 - 200: Successful
 - 400: Invalid UUID, or missing, invalid or incomplete query parameters
 
+## POST /api/company/:id/demand
+
+Register a new demand for a company. Segments, services, expertises and
+technologies can be assigned to the demand in the same request.
+
+### Path Parameters
+
+- `id` (UUID, required): the company's ID.
+
+### Request Body
+
+```json
+{
+  "title": "Need more gleam projects",
+  "description": "A lot more of them",
+  "status": "open",
+  "segments": ["01a058ae-057f-73e8-b2a0-50986559767b"],
+  "services": ["01a0dbb3-153a-7b84-8c3d-631788972d4a"],
+  "expertises": ["01a173cb-9533-7ebd-87a0-590965ef3653"],
+  "technologies": ["01a173cb-9533-7eb5-9522-9686fef4f2a4"]
+}
+```
+
+- `status`: one of `"open"`, `"closed"` or `"canceled"`
+- `segments`, `services`, `expertises` and `technologies`: lists of UUIDs.
+  The lists may be empty, but all four fields are required.
+
+### Response Body
+
+```json
+{
+  "demand": {
+    "id": "01a173cb-9533-7ebd-87a0-590965ef3653",
+    "company_id": "01a173cb-9533-7eb5-9522-9686fef4f2a4",
+    "title": "Need more gleam projects",
+    "description": "A lot more of them",
+    "status": "open",
+    "created_at": "2025-09-14T20:08:02.000Z",
+    "updated_at": "2025-09-14T20:08:02.000Z"
+  },
+  "expertises": [
+    {
+      "id": "01a173cb-9533-7ebd-87a0-590965ef3653",
+      "name": "Education",
+      "description": "Teaching and learning"
+    }
+  ],
+  "segments": [
+    {
+      "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+      "name": "Tech",
+      "description": "Technology"
+    }
+  ],
+  "services": [
+    {
+      "id": "01a0dbb3-153a-7b84-8c3d-631788972d4a",
+      "name": "Web development",
+      "description": "Websites and http servers"
+    }
+  ],
+  "technologies": [
+    {
+      "id": "01a173cb-9533-7eb5-9522-9686fef4f2a4",
+      "name": "Gleam",
+      "description": "A friendly language for building type-safe systems"
+    }
+  ]
+}
+```
+
+### Status Codes
+
+- 201: Successful
+- 400: Invalid JSON or invalid UUID
+- 404: Company or assigned entity not found
+- 409: An entity is already assigned to the demand
+
 ## GET /api/company/demand/:id/segment
 
 Fetch all segments that a company's demand is assigned to.

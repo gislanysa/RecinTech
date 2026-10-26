@@ -182,6 +182,9 @@ pub fn handle_request(request: Request, context: Context) -> Response {
     http.Get, ["api", "company", "demand", id] ->
       get_demand_by_id(context.database, id)
 
+    http.Post, ["api", "company", id, "demand"] ->
+      register_demand(request, context.database, id)
+
     http.Patch, ["api", "company", "demand", id] ->
       update_demand(request, context.database, id)
 
@@ -234,6 +237,198 @@ pub fn handle_request(request: Request, context: Context) -> Response {
 
     // Page not found in the frontend
     _, _ -> get_root_document()
+  }
+}
+
+/// ## `POST /api/company/:id/demand`
+///
+/// Register a new Demand for a Company. Segments, Services, Expertises and
+/// Technologies can be assigned to the Demand in the same request.
+///
+/// `:id` is the Company's UUID.
+///
+/// ## Request Body
+///
+/// ```json
+/// {
+///   "title": "Need more gleam projects",
+///   "description": "A lot more of them",
+///   "status": "open",
+///   "segments": ["01a058ae-057f-73e8-b2a0-50986559767b"],
+///   "services": ["01a0dbb3-153a-7b84-8c3d-631788972d4a"],
+///   "expertises": ["01a173cb-9533-7ebd-87a0-590965ef3653"],
+///   "technologies": ["01a173cb-9533-7eb5-9522-9686fef4f2a4"]
+/// }
+/// ```
+///
+/// - `status`: one of `"open"`, `"closed"` or `"canceled"`.
+/// - `segments`, `services`, `expertises` and `technologies`: lists of UUIDs.
+///   The lists may be empty, but all four fields are required.
+///
+/// ## Response Body
+///
+/// ```json
+/// {
+///   "demand": {
+///     "id": "01a173cb-9533-7ebd-87a0-590965ef3653",
+///     "company_id": "01a173cb-9533-7eb5-9522-9686fef4f2a4",
+///     "title": "Need more gleam projects",
+///     "description": "A lot more of them",
+///     "status": "open",
+///     "created_at": "2025-09-14T20:08:02.000Z",
+///     "updated_at": "2025-09-14T20:08:02.000Z"
+///   },
+///   "expertises": [
+///     {
+///       "id": "01a173cb-9533-7ebd-87a0-590965ef3653",
+///       "name": "Education",
+///       "description": "Teaching and learning"
+///     }
+///   ],
+///   "segments": [
+///     {
+///       "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+///       "name": "Tech",
+///       "description": "Technology"
+///     }
+///   ],
+///   "services": [
+///     {
+///       "id": "01a0dbb3-153a-7b84-8c3d-631788972d4a",
+///       "name": "Web development",
+///       "description": "Websites and http servers"
+///     }
+///   ],
+///   "technologies": [
+///     {
+///       "id": "01a173cb-9533-7eb5-9522-9686fef4f2a4",
+///       "name": "Gleam",
+///       "description": "A friendly language for building type-safe systems"
+///     }
+///   ]
+/// }
+/// ```
+///
+/// ## Status Codes
+///
+/// - **201** If successful.
+/// - **400** If the Company ID or any provided entity ID is not a valid UUID,
+///   or the request body is invalid JSON.
+/// - **404** If the Company, or any assigned entity, is not found.
+/// - **409** If an entity is already assigned to the Demand.
+///
+fn register_demand(
+  request: Request,
+  database: pog.Connection,
+  id: String,
+) -> Response {
+  use body <- wisp.require_json(request)
+  use id <- require_valid_uuid(id)
+
+  let decoder = {
+    use title <- decode.field("title", decode.string)
+    use description <- decode.field("description", decode.string)
+    use status <- decode.field("status", demand.status_decoder())
+
+    use segments <- decode.field(
+      "segments",
+      decode.list(internal.uuid_decoder()),
+    )
+
+    use services <- decode.field(
+      "services",
+      decode.list(internal.uuid_decoder()),
+    )
+
+    use expertises <- decode.field(
+      "expertises",
+      decode.list(internal.uuid_decoder()),
+    )
+
+    use technologies <- decode.field(
+      "technologies",
+      decode.list(internal.uuid_decoder()),
+    )
+
+    decode.success(payload.RegisterDemand(
+      title:,
+      description:,
+      status:,
+      expertises:,
+      segments:,
+      services:,
+      technologies:,
+    ))
+  }
+
+  case decode.run(body, decoder) {
+    Error(_) -> wisp.bad_request("Invalid JSON")
+    Ok(payload) -> {
+      let result = {
+        use demand <- result.try(
+          demand.register(
+            database,
+            company_id: id,
+            title: payload.title,
+            description: payload.description,
+            status: payload.status,
+          )
+          |> result.map_error(DemandError),
+        )
+
+        use expertises <- result.try(
+          list.try_map(payload.expertises, demand.assign_expertise(
+            database,
+            demand.id,
+            assign: _,
+          ))
+          |> result.map_error(DemandError),
+        )
+
+        use segments <- result.try(
+          list.try_map(payload.segments, demand.assign_segment(
+            database,
+            demand.id,
+            assign: _,
+          ))
+          |> result.map_error(DemandError),
+        )
+
+        use services <- result.try(
+          list.try_map(payload.services, demand.assign_service(
+            database,
+            demand.id,
+            assign: _,
+          ))
+          |> result.map_error(DemandError),
+        )
+
+        use technologies <- result.map(
+          list.try_map(payload.technologies, demand.assign_technology(
+            database,
+            demand.id,
+            assign: _,
+          ))
+          |> result.map_error(DemandError),
+        )
+
+        json.object([
+          #("demand", demand.to_json(demand)),
+          #("expertises", json.array(expertises, expertise.to_json)),
+          #("segments", json.array(segments, segment.to_json)),
+          #("services", json.array(services, service.to_json)),
+          #("technologies", json.array(technologies, technology.to_json)),
+        ])
+      }
+
+      case result {
+        Error(error) -> handle_error(error)
+
+        Ok(body) ->
+          json.to_string(body)
+          |> wisp.json_response(201)
+      }
+    }
   }
 }
 
