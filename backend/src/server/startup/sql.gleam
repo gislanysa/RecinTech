@@ -1023,6 +1023,113 @@ FROM
   |> pog.execute(db)
 }
 
+/// A row you get from running the `update` query
+/// defined in `./src/server/startup/sql/update.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v4.7.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type UpdateRow {
+  UpdateRow(
+    id: Uuid,
+    name: String,
+    email: String,
+    stage: StartupStage,
+    cnpj: String,
+    description: String,
+    city: String,
+    state: String,
+    created_at: Timestamp,
+    is_active: Bool,
+    website: String,
+  )
+}
+
+/// update information about a startup
+///
+/// > 🐿️ This function was generated automatically using v4.7.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn update(
+  db: pog.Connection,
+  startup_id: Uuid,
+  arg_2: String,
+  arg_3: String,
+  arg_4: String,
+  arg_5: String,
+  arg_6: String,
+  arg_7: String,
+  arg_8: String,
+  arg_9: String,
+) -> Result(pog.Returned(UpdateRow), pog.QueryError) {
+  let decoder = {
+    use id <- decode.field(0, uuid_decoder())
+    use name <- decode.field(1, decode.string)
+    use email <- decode.field(2, decode.string)
+    use stage <- decode.field(3, startup_stage_decoder())
+    use cnpj <- decode.field(4, decode.string)
+    use description <- decode.field(5, decode.string)
+    use city <- decode.field(6, decode.string)
+    use state <- decode.field(7, decode.string)
+    use created_at <- decode.field(8, pog.timestamp_decoder())
+    use is_active <- decode.field(9, decode.bool)
+    use website <- decode.field(10, decode.string)
+    decode.success(UpdateRow(
+      id:,
+      name:,
+      email:,
+      stage:,
+      cnpj:,
+      description:,
+      city:,
+      state:,
+      created_at:,
+      is_active:,
+      website:,
+    ))
+  }
+
+  "-- update information about a startup
+UPDATE
+    startup
+SET
+    name = coalesce(nullif($2::text, ''), name),
+    stage = coalesce(nullif($3::text, '')::startup_stage, stage),
+    email = coalesce(nullif($4::text, ''), email),
+    cnpj = coalesce(nullif($5::text, ''), cnpj),
+    description = coalesce(nullif($6::text, ''), description),
+    city = coalesce(nullif($7::text, ''), city),
+    state = coalesce(nullif($8::text, ''), state),
+    website = coalesce(nullif($9::text, ''), website)
+WHERE
+    startup.id = $1
+RETURNING
+    startup.id,
+    startup.name,
+    startup.email,
+    startup.stage,
+    startup.cnpj,
+    startup.description,
+    startup.city,
+    startup.state,
+    startup.created_at,
+    startup.is_active,
+    startup.website;
+"
+  |> pog.query
+  |> pog.parameter(pog.text(uuid.to_string(startup_id)))
+  |> pog.parameter(pog.text(arg_2))
+  |> pog.parameter(pog.text(arg_3))
+  |> pog.parameter(pog.text(arg_4))
+  |> pog.parameter(pog.text(arg_5))
+  |> pog.parameter(pog.text(arg_6))
+  |> pog.parameter(pog.text(arg_7))
+  |> pog.parameter(pog.text(arg_8))
+  |> pog.parameter(pog.text(arg_9))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
 // --- Enums -------------------------------------------------------------------
 
 /// Corresponds to the Postgres `lgpd_consent` enum.
