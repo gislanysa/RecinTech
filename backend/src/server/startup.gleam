@@ -80,12 +80,14 @@ pub type Startup {
     city: String,
     /// The state of where it is located
     state: String,
-    /// When the startup was created
-    created_at: timestamp.Timestamp,
-    /// Whether the Startup is active
-    is_active: Bool,
     /// Startup's website
     website: uri.Uri,
+    /// Whether the Startup is active
+    is_active: Bool,
+    /// When the startup was created
+    created_at: timestamp.Timestamp,
+    /// When the Startup was updated
+    updated_at: timestamp.Timestamp,
   )
 }
 
@@ -148,9 +150,10 @@ pub fn decoder() -> decode.Decoder(Startup) {
   use description <- decode.field("description", decode.string)
   use city <- decode.field("city", decode.string)
   use state <- decode.field("state", decode.string)
-  use created_at <- decode.field("created_at", internal.timestamp_decoder())
-  use is_active <- decode.field("is_active", decode.bool)
   use website <- decode.field("website", internal.uri_decoder())
+  use is_active <- decode.field("is_active", decode.bool)
+  use created_at <- decode.field("created_at", internal.timestamp_decoder())
+  use updated_at <- decode.field("updated_at", internal.timestamp_decoder())
 
   decode.success(Startup(
     id:,
@@ -161,9 +164,10 @@ pub fn decoder() -> decode.Decoder(Startup) {
     description:,
     city:,
     state:,
-    created_at:,
-    is_active:,
     website:,
+    is_active:,
+    created_at:,
+    updated_at:,
   ))
 }
 
@@ -178,9 +182,10 @@ pub fn to_json(startup: Startup) -> json.Json {
     description:,
     city:,
     state:,
-    created_at:,
-    is_active:,
     website:,
+    is_active:,
+    created_at:,
+    updated_at:,
   ) = startup
 
   json.object([
@@ -192,9 +197,10 @@ pub fn to_json(startup: Startup) -> json.Json {
     #("description", json.string(description)),
     #("city", json.string(city)),
     #("state", json.string(state)),
-    #("created_at", internal.timestamp_to_json(created_at)),
-    #("is_active", json.bool(is_active)),
     #("website", internal.uri_to_json(website)),
+    #("is_active", json.bool(is_active)),
+    #("created_at", internal.timestamp_to_json(created_at)),
+    #("updated_at", internal.timestamp_to_json(updated_at)),
   ])
 }
 
@@ -306,6 +312,7 @@ pub fn register(
     city: row.city,
     state: row.state,
     created_at: row.created_at,
+    updated_at: row.updated_at,
     is_active: row.is_active,
     website: website,
   )
@@ -427,6 +434,7 @@ pub fn get(
     city: row.city,
     state: row.state,
     created_at: row.created_at,
+    updated_at: row.updated_at,
     is_active: row.is_active,
     website: website,
   )
@@ -989,6 +997,7 @@ pub fn get_many(
       city: row.city,
       state: row.state,
       created_at: row.created_at,
+      updated_at: row.updated_at,
       is_active: row.is_active,
       website:,
     )
@@ -1132,6 +1141,7 @@ pub fn update(
     city: row.city,
     state: row.state,
     created_at: row.created_at,
+    updated_at: row.updated_at,
     is_active: row.is_active,
     website:,
   )
