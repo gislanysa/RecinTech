@@ -184,6 +184,30 @@ Fetch a list of registered segments.
 - 200: Successful
 - 400: Missing, invalid or incomplete query parameters
 
+## GET /api/segment/:id
+
+Fetch information about a segment.
+
+### Path Parameters
+
+- `id` (UUID, required)
+
+### Response Body
+
+```json
+{
+  "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+  "name": "Tech",
+  "description": "Modern technology"
+}
+```
+
+### Status Codes
+
+- 200: Successful
+- 400: Invalid UUID format
+- 404: Segment not found
+
 ## GET /api/technology
 
 Fetch a list of registered technologies.
@@ -972,6 +996,104 @@ technologies can be assigned to the demand in the same request.
 - 400: Invalid JSON or invalid UUID
 - 404: Company or assigned entity not found
 - 409: An entity is already assigned to the demand
+
+## GET /api/company/demand/:id
+
+Fetch information about a demand.
+
+### Path Parameters
+
+- `id` (UUID, required)
+
+### Response Body
+
+```json
+{
+  "id": "01a173cb-9533-7ebd-87a0-590965ef3653",
+  "company_id": "01a173cb-9533-7eb5-9522-9686fef4f2a4",
+  "title": "Need more gleam projects",
+  "description": "A lot more of them",
+  "status": "open",
+  "created_at": "2025-09-14T20:08:02.000Z",
+  "updated_at": "2025-09-14T20:08:02.000Z"
+}
+```
+
+- `status`: one of `"open"`, `"closed"` or `"canceled"`
+
+### Status Codes
+
+- 200: Successful
+- 400: Invalid UUID format
+- 404: Demand not found
+
+## PATCH /api/company/demand/:id
+
+Update information about a demand. Missing fields and empty strings are
+ignored.
+
+### Path Parameters
+
+- `id` (UUID, required)
+
+### Request Body
+
+```json
+{
+  "title": "new title",
+  "description": "new description"
+}
+```
+
+- `title` and `description` are optional strings.
+
+### Response Body
+
+```json
+{
+  "id": "01a173cb-9533-7ebd-87a0-590965ef3653",
+  "company_id": "01a173cb-9533-7eb5-9522-9686fef4f2a4",
+  "title": "new title",
+  "description": "new description",
+  "status": "open",
+  "created_at": "2025-09-14T20:08:02.000Z",
+  "updated_at": "2025-09-14T20:08:02.000Z"
+}
+```
+
+### Status Codes
+
+- 200: Successful
+- 400: Invalid JSON or invalid UUID format
+- 404: Demand not found
+
+## DELETE /api/company/demand/:id
+
+Delete a registered demand.
+
+### Path Parameters
+
+- `id` (UUID, required)
+
+### Response Body
+
+```json
+{
+  "id": "01a173cb-9533-7ebd-87a0-590965ef3653",
+  "company_id": "01a173cb-9533-7eb5-9522-9686fef4f2a4",
+  "title": "Need more gleam projects",
+  "description": "A lot more of them",
+  "status": "open",
+  "created_at": "2025-09-14T20:08:02.000Z",
+  "updated_at": "2025-09-14T20:08:02.000Z"
+}
+```
+
+### Status Codes
+
+- 200: Successful
+- 400: Invalid UUID format
+- 404: Demand not found
 
 ## GET /api/company/demand/:id/segment
 
