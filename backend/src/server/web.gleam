@@ -188,6 +188,9 @@ pub fn handle_request(request: Request, context: Context) -> Response {
     http.Patch, ["api", "company", "demand", id] ->
       update_demand(request, context.database, id)
 
+    http.Delete, ["api", "company", "demand", id] ->
+      delete_demand(context.database, id)
+
     // == segment ==============================================================
     http.Get, ["api", "company", "demand", id, "segment"] ->
       get_demand_segments(context.database, id)
@@ -237,6 +240,43 @@ pub fn handle_request(request: Request, context: Context) -> Response {
 
     // Page not found in the frontend
     _, _ -> get_root_document()
+  }
+}
+
+/// ## DELETE `/api/company/demand/{id}`
+///
+/// Delete a registered Demand
+///
+/// ## Response
+///
+/// ```json
+/// {
+///   "id": "01a173cb-9533-7ebd-87a0-590965ef3653",
+///   "company_id": "01a173cb-9533-7eb5-9522-9686fef4f2a4",
+///   "title": "Need more gleam projects",
+///   "description": "A lot more of them",
+///   "status": "open",
+///   "created_at": "2025-09-14T20:08:02.000Z",
+///   "updated_at": "2025-09-14T20:08:02.000Z"
+/// }
+/// ```
+///
+/// ## Status Codes
+///
+/// - **200** If successful.
+/// - **400** if ID is not a valid UUID.
+/// - **404** if Demand is not found.
+///
+fn delete_demand(database: pog.Connection, id: String) -> Response {
+  use id <- require_valid_uuid(id)
+
+  case demand.delete(database, id) {
+    Ok(data) ->
+      demand.to_json(data)
+      |> json.to_string
+      |> wisp.json_response(200)
+
+    Error(error) -> handle_demand_error(error)
   }
 }
 

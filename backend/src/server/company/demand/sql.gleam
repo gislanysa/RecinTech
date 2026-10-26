@@ -217,6 +217,72 @@ FROM
   |> pog.execute(db)
 }
 
+/// A row you get from running the `delete` query
+/// defined in `./src/server/company/demand/sql/delete.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v4.7.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type DeleteRow {
+  DeleteRow(
+    id: Uuid,
+    company_id: Uuid,
+    title: String,
+    description: String,
+    demand_status: DemandStatus,
+    created_at: Timestamp,
+    updated_at: Timestamp,
+  )
+}
+
+/// remove a demand from the database
+///
+/// > 🐿️ This function was generated automatically using v4.7.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn delete(
+  db: pog.Connection,
+  demand_id: Uuid,
+) -> Result(pog.Returned(DeleteRow), pog.QueryError) {
+  let decoder = {
+    use id <- decode.field(0, uuid_decoder())
+    use company_id <- decode.field(1, uuid_decoder())
+    use title <- decode.field(2, decode.string)
+    use description <- decode.field(3, decode.string)
+    use demand_status <- decode.field(4, demand_status_decoder())
+    use created_at <- decode.field(5, pog.timestamp_decoder())
+    use updated_at <- decode.field(6, pog.timestamp_decoder())
+    decode.success(DeleteRow(
+      id:,
+      company_id:,
+      title:,
+      description:,
+      demand_status:,
+      created_at:,
+      updated_at:,
+    ))
+  }
+
+  "-- remove a demand from the database
+DELETE FROM
+    demand
+WHERE
+    demand.id = $1
+RETURNING
+    demand.id,
+    demand.company_id,
+    demand.title,
+    demand.description,
+    demand.demand_status,
+    demand.created_at,
+    demand.updated_at;
+"
+  |> pog.query
+  |> pog.parameter(pog.text(uuid.to_string(demand_id)))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
 /// A row you get from running the `ensure_exists` query
 /// defined in `./src/server/company/demand/sql/ensure_exists.sql`.
 ///

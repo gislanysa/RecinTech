@@ -2445,3 +2445,38 @@ pub fn assign_demand_invalid_id_test() -> Nil {
 
   Nil
 }
+
+pub fn delete_demand_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let demand = dummy.new_demand(context.database, company.id)
+
+  let endpoint = "/api/company/demand/" <> uuid.to_string(demand.id)
+  let response =
+    simulate.browser_request(http.Delete, endpoint)
+    |> web.handle_request(context)
+
+  assert response.status == 200
+  expect_json(response)
+
+  let body = simulate.read_body(response)
+  let assert Ok(returned) = json.parse(body, demand.decoder())
+
+  assert returned.id == demand.id
+
+  Nil
+}
+
+pub fn delete_missing_demand_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let endpoint = "/api/company/demand/" <> uuid.v7_string()
+  let response =
+    simulate.browser_request(http.Delete, endpoint)
+    |> web.handle_request(context)
+
+  assert response.status == 404
+
+  Nil
+}

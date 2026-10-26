@@ -1,4 +1,5 @@
 import gleam/option
+import server/company
 import server/company/demand
 import server/dummy
 import server_test
@@ -733,6 +734,34 @@ pub fn update_missing_demand_test() -> Nil {
     )
 
   assert returned == missing_id
+
+  Nil
+}
+
+pub fn delete_demand_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let demand = dummy.new_demand(context.database, company.id)
+
+  let assert Ok(returned) = demand.delete(context.database, demand.id)
+  assert returned.id == demand.id
+
+  // no longer available
+  let assert Error(demand.NotFound(_)) = demand.get(context.database, demand.id)
+  let assert Ok([]) = company.get_demands(context.database, company.id, 1, 0)
+
+  Nil
+}
+
+pub fn delete_missing_demand_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let demand_id = uuid.v7()
+  let assert Error(demand.NotFound(returned)) =
+    demand.delete(context.database, demand_id)
+
+  assert returned == demand_id
 
   Nil
 }

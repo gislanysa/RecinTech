@@ -645,7 +645,7 @@ pub fn cancel(
 ///   Error(demand.NotFound(_)) -> wisp.not_found()
 ///   Error(_) -> wisp.internal_server_error()
 /// }
-/// ````
+/// ```
 pub fn update(
   database: pog.Connection,
   id: uuid.Uuid,
@@ -657,6 +657,44 @@ pub fn update(
 
   use returned <- result.try(
     sql.update(database, id, title, description)
+    |> result.map_error(DatabaseError),
+  )
+
+  use row <- result.map(
+    list.first(returned.rows)
+    |> result.replace_error(NotFound(id)),
+  )
+
+  Demand(
+    id: row.id,
+    company_id: row.company_id,
+    title: row.title,
+    description: row.description,
+    status: status_from_enum(row.demand_status),
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  )
+}
+
+/// Remove a Demand from the Database
+///
+/// ## Examples
+///
+/// ```gleam
+/// let result = demand.delete(context.database, id)
+///
+/// case result {
+///   Ok(deleted) -> handle_data(deleted)
+///   Error(demand.NotFound(_)) -> wisp.not_found()
+///   Error(_) -> wisp.internal_server_error()
+/// }
+/// ```
+pub fn delete(
+  database: pog.Connection,
+  id: uuid.Uuid,
+) -> Result(Demand, DemandError) {
+  use returned <- result.try(
+    sql.delete(database, id)
     |> result.map_error(DatabaseError),
   )
 
