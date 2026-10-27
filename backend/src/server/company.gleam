@@ -37,9 +37,9 @@ pub type CompanyError {
   /// Company provided an incorrect password when during login
   WrongPassword
   /// CNPJ is already registered
-  CnpjConflict(value: cnpj.Cnpj)
+  CnpjConflict(cnpj.Cnpj)
   /// Email already registered
-  EmailConflict(value: email.Email)
+  EmailConflict(email.Email)
   /// Failed to register a new Company
   FailedToRegisterCompany
 }
@@ -124,7 +124,7 @@ pub fn decoder() -> decode.Decoder(Company) {
   use is_active <- decode.field("is_active", decode.bool)
   use website <- decode.field("website", internal.uri_decoder())
 
-  Company(
+  decode.success(Company(
     id:,
     name:,
     email:,
@@ -135,8 +135,7 @@ pub fn decoder() -> decode.Decoder(Company) {
     city:,
     state:,
     website:,
-  )
-  |> decode.success
+  ))
 }
 
 /// Encode an `Company` into a JSON
@@ -207,8 +206,6 @@ pub fn register(
   state state: String,
   website website: uri.Uri,
 ) -> Result(Company, CompanyError) {
-  let size = size_to_enum(size)
-
   use hash <- result.try(
     argus.hasher()
     |> argus.hash(password)
@@ -220,7 +217,7 @@ pub fn register(
     sql.register(
       database,
       name,
-      size,
+      size_to_enum(size),
       email.to_string(email),
       cnpj.to_string(cnpj),
       hash,
@@ -232,15 +229,15 @@ pub fn register(
   use returned <- result.try(case register_result {
     // Every Startup CNPJ needs to be unique.
     Error(pog.ConstraintViolated(constraint: "company_cnpj_key", ..)) ->
-      Error(CnpjConflict(value: cnpj))
+      Error(CnpjConflict(cnpj))
 
     // A CNPJ needs to have exactly 14 digits.
     Error(pog.ConstraintViolated(constraint: "company_cnpj_check", ..)) ->
-      Error(InvalidCnpj(value: cnpj.to_string(cnpj)))
+      Error(InvalidCnpj(cnpj.to_string(cnpj)))
 
     // Every company Email needs to be unique.
     Error(pog.ConstraintViolated(constraint: "company_email_key", ..)) ->
-      Error(EmailConflict(value: email))
+      Error(EmailConflict(email))
 
     Ok(data) -> Ok(data)
     Error(error) -> Error(DatabaseError(error))
@@ -276,7 +273,7 @@ pub fn register(
     state: row.state,
     created_at: row.created_at,
     is_active: row.is_active,
-    website: website,
+    website:,
   )
 }
 
@@ -488,7 +485,7 @@ pub fn get_demands(
       company_id: row.company_id,
       title: row.title,
       description: row.description,
-      status: status,
+      status:,
       created_at: row.created_at,
       updated_at: row.updated_at,
     )
