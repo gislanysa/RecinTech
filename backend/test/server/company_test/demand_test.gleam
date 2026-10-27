@@ -1,4 +1,4 @@
-import gleam/option
+import gleam/option.{None, Some}
 import server/company
 import server/company/demand
 import server/dummy
@@ -711,8 +711,8 @@ pub fn update_demand_test() -> Nil {
     demand.update(
       context.database,
       demand.id,
-      new_title: option.Some(new_title),
-      new_description: option.None,
+      new_title: Some(new_title),
+      new_description: None,
     )
 
   assert returned.id == demand.id
@@ -729,8 +729,8 @@ pub fn update_missing_demand_test() -> Nil {
     demand.update(
       context.database,
       missing_id,
-      new_title: option.None,
-      new_description: option.None,
+      new_title: None,
+      new_description: None,
     )
 
   assert returned == missing_id

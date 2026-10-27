@@ -1,6 +1,6 @@
 //// Request payload types for API endpoints.
 
-import gleam/option
+import gleam/option.{type Option}
 import gleam/uri
 import server/cnpj
 import server/company
@@ -59,9 +59,9 @@ pub type UpdateDemand {
 pub type UpdateStartup {
   UpdateStartup(
     name: String,
-    stage: option.Option(startup.Stage),
-    email: option.Option(email.Email),
-    cnpj: option.Option(cnpj.Cnpj),
+    stage: Option(startup.Stage),
+    email: Option(email.Email),
+    cnpj: Option(cnpj.Cnpj),
     description: String,
     city: String,
     state: String,
@@ -72,9 +72,9 @@ pub type UpdateStartup {
 pub type UpdateCompany {
   UpdateCompany(
     name: String,
-    size: option.Option(company.Size),
-    email: option.Option(email.Email),
-    cnpj: option.Option(cnpj.Cnpj),
+    size: Option(company.Size),
+    email: Option(email.Email),
+    cnpj: Option(cnpj.Cnpj),
     city: String,
     state: String,
     website: uri.Uri,

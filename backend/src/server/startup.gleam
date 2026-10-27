@@ -4,7 +4,7 @@ import argus
 import gleam/dynamic/decode
 import gleam/json
 import gleam/list
-import gleam/option.{type Option}
+import gleam/option.{type Option, None, Some}
 import gleam/result
 import gleam/time/timestamp
 import gleam/uri
@@ -1092,10 +1092,10 @@ pub fn update(
   new_stage stage: Option(Stage),
   new_email email: Option(email.Email),
   new_cnpj cnpj: Option(cnpj.Cnpj),
-  new_description description: option.Option(String),
-  new_city city: option.Option(String),
-  new_state state: option.Option(String),
-  new_website website: option.Option(uri.Uri),
+  new_description description: Option(String),
+  new_city city: Option(String),
+  new_state state: Option(String),
+  new_website website: Option(uri.Uri),
 ) -> Result(Startup, StartupError) {
   let update_result =
     sql.update(
@@ -1116,22 +1116,22 @@ pub fn update(
   use returned <- result.try(case update_result {
     Error(pog.ConstraintViolated(constraint: "startup_cnpj_key", ..)) ->
       case cnpj {
-        option.None -> Error(FailedToUpdateStartup(id))
-        option.Some(cnpj) -> Error(CnpjConflict(value: cnpj))
+        None -> Error(FailedToUpdateStartup(id))
+        Some(cnpj) -> Error(CnpjConflict(value: cnpj))
       }
 
     // A CNPJ needs to have exactly 14 digits.
     Error(pog.ConstraintViolated(constraint: "startup_cnpj_check", ..)) ->
       case cnpj {
-        option.None -> Error(FailedToUpdateStartup(id))
-        option.Some(cnpj) -> Error(InvalidCnpj(value: cnpj.to_string(cnpj)))
+        None -> Error(FailedToUpdateStartup(id))
+        Some(cnpj) -> Error(InvalidCnpj(value: cnpj.to_string(cnpj)))
       }
 
     // Every Startup Email needs to be unique.
     Error(pog.ConstraintViolated(constraint: "startup_email_key", ..)) ->
       case email {
-        option.None -> Error(FailedToUpdateStartup(id))
-        option.Some(email) -> Error(EmailConflict(value: email))
+        None -> Error(FailedToUpdateStartup(id))
+        Some(email) -> Error(EmailConflict(value: email))
       }
 
     Ok(data) -> Ok(data)

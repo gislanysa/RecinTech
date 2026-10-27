@@ -1,4 +1,4 @@
-import gleam/option
+import gleam/option.{None, Some}
 import gleam/uri
 import server/cnpj
 import server/company
@@ -106,13 +106,13 @@ pub fn update_company_test() -> Nil {
     company.update(
       context.database,
       company.id,
-      new_name: option.Some("Updated Company"),
-      new_size: option.Some(company.Big),
-      new_email: option.Some(new_email),
-      new_cnpj: option.None,
-      new_city: option.Some("Olinda"),
-      new_state: option.Some("PE"),
-      new_website: option.Some(new_website),
+      new_name: Some("Updated Company"),
+      new_size: Some(company.Big),
+      new_email: Some(new_email),
+      new_cnpj: None,
+      new_city: Some("Olinda"),
+      new_state: Some("PE"),
+      new_website: Some(new_website),
     )
 
   assert returned.id == company.id
@@ -135,13 +135,13 @@ pub fn update_company_empty_strings_test() -> Nil {
     company.update(
       context.database,
       company.id,
-      new_name: option.Some(""),
-      new_size: option.None,
-      new_email: option.None,
-      new_cnpj: option.None,
-      new_city: option.Some(""),
-      new_state: option.None,
-      new_website: option.None,
+      new_name: Some(""),
+      new_size: None,
+      new_email: None,
+      new_cnpj: None,
+      new_city: Some(""),
+      new_state: None,
+      new_website: None,
     )
 
   assert returned.id == company.id
@@ -160,13 +160,13 @@ pub fn update_missing_company_test() -> Nil {
     company.update(
       context.database,
       company_id,
-      new_name: option.Some("test"),
-      new_size: option.None,
-      new_email: option.None,
-      new_cnpj: option.None,
-      new_city: option.None,
-      new_state: option.None,
-      new_website: option.None,
+      new_name: Some("test"),
+      new_size: None,
+      new_email: None,
+      new_cnpj: None,
+      new_city: None,
+      new_state: None,
+      new_website: None,
     )
 
   assert id == company_id
@@ -184,13 +184,13 @@ pub fn update_company_cnpj_conflict_test() -> Nil {
     company.update(
       context.database,
       company_b.id,
-      new_name: option.None,
-      new_size: option.None,
-      new_email: option.None,
-      new_cnpj: option.Some(company_a.cnpj),
-      new_city: option.None,
-      new_state: option.None,
-      new_website: option.None,
+      new_name: None,
+      new_size: None,
+      new_email: None,
+      new_cnpj: Some(company_a.cnpj),
+      new_city: None,
+      new_state: None,
+      new_website: None,
     )
 
   assert cnpj == company_a.cnpj
@@ -208,13 +208,13 @@ pub fn update_company_email_conflict_test() -> Nil {
     company.update(
       context.database,
       company_b.id,
-      new_name: option.None,
-      new_size: option.None,
-      new_email: option.Some(company_a.email),
-      new_cnpj: option.None,
-      new_city: option.None,
-      new_state: option.None,
-      new_website: option.None,
+      new_name: None,
+      new_size: None,
+      new_email: Some(company_a.email),
+      new_cnpj: None,
+      new_city: None,
+      new_state: None,
+      new_website: None,
     )
 
   assert email == company_a.email

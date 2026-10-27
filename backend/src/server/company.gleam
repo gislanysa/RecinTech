@@ -5,7 +5,7 @@ import argus
 import gleam/dynamic/decode
 import gleam/json
 import gleam/list
-import gleam/option.{type Option}
+import gleam/option.{type Option, None, Some}
 import gleam/result
 import gleam/time/timestamp
 import gleam/uri
@@ -558,22 +558,22 @@ pub fn update(
   use returned <- result.try(case update_result {
     Error(pog.ConstraintViolated(constraint: "company_cnpj_key", ..)) ->
       case cnpj {
-        option.None -> Error(FailedToUpdateCompany(id))
-        option.Some(cnpj) -> Error(CnpjConflict(cnpj))
+        None -> Error(FailedToUpdateCompany(id))
+        Some(cnpj) -> Error(CnpjConflict(cnpj))
       }
 
     // A CNPJ needs to have exactly 14 digits.
     Error(pog.ConstraintViolated(constraint: "company_cnpj_check", ..)) ->
       case cnpj {
-        option.None -> Error(FailedToUpdateCompany(id))
-        option.Some(cnpj) -> Error(InvalidCnpj(cnpj.to_string(cnpj)))
+        None -> Error(FailedToUpdateCompany(id))
+        Some(cnpj) -> Error(InvalidCnpj(cnpj.to_string(cnpj)))
       }
 
     // Every Company Email needs to be unique.
     Error(pog.ConstraintViolated(constraint: "company_email_key", ..)) ->
       case email {
-        option.None -> Error(FailedToUpdateCompany(id))
-        option.Some(email) -> Error(EmailConflict(email))
+        None -> Error(FailedToUpdateCompany(id))
+        Some(email) -> Error(EmailConflict(email))
       }
 
     Ok(data) -> Ok(data)

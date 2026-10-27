@@ -1,4 +1,4 @@
-import gleam/option
+import gleam/option.{None, Some}
 import gleam/uri
 import server/dummy
 import server/lgpd
@@ -217,14 +217,14 @@ pub fn update_startup_test() -> Nil {
     startup.update(
       context.database,
       startup.id,
-      new_name: option.Some(new_name),
-      new_stage: option.Some(new_stage),
-      new_email: option.Some(new_email),
-      new_cnpj: option.Some(new_cnpj),
-      new_description: option.Some(new_description),
-      new_city: option.Some(new_city),
-      new_state: option.Some(new_state),
-      new_website: option.Some(new_website),
+      new_name: Some(new_name),
+      new_stage: Some(new_stage),
+      new_email: Some(new_email),
+      new_cnpj: Some(new_cnpj),
+      new_description: Some(new_description),
+      new_city: Some(new_city),
+      new_state: Some(new_state),
+      new_website: Some(new_website),
     )
 
   assert returned
@@ -259,14 +259,14 @@ pub fn update_startup_with_none_test() -> Nil {
     startup.update(
       context.database,
       startup.id,
-      new_name: option.None,
-      new_stage: option.None,
-      new_email: option.None,
-      new_cnpj: option.None,
-      new_description: option.None,
-      new_city: option.None,
-      new_state: option.None,
-      new_website: option.None,
+      new_name: None,
+      new_stage: None,
+      new_email: None,
+      new_cnpj: None,
+      new_description: None,
+      new_city: None,
+      new_state: None,
+      new_website: None,
     )
 
   assert returned == startup
@@ -284,14 +284,14 @@ pub fn update_startup_partial_test() -> Nil {
     startup.update(
       context.database,
       startup.id,
-      new_name: option.Some(new_name),
-      new_stage: option.None,
-      new_email: option.None,
-      new_cnpj: option.None,
-      new_description: option.None,
-      new_city: option.None,
-      new_state: option.None,
-      new_website: option.None,
+      new_name: Some(new_name),
+      new_stage: None,
+      new_email: None,
+      new_cnpj: None,
+      new_description: None,
+      new_city: None,
+      new_state: None,
+      new_website: None,
     )
 
   assert returned
@@ -322,14 +322,14 @@ pub fn update_missing_startup_test() -> Nil {
     startup.update(
       context.database,
       missing_id,
-      new_name: option.None,
-      new_stage: option.None,
-      new_email: option.None,
-      new_cnpj: option.None,
-      new_description: option.None,
-      new_city: option.None,
-      new_state: option.None,
-      new_website: option.None,
+      new_name: None,
+      new_stage: None,
+      new_email: None,
+      new_cnpj: None,
+      new_description: None,
+      new_city: None,
+      new_state: None,
+      new_website: None,
     )
 
   assert returned == missing_id
