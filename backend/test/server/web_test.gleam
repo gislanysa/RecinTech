@@ -1808,6 +1808,226 @@ pub fn get_missing_company_test() -> Nil {
   Nil
 }
 
+pub fn update_company_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+
+  let new_name = "Updated Porto"
+  let new_city = "Olinda"
+  let new_state = "PE"
+  let new_email = dummy.new_email()
+  let new_cnpj = dummy.new_cnpj()
+  let assert Ok(new_website) = uri.parse("https://updated.com")
+
+  let body =
+    json.object([
+      #("name", json.string(new_name)),
+      #("city", json.string(new_city)),
+      #("state", json.string(new_state)),
+      #("website", json.string(uri.to_string(new_website))),
+      #("size", company.size_to_json(company.Big)),
+      #("email", email.to_json(new_email)),
+      #("cnpj", cnpj.to_json(new_cnpj)),
+    ])
+
+  let endpoint = "/api/company/" <> uuid.to_string(company.id)
+  let response =
+    simulate.browser_request(http.Patch, endpoint)
+    |> simulate.json_body(body)
+    |> web.handle_request(context)
+
+  assert response.status == 200
+  expect_json(response)
+
+  let body = simulate.read_body(response)
+  let assert Ok(returned) = json.parse(body, company.decoder())
+
+  assert returned.id == company.id
+  assert returned.name == new_name
+  assert returned.city == new_city
+  assert returned.state == new_state
+  assert returned.website == new_website
+  assert returned.size == company.Big
+  assert returned.email == new_email
+  assert returned.cnpj == new_cnpj
+  assert returned.created_at == company.created_at
+  assert returned.is_active == company.is_active
+
+  Nil
+}
+
+pub fn update_company_partial_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let new_name = "Updated Porto"
+
+  let body = json.object([#("name", json.string(new_name))])
+
+  let endpoint = "/api/company/" <> uuid.to_string(company.id)
+  let response =
+    simulate.browser_request(http.Patch, endpoint)
+    |> simulate.json_body(body)
+    |> web.handle_request(context)
+
+  assert response.status == 200
+  expect_json(response)
+
+  let body = simulate.read_body(response)
+  let assert Ok(returned) = json.parse(body, company.decoder())
+
+  assert returned.id == company.id
+  assert returned.name == new_name
+  assert returned.email == company.email
+  assert returned.size == company.size
+  assert returned.city == company.city
+  assert returned.state == company.state
+  assert returned.website == company.website
+
+  Nil
+}
+
+pub fn update_company_ignores_empty_strings_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+
+  let body =
+    json.object([
+      #("name", json.string("")),
+      #("city", json.string("")),
+      #("state", json.string("")),
+      #("website", json.string("")),
+    ])
+
+  let endpoint = "/api/company/" <> uuid.to_string(company.id)
+  let response =
+    simulate.browser_request(http.Patch, endpoint)
+    |> simulate.json_body(body)
+    |> web.handle_request(context)
+
+  assert response.status == 200
+  expect_json(response)
+
+  let body = simulate.read_body(response)
+  let assert Ok(returned) = json.parse(body, company.decoder())
+
+  assert returned.id == company.id
+  assert returned.name == company.name
+  assert returned.city == company.city
+  assert returned.state == company.state
+  assert returned.website == company.website
+
+  Nil
+}
+
+pub fn update_company_invalid_json_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+
+  let endpoint = "/api/company/" <> uuid.to_string(company.id)
+  let response =
+    simulate.browser_request(http.Patch, endpoint)
+    |> simulate.string_body("{not valid json")
+    |> request.set_header("content-type", "application/json")
+    |> web.handle_request(context)
+
+  assert response.status == 400
+
+  Nil
+}
+
+pub fn update_company_invalid_id_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let response =
+    simulate.browser_request(http.Patch, "/api/company/wibble")
+    |> simulate.json_body(json.object([]))
+    |> web.handle_request(context)
+
+  assert response.status == 400
+
+  Nil
+}
+
+pub fn update_missing_company_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let endpoint = "/api/company/" <> uuid.v7_string()
+  let response =
+    simulate.browser_request(http.Patch, endpoint)
+    |> simulate.json_body(json.object([]))
+    |> web.handle_request(context)
+
+  assert response.status == 404
+
+  Nil
+}
+
+pub fn update_company_email_conflict_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let other = dummy.new_company(context.database)
+
+  let body = json.object([#("email", email.to_json(other.email))])
+
+  let endpoint = "/api/company/" <> uuid.to_string(company.id)
+  let response =
+    simulate.browser_request(http.Patch, endpoint)
+    |> simulate.json_body(body)
+    |> web.handle_request(context)
+
+  assert response.status == 409
+
+  Nil
+}
+
+pub fn update_company_cnpj_conflict_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let other = dummy.new_company(context.database)
+
+  let body = json.object([#("cnpj", cnpj.to_json(other.cnpj))])
+
+  let endpoint = "/api/company/" <> uuid.to_string(company.id)
+  let response =
+    simulate.browser_request(http.Patch, endpoint)
+    |> simulate.json_body(body)
+    |> web.handle_request(context)
+
+  assert response.status == 409
+
+  Nil
+}
+
+pub fn update_company_invalid_fields_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let endpoint = "/api/company/" <> uuid.to_string(company.id)
+
+  let invalid_bodies = [
+    json.object([#("size", json.string("wibble"))]),
+    json.object([#("email", json.string("not-an-email"))]),
+    json.object([#("cnpj", json.string("123"))]),
+  ]
+
+  list.each(invalid_bodies, fn(body) {
+    let response =
+      simulate.browser_request(http.Patch, endpoint)
+      |> simulate.json_body(body)
+      |> web.handle_request(context)
+
+    assert response.status == 400
+  })
+
+  Nil
+}
+
 pub fn logout_test() -> Nil {
   use context <- server_test.with_context()
 

@@ -176,6 +176,9 @@ pub fn handle_request(request: Request, context: Context) -> Response {
     // +-----------------------------------------------------------------------+
     http.Post, ["api", "company"] -> register_company(request, context.database)
 
+    http.Patch, ["api", "company", id] ->
+      update_company(request, context.database, id)
+
     http.Get, ["api", "company", id] -> get_company_by_id(context.database, id)
 
     http.Get, ["api", "company", id, "demand"] ->
@@ -1455,6 +1458,142 @@ fn get_service_by_id(database: pog.Connection, id: String) -> Response {
   }
 }
 
+/// ## `PATCH /api/company/:id`
+///
+/// Update information about a Company. Missing fields and empty strings are
+/// ignored.
+///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required)
+///
+/// ## Request Body
+///
+/// ```json
+/// {
+///   "name": "Porto Digital",
+///   "email": "porto@email.com",
+///   "size": "medium",
+///   "cnpj": "12345678901234",
+///   "city": "Recife",
+///   "state": "Pernambuco",
+///   "website": "https://portodigital.org"
+/// }
+/// ```
+///
+/// - All fields are optional.
+/// - `size`: one of `"micro"`, `"small"`, `"medium"` or `"big"`.
+/// - Empty strings are treated as missing fields.
+///
+/// ## Response Body
+///
+/// ```json
+/// {
+///   "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+///   "name": "Porto Digital",
+///   "email": "porto@email.com",
+///   "size": "medium",
+///   "cnpj": "12345678901234",
+///   "city": "Recife",
+///   "state": "Pernambuco",
+///   "created_at": "2026-09-14T20:08:02.000Z",
+///   "updated_at": "2026-09-14T20:08:02.000Z",
+///   "is_active": true,
+///   "website": "https://portodigital.org"
+/// }
+/// ```
+///
+/// ## Status Codes
+///
+/// - **200** If successful.
+/// - **400** If the ID is not a valid UUID, the request body is invalid JSON,
+///   or a field has an invalid value.
+/// - **404** If the Company is not found.
+/// - **409** If the new email or CNPJ is already in use.
+///
+fn update_company(
+  request: Request,
+  database: pog.Connection,
+  id: String,
+) -> Response {
+  use body <- wisp.require_json(request)
+  use id <- require_valid_uuid(id)
+
+  let decoder = {
+    use name <- decode.optional_field("name", "", decode.string)
+    use city <- decode.optional_field("city", "", decode.string)
+    use state <- decode.optional_field("state", "", decode.string)
+
+    use website <- decode.optional_field(
+      "website",
+      uri.empty,
+      internal.uri_decoder(),
+    )
+
+    use size <- decode.optional_field(
+      "size",
+      None,
+      decode.optional(company.size_decoder()),
+    )
+
+    use email <- decode.optional_field(
+      "email",
+      None,
+      decode.optional(email.decoder()),
+    )
+
+    use cnpj <- decode.optional_field(
+      "cnpj",
+      None,
+      decode.optional(cnpj.decoder()),
+    )
+
+    decode.success(payload.UpdateCompany(
+      name:,
+      size:,
+      email:,
+      cnpj:,
+      city:,
+      state:,
+      website:,
+    ))
+  }
+
+  case decode.run(body, decoder) {
+    Error(_) -> wisp.bad_request("Invalid JSON")
+
+    Ok(payload) -> {
+      let website = case uri.to_string(payload.website) {
+        "" -> None
+        _ -> Some(payload.website)
+      }
+
+      let result =
+        company.update(
+          database,
+          id,
+          new_name: string.to_option(payload.name),
+          new_size: payload.size,
+          new_email: payload.email,
+          new_cnpj: payload.cnpj,
+          new_city: string.to_option(payload.city),
+          new_state: string.to_option(payload.state),
+          new_website: website,
+        )
+        |> result.map_error(CompanyError)
+
+      case result {
+        Ok(company) ->
+          company.to_json(company)
+          |> json.to_string
+          |> wisp.json_response(200)
+
+        Error(error) -> handle_error(error)
+      }
+    }
+  }
+}
+
 /// ## `GET /api/company/:id`
 ///
 /// Fetch information about a Company.
@@ -1471,6 +1610,7 @@ fn get_service_by_id(database: pog.Connection, id: String) -> Response {
 ///   "city": "Recife",
 ///   "state": "Pernambuco",
 ///   "created_at": "2026-09-14T20:08:02.000Z",
+///   "updated_at": "2026-09-14T20:08:02.000Z",
 ///   "is_active": true,
 ///   "website": "https://portodigital.org"
 /// }
@@ -1479,7 +1619,8 @@ fn get_service_by_id(database: pog.Connection, id: String) -> Response {
 /// ## Status Codes
 ///
 /// - 200 If successful.
-/// - 404 If Startup is not found.
+/// - 400 If the ID is not a valid UUID.
+/// - 404 If Company is not found.
 ///
 fn get_company_by_id(database: pog.Connection, id: String) -> Response {
   use id <- require_valid_uuid(id)

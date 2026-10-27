@@ -68,3 +68,15 @@ pub type UpdateStartup {
     website: uri.Uri,
   )
 }
+
+pub type UpdateCompany {
+  UpdateCompany(
+    name: String,
+    size: option.Option(company.Size),
+    email: option.Option(email.Email),
+    cnpj: option.Option(cnpj.Cnpj),
+    city: String,
+    state: String,
+    website: uri.Uri,
+  )
+}

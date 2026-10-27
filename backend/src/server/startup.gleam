@@ -438,7 +438,7 @@ pub fn get(
     created_at: row.created_at,
     updated_at: row.updated_at,
     is_active: row.is_active,
-    website: website,
+    website:,
   )
 }
 
