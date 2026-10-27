@@ -9,6 +9,7 @@ SELECT
     c.state,
     c.is_active,
     c.created_at,
+    c.updated_at,
     c.website
 FROM
     public.company AS c

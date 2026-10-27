@@ -5,6 +5,7 @@ import argus
 import gleam/dynamic/decode
 import gleam/json
 import gleam/list
+import gleam/option.{type Option}
 import gleam/result
 import gleam/time/timestamp
 import gleam/uri
@@ -24,6 +25,8 @@ pub type CompanyError {
   NotFound(id: uuid.Uuid)
   /// Failed to hash the Company password
   HashError(error: argus.HashError)
+  /// Something went wrong when updating a Company
+  FailedToUpdateCompany(uuid.Uuid)
 
   /// Email not found in the Database
   EmailNotFound(email: email.Email)
@@ -63,6 +66,8 @@ pub type Company {
     state: String,
     /// Timestamp of when the Company was registred.
     created_at: timestamp.Timestamp,
+    /// Timestamp of when the Company was last updated.
+    updated_at: timestamp.Timestamp,
     /// Whether the Company is active.
     is_active: Bool,
     /// Company's website
@@ -121,6 +126,7 @@ pub fn decoder() -> decode.Decoder(Company) {
   use city <- decode.field("city", decode.string)
   use state <- decode.field("state", decode.string)
   use created_at <- decode.field("created_at", internal.timestamp_decoder())
+  use updated_at <- decode.field("updated_at", internal.timestamp_decoder())
   use is_active <- decode.field("is_active", decode.bool)
   use website <- decode.field("website", internal.uri_decoder())
 
@@ -128,12 +134,13 @@ pub fn decoder() -> decode.Decoder(Company) {
     id:,
     name:,
     email:,
-    created_at:,
-    is_active:,
     size:,
     cnpj:,
     city:,
     state:,
+    created_at:,
+    updated_at:,
+    is_active:,
     website:,
   ))
 }
@@ -149,6 +156,7 @@ pub fn to_json(company: Company) -> json.Json {
     city:,
     state:,
     created_at:,
+    updated_at:,
     is_active:,
     website:,
   ) = company
@@ -162,6 +170,7 @@ pub fn to_json(company: Company) -> json.Json {
     #("city", json.string(city)),
     #("state", json.string(state)),
     #("created_at", internal.timestamp_to_json(created_at)),
+    #("updated_at", internal.timestamp_to_json(updated_at)),
     #("is_active", json.bool(is_active)),
     #("website", internal.uri_to_json(website)),
   ])
@@ -272,6 +281,7 @@ pub fn register(
     city: row.city,
     state: row.state,
     created_at: row.created_at,
+    updated_at: row.updated_at,
     is_active: row.is_active,
     website:,
   )
@@ -371,12 +381,13 @@ pub fn get(
     id: row.id,
     name: row.name,
     email:,
-    created_at: row.created_at,
-    is_active: row.is_active,
     size: size_from_enum(row.size),
     cnpj:,
     city: row.city,
     state: row.state,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+    is_active: row.is_active,
     website:,
   )
 }
@@ -490,4 +501,116 @@ pub fn get_demands(
       updated_at: row.updated_at,
     )
   })
+}
+
+/// Updates a Company's information.
+/// Passing `option.None` leaves a field unchanged.
+///
+/// ## Examples
+///
+/// ```gleam
+/// let result = company.update(
+///   context.database,
+///   id,
+///   new_name: option.Some("Porto Digital"),
+///   new_size: option.Some(company.Big),
+///   new_email: option.None,
+///   new_cnpj: option.None,
+///   new_city: option.Some("Recife"),
+///   new_state: option.Some("PE"),
+///   new_website: option.None,
+/// )
+///
+/// case result {
+///   Ok(company) -> wisp.ok()
+///   Error(company.NotFound(_)) -> wisp.not_found()
+///   Error(company.CnpjConflict(_)) -> wisp.response(409)
+///   Error(company.EmailConflict(_)) -> wisp.response(409)
+///   Error(_) -> wisp.internal_server_error()
+/// }
+/// ```
+pub fn update(
+  database: pog.Connection,
+  id: uuid.Uuid,
+  new_name name: Option(String),
+  new_size size: Option(Size),
+  new_email email: Option(email.Email),
+  new_cnpj cnpj: Option(cnpj.Cnpj),
+  new_city city: Option(String),
+  new_state state: Option(String),
+  new_website website: Option(uri.Uri),
+) -> Result(Company, CompanyError) {
+  let update_result =
+    sql.update(
+      database,
+      id,
+      option.unwrap(name, ""),
+      option.map(size, size_to_string) |> option.unwrap(""),
+      option.map(email, email.to_string) |> option.unwrap(""),
+      option.map(cnpj, cnpj.to_string) |> option.unwrap(""),
+      option.unwrap(city, ""),
+      option.unwrap(state, ""),
+      option.map(website, uri.to_string) |> option.unwrap(""),
+    )
+
+  // I'm not sure how an update can fail with a conflict while the key being
+  // `option.None`, so I'm returning a generic `FailedToUpdateCompany` error.
+  use returned <- result.try(case update_result {
+    Error(pog.ConstraintViolated(constraint: "company_cnpj_key", ..)) ->
+      case cnpj {
+        option.None -> Error(FailedToUpdateCompany(id))
+        option.Some(cnpj) -> Error(CnpjConflict(cnpj))
+      }
+
+    // A CNPJ needs to have exactly 14 digits.
+    Error(pog.ConstraintViolated(constraint: "company_cnpj_check", ..)) ->
+      case cnpj {
+        option.None -> Error(FailedToUpdateCompany(id))
+        option.Some(cnpj) -> Error(InvalidCnpj(cnpj.to_string(cnpj)))
+      }
+
+    // Every Company Email needs to be unique.
+    Error(pog.ConstraintViolated(constraint: "company_email_key", ..)) ->
+      case email {
+        option.None -> Error(FailedToUpdateCompany(id))
+        option.Some(email) -> Error(EmailConflict(email))
+      }
+
+    Ok(data) -> Ok(data)
+    Error(error) -> Error(DatabaseError(error))
+  })
+
+  use row <- result.try(
+    list.first(returned.rows)
+    |> result.replace_error(NotFound(id)),
+  )
+
+  use cnpj <- result.try(
+    cnpj.parse(row.cnpj)
+    |> result.replace_error(InvalidCnpj(value: row.cnpj)),
+  )
+
+  use email <- result.try(
+    email.parse(row.email)
+    |> result.replace_error(InvalidEmail(value: row.email)),
+  )
+
+  use website <- result.map(
+    uri.parse(row.website)
+    |> result.replace_error(InvalidWebsite(value: row.website)),
+  )
+
+  Company(
+    id: row.id,
+    name: row.name,
+    email:,
+    size: size_from_enum(row.size),
+    cnpj:,
+    city: row.city,
+    state: row.state,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+    is_active: row.is_active,
+    website:,
+  )
 }

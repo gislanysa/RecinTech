@@ -30,5 +30,6 @@ RETURNING
     city::text,
     state::text,
     created_at,
+    updated_at,
     is_active::boolean,
     website::text;

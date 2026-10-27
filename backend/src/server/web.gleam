@@ -3098,5 +3098,9 @@ fn handle_company_error(error: company.CompanyError) -> Response {
     company.FailedToRegisterCompany ->
       "Failed to register Company"
       |> wisp.string_body(wisp.internal_server_error(), _)
+
+    company.FailedToUpdateCompany(_) ->
+      "Failed to update Company"
+      |> wisp.string_body(wisp.internal_server_error(), _)
   }
 }

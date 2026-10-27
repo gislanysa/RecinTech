@@ -58,6 +58,7 @@ The startup or company object for the authenticated account, e.g.:
   "city": "Recife",
   "state": "Pernambuco",
   "created_at": "2026-09-14T20:08:02.000Z",
+  "updated_at": "2026-09-14T20:08:02.000Z",
   "is_active": true,
   "website": "criticlevel.dev"
 }
@@ -142,6 +143,7 @@ Register a new startup.
   "city": "Recife",
   "state": "Pernambuco",
   "created_at": "2026-09-14T20:08:02.000Z",
+  "updated_at": "2026-09-14T20:08:02.000Z",
   "is_active": true,
   "website": "criticlevel.dev"
 }
@@ -194,6 +196,7 @@ ignored.
   "city": "Olinda",
   "state": "Pernambuco",
   "created_at": "2026-09-14T20:08:02.000Z",
+  "updated_at": "2026-09-14T20:08:02.000Z",
   "is_active": true,
   "website": "https://viradanocafe.com"
 }
@@ -449,6 +452,7 @@ Fetch a list of registered startups.
     "city": "Recife",
     "state": "Pernambuco",
     "created_at": "2026-09-14T20:08:02.000Z",
+  "updated_at": "2026-09-14T20:08:02.000Z",
     "is_active": true,
     "website": "wibble.com"
   },
@@ -462,6 +466,7 @@ Fetch a list of registered startups.
     "city": "Recife",
     "state": "Pernambuco",
     "created_at": "2025-09-14T20:08:02.000Z",
+  "updated_at": "2026-09-14T20:08:02.000Z",
     "is_active": true,
     "website": "wobble.com"
   }
@@ -494,6 +499,7 @@ Fetch information about a startup.
   "city": "Recife",
   "state": "Pernambuco",
   "created_at": "2026-09-14T20:08:02.000Z",
+  "updated_at": "2026-09-14T20:08:02.000Z",
   "is_active": true,
   "website": "criticlevel.dev"
 }
@@ -894,6 +900,7 @@ Register a new company.
   "city": "Recife",
   "state": "Pernambuco",
   "created_at": "2026-09-14T20:08:02.000Z",
+  "updated_at": "2026-09-14T20:08:02.000Z",
   "is_active": true,
   "website": "https://portodigital.org"
 }
@@ -925,6 +932,7 @@ Fetch information about a company.
   "city": "Recife",
   "state": "Pernambuco",
   "created_at": "2026-09-14T20:08:02.000Z",
+  "updated_at": "2026-09-14T20:08:02.000Z",
   "is_active": true,
   "website": "https://portodigital.org"
 }
@@ -935,6 +943,58 @@ Fetch information about a company.
 - 200: Successful
 - 400: Invalid UUID format
 - 404: Company not found
+
+## PATCH /api/company/:id
+
+Update information about a company. Missing fields and empty strings are
+ignored.
+
+### Path Parameters
+
+- `id` (UUID, required)
+
+### Request Body
+
+```json
+{
+  "name": "Porto Digital",
+  "email": "porto@email.com",
+  "size": "medium",
+  "cnpj": "12345678901234",
+  "city": "Recife",
+  "state": "Pernambuco",
+  "website": "https://portodigital.org"
+}
+```
+
+- All fields are optional.
+- `size`: one of `"micro"`, `"small"`, `"medium"` or `"big"`.
+- Empty strings are treated as missing fields.
+
+### Response Body
+
+```json
+{
+  "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+  "name": "Porto Digital",
+  "email": "porto@email.com",
+  "size": "medium",
+  "cnpj": "12345678901234",
+  "city": "Recife",
+  "state": "Pernambuco",
+  "created_at": "2026-09-14T20:08:02.000Z",
+  "updated_at": "2026-09-14T20:08:02.000Z",
+  "is_active": true,
+  "website": "https://portodigital.org"
+}
+```
+
+### Status Codes
+
+- 200: Successful
+- 400: Invalid JSON, invalid UUID format or invalid field value
+- 404: Company not found
+- 409: Email or CNPJ already in use
 
 ## GET /api/company/:id/demand
 

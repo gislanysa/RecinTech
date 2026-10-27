@@ -26,6 +26,7 @@ pub type GetRow {
     state: String,
     is_active: Bool,
     created_at: Timestamp,
+    updated_at: Timestamp,
     website: String,
   )
 }
@@ -49,7 +50,8 @@ pub fn get(
     use state <- decode.field(6, decode.string)
     use is_active <- decode.field(7, decode.bool)
     use created_at <- decode.field(8, pog.timestamp_decoder())
-    use website <- decode.field(9, decode.string)
+    use updated_at <- decode.field(9, pog.timestamp_decoder())
+    use website <- decode.field(10, decode.string)
     decode.success(GetRow(
       id:,
       name:,
@@ -60,6 +62,7 @@ pub fn get(
       state:,
       is_active:,
       created_at:,
+      updated_at:,
       website:,
     ))
   }
@@ -75,6 +78,7 @@ SELECT
     c.state,
     c.is_active,
     c.created_at,
+    c.updated_at,
     c.website
 FROM
     public.company AS c
@@ -273,6 +277,7 @@ pub type RegisterRow {
     city: String,
     state: String,
     created_at: Timestamp,
+    updated_at: Timestamp,
     is_active: Bool,
     website: String,
   )
@@ -303,8 +308,9 @@ pub fn register(
     use city <- decode.field(5, decode.string)
     use state <- decode.field(6, decode.string)
     use created_at <- decode.field(7, pog.timestamp_decoder())
-    use is_active <- decode.field(8, decode.bool)
-    use website <- decode.field(9, decode.string)
+    use updated_at <- decode.field(8, pog.timestamp_decoder())
+    use is_active <- decode.field(9, decode.bool)
+    use website <- decode.field(10, decode.string)
     decode.success(RegisterRow(
       id:,
       name:,
@@ -314,6 +320,7 @@ pub fn register(
       city:,
       state:,
       created_at:,
+      updated_at:,
       is_active:,
       website:,
     ))
@@ -351,12 +358,118 @@ RETURNING
     city::text,
     state::text,
     created_at,
+    updated_at,
     is_active::boolean,
     website::text;
 "
   |> pog.query
   |> pog.parameter(pog.text(arg_1))
   |> pog.parameter(company_size_encoder(arg_2))
+  |> pog.parameter(pog.text(arg_3))
+  |> pog.parameter(pog.text(arg_4))
+  |> pog.parameter(pog.text(arg_5))
+  |> pog.parameter(pog.text(arg_6))
+  |> pog.parameter(pog.text(arg_7))
+  |> pog.parameter(pog.text(arg_8))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
+/// A row you get from running the `update` query
+/// defined in `./src/server/company/sql/update.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v4.7.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type UpdateRow {
+  UpdateRow(
+    id: Uuid,
+    name: String,
+    size: CompanySize,
+    email: String,
+    cnpj: String,
+    city: String,
+    state: String,
+    created_at: Timestamp,
+    updated_at: Timestamp,
+    is_active: Bool,
+    website: String,
+  )
+}
+
+/// update information about a company
+///
+/// > 🐿️ This function was generated automatically using v4.7.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn update(
+  db: pog.Connection,
+  company_id: Uuid,
+  arg_2: String,
+  arg_3: String,
+  arg_4: String,
+  arg_5: String,
+  arg_6: String,
+  arg_7: String,
+  arg_8: String,
+) -> Result(pog.Returned(UpdateRow), pog.QueryError) {
+  let decoder = {
+    use id <- decode.field(0, uuid_decoder())
+    use name <- decode.field(1, decode.string)
+    use size <- decode.field(2, company_size_decoder())
+    use email <- decode.field(3, decode.string)
+    use cnpj <- decode.field(4, decode.string)
+    use city <- decode.field(5, decode.string)
+    use state <- decode.field(6, decode.string)
+    use created_at <- decode.field(7, pog.timestamp_decoder())
+    use updated_at <- decode.field(8, pog.timestamp_decoder())
+    use is_active <- decode.field(9, decode.bool)
+    use website <- decode.field(10, decode.string)
+    decode.success(UpdateRow(
+      id:,
+      name:,
+      size:,
+      email:,
+      cnpj:,
+      city:,
+      state:,
+      created_at:,
+      updated_at:,
+      is_active:,
+      website:,
+    ))
+  }
+
+  "-- update information about a company
+UPDATE
+    company
+SET
+    name = coalesce(nullif($2::text, ''), name),
+    size = coalesce(nullif($3::text, '')::company_size, size),
+    email = coalesce(nullif($4::text, ''), email),
+    cnpj = coalesce(nullif($5::text, ''), cnpj),
+    city = coalesce(nullif($6::text, ''), city),
+    state = coalesce(nullif($7::text, ''), state),
+    website = coalesce(nullif($8::text, ''), website),
+    updated_at = CURRENT_TIMESTAMP
+WHERE
+    company.id = $1
+RETURNING
+    company.id,
+    company.name,
+    company.size,
+    company.email,
+    company.cnpj,
+    company.city,
+    company.state,
+    company.created_at,
+    company.updated_at,
+    company.is_active,
+    company.website;
+"
+  |> pog.query
+  |> pog.parameter(pog.text(uuid.to_string(company_id)))
+  |> pog.parameter(pog.text(arg_2))
   |> pog.parameter(pog.text(arg_3))
   |> pog.parameter(pog.text(arg_4))
   |> pog.parameter(pog.text(arg_5))
