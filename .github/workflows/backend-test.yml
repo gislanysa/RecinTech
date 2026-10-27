@@ -14,13 +14,19 @@ on:
       - "backend/src/**"
       - "backend/test/**"
       - ".github/workflows/backend-test.yml"
+  workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: backend
@@ -33,7 +39,6 @@ jobs:
           POSTGRES_USER: aluno
           POSTGRES_PASSWORD: "123"
           POSTGRES_DB: senac
-          IN_PARALLEL: true
         options: >-
           --health-cmd "pg_isready -U aluno -d senac" --health-interval 10s --health-timeout 5s --health-retries 5
         ports:
@@ -46,29 +51,31 @@ jobs:
 
     # Running unit tests
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - uses: erlef/setup-beam@v1
+      - name: Setup BEAM
+        uses: erlef/setup-beam@v1
         with:
           otp-version: "29"
-          gleam-version: "v1.19.0"
+          gleam-version: "v1.19.2"
           rebar3-version: "3"
 
       # It needs a C compiler because of the Argon2 hashing.
-      - name: install build tools
-        run: sudo apt-get update && sudo apt-get install -y build-essential
+      - name: Install build tools
+        run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends build-essential
 
-      - name: build backend
+      - name: Build backend
         run: gleam build
 
-      - name: build database tables
+      - name: Build database tables
         run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f postgres/00_tables.sql
 
-      - name: validate generated sql queries
+      - name: Validate generated SQL queries
         run: gleam run -m squirrel check
 
-      - name: check formatting
+      - name: Check formatting
         run: gleam format --check src test
 
-      - name: run unit tests
+      - name: Run unit tests
         run: gleam test
