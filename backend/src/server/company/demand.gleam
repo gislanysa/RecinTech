@@ -1,3 +1,6 @@
+//// Demands represent problems or needs posted by companies
+//// seeking solutions from startups.
+
 import gleam/dynamic/decode
 import gleam/json
 import gleam/list

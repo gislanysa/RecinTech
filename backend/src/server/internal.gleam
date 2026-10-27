@@ -1,3 +1,5 @@
+//// Shared utilities for JSON decoding/encoding and common types.
+
 import gleam/dynamic/decode
 import gleam/json
 import gleam/time/calendar

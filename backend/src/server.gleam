@@ -1,4 +1,4 @@
-//// Starting point of the application.
+//// Starting point of the application and supervision tree.
 
 import envoy
 import filepath

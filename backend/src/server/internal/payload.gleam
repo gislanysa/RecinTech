@@ -1,3 +1,5 @@
+//// Request payload types for API endpoints.
+
 import gleam/option
 import gleam/uri
 import server/cnpj
