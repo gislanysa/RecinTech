@@ -16,7 +16,7 @@ import server/service
 import server/startup
 import server/technology
 import server/web
-import wisp
+import wisp.{type Request}
 import wisp/simulate
 import youid/uuid
 
@@ -64,11 +64,11 @@ pub fn new_startup(database: pog.Connection) -> startup.Startup {
 
 /// Send a request while including a Startup session token.
 pub fn with_session(
-  request: wisp.Request,
+  request: Request,
   context: web.Context,
   session: web.Session,
   email: email.Email,
-) -> wisp.Request {
+) -> Request {
   let session_string = case session {
     web.Startup(_) -> "startup"
     web.Company(_) -> "company"

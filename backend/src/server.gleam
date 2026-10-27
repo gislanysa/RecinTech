@@ -9,7 +9,7 @@ import gleam/result
 import mist
 import pog
 import server/web
-import wisp
+import wisp.{type Request, type Response}
 import wisp/wisp_mist
 
 /// Start the application.
@@ -43,7 +43,7 @@ pub fn static_directory() -> Result(String, Nil) {
 /// Starts the application's supervision tree, including the HTTP server and
 /// the Postgres connection pool.
 pub fn start_supervision_tree(
-  handler: fn(wisp.Request) -> wisp.Response,
+  handler: fn(Request) -> Response,
   database_config: pog.Config,
   secret_key: String,
 ) -> Result(actor.Started(supervisor.Supervisor), actor.StartError) {
