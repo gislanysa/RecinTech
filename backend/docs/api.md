@@ -153,6 +153,59 @@ Register a new startup.
 - 400: Invalid JSON or invalid data
 - 409: Duplicated email or CNPJ
 
+## PATCH /api/startup/:id
+
+Update information about a startup. Missing fields and empty strings are
+ignored.
+
+### Path Parameters
+
+- `id` (UUID, required)
+
+### Request Body
+
+```json
+{
+  "name": "Virada no Cafe",
+  "email": "contact@viradanocafe.com",
+  "stage": "scaling",
+  "cnpj": "12345678901234",
+  "description": "Inovacao periferica que transforma",
+  "city": "Olinda",
+  "state": "Pernambuco",
+  "website": "https://viradanocafe.com"
+}
+```
+
+- All fields are optional.
+- `stage`: either `"traction"` or `"scaling"`.
+- Empty strings are treated as missing fields.
+
+### Response Body
+
+```json
+{
+  "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+  "name": "Virada no Cafe",
+  "email": "contact@viradanocafe.com",
+  "stage": "scaling",
+  "cnpj": "12345678901234",
+  "description": "Inovacao periferica que transforma",
+  "city": "Olinda",
+  "state": "Pernambuco",
+  "created_at": "2026-09-14T20:08:02.000Z",
+  "is_active": true,
+  "website": "https://viradanocafe.com"
+}
+```
+
+### Status Codes
+
+- 200: Successful
+- 400: Invalid JSON, invalid UUID format or invalid field value
+- 404: Startup not found
+- 409: Email or CNPJ already in use
+
 ## GET /api/segment
 
 Fetch a list of registered segments.

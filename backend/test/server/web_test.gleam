@@ -5,6 +5,7 @@ import gleam/http/response
 import gleam/int
 import gleam/json
 import gleam/list
+import gleam/uri
 import server/cnpj
 import server/company
 import server/company/demand
@@ -586,6 +587,233 @@ pub fn register_startup_cnpj_conflict_test() -> Nil {
     |> web.handle_request(context)
 
   assert response.status == 409
+
+  Nil
+}
+
+pub fn update_startup_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+
+  let new_name = "Virada no Cafe"
+  let new_description = "Inovacao periferica que transforma"
+  let new_city = "Olinda"
+  let new_state = "Pernambuco"
+  let new_email = dummy.new_email()
+  let new_cnpj = dummy.new_cnpj()
+  let assert Ok(new_website) = uri.parse("https://viradanocafe.com")
+
+  let body =
+    json.object([
+      #("name", json.string(new_name)),
+      #("description", json.string(new_description)),
+      #("city", json.string(new_city)),
+      #("state", json.string(new_state)),
+      #("website", json.string(uri.to_string(new_website))),
+      #("stage", json.string("scaling")),
+      #("email", email.to_json(new_email)),
+      #("cnpj", cnpj.to_json(new_cnpj)),
+    ])
+
+  let endpoint = "/api/startup/" <> uuid.to_string(startup.id)
+  let response =
+    simulate.browser_request(http.Patch, endpoint)
+    |> simulate.json_body(body)
+    |> web.handle_request(context)
+
+  assert response.status == 200
+  expect_json(response)
+
+  let body = simulate.read_body(response)
+  let assert Ok(returned) = json.parse(body, startup.decoder())
+
+  assert returned.id == startup.id
+  assert returned.name == new_name
+  assert returned.description == new_description
+  assert returned.city == new_city
+  assert returned.state == new_state
+  assert returned.website == new_website
+  assert returned.stage == startup.Scaling
+  assert returned.email == new_email
+  assert returned.cnpj == new_cnpj
+  assert returned.created_at == startup.created_at
+  assert returned.is_active == startup.is_active
+
+  Nil
+}
+
+pub fn update_startup_partial_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+  let new_name = "Virada no Cafe"
+
+  let body = json.object([#("name", json.string(new_name))])
+
+  let endpoint = "/api/startup/" <> uuid.to_string(startup.id)
+  let response =
+    simulate.browser_request(http.Patch, endpoint)
+    |> simulate.json_body(body)
+    |> web.handle_request(context)
+
+  assert response.status == 200
+  expect_json(response)
+
+  let body = simulate.read_body(response)
+  let assert Ok(returned) = json.parse(body, startup.decoder())
+
+  assert returned.id == startup.id
+  assert returned.name == new_name
+  assert returned.description == startup.description
+  assert returned.city == startup.city
+  assert returned.state == startup.state
+  assert returned.website == startup.website
+  assert returned.stage == startup.stage
+  assert returned.email == startup.email
+  assert returned.cnpj == startup.cnpj
+
+  Nil
+}
+
+pub fn update_startup_ignores_empty_strings_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+
+  let body =
+    json.object([
+      #("name", json.string("")),
+      #("description", json.string("")),
+      #("city", json.string("")),
+      #("state", json.string("")),
+      #("website", json.string("")),
+    ])
+
+  let endpoint = "/api/startup/" <> uuid.to_string(startup.id)
+  let response =
+    simulate.browser_request(http.Patch, endpoint)
+    |> simulate.json_body(body)
+    |> web.handle_request(context)
+
+  assert response.status == 200
+  expect_json(response)
+
+  let body = simulate.read_body(response)
+  let assert Ok(returned) = json.parse(body, startup.decoder())
+
+  assert returned.id == startup.id
+  assert returned.name == startup.name
+  assert returned.description == startup.description
+  assert returned.city == startup.city
+  assert returned.state == startup.state
+  assert returned.website == startup.website
+
+  Nil
+}
+
+pub fn update_startup_invalid_json_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+
+  let endpoint = "/api/startup/" <> uuid.to_string(startup.id)
+  let response =
+    simulate.browser_request(http.Patch, endpoint)
+    |> simulate.string_body("{not valid json")
+    |> request.set_header("content-type", "application/json")
+    |> web.handle_request(context)
+
+  assert response.status == 400
+
+  Nil
+}
+
+pub fn update_startup_invalid_id_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let response =
+    simulate.browser_request(http.Patch, "/api/startup/wibble")
+    |> simulate.json_body(json.object([]))
+    |> web.handle_request(context)
+
+  assert response.status == 400
+
+  Nil
+}
+
+pub fn update_missing_startup_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let endpoint = "/api/startup/" <> uuid.v7_string()
+  let response =
+    simulate.browser_request(http.Patch, endpoint)
+    |> simulate.json_body(json.object([]))
+    |> web.handle_request(context)
+
+  assert response.status == 404
+
+  Nil
+}
+
+pub fn update_startup_email_conflict_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+  let other = dummy.new_startup(context.database)
+
+  let body = json.object([#("email", email.to_json(other.email))])
+
+  let endpoint = "/api/startup/" <> uuid.to_string(startup.id)
+  let response =
+    simulate.browser_request(http.Patch, endpoint)
+    |> simulate.json_body(body)
+    |> web.handle_request(context)
+
+  assert response.status == 409
+
+  Nil
+}
+
+pub fn update_startup_cnpj_conflict_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+  let other = dummy.new_startup(context.database)
+
+  let body = json.object([#("cnpj", cnpj.to_json(other.cnpj))])
+
+  let endpoint = "/api/startup/" <> uuid.to_string(startup.id)
+  let response =
+    simulate.browser_request(http.Patch, endpoint)
+    |> simulate.json_body(body)
+    |> web.handle_request(context)
+
+  assert response.status == 409
+
+  Nil
+}
+
+pub fn update_startup_invalid_fields_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+  let endpoint = "/api/startup/" <> uuid.to_string(startup.id)
+
+  let invalid_bodies = [
+    json.object([#("stage", json.string("wibble"))]),
+    json.object([#("email", json.string("not-an-email"))]),
+    json.object([#("cnpj", json.string("123"))]),
+  ]
+
+  list.each(invalid_bodies, fn(body) {
+    let response =
+      simulate.browser_request(http.Patch, endpoint)
+      |> simulate.json_body(body)
+      |> web.handle_request(context)
+
+    assert response.status == 400
+  })
 
   Nil
 }

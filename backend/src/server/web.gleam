@@ -248,6 +248,60 @@ pub fn handle_request(request: Request, context: Context) -> Response {
   }
 }
 
+/// ## `PATCH /api/startup/:id`
+///
+/// Update information about a Startup. Missing fields and empty strings are
+/// ignored.
+///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required)
+///
+/// ## Request Body
+///
+/// ```json
+/// {
+///   "name": "Virada no Cafe",
+///   "email": "contact@viradanocafe.com",
+///   "stage": "scaling",
+///   "cnpj": "12345678901234",
+///   "description": "Inovacao periferica que transforma",
+///   "city": "Olinda",
+///   "state": "Pernambuco",
+///   "website": "https://viradanocafe.com"
+/// }
+/// ```
+///
+/// - All fields are optional.
+/// - `stage`: either `"traction"` or `"scaling"`.
+/// - Empty strings are treated as missing fields.
+///
+/// ## Response Body
+///
+/// ```json
+/// {
+///  "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+///  "name": "Virada no Cafe",
+///  "email": "contact@viradanocafe.com",
+///  "stage": "scaling",
+///  "cnpj": "12345678901234",
+///  "description": "Inovacao periferica que transforma",
+///  "city": "Olinda",
+///  "state": "Pernambuco",
+///  "created_at": "2026-09-14T20:08:02.000Z",
+///  "is_active": true,
+///  "website": "https://viradanocafe.com"
+/// }
+/// ```
+///
+/// ## Status Codes
+///
+/// - **200** If successful.
+/// - **400** If the ID is not a valid UUID, the request body is invalid JSON,
+///   or a field has an invalid value.
+/// - **404** If the Startup is not found.
+/// - **409** If the new email or CNPJ is already in use.
+///
 fn update_startup(
   request: Request,
   database: pog.Connection,
