@@ -127,7 +127,9 @@ pub fn consent_decoder() -> decode.Decoder(Consent) {
   }
 }
 
-/// Grants LGPD consent for a given entity and policy version.
+/// Grant LGPD (Lei Geral de Proteção de Dados) consent for a Subject at a
+/// given policy version. Once granted, the Subject allows its data to be used
+/// as described by that version of the privacy policy.
 ///
 /// ## Examples
 ///
@@ -149,7 +151,9 @@ pub fn grant_consent(
   do_update_consent(database, subject, sql.Granted, version)
 }
 
-/// Revokes LGPD consent for a given entity and policy version.
+/// Revoke LGPD (Lei Geral de Proteção de Dados) consent for a Subject at a
+/// given policy version. Once revoked, the Subject no longer allows its data
+/// to be used as described by that version of the privacy policy.
 ///
 /// ## Examples
 ///
