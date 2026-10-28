@@ -12,8 +12,6 @@ A empresa descreve o que precisa, a startup mantém um perfil técnico com suas 
 
 > **Nota:** o projeto nasceu com o nome StartAI, voltado a mentores e investidores anjo. Em 2026.2 a equipe redirecionou o produto para a relação entre empresas e startups, e renomeou para RecInTech. Partes antigas da documentação e do código podem ainda usar a nomenclatura anterior.
 
-## Stack
-
 **Frontend**
 
 | Camada | Tecnologia |
@@ -141,7 +139,7 @@ Rotas implementadas no backend hoje. Todas sob o prefixo `/api`.
 | GET | `/api/auth/refresh` | Renova a duração do token |
 | POST | `/api/auth/logout` | Encerra a sessão |
 
-### Startups
+### Startups — leitura pública
 
 | Método | Rota | Descrição |
 | --- | --- | --- |
