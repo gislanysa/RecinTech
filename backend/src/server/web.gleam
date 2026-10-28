@@ -110,6 +110,9 @@ pub fn handle_request(request: Request, context: Context) -> Response {
 
     http.Get, ["api", "startup", id] -> get_startup_by_id(context.database, id)
 
+    http.Get, ["api", "startup", id, "lgpd"] ->
+      get_startup_lgpd_consent(context.database, id)
+
     http.Post, ["api", "startup", id, "lgpd", version] ->
       grant_startup_lgpd_consent(context.database, id, version)
 
@@ -191,6 +194,9 @@ pub fn handle_request(request: Request, context: Context) -> Response {
     http.Get, ["api", "company", id, "demand"] ->
       get_company_demands(request, context.database, id)
 
+    http.Get, ["api", "company", id, "lgpd"] ->
+      get_company_lgpd_consent(context.database, id)
+
     http.Post, ["api", "company", id, "lgpd", version] ->
       grant_company_lgpd_consent(context.database, id, version)
 
@@ -261,6 +267,114 @@ pub fn handle_request(request: Request, context: Context) -> Response {
 
     // Page not found in the frontend
     _, _ -> get_root_document()
+  }
+}
+
+/// ## `GET /api/company/:id/lgpd`
+///
+/// Fetch all LGPD (Lei Geral de Proteção de Dados) consent records for a
+/// Company, ordered by policy version.
+///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Company's ID.
+///
+/// ## Response Body
+///
+/// ```json
+/// [
+///   {
+///     "type": "granted",
+///     "subject": {
+///       "type": "company",
+///       "id": "01a058ae-057f-73e8-b2a0-50986559767b"
+///     },
+///     "updated_at": "2026-09-14T20:08:02.000Z",
+///     "version": 1
+///   },
+///   {
+///     "type": "revoked",
+///     "subject": {
+///       "type": "company",
+///       "id": "01a058ae-057f-73e8-b2a0-50986559767b"
+///     },
+///     "updated_at": "2026-09-14T20:08:02.000Z",
+///     "version": 2
+///   }
+/// ]
+/// ```
+///
+/// ## Status Codes
+///
+/// - **200** If successful.
+/// - **400** If the ID is not a valid UUID.
+/// - **404** If the Company is not found or has no consent records.
+/// - **500** If the consent records could not be fetched.
+///
+fn get_company_lgpd_consent(database: pog.Connection, id: String) -> Response {
+  use id <- require_valid_uuid(id)
+
+  case company.get_lgpd_consent(database, id) {
+    Ok(consent) ->
+      json.array(consent, lgpd.consent_to_json)
+      |> json.to_string()
+      |> wisp.json_response(200)
+
+    Error(error) -> handle_company_error(error)
+  }
+}
+
+/// ## `GET /api/startup/:id/lgpd`
+///
+/// Fetch all LGPD (Lei Geral de Proteção de Dados) consent records for a
+/// Startup, ordered by policy version.
+///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Startup's ID.
+///
+/// ## Response Body
+///
+/// ```json
+/// [
+///   {
+///     "type": "granted",
+///     "subject": {
+///       "type": "startup",
+///       "id": "01a058ae-057f-73e8-b2a0-50986559767b"
+///     },
+///     "updated_at": "2026-09-14T20:08:02.000Z",
+///     "version": 1
+///   },
+///   {
+///     "type": "revoked",
+///     "subject": {
+///       "type": "startup",
+///       "id": "01a058ae-057f-73e8-b2a0-50986559767b"
+///     },
+///     "updated_at": "2026-09-14T20:08:02.000Z",
+///     "version": 2
+///   }
+/// ]
+/// ```
+///
+/// ## Status Codes
+///
+/// - **200** If successful.
+/// - **400** If the ID is not a valid UUID.
+/// - **404** If the Startup is not found or has no consent records.
+/// - **500** If the consent records could not be fetched.
+///
+fn get_startup_lgpd_consent(database: pog.Connection, id: String) -> Response {
+  use id <- require_valid_uuid(id)
+
+  case startup.get_lgpd_consent(database, id) {
+    Ok(consent) ->
+      json.array(consent, lgpd.consent_to_json)
+      |> json.to_string()
+      |> wisp.json_response(200)
+
+    Error(error) -> handle_startup_error(error)
   }
 }
 

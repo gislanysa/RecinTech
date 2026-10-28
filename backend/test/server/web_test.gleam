@@ -2930,6 +2930,136 @@ pub fn delete_missing_demand_test() -> Nil {
   Nil
 }
 
+pub fn get_startup_lgpd_consent_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+
+  let assert Ok(version_one) =
+    lgpd.grant_consent(
+      context.database,
+      for: lgpd.Startup(startup.id),
+      version: 1,
+    )
+
+  let assert Ok(version_two) =
+    lgpd.revoke_consent(
+      context.database,
+      from: lgpd.Startup(startup.id),
+      version: 2,
+    )
+
+  let endpoint = "/api/startup/" <> uuid.to_string(startup.id) <> "/lgpd"
+  let response =
+    simulate.browser_request(http.Get, endpoint)
+    |> web.handle_request(context)
+
+  assert response.status == 200
+  expect_json(response)
+
+  let body = simulate.read_body(response)
+
+  let assert Ok(returned) =
+    json.parse(body, decode.list(lgpd.consent_decoder()))
+
+  assert returned == [version_one, version_two]
+
+  Nil
+}
+
+pub fn get_startup_lgpd_consent_missing_test() -> Nil {
+  use context <- server_test.with_context()
+
+  // Startup exists, but has no consent records.
+  let startup = dummy.new_startup(context.database)
+  let endpoint = "/api/startup/" <> uuid.to_string(startup.id) <> "/lgpd"
+
+  let response =
+    simulate.browser_request(http.Get, endpoint)
+    |> web.handle_request(context)
+
+  assert response.status == 404
+
+  Nil
+}
+
+pub fn get_startup_lgpd_consent_invalid_id_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let response =
+    simulate.browser_request(http.Get, "/api/startup/wibble/lgpd")
+    |> web.handle_request(context)
+
+  assert response.status == 400
+
+  Nil
+}
+
+pub fn get_company_lgpd_consent_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+
+  let assert Ok(version_one) =
+    lgpd.grant_consent(
+      context.database,
+      for: lgpd.Company(company.id),
+      version: 1,
+    )
+
+  let assert Ok(version_two) =
+    lgpd.revoke_consent(
+      context.database,
+      from: lgpd.Company(company.id),
+      version: 2,
+    )
+
+  let endpoint = "/api/company/" <> uuid.to_string(company.id) <> "/lgpd"
+  let response =
+    simulate.browser_request(http.Get, endpoint)
+    |> web.handle_request(context)
+
+  assert response.status == 200
+  expect_json(response)
+
+  let body = simulate.read_body(response)
+
+  let assert Ok(returned) =
+    json.parse(body, decode.list(lgpd.consent_decoder()))
+
+  assert returned == [version_one, version_two]
+
+  Nil
+}
+
+pub fn get_company_lgpd_consent_missing_test() -> Nil {
+  use context <- server_test.with_context()
+
+  // Company exists, but has no consent records.
+  let company = dummy.new_company(context.database)
+  let endpoint = "/api/company/" <> uuid.to_string(company.id) <> "/lgpd"
+
+  let response =
+    simulate.browser_request(http.Get, endpoint)
+    |> web.handle_request(context)
+
+  assert response.status == 404
+
+  Nil
+}
+
+pub fn get_company_lgpd_consent_invalid_id_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let response =
+    simulate.browser_request(http.Get, "/api/company/wibble/lgpd")
+    |> web.handle_request(context)
+
+  assert response.status == 400
+
+  Nil
+}
+
 pub fn grant_startup_lgpd_consent_test() -> Nil {
   use context <- server_test.with_context()
 
