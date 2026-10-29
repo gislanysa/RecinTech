@@ -1,0 +1,43 @@
+services:
+  # database
+  postgres:
+    image: docker.io/postgres:18-alpine
+    restart: unless-stopped
+    container_name: server_postgres
+    ports: ["5432:5432"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 2s
+      timeout: 5s
+      retries: 20
+      start_period: 1s
+    environment:
+      POSTGRES_USER: aluno
+      POSTGRES_PASSWORD: 123
+      POSTGRES_DB: senac
+    volumes: ["./backend/postgres:/docker-entrypoint-initdb.d"]
+  # server
+  backend:
+    build: .
+    container_name: server_backend
+    ports: ["8000:8000"]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8000/api/healthcheck"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://aluno:123@postgres:5432/senac
+      SECRET_KEY: senac
+  # docs
+  docs:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.docs
+    container_name: server_docs
+    ports: ["8080:80"]
+    restart: unless-stopped

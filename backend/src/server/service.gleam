@@ -1,0 +1,133 @@
+//// Startups can offer a lot of different services, like UI/UX design,
+//// web development, AI training, automation, etc.
+
+import gleam/dynamic/decode
+import gleam/json
+import gleam/list
+import gleam/result
+import pog
+import server/internal
+import server/service/sql
+import youid/uuid
+
+pub type ServiceError {
+  /// Failed o the query the Database
+  DatabaseError(error: pog.QueryError)
+  /// Service was not found in the Database
+  NotFound(id: uuid.Uuid)
+  /// Something went wrong when registering a new Service
+  FailedToRegisterService
+}
+
+pub type Service {
+  Service(id: uuid.Uuid, name: String, description: String)
+}
+
+pub fn decoder() -> decode.Decoder(Service) {
+  use id <- decode.field("id", internal.uuid_decoder())
+  use name <- decode.field("name", decode.string)
+  use description <- decode.field("description", decode.string)
+  decode.success(Service(id:, name:, description:))
+}
+
+pub fn to_json(service: Service) -> json.Json {
+  let Service(id:, name:, description:) = service
+  json.object([
+    #("id", internal.uuid_to_json(id)),
+    #("name", json.string(name)),
+    #("description", json.string(description)),
+  ])
+}
+
+/// Search a Service in the Database using their ID.
+///
+/// ## Examples
+///
+/// ```gleam
+/// let result = service.get(context.database, id)
+///
+/// case result {
+///   Ok(data) -> wisp.ok()
+///   Error(service.NotFound(_)) -> wisp.not_found()
+///   Error(_) -> wisp.internal_server_error()
+/// }
+/// ```
+pub fn get(
+  database: pog.Connection,
+  id: uuid.Uuid,
+) -> Result(Service, ServiceError) {
+  use returned <- result.try(
+    sql.get(database, id)
+    |> result.map_error(DatabaseError),
+  )
+
+  use row <- result.map(
+    list.first(returned.rows)
+    |> result.replace_error(NotFound(id:)),
+  )
+
+  Service(id: row.id, name: row.name, description: row.description)
+}
+
+/// Fetch many Services from the database, specifying the max number of
+/// returned rows, and how many to skip.
+///
+/// ## Examples
+///
+/// ```gleam
+/// let result =
+///   service.get_many(context.database, limit: 3, offset: 6)
+///
+/// case result {
+///   Ok(data) -> wisp.ok()
+///   Error(_) -> wisp.internal_server_error()
+/// }
+/// ```
+pub fn get_many(
+  database: pog.Connection,
+  limit limit: Int,
+  offset offset: Int,
+) -> Result(List(Service), ServiceError) {
+  use returned <- result.map(
+    sql.get_many(database, limit, offset)
+    |> result.map_error(DatabaseError),
+  )
+
+  list.map(returned.rows, fn(row) {
+    Service(id: row.id, name: row.name, description: row.description)
+  })
+}
+
+/// Register an Service in the Database
+///
+/// ## Examples
+///
+/// ```gleam
+/// let result = service.register(
+///   context.database,
+///   name: "Data Analysis",
+///   description: "Databases, graphics and stuff",
+/// )
+///
+/// case result {
+///   Ok(data) -> wisp.response(201)
+///   Error(_) -> wisp.internal_server_error()
+/// }
+/// ```
+pub fn register(
+  database: pog.Connection,
+  name name: String,
+  description description: String,
+) -> Result(Service, ServiceError) {
+  use returned <- result.try(
+    sql.register(database, name, description)
+    |> result.map_error(DatabaseError),
+  )
+
+  use row <- result.map(
+    list.first(returned.rows)
+    |> result.replace_error(FailedToRegisterService),
+  )
+
+  Service(id: row.id, name: row.name, description: row.description)
+}
