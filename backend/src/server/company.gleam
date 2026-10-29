@@ -441,14 +441,14 @@ pub fn get_lgpd_consent(
     case row.consent {
       sql.Granted ->
         lgpd.Granted(
-          lgpd.Startup(id:),
+          lgpd.Company(id:),
           updated_at: row.updated_at,
           version: row.policy_version,
         )
 
       sql.Revoked ->
         lgpd.Revoked(
-          lgpd.Startup(id:),
+          lgpd.Company(id:),
           updated_at: row.updated_at,
           version: row.policy_version,
         )

@@ -209,6 +209,113 @@ ignored.
 - 404: Startup not found
 - 409: Email or CNPJ already in use
 
+## GET /api/startup/:id/lgpd
+
+Fetch all LGPD (Lei Geral de Proteção de Dados) consent records for a startup,
+ordered by policy version.
+
+### Path Parameters
+
+- `id` (UUID, required): the startup's ID.
+
+### Response Body
+
+```json
+[
+  {
+    "type": "granted",
+    "subject": {
+      "type": "startup",
+      "id": "01a058ae-057f-73e8-b2a0-50986559767b"
+    },
+    "updated_at": "2026-09-14T20:08:02.000Z",
+    "version": 1
+  },
+  {
+    "type": "revoked",
+    "subject": {
+      "type": "startup",
+      "id": "01a058ae-057f-73e8-b2a0-50986559767b"
+    },
+    "updated_at": "2026-09-14T20:08:02.000Z",
+    "version": 2
+  }
+]
+```
+
+### Status Codes
+
+- 200: Successful
+- 400: Invalid UUID format
+- 404: Startup not found or has no consent records
+- 500: Failed to fetch consent records
+
+## POST /api/startup/:id/lgpd/:version
+
+Grant LGPD (Lei Geral de Proteção de Dados) consent for a startup at a given
+policy version. Once granted, the startup allows its data to be used as
+described by that version of the privacy policy.
+
+### Path Parameters
+
+- `id` (UUID, required): the startup's ID.
+- `version` (int, required): the accepted policy version. Must be greater than
+  zero.
+
+### Response Body
+
+```json
+{
+  "type": "granted",
+  "subject": {
+    "type": "startup",
+    "id": "01a058ae-057f-73e8-b2a0-50986559767b"
+  },
+  "updated_at": "2026-09-14T20:08:02.000Z",
+  "version": 1
+}
+```
+
+### Status Codes
+
+- 200: Successful
+- 400: Invalid UUID format or invalid policy version
+- 404: Startup not found
+- 500: Failed to update consent
+
+## DELETE /api/startup/:id/lgpd/:version
+
+Revoke LGPD (Lei Geral de Proteção de Dados) consent for a startup at a given
+policy version. Once revoked, the startup no longer allows its data to be used
+as described by that version of the privacy policy.
+
+### Path Parameters
+
+- `id` (UUID, required): the startup's ID.
+- `version` (int, required): the revoked policy version. Must be greater than
+  zero.
+
+### Response Body
+
+```json
+{
+  "type": "revoked",
+  "subject": {
+    "type": "startup",
+    "id": "01a058ae-057f-73e8-b2a0-50986559767b"
+  },
+  "updated_at": "2026-09-14T20:08:02.000Z",
+  "version": 1
+}
+```
+
+### Status Codes
+
+- 200: Successful
+- 400: Invalid UUID format or invalid policy version
+- 404: Startup not found
+- 500: Failed to update consent
+
 ## GET /api/segment
 
 Fetch a list of registered segments.
@@ -995,6 +1102,113 @@ ignored.
 - 400: Invalid JSON, invalid UUID format or invalid field value
 - 404: Company not found
 - 409: Email or CNPJ already in use
+
+## GET /api/company/:id/lgpd
+
+Fetch all LGPD (Lei Geral de Proteção de Dados) consent records for a company,
+ordered by policy version.
+
+### Path Parameters
+
+- `id` (UUID, required): the company's ID.
+
+### Response Body
+
+```json
+[
+  {
+    "type": "granted",
+    "subject": {
+      "type": "company",
+      "id": "01a058ae-057f-73e8-b2a0-50986559767b"
+    },
+    "updated_at": "2026-09-14T20:08:02.000Z",
+    "version": 1
+  },
+  {
+    "type": "revoked",
+    "subject": {
+      "type": "company",
+      "id": "01a058ae-057f-73e8-b2a0-50986559767b"
+    },
+    "updated_at": "2026-09-14T20:08:02.000Z",
+    "version": 2
+  }
+]
+```
+
+### Status Codes
+
+- 200: Successful
+- 400: Invalid UUID format
+- 404: Company not found or has no consent records
+- 500: Failed to fetch consent records
+
+## POST /api/company/:id/lgpd/:version
+
+Grant LGPD (Lei Geral de Proteção de Dados) consent for a company at a given
+policy version. Once granted, the company allows its data to be used as
+described by that version of the privacy policy.
+
+### Path Parameters
+
+- `id` (UUID, required): the company's ID.
+- `version` (int, required): the accepted policy version. Must be greater than
+  zero.
+
+### Response Body
+
+```json
+{
+  "type": "granted",
+  "subject": {
+    "type": "company",
+    "id": "01a058ae-057f-73e8-b2a0-50986559767b"
+  },
+  "updated_at": "2026-09-14T20:08:02.000Z",
+  "version": 1
+}
+```
+
+### Status Codes
+
+- 200: Successful
+- 400: Invalid UUID format or invalid policy version
+- 404: Company not found
+- 500: Failed to update consent
+
+## DELETE /api/company/:id/lgpd/:version
+
+Revoke LGPD (Lei Geral de Proteção de Dados) consent for a company at a given
+policy version. Once revoked, the company no longer allows its data to be used
+as described by that version of the privacy policy.
+
+### Path Parameters
+
+- `id` (UUID, required): the company's ID.
+- `version` (int, required): the revoked policy version. Must be greater than
+  zero.
+
+### Response Body
+
+```json
+{
+  "type": "revoked",
+  "subject": {
+    "type": "company",
+    "id": "01a058ae-057f-73e8-b2a0-50986559767b"
+  },
+  "updated_at": "2026-09-14T20:08:02.000Z",
+  "version": 1
+}
+```
+
+### Status Codes
+
+- 200: Successful
+- 400: Invalid UUID format or invalid policy version
+- 404: Company not found
+- 500: Failed to update consent
 
 ## GET /api/company/:id/demand
 
