@@ -544,13 +544,13 @@ pub fn update(
     sql.update(
       database,
       id,
-      option.unwrap(name, ""),
-      option.map(size, size_to_string) |> option.unwrap(""),
-      option.map(email, email.to_string) |> option.unwrap(""),
-      option.map(cnpj, cnpj.to_string) |> option.unwrap(""),
-      option.unwrap(city, ""),
-      option.unwrap(state, ""),
-      option.map(website, uri.to_string) |> option.unwrap(""),
+      option.unwrap(name, or: ""),
+      option.unwrap(option.map(size, size_to_string), or: ""),
+      option.unwrap(option.map(email, email.to_string), or: ""),
+      option.unwrap(option.map(cnpj, cnpj.to_string), or: ""),
+      option.unwrap(city, or: ""),
+      option.unwrap(state, or: ""),
+      option.unwrap(option.map(website, uri.to_string), or: ""),
     )
 
   // I'm not sure how an update can fail with a conflict while the key being
