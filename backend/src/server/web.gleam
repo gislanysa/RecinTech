@@ -3614,5 +3614,9 @@ fn handle_company_error(error: company.CompanyError) -> Response {
     company.FailedToBookmarkStartup(_) ->
       "Failed to bookmark Startup"
       |> wisp.string_body(wisp.internal_server_error(), _)
+
+    company.BookmarkNotFound ->
+      "Bookmark not found"
+      |> wisp.string_body(wisp.not_found(), _)
   }
 }

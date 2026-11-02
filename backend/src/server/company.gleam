@@ -50,7 +50,10 @@ pub type CompanyError {
   StartupNotFound(uuid.Uuid)
   /// Startup is already bookmarked
   BookmarkConflict(uuid.Uuid)
+  /// Failed to bookmark a Startup
   FailedToBookmarkStartup(uuid.Uuid)
+  /// Bookmark was not found
+  BookmarkNotFound
 }
 
 /// Represents a Company supporting a [Startup](startup.html).
@@ -668,6 +671,70 @@ pub fn bookmark_startup(
   use row <- result.try(
     list.first(returned.rows)
     |> result.replace_error(FailedToBookmarkStartup(startup)),
+  )
+
+  use cnpj <- result.try(
+    cnpj.parse(row.cnpj)
+    |> result.replace_error(InvalidCnpj(value: row.cnpj)),
+  )
+
+  use email <- result.try(
+    email.parse(row.email)
+    |> result.replace_error(InvalidEmail(value: row.email)),
+  )
+
+  use website <- result.map(
+    uri.parse(row.website)
+    |> result.replace_error(InvalidWebsite(value: row.website)),
+  )
+
+  let stage = case row.stage {
+    sql.Scaling -> startup.Scaling
+    sql.Traction -> startup.Traction
+  }
+
+  startup.Startup(
+    id: row.id,
+    name: row.name,
+    email:,
+    stage:,
+    cnpj:,
+    description: row.description,
+    city: row.city,
+    state: row.state,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+    is_active: row.is_active,
+    website:,
+  )
+}
+
+/// Remove a Startup from a Company's bookmarks
+///
+/// ## Examples
+///
+/// ```gleam
+/// let result = company.unbookmark_startup(context.database, id, startup)
+///
+/// case result {
+///   Error(company.BookmarkNotFound) -> wisp.not_found()
+///   Error(_) -> wisp.internal_server_error()
+///   Ok(removed) -> wisp.ok()
+/// }
+/// ```
+pub fn unbookmark_startup(
+  database: pog.Connection,
+  id: uuid.Uuid,
+  remove startup: uuid.Uuid,
+) -> Result(startup.Startup, CompanyError) {
+  use returned <- result.try(
+    sql.unbookmark_startup(database, id, startup)
+    |> result.map_error(DatabaseError),
+  )
+
+  use row <- result.try(
+    list.first(returned.rows)
+    |> result.replace_error(BookmarkNotFound),
   )
 
   use cnpj <- result.try(

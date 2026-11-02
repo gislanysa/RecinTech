@@ -282,3 +282,60 @@ pub fn bookmark_startup_missing_startup_test() -> Nil {
 
   Nil
 }
+
+pub fn unbookmark_startup_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let startup = dummy.new_startup(context.database)
+
+  let assert Ok(_) =
+    company.bookmark_startup(context.database, company.id, startup.id)
+
+  let assert Ok(returned) =
+    company.unbookmark_startup(context.database, company.id, startup.id)
+
+  assert returned.id == startup.id
+
+  // The bookmark was removed, so it can be created again.
+  let assert Ok(_) =
+    company.bookmark_startup(context.database, company.id, startup.id)
+
+  Nil
+}
+
+pub fn unbookmark_startup_not_bookmarked_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let startup = dummy.new_startup(context.database)
+
+  let assert Error(company.BookmarkNotFound) =
+    company.unbookmark_startup(context.database, company.id, startup.id)
+
+  Nil
+}
+
+pub fn unbookmark_startup_missing_company_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company_id = uuid.v7()
+  let startup = dummy.new_startup(context.database)
+
+  let assert Error(company.BookmarkNotFound) =
+    company.unbookmark_startup(context.database, company_id, startup.id)
+
+  Nil
+}
+
+pub fn unbookmark_startup_missing_startup_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let startup_id = uuid.v7()
+
+  let assert Error(company.BookmarkNotFound) =
+    company.unbookmark_startup(context.database, company.id, startup_id)
+
+  Nil
+}

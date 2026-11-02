@@ -471,6 +471,102 @@ RETURNING
   |> pog.execute(db)
 }
 
+/// A row you get from running the `unbookmark_startup` query
+/// defined in `./src/server/company/sql/unbookmark_startup.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v4.7.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type UnbookmarkStartupRow {
+  UnbookmarkStartupRow(
+    id: Uuid,
+    name: String,
+    email: String,
+    stage: StartupStage,
+    cnpj: String,
+    description: String,
+    city: String,
+    state: String,
+    created_at: Timestamp,
+    updated_at: Timestamp,
+    is_active: Bool,
+    website: String,
+  )
+}
+
+/// remove the bookmark of a startup from a company
+///
+/// > 🐿️ This function was generated automatically using v4.7.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn unbookmark_startup(
+  db: pog.Connection,
+  arg_1: Uuid,
+  arg_2: Uuid,
+) -> Result(pog.Returned(UnbookmarkStartupRow), pog.QueryError) {
+  let decoder = {
+    use id <- decode.field(0, uuid_decoder())
+    use name <- decode.field(1, decode.string)
+    use email <- decode.field(2, decode.string)
+    use stage <- decode.field(3, startup_stage_decoder())
+    use cnpj <- decode.field(4, decode.string)
+    use description <- decode.field(5, decode.string)
+    use city <- decode.field(6, decode.string)
+    use state <- decode.field(7, decode.string)
+    use created_at <- decode.field(8, pog.timestamp_decoder())
+    use updated_at <- decode.field(9, pog.timestamp_decoder())
+    use is_active <- decode.field(10, decode.bool)
+    use website <- decode.field(11, decode.string)
+    decode.success(UnbookmarkStartupRow(
+      id:,
+      name:,
+      email:,
+      stage:,
+      cnpj:,
+      description:,
+      city:,
+      state:,
+      created_at:,
+      updated_at:,
+      is_active:,
+      website:,
+    ))
+  }
+
+  "-- remove the bookmark of a startup from a company
+WITH unbookmarked AS (
+    DELETE FROM
+        public.company_startup_bookmark AS bookmark
+    WHERE
+        bookmark.company_id = $1::uuid
+        AND bookmark.startup_id = $2::uuid
+    RETURNING
+        bookmark.startup_id
+)
+SELECT
+    startup.id,
+    startup.name,
+    startup.email,
+    startup.stage,
+    startup.cnpj,
+    startup.description,
+    startup.city,
+    startup.state,
+    startup.created_at,
+    startup.updated_at,
+    startup.is_active,
+    startup.website
+FROM
+    public.startup
+    INNER JOIN unbookmarked AS u ON u.startup_id = startup.id;
+"
+  |> pog.query
+  |> pog.parameter(pog.text(uuid.to_string(arg_1)))
+  |> pog.parameter(pog.text(uuid.to_string(arg_2)))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
 /// A row you get from running the `update` query
 /// defined in `./src/server/company/sql/update.sql`.
 ///
