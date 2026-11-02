@@ -221,3 +221,64 @@ pub fn update_company_email_conflict_test() -> Nil {
 
   Nil
 }
+
+pub fn bookmark_startup_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let startup = dummy.new_startup(context.database)
+
+  let assert Ok(returned) =
+    company.bookmark_startup(context.database, company.id, startup.id)
+
+  assert returned.id == startup.id
+
+  Nil
+}
+
+pub fn bookmark_startup_conflict_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let startup = dummy.new_startup(context.database)
+
+  // Bookmarking once
+  let assert Ok(_) =
+    company.bookmark_startup(context.database, company.id, startup.id)
+
+  // Bookmarking twice, this one must return an Error.
+  let assert Error(company.BookmarkConflict(returned)) =
+    company.bookmark_startup(context.database, company.id, startup.id)
+
+  assert returned == startup.id
+
+  Nil
+}
+
+pub fn bookmark_startup_missing_company_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company_id = uuid.v7()
+  let startup = dummy.new_startup(context.database)
+
+  let assert Error(company.NotFound(returned)) =
+    company.bookmark_startup(context.database, company_id, startup.id)
+
+  assert returned == company_id
+
+  Nil
+}
+
+pub fn bookmark_startup_missing_startup_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let startup_id = uuid.v7()
+
+  let assert Error(company.StartupNotFound(returned)) =
+    company.bookmark_startup(context.database, company.id, startup_id)
+
+  assert returned == startup_id
+
+  Nil
+}
