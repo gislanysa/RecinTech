@@ -187,6 +187,101 @@ WHERE
   |> pog.execute(db)
 }
 
+/// A row you get from running the `get_bookmarked_startups` query
+/// defined in `./src/server/company/sql/get_bookmarked_startups.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v4.7.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type GetBookmarkedStartupsRow {
+  GetBookmarkedStartupsRow(
+    id: Uuid,
+    name: String,
+    email: String,
+    stage: StartupStage,
+    cnpj: String,
+    description: String,
+    city: String,
+    state: String,
+    created_at: Timestamp,
+    updated_at: Timestamp,
+    is_active: Bool,
+    website: String,
+  )
+}
+
+/// get all startups bookmarked by a company
+///
+/// > 🐿️ This function was generated automatically using v4.7.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn get_bookmarked_startups(
+  db: pog.Connection,
+  arg_1: Uuid,
+  arg_2: Int,
+  arg_3: Int,
+) -> Result(pog.Returned(GetBookmarkedStartupsRow), pog.QueryError) {
+  let decoder = {
+    use id <- decode.field(0, uuid_decoder())
+    use name <- decode.field(1, decode.string)
+    use email <- decode.field(2, decode.string)
+    use stage <- decode.field(3, startup_stage_decoder())
+    use cnpj <- decode.field(4, decode.string)
+    use description <- decode.field(5, decode.string)
+    use city <- decode.field(6, decode.string)
+    use state <- decode.field(7, decode.string)
+    use created_at <- decode.field(8, pog.timestamp_decoder())
+    use updated_at <- decode.field(9, pog.timestamp_decoder())
+    use is_active <- decode.field(10, decode.bool)
+    use website <- decode.field(11, decode.string)
+    decode.success(GetBookmarkedStartupsRow(
+      id:,
+      name:,
+      email:,
+      stage:,
+      cnpj:,
+      description:,
+      city:,
+      state:,
+      created_at:,
+      updated_at:,
+      is_active:,
+      website:,
+    ))
+  }
+
+  "-- get all startups bookmarked by a company
+SELECT
+    startup.id,
+    startup.name,
+    startup.email,
+    startup.stage,
+    startup.cnpj,
+    startup.description,
+    startup.city,
+    startup.state,
+    startup.created_at,
+    startup.updated_at,
+    startup.is_active,
+    startup.website
+FROM
+    public.company_startup_bookmark AS b
+    INNER JOIN public.startup ON startup.id = b.startup_id
+WHERE
+    b.company_id = $1::uuid
+ORDER BY
+    b.created_at DESC
+LIMIT
+    $2::int OFFSET $3::int;
+"
+  |> pog.query
+  |> pog.parameter(pog.text(uuid.to_string(arg_1)))
+  |> pog.parameter(pog.int(arg_2))
+  |> pog.parameter(pog.int(arg_3))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
 /// A row you get from running the `get_credentials` query
 /// defined in `./src/server/company/sql/get_credentials.sql`.
 ///

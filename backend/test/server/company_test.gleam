@@ -339,3 +339,61 @@ pub fn unbookmark_startup_missing_startup_test() -> Nil {
 
   Nil
 }
+
+pub fn get_bookmarked_startups_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let startup_a = dummy.new_startup(context.database)
+  let startup_b = dummy.new_startup(context.database)
+
+  let assert Ok(returned_a) =
+    company.bookmark_startup(context.database, company.id, startup_a.id)
+
+  let assert Ok(returned_b) =
+    company.bookmark_startup(context.database, company.id, startup_b.id)
+
+  let assert Ok(returned) =
+    company.get_bookmarked_startups(
+      context.database,
+      company.id,
+      limit: 100,
+      offset: 0,
+    )
+
+  assert returned == [returned_a, returned_b]
+
+  Nil
+}
+
+pub fn get_bookmarked_startups_empty_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+
+  let assert Ok([]) =
+    company.get_bookmarked_startups(
+      context.database,
+      company.id,
+      limit: 100,
+      offset: 0,
+    )
+
+  Nil
+}
+
+pub fn get_missing_company_bookmarked_startups_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company_id = uuid.v7()
+
+  let assert Ok([]) =
+    company.get_bookmarked_startups(
+      context.database,
+      company_id,
+      limit: 100,
+      offset: 0,
+    )
+
+  Nil
+}
