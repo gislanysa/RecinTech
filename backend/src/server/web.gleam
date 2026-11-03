@@ -205,6 +205,9 @@ pub fn handle_request(request: Request, context: Context) -> Response {
       revoke_company_lgpd_consent(context.database, id, version)
 
     // == bookmarks ============================================================
+    http.Get, ["api", "company", id, "bookmark"] ->
+      get_company_bookmarks(request, context.database, id)
+
     http.Post, ["api", "company", id, "bookmark"] ->
       company_bookmark_startup(request, context.database, id)
 
@@ -275,6 +278,86 @@ pub fn handle_request(request: Request, context: Context) -> Response {
 
     // Page not found in the frontend
     _, _ -> get_root_document()
+  }
+}
+
+/// ## `GET /api/company/:id/bookmark`
+///
+/// Fetch all Startups bookmarked by a Company, ordered by bookmark date.
+/// Pagination is available.
+///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Company's ID.
+///
+/// ## Query Parameters
+///
+/// - `limit` (Int, required): the maximum number of Startups to return.
+/// - `offset` (Int, required): the number of Startups to skip.
+///
+/// ## Response Body
+///
+/// ```json
+/// [
+///   {
+///    "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+///    "name": "Critic Level",
+///    "email": "critic@email.dev",
+///    "stage": "traction",
+///    "cnpj": "12345678901234",
+///    "description": "startup muito maneira",
+///    "city": "Recife",
+///    "state": "Pernambuco",
+///    "created_at": "2026-09-14T20:08:02.000Z",
+///    "updated_at": "2026-09-14T20:08:02.000Z",
+///    "is_active": true,
+///    "website": "criticlevel.dev"
+///   }
+/// ]
+/// ```
+///
+/// ## Status Codes
+///
+/// - **200** If successful.
+/// - **400** if ID is not a valid UUID, or if the query is missing, invalid or
+///   incomplete.
+///
+fn get_company_bookmarks(
+  request: Request,
+  database: pog.Connection,
+  id: String,
+) -> Response {
+  use id <- require_valid_uuid(id)
+
+  let result = {
+    use query <- result.try(
+      request.get_query(request)
+      |> result.replace_error(MissingQuery),
+    )
+
+    use limit <- result.try(
+      list.key_find(query, "limit")
+      |> result.try(int.parse)
+      |> result.replace_error(InvalidQueryParameter("limit")),
+    )
+
+    use offset <- result.try(
+      list.key_find(query, "offset")
+      |> result.try(int.parse)
+      |> result.replace_error(InvalidQueryParameter("offset")),
+    )
+
+    company.get_bookmarked_startups(database, id, limit:, offset:)
+    |> result.map_error(CompanyError)
+  }
+
+  case result {
+    Ok(startups) ->
+      json.array(startups, startup.to_json)
+      |> json.to_string
+      |> wisp.json_response(200)
+
+    Error(error) -> handle_error(error)
   }
 }
 

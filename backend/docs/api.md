@@ -1103,6 +1103,47 @@ ignored.
 - 404: Company not found
 - 409: Email or CNPJ already in use
 
+## GET /api/company/:id/bookmark
+
+Fetch all startups bookmarked by a company, ordered by bookmark date.
+
+### Path Parameters
+
+- `id` (UUID, required): the company's ID.
+
+### Query Parameters
+
+- `limit` (int, required)
+- `offset` (int, required)
+
+### Response Body
+
+```json
+[
+  {
+    "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+    "name": "Critic Level",
+    "email": "critic@email.dev",
+    "stage": "traction",
+    "cnpj": "12345678901234",
+    "description": "startup muito maneira",
+    "city": "Recife",
+    "state": "Pernambuco",
+    "created_at": "2026-09-14T20:08:02.000Z",
+    "updated_at": "2026-09-14T20:08:02.000Z",
+    "is_active": true,
+    "website": "criticlevel.dev"
+  }
+]
+```
+
+- `stage`: one of `"traction"` or `"scaling"`.
+
+### Status Codes
+
+- 200: Successful
+- 400: Invalid UUID, or missing, invalid or incomplete query parameters
+
 ## POST /api/company/:id/bookmark
 
 Add a startup to a company's bookmarks.

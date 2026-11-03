@@ -3301,6 +3301,184 @@ pub fn revoke_lgpd_consent_invalid_version_test() -> Nil {
   Nil
 }
 
+pub fn get_company_bookmarks_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let startup = dummy.new_startup(context.database)
+
+  let assert Ok(_) =
+    company.bookmark_startup(context.database, company.id, startup.id)
+
+  let endpoint = "/api/company/" <> uuid.to_string(company.id) <> "/bookmark"
+  let response =
+    simulate.browser_request(http.Get, endpoint)
+    |> request.set_query([#("limit", "100"), #("offset", "0")])
+    |> web.handle_request(context)
+
+  assert response.status == 200
+  expect_json(response)
+
+  let body = simulate.read_body(response)
+  let assert Ok(returned) = json.parse(body, decode.list(startup.decoder()))
+  assert returned == [startup]
+
+  Nil
+}
+
+pub fn get_company_bookmarks_empty_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+
+  let endpoint = "/api/company/" <> uuid.to_string(company.id) <> "/bookmark"
+  let response =
+    simulate.browser_request(http.Get, endpoint)
+    |> request.set_query([#("limit", "100"), #("offset", "0")])
+    |> web.handle_request(context)
+
+  assert response.status == 200
+  expect_json(response)
+
+  let body = simulate.read_body(response)
+  let assert Ok(returned) = json.parse(body, decode.list(startup.decoder()))
+  assert returned == []
+
+  Nil
+}
+
+pub fn get_company_bookmarks_pagination_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let startup_a = dummy.new_startup(context.database)
+  let startup_b = dummy.new_startup(context.database)
+
+  let assert Ok(_) =
+    company.bookmark_startup(context.database, company.id, startup_a.id)
+
+  let assert Ok(_) =
+    company.bookmark_startup(context.database, company.id, startup_b.id)
+
+  // The first page contains a single bookmark.
+  let endpoint = "/api/company/" <> uuid.to_string(company.id) <> "/bookmark"
+  let response =
+    simulate.browser_request(http.Get, endpoint)
+    |> request.set_query([#("limit", "1"), #("offset", "0")])
+    |> web.handle_request(context)
+
+  assert response.status == 200
+  expect_json(response)
+
+  let body = simulate.read_body(response)
+  let assert Ok(returned) = json.parse(body, decode.list(startup.decoder()))
+  assert list.length(returned) == 1
+
+  // The second page contains the remaining bookmark.
+  let response =
+    simulate.browser_request(http.Get, endpoint)
+    |> request.set_query([#("limit", "1"), #("offset", "1")])
+    |> web.handle_request(context)
+
+  assert response.status == 200
+  expect_json(response)
+
+  let body = simulate.read_body(response)
+  let assert Ok(returned) = json.parse(body, decode.list(startup.decoder()))
+  assert list.length(returned) == 1
+
+  Nil
+}
+
+pub fn get_company_bookmarks_missing_company_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let endpoint = "/api/company/" <> uuid.v7_string() <> "/bookmark"
+  let response =
+    simulate.browser_request(http.Get, endpoint)
+    |> request.set_query([#("limit", "100"), #("offset", "0")])
+    |> web.handle_request(context)
+
+  assert response.status == 200
+  expect_json(response)
+
+  let body = simulate.read_body(response)
+  let assert Ok(returned) = json.parse(body, decode.list(startup.decoder()))
+  assert returned == []
+
+  Nil
+}
+
+pub fn get_company_bookmarks_invalid_id_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let response =
+    simulate.browser_request(http.Get, "/api/company/wibble/bookmark")
+    |> request.set_query([#("limit", "100"), #("offset", "0")])
+    |> web.handle_request(context)
+
+  assert response.status == 400
+
+  Nil
+}
+
+pub fn get_company_bookmarks_missing_query_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+
+  let endpoint = "/api/company/" <> uuid.to_string(company.id) <> "/bookmark"
+  let response =
+    simulate.browser_request(http.Get, endpoint)
+    |> web.handle_request(context)
+
+  assert response.status == 400
+
+  Nil
+}
+
+pub fn get_company_bookmarks_invalid_query_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+
+  let endpoint = "/api/company/" <> uuid.to_string(company.id) <> "/bookmark"
+  let response =
+    simulate.browser_request(http.Get, endpoint)
+    |> request.set_query([#("limit", "wibble"), #("offset", "0")])
+    |> web.handle_request(context)
+
+  assert response.status == 400
+
+  Nil
+}
+
+pub fn get_company_bookmarks_incomplete_query_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+
+  let endpoint = "/api/company/" <> uuid.to_string(company.id) <> "/bookmark"
+
+  // No offset
+  let response =
+    simulate.browser_request(http.Get, endpoint)
+    |> request.set_query([#("limit", "1")])
+    |> web.handle_request(context)
+
+  assert response.status == 400
+
+  // No limit
+  let response =
+    simulate.browser_request(http.Get, endpoint)
+    |> request.set_query([#("offset", "0")])
+    |> web.handle_request(context)
+
+  assert response.status == 400
+
+  Nil
+}
+
 pub fn company_bookmark_startup_test() -> Nil {
   use context <- server_test.with_context()
 
