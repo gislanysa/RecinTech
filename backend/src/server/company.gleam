@@ -16,6 +16,7 @@ import server/company/sql
 import server/email
 import server/internal
 import server/lgpd
+import server/startup
 import youid/uuid
 
 pub type CompanyError {
@@ -45,6 +46,14 @@ pub type CompanyError {
   EmailConflict(email.Email)
   /// Failed to register a new Company
   FailedToRegisterCompany
+  /// Startup not registered
+  StartupNotFound(uuid.Uuid)
+  /// Startup is already bookmarked
+  BookmarkConflict(uuid.Uuid)
+  /// Failed to bookmark a Startup
+  FailedToBookmarkStartup(uuid.Uuid)
+  /// Bookmark was not found
+  BookmarkNotFound
 }
 
 /// Represents a Company supporting a [Startup](startup.html).
@@ -613,4 +622,228 @@ pub fn update(
     is_active: row.is_active,
     website:,
   )
+}
+
+/// Add a Startup to a Company's bookmarks
+///
+/// ## Examples
+///
+/// ```gleam
+/// let result = company.bookmark_startup(
+///   context.database,
+///   id,
+///   bookmark: startup
+/// )
+///
+/// case result {
+///   Error(company.BookmarkConflict(_)) -> wisp.response(409)
+///   Error(company.NotFound(_))
+///   | Error(company.StartupNotFound(_)) -> wisp.not_found()
+///
+///   Error(_) -> wisp.internal_server_error()
+///   Ok(startup) -> wisp.ok()
+/// }
+/// ```
+pub fn bookmark_startup(
+  database: pog.Connection,
+  id: uuid.Uuid,
+  bookmark startup: uuid.Uuid,
+) -> Result(startup.Startup, CompanyError) {
+  use returned <- result.try(case sql.bookmark_startup(database, id, startup) {
+    // Company is not found
+    Error(pog.ConstraintViolated(
+      constraint: "company_startup_bookmark_company_id_fkey",
+      ..,
+    )) -> Error(NotFound(id))
+
+    // Startup is not found
+    Error(pog.ConstraintViolated(
+      constraint: "company_startup_bookmark_startup_id_fkey",
+      ..,
+    )) -> Error(StartupNotFound(startup))
+
+    // Startup is already bookmarked
+    Error(pog.ConstraintViolated(
+      constraint: "company_startup_bookmark_pkey",
+      ..,
+    )) -> Error(BookmarkConflict(startup))
+
+    Error(error) -> Error(DatabaseError(error))
+    Ok(data) -> Ok(data)
+  })
+
+  use row <- result.try(
+    list.first(returned.rows)
+    |> result.replace_error(FailedToBookmarkStartup(startup)),
+  )
+
+  use cnpj <- result.try(
+    cnpj.parse(row.cnpj)
+    |> result.replace_error(InvalidCnpj(value: row.cnpj)),
+  )
+
+  use email <- result.try(
+    email.parse(row.email)
+    |> result.replace_error(InvalidEmail(value: row.email)),
+  )
+
+  use website <- result.map(
+    uri.parse(row.website)
+    |> result.replace_error(InvalidWebsite(value: row.website)),
+  )
+
+  let stage = case row.stage {
+    sql.Scaling -> startup.Scaling
+    sql.Traction -> startup.Traction
+  }
+
+  startup.Startup(
+    id: row.id,
+    name: row.name,
+    email:,
+    stage:,
+    cnpj:,
+    description: row.description,
+    city: row.city,
+    state: row.state,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+    is_active: row.is_active,
+    website:,
+  )
+}
+
+/// Remove a Startup from a Company's bookmarks
+///
+/// ## Examples
+///
+/// ```gleam
+/// let result = company.unbookmark_startup(
+///   context.database,
+///   id,
+///   remove: startup
+/// )
+///
+/// case result {
+///   Error(company.BookmarkNotFound) -> wisp.not_found()
+///   Error(_) -> wisp.internal_server_error()
+///   Ok(removed) -> wisp.ok()
+/// }
+/// ```
+pub fn unbookmark_startup(
+  database: pog.Connection,
+  id: uuid.Uuid,
+  remove startup: uuid.Uuid,
+) -> Result(startup.Startup, CompanyError) {
+  use returned <- result.try(
+    sql.unbookmark_startup(database, id, startup)
+    |> result.map_error(DatabaseError),
+  )
+
+  use row <- result.try(
+    list.first(returned.rows)
+    |> result.replace_error(BookmarkNotFound),
+  )
+
+  use cnpj <- result.try(
+    cnpj.parse(row.cnpj)
+    |> result.replace_error(InvalidCnpj(value: row.cnpj)),
+  )
+
+  use email <- result.try(
+    email.parse(row.email)
+    |> result.replace_error(InvalidEmail(value: row.email)),
+  )
+
+  use website <- result.map(
+    uri.parse(row.website)
+    |> result.replace_error(InvalidWebsite(value: row.website)),
+  )
+
+  let stage = case row.stage {
+    sql.Scaling -> startup.Scaling
+    sql.Traction -> startup.Traction
+  }
+
+  startup.Startup(
+    id: row.id,
+    name: row.name,
+    email:,
+    stage:,
+    cnpj:,
+    description: row.description,
+    city: row.city,
+    state: row.state,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+    is_active: row.is_active,
+    website:,
+  )
+}
+
+/// Get all Startups bookmarked by a given Company
+///
+/// ## Examples
+///
+/// ```gleam
+/// let result = company.get_bookmarked_startups(
+///   context.database,
+///   id,
+///   limit: 100,
+///   offset: 0,
+/// )
+///
+/// case result {
+///   Error(company.BookmarkNotFound) -> wisp.not_found()
+///   Error(_) -> wisp.internal_server_error()
+///   Ok(removed) -> wisp.ok()
+/// }
+/// ```
+pub fn get_bookmarked_startups(
+  database: pog.Connection,
+  id: uuid.Uuid,
+  limit limit: Int,
+  offset offset: Int,
+) -> Result(List(startup.Startup), CompanyError) {
+  use returned <- result.try(
+    sql.get_bookmarked_startups(database, id, limit, offset)
+    |> result.map_error(DatabaseError),
+  )
+
+  list.try_map(returned.rows, fn(row) {
+    use cnpj <- result.try(
+      cnpj.parse(row.cnpj)
+      |> result.replace_error(InvalidCnpj(value: row.cnpj)),
+    )
+
+    use email <- result.try(
+      email.parse(row.email)
+      |> result.replace_error(InvalidEmail(value: row.email)),
+    )
+
+    use website <- result.map(
+      uri.parse(row.website)
+      |> result.replace_error(InvalidWebsite(value: row.website)),
+    )
+
+    let stage = case row.stage {
+      sql.Scaling -> startup.Scaling
+      sql.Traction -> startup.Traction
+    }
+
+    startup.Startup(
+      id: row.id,
+      name: row.name,
+      email:,
+      stage:,
+      cnpj:,
+      description: row.description,
+      city: row.city,
+      state: row.state,
+      created_at: row.created_at,
+      updated_at: row.updated_at,
+      is_active: row.is_active,
+      website:,
+    )
+  })
 }

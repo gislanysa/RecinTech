@@ -3602,5 +3602,21 @@ fn handle_company_error(error: company.CompanyError) -> Response {
     company.FailedToUpdateCompany(_) ->
       "Failed to update Company"
       |> wisp.string_body(wisp.internal_server_error(), _)
+
+    company.StartupNotFound(id) ->
+      { "Startup not found: " <> uuid.to_string(id) }
+      |> wisp.string_body(wisp.not_found(), _)
+
+    company.BookmarkConflict(id) ->
+      { "Startup already bookmarked: " <> uuid.to_string(id) }
+      |> wisp.string_body(wisp.response(409), _)
+
+    company.FailedToBookmarkStartup(_) ->
+      "Failed to bookmark Startup"
+      |> wisp.string_body(wisp.internal_server_error(), _)
+
+    company.BookmarkNotFound ->
+      "Bookmark not found"
+      |> wisp.string_body(wisp.not_found(), _)
   }
 }

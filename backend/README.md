@@ -91,6 +91,14 @@ erDiagram
     int policy_version PK
   }
 
+  COMPANY_STARTUP_BOOKMARK }o..|| company : has
+  COMPANY_STARTUP_BOOKMARK }o..|| STARTUP : has
+  COMPANY_STARTUP_BOOKMARK {
+    uuid company_id PK, FK
+    uuid startup_id PK, FK
+    timestamp created_at
+  }
+
   STARTUP_SEGMENT }o..|| STARTUP : has
   STARTUP_SEGMENT }o..|| SEGMENT : has
   STARTUP_SEGMENT {

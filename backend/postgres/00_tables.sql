@@ -62,6 +62,17 @@ CREATE TABLE company (
 
 CREATE INDEX idx_company_email ON company (email);
 
+CREATE TABLE company_startup_bookmark (
+    company_id uuid NOT NULL REFERENCES company (id) ON DELETE CASCADE,
+    startup_id uuid NOT NULL REFERENCES startup (id) ON DELETE CASCADE,
+    created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (company_id, startup_id)
+);
+
+CREATE INDEX idx_company_startup_bookmark_company ON company_startup_bookmark (company_id);
+
+CREATE INDEX idx_company_startup_bookmark_startup ON company_startup_bookmark (startup_id);
+
 CREATE TABLE company_lgpd_consent (
     company_id uuid NOT NULL REFERENCES company (id) ON DELETE CASCADE,
     consent lgpd_consent NOT NULL DEFAULT 'revoked',

@@ -9,6 +9,102 @@ import gleam/time/timestamp.{type Timestamp}
 import pog
 import youid/uuid.{type Uuid}
 
+/// A row you get from running the `bookmark_startup` query
+/// defined in `./src/server/company/sql/bookmark_startup.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v4.7.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type BookmarkStartupRow {
+  BookmarkStartupRow(
+    id: Uuid,
+    name: String,
+    email: String,
+    stage: StartupStage,
+    cnpj: String,
+    description: String,
+    city: String,
+    state: String,
+    created_at: Timestamp,
+    updated_at: Timestamp,
+    is_active: Bool,
+    website: String,
+  )
+}
+
+/// bookmark a startup for a company
+///
+/// > 🐿️ This function was generated automatically using v4.7.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn bookmark_startup(
+  db: pog.Connection,
+  arg_1: Uuid,
+  arg_2: Uuid,
+) -> Result(pog.Returned(BookmarkStartupRow), pog.QueryError) {
+  let decoder = {
+    use id <- decode.field(0, uuid_decoder())
+    use name <- decode.field(1, decode.string)
+    use email <- decode.field(2, decode.string)
+    use stage <- decode.field(3, startup_stage_decoder())
+    use cnpj <- decode.field(4, decode.string)
+    use description <- decode.field(5, decode.string)
+    use city <- decode.field(6, decode.string)
+    use state <- decode.field(7, decode.string)
+    use created_at <- decode.field(8, pog.timestamp_decoder())
+    use updated_at <- decode.field(9, pog.timestamp_decoder())
+    use is_active <- decode.field(10, decode.bool)
+    use website <- decode.field(11, decode.string)
+    decode.success(BookmarkStartupRow(
+      id:,
+      name:,
+      email:,
+      stage:,
+      cnpj:,
+      description:,
+      city:,
+      state:,
+      created_at:,
+      updated_at:,
+      is_active:,
+      website:,
+    ))
+  }
+
+  "-- bookmark a startup for a company
+WITH bookmarked AS (
+    INSERT INTO
+        public.company_startup_bookmark (company_id, startup_id)
+    SELECT
+        $1::uuid AS company_id,
+        $2::uuid AS startup_id
+    RETURNING
+        startup_id
+)
+SELECT
+    startup.id,
+    startup.name,
+    startup.email,
+    startup.stage,
+    startup.cnpj,
+    startup.description,
+    startup.city,
+    startup.state,
+    startup.created_at,
+    startup.updated_at,
+    startup.is_active,
+    startup.website
+FROM
+    public.startup
+    INNER JOIN bookmarked ON bookmarked.startup_id = startup.id;
+"
+  |> pog.query
+  |> pog.parameter(pog.text(uuid.to_string(arg_1)))
+  |> pog.parameter(pog.text(uuid.to_string(arg_2)))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
 /// A row you get from running the `get` query
 /// defined in `./src/server/company/sql/get.sql`.
 ///
@@ -87,6 +183,101 @@ WHERE
 "
   |> pog.query
   |> pog.parameter(pog.text(uuid.to_string(arg_1)))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
+/// A row you get from running the `get_bookmarked_startups` query
+/// defined in `./src/server/company/sql/get_bookmarked_startups.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v4.7.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type GetBookmarkedStartupsRow {
+  GetBookmarkedStartupsRow(
+    id: Uuid,
+    name: String,
+    email: String,
+    stage: StartupStage,
+    cnpj: String,
+    description: String,
+    city: String,
+    state: String,
+    created_at: Timestamp,
+    updated_at: Timestamp,
+    is_active: Bool,
+    website: String,
+  )
+}
+
+/// get all startups bookmarked by a company
+///
+/// > 🐿️ This function was generated automatically using v4.7.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn get_bookmarked_startups(
+  db: pog.Connection,
+  arg_1: Uuid,
+  arg_2: Int,
+  arg_3: Int,
+) -> Result(pog.Returned(GetBookmarkedStartupsRow), pog.QueryError) {
+  let decoder = {
+    use id <- decode.field(0, uuid_decoder())
+    use name <- decode.field(1, decode.string)
+    use email <- decode.field(2, decode.string)
+    use stage <- decode.field(3, startup_stage_decoder())
+    use cnpj <- decode.field(4, decode.string)
+    use description <- decode.field(5, decode.string)
+    use city <- decode.field(6, decode.string)
+    use state <- decode.field(7, decode.string)
+    use created_at <- decode.field(8, pog.timestamp_decoder())
+    use updated_at <- decode.field(9, pog.timestamp_decoder())
+    use is_active <- decode.field(10, decode.bool)
+    use website <- decode.field(11, decode.string)
+    decode.success(GetBookmarkedStartupsRow(
+      id:,
+      name:,
+      email:,
+      stage:,
+      cnpj:,
+      description:,
+      city:,
+      state:,
+      created_at:,
+      updated_at:,
+      is_active:,
+      website:,
+    ))
+  }
+
+  "-- get all startups bookmarked by a company
+SELECT
+    startup.id,
+    startup.name,
+    startup.email,
+    startup.stage,
+    startup.cnpj,
+    startup.description,
+    startup.city,
+    startup.state,
+    startup.created_at,
+    startup.updated_at,
+    startup.is_active,
+    startup.website
+FROM
+    public.company_startup_bookmark AS b
+    INNER JOIN public.startup ON startup.id = b.startup_id
+WHERE
+    b.company_id = $1::uuid
+ORDER BY
+    b.created_at DESC
+LIMIT
+    $2::int OFFSET $3::int;
+"
+  |> pog.query
+  |> pog.parameter(pog.text(uuid.to_string(arg_1)))
+  |> pog.parameter(pog.int(arg_2))
+  |> pog.parameter(pog.int(arg_3))
   |> pog.returning(decoder)
   |> pog.execute(db)
 }
@@ -375,6 +566,102 @@ RETURNING
   |> pog.execute(db)
 }
 
+/// A row you get from running the `unbookmark_startup` query
+/// defined in `./src/server/company/sql/unbookmark_startup.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v4.7.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type UnbookmarkStartupRow {
+  UnbookmarkStartupRow(
+    id: Uuid,
+    name: String,
+    email: String,
+    stage: StartupStage,
+    cnpj: String,
+    description: String,
+    city: String,
+    state: String,
+    created_at: Timestamp,
+    updated_at: Timestamp,
+    is_active: Bool,
+    website: String,
+  )
+}
+
+/// remove the bookmark of a startup from a company
+///
+/// > 🐿️ This function was generated automatically using v4.7.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn unbookmark_startup(
+  db: pog.Connection,
+  arg_1: Uuid,
+  arg_2: Uuid,
+) -> Result(pog.Returned(UnbookmarkStartupRow), pog.QueryError) {
+  let decoder = {
+    use id <- decode.field(0, uuid_decoder())
+    use name <- decode.field(1, decode.string)
+    use email <- decode.field(2, decode.string)
+    use stage <- decode.field(3, startup_stage_decoder())
+    use cnpj <- decode.field(4, decode.string)
+    use description <- decode.field(5, decode.string)
+    use city <- decode.field(6, decode.string)
+    use state <- decode.field(7, decode.string)
+    use created_at <- decode.field(8, pog.timestamp_decoder())
+    use updated_at <- decode.field(9, pog.timestamp_decoder())
+    use is_active <- decode.field(10, decode.bool)
+    use website <- decode.field(11, decode.string)
+    decode.success(UnbookmarkStartupRow(
+      id:,
+      name:,
+      email:,
+      stage:,
+      cnpj:,
+      description:,
+      city:,
+      state:,
+      created_at:,
+      updated_at:,
+      is_active:,
+      website:,
+    ))
+  }
+
+  "-- remove the bookmark of a startup from a company
+WITH unbookmarked AS (
+    DELETE FROM
+        public.company_startup_bookmark AS bookmark
+    WHERE
+        bookmark.company_id = $1::uuid
+        AND bookmark.startup_id = $2::uuid
+    RETURNING
+        bookmark.startup_id
+)
+SELECT
+    startup.id,
+    startup.name,
+    startup.email,
+    startup.stage,
+    startup.cnpj,
+    startup.description,
+    startup.city,
+    startup.state,
+    startup.created_at,
+    startup.updated_at,
+    startup.is_active,
+    startup.website
+FROM
+    public.startup
+    INNER JOIN unbookmarked AS u ON u.startup_id = startup.id;
+"
+  |> pog.query
+  |> pog.parameter(pog.text(uuid.to_string(arg_1)))
+  |> pog.parameter(pog.text(uuid.to_string(arg_2)))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
 /// A row you get from running the `update` query
 /// defined in `./src/server/company/sql/update.sql`.
 ///
@@ -552,6 +839,25 @@ fn lgpd_consent_decoder() -> decode.Decoder(LgpdConsent) {
     "revoked" -> decode.success(Revoked)
     "granted" -> decode.success(Granted)
     _ -> decode.failure(Revoked, "LgpdConsent")
+  }
+}
+
+/// Corresponds to the Postgres `startup_stage` enum.
+///
+/// > 🐿️ This type definition was generated automatically using v4.7.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type StartupStage {
+  Scaling
+  Traction
+}
+
+fn startup_stage_decoder() -> decode.Decoder(StartupStage) {
+  use startup_stage <- decode.then(decode.string)
+  case startup_stage {
+    "scaling" -> decode.success(Scaling)
+    "traction" -> decode.success(Traction)
+    _ -> decode.failure(Scaling, "StartupStage")
   }
 }
 
