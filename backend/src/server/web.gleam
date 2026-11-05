@@ -194,6 +194,7 @@ pub fn handle_request(request: Request, context: Context) -> Response {
     http.Get, ["api", "company", id, "demand"] ->
       get_company_demands(request, context.database, id)
 
+    // == lgpd =================================================================
     http.Get, ["api", "company", id, "lgpd"] ->
       get_company_lgpd_consent(context.database, id)
 
@@ -202,6 +203,16 @@ pub fn handle_request(request: Request, context: Context) -> Response {
 
     http.Delete, ["api", "company", id, "lgpd", version] ->
       revoke_company_lgpd_consent(context.database, id, version)
+
+    // == bookmarks ============================================================
+    http.Get, ["api", "company", id, "bookmark"] ->
+      get_company_bookmarks(request, context.database, id)
+
+    http.Post, ["api", "company", id, "bookmark"] ->
+      company_bookmark_startup(request, context.database, id)
+
+    http.Delete, ["api", "company", id, "bookmark", startup] ->
+      company_unbookmark_startup(context.database, id, startup)
 
     // +-----------------------------------------------------------------------+
     // | DEMAND                                                                |
@@ -267,6 +278,193 @@ pub fn handle_request(request: Request, context: Context) -> Response {
 
     // Page not found in the frontend
     _, _ -> get_root_document()
+  }
+}
+
+/// ## `GET /api/company/:id/bookmark`
+///
+/// Fetch all Startups bookmarked by a Company, ordered by bookmark date.
+/// Pagination is available.
+///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Company's ID.
+///
+/// ## Query Parameters
+///
+/// - `limit` (Int, required): the maximum number of Startups to return.
+/// - `offset` (Int, required): the number of Startups to skip.
+///
+/// ## Response Body
+///
+/// ```json
+/// [
+///   {
+///    "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+///    "name": "Critic Level",
+///    "email": "critic@email.dev",
+///    "stage": "traction",
+///    "cnpj": "12345678901234",
+///    "description": "startup muito maneira",
+///    "city": "Recife",
+///    "state": "Pernambuco",
+///    "created_at": "2026-09-14T20:08:02.000Z",
+///    "updated_at": "2026-09-14T20:08:02.000Z",
+///    "is_active": true,
+///    "website": "criticlevel.dev"
+///   }
+/// ]
+/// ```
+///
+/// ## Status Codes
+///
+/// - **200** If successful.
+/// - **400** if ID is not a valid UUID, or if the query is missing, invalid or
+///   incomplete.
+///
+fn get_company_bookmarks(
+  request: Request,
+  database: pog.Connection,
+  id: String,
+) -> Response {
+  use id <- require_valid_uuid(id)
+
+  let result = {
+    use query <- result.try(
+      request.get_query(request)
+      |> result.replace_error(MissingQuery),
+    )
+
+    use limit <- result.try(
+      list.key_find(query, "limit")
+      |> result.try(int.parse)
+      |> result.replace_error(InvalidQueryParameter("limit")),
+    )
+
+    use offset <- result.try(
+      list.key_find(query, "offset")
+      |> result.try(int.parse)
+      |> result.replace_error(InvalidQueryParameter("offset")),
+    )
+
+    company.get_bookmarked_startups(database, id, limit:, offset:)
+    |> result.map_error(CompanyError)
+  }
+
+  case result {
+    Ok(startups) ->
+      json.array(startups, startup.to_json)
+      |> json.to_string
+      |> wisp.json_response(200)
+
+    Error(error) -> handle_error(error)
+  }
+}
+
+/// ## `POST /api/company/:id/bookmark`
+///
+/// Add a Startup to a company's bookmarks
+///
+/// ## Request
+///
+/// ```json
+/// {
+///  "startup": "01a058ae-057f-73e8-b2a0-50986559767b"
+/// }
+/// ```
+///
+/// ## Response Body
+///
+/// ```json
+/// {
+///  "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+///  "name": "Critic Level",
+///  "email": "critic@email.dev",
+///  "stage": "traction",
+///  "cnpj": "12345678901234",
+///  "description": "startup muito maneira",
+///  "city": "Recife",
+///  "state": "Pernambuco",
+///  "created_at": "2026-09-14T20:08:02.000Z",
+///  "is_active": true,
+///  "website": "criticlevel.dev"
+/// }
+/// ```
+///
+/// ## Status Codes
+///
+/// - 201 If successful.
+/// - 404 If Company or Startup is not found.
+/// - 409 If Startup is already bookmarked
+///
+fn company_bookmark_startup(
+  request: Request,
+  database: pog.Connection,
+  id: String,
+) -> Response {
+  use body <- wisp.require_json(request)
+  use id <- require_valid_uuid(id)
+
+  let decoder = {
+    use id <- decode.field("startup", internal.uuid_decoder())
+    decode.success(id)
+  }
+
+  case decode.run(body, decoder) {
+    Error(_) -> wisp.bad_request("Invalid JSON")
+    Ok(startup) ->
+      case company.bookmark_startup(database, id, bookmark: startup) {
+        Error(error) -> handle_company_error(error)
+        Ok(startup) ->
+          startup.to_json(startup)
+          |> json.to_string()
+          |> wisp.json_response(201)
+      }
+  }
+}
+
+/// ## `DELETE /api/company/:id/bookmark/:startup_id`
+///
+/// Remove a Startup from a company's bookmarks
+///
+/// ## Response Body
+///
+/// ```json
+/// {
+///  "id": "01a058ae-057f-73e8-b2a0-50986559767b",
+///  "name": "Critic Level",
+///  "email": "critic@email.dev",
+///  "stage": "traction",
+///  "cnpj": "12345678901234",
+///  "description": "startup muito maneira",
+///  "city": "Recife",
+///  "state": "Pernambuco",
+///  "created_at": "2026-09-14T20:08:02.000Z",
+///  "is_active": true,
+///  "website": "criticlevel.dev"
+/// }
+/// ```
+///
+/// ## Status Codes
+///
+/// - 200 If successful.
+/// - 404 If Company or Startup is not found.
+/// - 404 If the bookmark is not found.
+///
+fn company_unbookmark_startup(
+  database: pog.Connection,
+  id: String,
+  startup: String,
+) -> Response {
+  use id <- require_valid_uuid(id)
+  use startup <- require_valid_uuid(startup)
+
+  case company.unbookmark_startup(database, id, remove: startup) {
+    Error(error) -> handle_company_error(error)
+    Ok(startup) ->
+      startup.to_json(startup)
+      |> json.to_string()
+      |> wisp.json_response(200)
   }
 }
 
