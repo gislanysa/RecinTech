@@ -143,6 +143,7 @@ pub fn consent_decoder() -> decode.Decoder(Consent) {
 ///   Error(error) -> handle_error(error)
 /// }
 /// ```
+@internal
 pub fn grant_consent(
   database: pog.Connection,
   for subject: Subject,
@@ -167,6 +168,7 @@ pub fn grant_consent(
 ///   Error(error) -> handle_error(error)
 /// }
 /// ```
+@internal
 pub fn revoke_consent(
   database: pog.Connection,
   from subject: Subject,
