@@ -673,7 +673,7 @@ pub fn get_lgpd_consent_multiple_policies_versions_test() -> Nil {
   let assert Ok(returned) =
     startup.get_lgpd_consent(context.database, startup.id)
 
-  assert returned == [policy_version_two, policy_version_one]
+  assert returned == [policy_version_one, policy_version_two]
 
   Nil
 }

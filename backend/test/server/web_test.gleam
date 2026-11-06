@@ -2938,18 +2938,28 @@ pub fn get_startup_lgpd_consent_test() -> Nil {
 
   let startup = dummy.new_startup(context.database)
 
+  let version = 1
   let assert Ok(version_one) =
     lgpd.grant_consent(
       context.database,
       for: lgpd.Startup(startup.id),
-      version: 1,
+      version:,
+    )
+
+  let version = 2
+  let assert Ok(_) =
+    lgpd.register_policy_version(
+      context.database,
+      version,
+      "http://localhost/",
+      "wibble",
     )
 
   let assert Ok(version_two) =
     lgpd.revoke_consent(
       context.database,
       from: lgpd.Startup(startup.id),
-      version: 2,
+      version:,
     )
 
   let endpoint = "/api/startup/" <> uuid.to_string(startup.id) <> "/lgpd"
@@ -3014,11 +3024,20 @@ pub fn get_company_lgpd_consent_test() -> Nil {
       version: 1,
     )
 
+  let version = 2
+  let assert Ok(_) =
+    lgpd.register_policy_version(
+      context.database,
+      version,
+      "http://localhost/",
+      "wibble",
+    )
+
   let assert Ok(version_two) =
     lgpd.revoke_consent(
       context.database,
       from: lgpd.Company(company.id),
-      version: 2,
+      version:,
     )
 
   let endpoint = "/api/company/" <> uuid.to_string(company.id) <> "/lgpd"

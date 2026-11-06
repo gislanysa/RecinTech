@@ -106,64 +106,29 @@ pub fn register_policy_version(
 ) -> Result(Policy, LgpdError) {
   use version <- require_valid_policy_version(version)
 
-  let transaction =
-    pog.transaction(database, fn(database) {
-      use returned <- result.try(
-        sql.delete_current_policy(database)
-        |> result.map_error(DatabaseError),
-      )
+  use returned <- result.try(
+    case sql.register_policy(database, version, document_url, document_hash) {
+      // Conflict
+      Error(pog.ConstraintViolated(constraint: "lgpd_policy_pkey", ..)) ->
+        Error(PolicyVersionConflict(version))
 
-      use row <- result.try(
-        list.first(returned.rows)
-        |> result.replace_error(CurrentPolicyNotFound),
-      )
+      Ok(data) -> Ok(data)
+      Error(error) -> Error(DatabaseError(error))
+    },
+  )
 
-      let deleted =
-        Policy(
-          version: row.version,
-          document_url: row.document_url,
-          document_hash: row.document_hash,
-          published_at: row.published_at,
-          is_current: row.is_current,
-        )
+  use row <- result.map(
+    list.first(returned.rows)
+    |> result.replace_error(FailedToUpdatePolicy(version)),
+  )
 
-      case deleted {
-        // Policy is still set to current
-        Policy(is_current: True, ..) ->
-          Error(FailedToUpdatePolicy(deleted.version))
-
-        // Trying to register a version already registered
-        Policy(version: deleted_version, ..) if deleted_version == version ->
-          Error(PolicyVersionConflict(version))
-
-        // Happy path
-        Policy(..) -> {
-          use returned <- result.try(
-            sql.register_policy(database, version, document_url, document_hash)
-            |> result.map_error(DatabaseError),
-          )
-
-          use row <- result.map(
-            list.first(returned.rows)
-            |> result.replace_error(FailedToUpdatePolicy(version)),
-          )
-
-          Policy(
-            version: row.version,
-            document_url: row.document_url,
-            document_hash: row.document_hash,
-            published_at: row.published_at,
-            is_current: row.is_current,
-          )
-        }
-      }
-    })
-
-  case transaction {
-    Ok(data) -> Ok(data)
-    Error(pog.TransactionQueryError(error)) -> Error(DatabaseError(error))
-    Error(pog.TransactionRolledBack(error)) -> Error(error)
-  }
+  Policy(
+    version: row.version,
+    document_url: row.document_url,
+    document_hash: row.document_hash,
+    published_at: row.published_at,
+    is_current: row.is_current,
+  )
 }
 
 @internal
@@ -337,15 +302,28 @@ fn do_update_consent(
     Startup(id:) -> {
       use returned <- result.try(
         case sql.update_startup_consent(database, id, consent, version) {
+          // startup not found
           Error(pog.ConstraintViolated(
             constraint: "startup_lgpd_consent_startup_id_fkey",
             ..,
           )) -> Error(SubjectNotFound(id:))
 
+          // policy not found
           Error(pog.ConstraintViolated(
-            constraint: "startup_lgpd_consent_policy_version_check",
+            constraint: "startup_lgpd_consent_policy_version_fkey",
             ..,
-          )) -> Error(InvalidPolicyVersion(version:))
+          )) -> Error(PolicyNotFound(version:))
+
+          // needed once consent events are inserted by the same statement
+          Error(pog.ConstraintViolated(
+            constraint: "startup_lgpd_consent_event_startup_id_fkey",
+            ..,
+          )) -> Error(SubjectNotFound(id:))
+
+          Error(pog.ConstraintViolated(
+            constraint: "startup_lgpd_consent_event_policy_version_fkey",
+            ..,
+          )) -> Error(PolicyNotFound(version:))
 
           Ok(returned) -> Ok(returned)
           Error(error) -> Error(DatabaseError(error))
@@ -381,15 +359,28 @@ fn do_update_consent(
     Company(id:) -> {
       use returned <- result.try(
         case sql.update_company_consent(database, id, consent, version) {
+          // company not found
           Error(pog.ConstraintViolated(
-            constraint: "company_lgpd_consent_company_id_fkey",
+            constraint: "startup_lgpd_consent_startup_id_fkey",
+            ..,
+          )) -> Error(SubjectNotFound(id:))
+
+          // policy not found
+          Error(pog.ConstraintViolated(
+            constraint: "startup_lgpd_consent_policy_version_fkey",
+            ..,
+          )) -> Error(PolicyNotFound(version:))
+
+          // needed once consent events are inserted by the same statement
+          Error(pog.ConstraintViolated(
+            constraint: "startup_lgpd_consent_event_startup_id_fkey",
             ..,
           )) -> Error(SubjectNotFound(id:))
 
           Error(pog.ConstraintViolated(
-            constraint: "company_lgpd_consent_policy_version_check",
+            constraint: "startup_lgpd_consent_event_policy_version_fkey",
             ..,
-          )) -> Error(InvalidPolicyVersion(version:))
+          )) -> Error(PolicyNotFound(version:))
 
           Ok(returned) -> Ok(returned)
           Error(error) -> Error(DatabaseError(error))
