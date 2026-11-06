@@ -3134,6 +3134,98 @@ pub fn revoke_startup_lgpd_consent_test() -> Nil {
   Nil
 }
 
+pub fn grant_startup_lgpd_consent_with_company_session_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+  let company = dummy.new_company(context.database)
+  let version = 1
+
+  let endpoint =
+    "/api/startup/"
+    <> uuid.to_string(startup.id)
+    <> "/lgpd/"
+    <> int.to_string(version)
+
+  let response =
+    simulate.browser_request(http.Post, endpoint)
+    |> dummy.with_session(context, web.Company(company.id), company.email)
+    |> web.handle_request(context)
+
+  assert response.status == 403
+
+  Nil
+}
+
+pub fn grant_startup_lgpd_consent_with_other_startup_session_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+  let other = dummy.new_startup(context.database)
+  let version = 1
+
+  let endpoint =
+    "/api/startup/"
+    <> uuid.to_string(startup.id)
+    <> "/lgpd/"
+    <> int.to_string(version)
+
+  let response =
+    simulate.browser_request(http.Post, endpoint)
+    |> dummy.with_session(context, web.Startup(other.id), other.email)
+    |> web.handle_request(context)
+
+  assert response.status == 403
+
+  Nil
+}
+
+pub fn revoke_startup_lgpd_consent_with_company_session_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+  let company = dummy.new_company(context.database)
+  let version = 1
+
+  let endpoint =
+    "/api/startup/"
+    <> uuid.to_string(startup.id)
+    <> "/lgpd/"
+    <> int.to_string(version)
+
+  let response =
+    simulate.browser_request(http.Delete, endpoint)
+    |> dummy.with_session(context, web.Company(company.id), company.email)
+    |> web.handle_request(context)
+
+  assert response.status == 403
+
+  Nil
+}
+
+pub fn revoke_startup_lgpd_consent_with_other_startup_session_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+  let other = dummy.new_startup(context.database)
+  let version = 1
+
+  let endpoint =
+    "/api/startup/"
+    <> uuid.to_string(startup.id)
+    <> "/lgpd/"
+    <> int.to_string(version)
+
+  let response =
+    simulate.browser_request(http.Delete, endpoint)
+    |> dummy.with_session(context, web.Startup(other.id), other.email)
+    |> web.handle_request(context)
+
+  assert response.status == 403
+
+  Nil
+}
+
 pub fn grant_company_lgpd_consent_test() -> Nil {
   use context <- server_test.with_context()
 
