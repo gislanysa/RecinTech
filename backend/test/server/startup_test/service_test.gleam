@@ -1,0 +1,55 @@
+import server/dummy
+import server/service
+import server_test
+import youid/uuid
+
+pub fn register_service_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let name = "Web Development"
+  let description = "Pretty good with websites"
+  let assert Ok(returned) =
+    service.register(context.database, name:, description:)
+
+  assert uuid.version(returned.id) == uuid.V7
+  assert returned == service.Service(id: returned.id, name:, description:)
+
+  Nil
+}
+
+pub fn get_service_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let service = dummy.new_service(context.database)
+  let assert Ok(returned) = service.get(context.database, service.id)
+
+  assert returned == service
+
+  Nil
+}
+
+pub fn get_missing_service_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let id = uuid.v7()
+  let assert Error(service.NotFound(returned)) =
+    service.get(context.database, id)
+
+  assert returned == id
+
+  Nil
+}
+
+pub fn get_many_services_test() -> Nil {
+  use context <- server_test.with_context()
+  let max = 6
+
+  let services = dummy.many(max, fn() { dummy.new_service(context.database) })
+
+  let assert Ok(returned) =
+    service.get_many(context.database, limit: max, offset: 0)
+
+  assert returned == services
+
+  Nil
+}

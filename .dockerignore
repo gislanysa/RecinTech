@@ -1,0 +1,15 @@
+**/node_modules
+frontend/dist
+
+backend/build
+backend/priv
+backend/docs
+
+docker-compose.yaml
+**/.envrc
+**/justfile
+
+# VCS and docs
+.git
+.jj
+**/*.md

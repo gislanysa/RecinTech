@@ -1,0 +1,104 @@
+import Botao from '@/components/Botao.tsx'
+import BotaoVoltar from '@/components/BotaoVoltar.tsx'
+import { Link } from 'react-router-dom'
+
+type TipoConta = 'startup' | 'empresa'
+
+type EscolhaTipoProps = {
+  onEscolher: (tipo: TipoConta) => void
+}
+
+type OpcaoCard = {
+  tipo: TipoConta
+  titulo: string
+  subtitulo: string
+  descricao: string
+  destaques: string[]
+}
+
+const OPCOES: OpcaoCard[] = [
+  {
+    tipo: 'startup',
+    titulo: 'Sou uma Startup',
+    subtitulo: 'Quero me conectar a empresas',
+    descricao:
+      'Cadastre sua startup, apresente suas soluções e seja encontrada pelas empresas certas.',
+    destaques: ['Perfil público de visibilidade', 'Match com empresas', 'Receba propostas'],
+  },
+  {
+    tipo: 'empresa',
+    titulo: 'Sou uma Empresa',
+    subtitulo: 'Quero encontrar startups',
+    descricao:
+      'Descreva o que a sua empresa precisa e receba recomendações personalizadas de startups.',
+    destaques: ['Busca inteligente', 'Matchmaking personalizado', 'Gestão de conexões'],
+  },
+]
+
+export default function EscolhaTipo({ onEscolher }: EscolhaTipoProps) {
+  return (
+    <div className="w-full">
+      {/* Botão voltar para a home */}
+      <div className="mb-6">
+        <BotaoVoltar to="/">Voltar para a home</BotaoVoltar>
+      </div>
+
+      <div className="mb-8 text-center">
+        <h1 className="font-display text-3xl font-bold tracking-tight text-ink-900 sm:text-4xl">
+          Criar conta
+        </h1>
+        <p className="mt-3 text-base text-ink-500">
+          Como você quer usar o RecInTech?
+        </p>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        {OPCOES.map((opcao) => (
+          <div
+            key={opcao.tipo}
+            className={[
+              'group relative flex flex-col rounded-2xl border-2 bg-surface p-6',
+              'border-brand-200 shadow-sm transition-all duration-200',
+              'hover:border-brand-500 hover:shadow-md hover:-translate-y-0.5',
+            ].join(' ')}
+          >
+            {/* Gradiente de fundo sutil no hover */}
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 rounded-2xl bg-[radial-gradient(60%_50%_at_50%_0%,var(--color-brand-50),transparent)] opacity-0 transition-opacity duration-200 group-hover:opacity-100"
+            />
+
+            <div className="relative flex flex-1 flex-col">
+              <p className="font-display text-lg font-semibold text-ink-900">{opcao.titulo}</p>
+              <p className="mt-0.5 text-sm text-ink-500">{opcao.subtitulo}</p>
+
+              <p className="mt-4 text-sm leading-relaxed text-ink-500">{opcao.descricao}</p>
+
+              <ul className="mt-4 flex flex-col gap-2">
+                {opcao.destaques.map((item) => (
+                  <li key={item} className="flex items-center gap-2 text-xs font-medium text-ink-700">
+                    <span className="size-1.5 shrink-0 rounded-full bg-accent-500" aria-hidden="true" />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+
+              <div className="mt-6">
+                <Botao id={`tipo-${opcao.tipo}`} onClick={() => onEscolher(opcao.tipo)} bloco>
+                  Começar
+                </Botao>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <p className="mt-6 text-center text-sm text-ink-500">
+        Já tem conta?{' '}
+        <Link to="/entrar" className="font-medium text-brand-600 hover:text-brand-700 hover:underline">
+          Acessar
+        </Link>
+      </p>
+    </div>
+  )
+}
