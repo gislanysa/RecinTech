@@ -2978,7 +2978,11 @@ pub fn get_startup_lgpd_consent_missing_test() -> Nil {
     simulate.browser_request(http.Get, endpoint)
     |> web.handle_request(context)
 
-  assert response.status == 404
+  assert response.status == 200
+  expect_json(response)
+
+  let body = simulate.read_body(response)
+  let assert Ok([]) = json.parse(body, decode.list(lgpd.consent_decoder()))
 
   Nil
 }
@@ -3043,7 +3047,11 @@ pub fn get_company_lgpd_consent_missing_test() -> Nil {
     simulate.browser_request(http.Get, endpoint)
     |> web.handle_request(context)
 
-  assert response.status == 404
+  assert response.status == 200
+  expect_json(response)
+
+  let body = simulate.read_body(response)
+  let assert Ok([]) = json.parse(body, decode.list(lgpd.consent_decoder()))
 
   Nil
 }
