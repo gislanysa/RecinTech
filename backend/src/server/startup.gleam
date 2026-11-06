@@ -1023,17 +1023,12 @@ pub fn get_lgpd_consent(
   database: pog.Connection,
   id: uuid.Uuid,
 ) -> Result(List(lgpd.Consent), StartupError) {
-  use returned <- result.try(
+  use returned <- result.map(
     sql.get_lgpd_consent(database, id)
     |> result.map_error(DatabaseError),
   )
 
-  use rows <- result.map(case returned.rows {
-    [] -> Error(NotFound(id:))
-    rows -> Ok(rows)
-  })
-
-  list.map(rows, fn(row) {
+  list.map(returned.rows, fn(row) {
     case row.consent {
       sql.Granted ->
         lgpd.Granted(
