@@ -9,6 +9,122 @@ import gleam/time/timestamp.{type Timestamp}
 import pog
 import youid/uuid.{type Uuid}
 
+/// A row you get from running the `get_current_policy` query
+/// defined in `./src/server/lgpd/sql/get_current_policy.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v4.7.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type GetCurrentPolicyRow {
+  GetCurrentPolicyRow(
+    version: Int,
+    document_url: String,
+    document_hash: String,
+    published_at: Timestamp,
+    is_current: Bool,
+  )
+}
+
+/// get information about the current lgpd policy
+///
+/// > 🐿️ This function was generated automatically using v4.7.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn get_current_policy(
+  db: pog.Connection,
+) -> Result(pog.Returned(GetCurrentPolicyRow), pog.QueryError) {
+  let decoder = {
+    use version <- decode.field(0, decode.int)
+    use document_url <- decode.field(1, decode.string)
+    use document_hash <- decode.field(2, decode.string)
+    use published_at <- decode.field(3, pog.timestamp_decoder())
+    use is_current <- decode.field(4, decode.bool)
+    decode.success(GetCurrentPolicyRow(
+      version:,
+      document_url:,
+      document_hash:,
+      published_at:,
+      is_current:,
+    ))
+  }
+
+  "-- get information about the current lgpd policy
+SELECT
+    policy.version,
+    policy.document_url,
+    policy.document_hash,
+    policy.published_at,
+    policy.is_current
+FROM
+    public.lgpd_policy AS policy
+WHERE
+    policy.is_current
+LIMIT
+    1;
+"
+  |> pog.query
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
+/// A row you get from running the `get_policy` query
+/// defined in `./src/server/lgpd/sql/get_policy.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v4.7.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type GetPolicyRow {
+  GetPolicyRow(
+    version: Int,
+    document_url: String,
+    document_hash: String,
+    published_at: Timestamp,
+    is_current: Bool,
+  )
+}
+
+/// get information about a given lgpd policy
+///
+/// > 🐿️ This function was generated automatically using v4.7.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn get_policy(
+  db: pog.Connection,
+  arg_1: Int,
+) -> Result(pog.Returned(GetPolicyRow), pog.QueryError) {
+  let decoder = {
+    use version <- decode.field(0, decode.int)
+    use document_url <- decode.field(1, decode.string)
+    use document_hash <- decode.field(2, decode.string)
+    use published_at <- decode.field(3, pog.timestamp_decoder())
+    use is_current <- decode.field(4, decode.bool)
+    decode.success(GetPolicyRow(
+      version:,
+      document_url:,
+      document_hash:,
+      published_at:,
+      is_current:,
+    ))
+  }
+
+  "-- get information about a given lgpd policy
+SELECT
+    policy.version,
+    policy.document_url,
+    policy.document_hash,
+    policy.published_at,
+    policy.is_current
+FROM
+    public.lgpd_policy AS policy
+WHERE
+    version = $1::integer;
+"
+  |> pog.query
+  |> pog.parameter(pog.int(arg_1))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
 /// A row you get from running the `update_company_consent` query
 /// defined in `./src/server/lgpd/sql/update_company_consent.sql`.
 ///

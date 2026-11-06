@@ -20,6 +20,11 @@ pub type LgpdError {
   InvalidPolicyVersion(version: Int)
   /// Failed to grant or revoke consent
   FailedToUpdateConsent(subject: Subject)
+
+  /// LGPD policy not found with the given version
+  PolicyNotFound(version: Int)
+  /// There isn't a current policy
+  CurrentPolicyNotFound
 }
 
 /// Entity (Startup or Company) granting or revoking consent to their data.
@@ -28,6 +33,65 @@ pub type Subject {
   Startup(id: uuid.Uuid)
   /// An Company entity
   Company(id: uuid.Uuid)
+}
+
+pub type Policy {
+  Policy(
+    version: Int,
+    document_url: String,
+    document_hash: String,
+    published_at: timestamp.Timestamp,
+    is_current: Bool,
+  )
+}
+
+/// TODO
+pub fn get_policy(
+  database: pog.Connection,
+  version: Int,
+) -> Result(Policy, LgpdError) {
+  use version <- require_valid_policy_version(version)
+
+  use returned <- result.try(
+    sql.get_policy(database, version)
+    |> result.map_error(DatabaseError),
+  )
+
+  use row <- result.map(
+    list.first(returned.rows)
+    |> result.replace_error(PolicyNotFound(version)),
+  )
+
+  Policy(
+    version: row.version,
+    document_url: row.document_url,
+    document_hash: row.document_hash,
+    published_at: row.published_at,
+    is_current: row.is_current,
+  )
+}
+
+/// TODO
+pub fn get_current_policy(
+  database: pog.Connection,
+) -> Result(Policy, LgpdError) {
+  use returned <- result.try(
+    sql.get_current_policy(database)
+    |> result.map_error(DatabaseError),
+  )
+
+  use row <- result.map(
+    list.first(returned.rows)
+    |> result.replace_error(CurrentPolicyNotFound),
+  )
+
+  Policy(
+    version: row.version,
+    document_url: row.document_url,
+    document_hash: row.document_hash,
+    published_at: row.published_at,
+    is_current: row.is_current,
+  )
 }
 
 @internal
