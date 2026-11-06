@@ -256,6 +256,8 @@ Grant LGPD (Lei Geral de Proteção de Dados) consent for a startup at a given
 policy version. Once granted, the startup allows its data to be used as
 described by that version of the privacy policy.
 
+A Startup session is required.
+
 ### Path Parameters
 
 - `id` (UUID, required): the startup's ID.
@@ -280,6 +282,8 @@ described by that version of the privacy policy.
 
 - 200: Successful
 - 400: Invalid UUID format or invalid policy version
+- 401: Not authenticated
+- 403: Invalid session
 - 404: Startup not found
 - 500: Failed to update consent
 
@@ -288,6 +292,8 @@ described by that version of the privacy policy.
 Revoke LGPD (Lei Geral de Proteção de Dados) consent for a startup at a given
 policy version. Once revoked, the startup no longer allows its data to be used
 as described by that version of the privacy policy.
+
+A Startup session is required.
 
 ### Path Parameters
 
@@ -313,6 +319,8 @@ as described by that version of the privacy policy.
 
 - 200: Successful
 - 400: Invalid UUID format or invalid policy version
+- 401: Not authenticated
+- 403: Invalid session
 - 404: Startup not found
 - 500: Failed to update consent
 
@@ -1267,6 +1275,8 @@ Grant LGPD (Lei Geral de Proteção de Dados) consent for a company at a given
 policy version. Once granted, the company allows its data to be used as
 described by that version of the privacy policy.
 
+A Company session is required.
+
 ### Path Parameters
 
 - `id` (UUID, required): the company's ID.
@@ -1291,6 +1301,8 @@ described by that version of the privacy policy.
 
 - 200: Successful
 - 400: Invalid UUID format or invalid policy version
+- 401: Not authenticated
+- 403: Invalid session
 - 404: Company not found
 - 500: Failed to update consent
 
@@ -1299,6 +1311,8 @@ described by that version of the privacy policy.
 Revoke LGPD (Lei Geral de Proteção de Dados) consent for a company at a given
 policy version. Once revoked, the company no longer allows its data to be used
 as described by that version of the privacy policy.
+
+A Company session is required.
 
 ### Path Parameters
 
@@ -1324,6 +1338,8 @@ as described by that version of the privacy policy.
 
 - 200: Successful
 - 400: Invalid UUID format or invalid policy version
+- 401: Not authenticated
+- 403: Invalid session
 - 404: Company not found
 - 500: Failed to update consent
 
