@@ -23,6 +23,8 @@ import youid/uuid
 pub type StartupError {
   /// Failed to connect to the Database
   DatabaseError(error: pog.QueryError)
+  /// LGPD related errors
+  LgpdError(lgpd.LgpdError)
   /// Failed to hash the Startup password
   HashError(argus.HashError)
 
@@ -62,7 +64,6 @@ pub type StartupError {
   AssignmentFailure(id: uuid.Uuid)
   /// Failed to unassign entity to a startup for unknown reasons
   AssignmentNotFound(id: uuid.Uuid)
-  LgpdError(lgpd.LgpdError)
 }
 
 pub type Startup {

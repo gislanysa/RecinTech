@@ -22,6 +22,8 @@ import youid/uuid
 pub type CompanyError {
   /// Failed to connect to the Database
   DatabaseError(error: pog.QueryError)
+  /// LGPD related errors
+  LgpdError(lgpd.LgpdError)
   /// Company was not found in the Database
   NotFound(id: uuid.Uuid)
   /// Failed to hash the Company password
@@ -54,7 +56,6 @@ pub type CompanyError {
   FailedToBookmarkStartup(uuid.Uuid)
   /// Bookmark was not found
   BookmarkNotFound
-  LgpdError(lgpd.LgpdError)
 }
 
 /// Represents a Company supporting a [Startup](startup.html).
