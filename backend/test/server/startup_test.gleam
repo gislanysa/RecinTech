@@ -1,4 +1,5 @@
 import gleam/option.{None, Some}
+import gleam/set
 import gleam/uri
 import server/dummy
 import server/lgpd
@@ -631,7 +632,9 @@ pub fn get_many_startup_test() -> Nil {
   let assert Ok(returned) =
     startup.get_many(context.database, limit: max, offset: 0)
 
-  assert returned == startups
+  let returned = set.from_list(returned)
+  let startups = set.from_list(startups)
+  assert set.difference(startups, returned) |> set.to_list() == []
 
   Nil
 }

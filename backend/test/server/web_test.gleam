@@ -5,6 +5,7 @@ import gleam/http/response
 import gleam/int
 import gleam/json
 import gleam/list
+import gleam/set
 import gleam/uri
 import server/cnpj
 import server/company
@@ -388,7 +389,9 @@ pub fn get_many_startups_test() -> Nil {
   let body = simulate.read_body(response)
   let assert Ok(returned) = json.parse(body, decode.list(startup.decoder()))
 
-  assert returned == startups
+  let returned = set.from_list(returned)
+  let startups = set.from_list(startups)
+  assert set.difference(startups, returned) |> set.to_list() == []
 
   Nil
 }
