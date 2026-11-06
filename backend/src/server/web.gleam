@@ -3358,6 +3358,8 @@ fn handle_startup_error(error: startup.StartupError) -> Response {
   case error {
     startup.DatabaseError(error) -> handle_database_error(error)
 
+    startup.LgpdError(error) -> handle_lgpd_error(error)
+
     startup.FailedToRegisterStartup -> wisp.internal_server_error()
 
     startup.FailedToUpdateStartup(id) ->
@@ -3771,6 +3773,8 @@ fn handle_company_error(error: company.CompanyError) -> Response {
     company.InvalidEmail(value) -> wisp.bad_request("Invalid email: " <> value)
 
     company.HashError(_) -> wisp.internal_server_error()
+
+    company.LgpdError(error) -> handle_lgpd_error(error)
 
     company.NotFound(id) ->
       { "Company not found: " <> uuid.to_string(id) }

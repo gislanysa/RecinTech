@@ -23,6 +23,8 @@ import youid/uuid
 pub type StartupError {
   /// Failed to connect to the Database
   DatabaseError(error: pog.QueryError)
+  /// LGPD related errors
+  LgpdError(lgpd.LgpdError)
   /// Failed to hash the Startup password
   HashError(argus.HashError)
 
@@ -1045,6 +1047,55 @@ pub fn get_lgpd_consent(
         )
     }
   })
+}
+
+/// Grant LGPD (Lei Geral de Proteção de Dados) consent for a Startup at a
+/// given policy version. Once granted, the Startup allows its data to be used
+/// as described by that version of the privacy policy.
+///
+/// ## Examples
+///
+/// ```gleam
+/// let result = startup.grant_lgpd_consent(context.database, id, version: 1)
+///
+/// case result {
+///   Ok(lgpd.Granted(..)) -> wisp.ok()
+///   Ok(_) -> wisp.internal_server_error()
+///   Error(error) -> handle_error(error)
+/// }
+/// ```
+@internal
+pub fn grant_lgpd_consent(
+  database: pog.Connection,
+  id: uuid.Uuid,
+  version version: Int,
+) -> Result(lgpd.Consent, StartupError) {
+  lgpd.grant_consent(database, lgpd.Startup(id), version)
+  |> result.map_error(LgpdError)
+}
+
+/// Revoke LGPD (Lei Geral de Proteção de Dados) consent for a Startup at a
+/// given policy version. Once revoked, the Startup no longer allows its data
+/// to be used as described by that version of the privacy policy.
+///
+/// ## Examples
+///
+/// ```gleam
+/// let result = startup.revoke_lgpd_consent(context.database, id, version: 1)
+///
+/// case result {
+///   Ok(lgpd.Revoked(..)) -> wisp.ok()
+///   Ok(_) -> wisp.internal_server_error()
+///   Error(error) -> handle_error(error)
+/// }
+/// ```
+pub fn revoke_lgpd_consent(
+  database: pog.Connection,
+  id: uuid.Uuid,
+  version version: Int,
+) -> Result(lgpd.Consent, StartupError) {
+  lgpd.revoke_consent(database, lgpd.Startup(id), version)
+  |> result.map_error(LgpdError)
 }
 
 /// Convert a `Stage` into a String
