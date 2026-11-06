@@ -23,8 +23,12 @@ pub type LgpdError {
 
   /// LGPD policy not found with the given version
   PolicyNotFound(version: Int)
+  /// There is already a policy with that version
+  PolicyVersionConflict(Int)
   /// There isn't a current policy
   CurrentPolicyNotFound
+  /// Failed to update a policy
+  FailedToUpdatePolicy(version: Int)
 }
 
 /// Entity (Startup or Company) granting or revoking consent to their data.
@@ -92,6 +96,74 @@ pub fn get_current_policy(
     published_at: row.published_at,
     is_current: row.is_current,
   )
+}
+
+pub fn register_policy_version(
+  database: pog.Connection,
+  version: Int,
+  document_url: String,
+  document_hash: String,
+) -> Result(Policy, LgpdError) {
+  use version <- require_valid_policy_version(version)
+
+  let transaction =
+    pog.transaction(database, fn(database) {
+      use returned <- result.try(
+        sql.delete_current_policy(database)
+        |> result.map_error(DatabaseError),
+      )
+
+      use row <- result.try(
+        list.first(returned.rows)
+        |> result.replace_error(CurrentPolicyNotFound),
+      )
+
+      let deleted =
+        Policy(
+          version: row.version,
+          document_url: row.document_url,
+          document_hash: row.document_hash,
+          published_at: row.published_at,
+          is_current: row.is_current,
+        )
+
+      case deleted {
+        // Policy is still set to current
+        Policy(is_current: True, ..) ->
+          Error(FailedToUpdatePolicy(deleted.version))
+
+        // Trying to register a version already registered
+        Policy(version: deleted_version, ..) if deleted_version == version ->
+          Error(PolicyVersionConflict(version))
+
+        // Happy path
+        Policy(..) -> {
+          use returned <- result.try(
+            sql.register_policy(database, version, document_url, document_hash)
+            |> result.map_error(DatabaseError),
+          )
+
+          use row <- result.map(
+            list.first(returned.rows)
+            |> result.replace_error(FailedToUpdatePolicy(version)),
+          )
+
+          Policy(
+            version: row.version,
+            document_url: row.document_url,
+            document_hash: row.document_hash,
+            published_at: row.published_at,
+            is_current: row.is_current,
+          )
+        }
+      }
+    })
+
+  case transaction {
+    Ok(data) -> Ok(data)
+    Error(pog.TransactionQueryError(error)) -> Error(DatabaseError(error))
+    Error(pog.TransactionRolledBack(error)) -> Error(error)
+  }
 }
 
 @internal

@@ -59,6 +59,8 @@ type WebError {
   MissingQuery
   /// Invalid query parameter
   InvalidQueryParameter(key: String)
+  /// Policy needs to be the latest one
+  PolicyVersionMismatch(expected: Int, got: Int)
 }
 
 /// Handle incoming HTTP requests
@@ -625,7 +627,9 @@ fn grant_startup_lgpd_consent(
     Startup(session_id) if session_id == id ->
       case int.parse(version) {
         Error(_) -> wisp.bad_request("Invalid policy version: " <> version)
-        Ok(version) ->
+        Ok(version) -> {
+          use <- require_latest_lgpd_policy(database, version)
+
           case lgpd.grant_consent(database, lgpd.Startup(id), version) {
             Ok(consent) ->
               lgpd.consent_to_json(consent)
@@ -634,6 +638,7 @@ fn grant_startup_lgpd_consent(
 
             Error(error) -> handle_lgpd_error(error)
           }
+        }
       }
 
     Startup(..) | Company(..) -> wisp.response(403)
@@ -689,7 +694,9 @@ fn revoke_startup_lgpd_consent(
     Startup(session_id) if session_id == id ->
       case int.parse(version) {
         Error(_) -> wisp.bad_request("Invalid policy version: " <> version)
-        Ok(version) ->
+        Ok(version) -> {
+          use <- require_latest_lgpd_policy(database, version)
+
           case lgpd.revoke_consent(database, lgpd.Startup(id), version) {
             Ok(consent) ->
               lgpd.consent_to_json(consent)
@@ -698,6 +705,7 @@ fn revoke_startup_lgpd_consent(
 
             Error(error) -> handle_lgpd_error(error)
           }
+        }
       }
 
     Startup(..) | Company(..) -> wisp.response(403)
@@ -753,7 +761,9 @@ fn grant_company_lgpd_consent(
     Company(session_id) if session_id == id ->
       case int.parse(version) {
         Error(_) -> wisp.bad_request("Invalid policy version: " <> version)
-        Ok(version) ->
+        Ok(version) -> {
+          use <- require_latest_lgpd_policy(database, version)
+
           case lgpd.grant_consent(database, lgpd.Company(id), version) {
             Ok(consent) ->
               lgpd.consent_to_json(consent)
@@ -762,9 +772,25 @@ fn grant_company_lgpd_consent(
 
             Error(error) -> handle_lgpd_error(error)
           }
+        }
       }
 
     Startup(..) | Company(..) -> wisp.response(403)
+  }
+}
+
+/// Requires that `version` matches the lates policy version
+fn require_latest_lgpd_policy(
+  database: pog.Connection,
+  version: Int,
+  next: fn() -> Response,
+) -> Response {
+  case lgpd.get_current_policy(database) {
+    Error(error) -> handle_lgpd_error(error)
+    Ok(policy) if policy.version == version -> next()
+
+    Ok(policy) ->
+      handle_error(PolicyVersionMismatch(expected: version, got: policy.version))
   }
 }
 
@@ -817,7 +843,9 @@ fn revoke_company_lgpd_consent(
     Company(session_id) if session_id == id ->
       case int.parse(version) {
         Error(_) -> wisp.bad_request("Invalid policy version: " <> version)
-        Ok(version) ->
+        Ok(version) -> {
+          use <- require_latest_lgpd_policy(database, version)
+
           case lgpd.revoke_consent(database, lgpd.Company(id), version) {
             Ok(consent) ->
               lgpd.consent_to_json(consent)
@@ -826,6 +854,7 @@ fn revoke_company_lgpd_consent(
 
             Error(error) -> handle_lgpd_error(error)
           }
+        }
       }
     Company(..) | Startup(..) -> wisp.response(403)
   }
@@ -833,13 +862,34 @@ fn revoke_company_lgpd_consent(
 
 fn handle_lgpd_error(error: lgpd.LgpdError) -> Response {
   case error {
-    lgpd.SubjectNotFound(_) -> wisp.not_found()
+    lgpd.DatabaseError(_) -> wisp.internal_server_error()
+
+    lgpd.SubjectNotFound(id) ->
+      { "ID not found:" <> uuid.to_string(id) }
+      |> wisp.string_body(wisp.not_found(), _)
 
     lgpd.InvalidPolicyVersion(version:) ->
       wisp.bad_request("Invalid policy version: " <> int.to_string(version))
 
-    lgpd.DatabaseError(_) | lgpd.FailedToUpdateConsent(_) ->
-      wisp.internal_server_error()
+    lgpd.FailedToUpdateConsent(_) ->
+      { "Failed to update consent" }
+      |> wisp.string_body(wisp.internal_server_error(), _)
+
+    lgpd.PolicyNotFound(version:) ->
+      { "Policy not found: Version " <> int.to_string(version) }
+      |> wisp.string_body(wisp.not_found(), _)
+
+    lgpd.CurrentPolicyNotFound ->
+      { "No current policy found" }
+      |> wisp.string_body(wisp.not_found(), _)
+
+    lgpd.PolicyVersionConflict(version) ->
+      { "Policy version already registered: " <> int.to_string(version) }
+      |> wisp.string_body(wisp.response(409), _)
+
+    lgpd.FailedToUpdatePolicy(version:) ->
+      { "Failed to update policy: " <> int.to_string(version) }
+      |> wisp.string_body(wisp.internal_server_error(), _)
   }
 }
 
@@ -2935,6 +2985,15 @@ fn handle_error(error: WebError) -> Response {
     MissingQuery -> wisp.bad_request("Missing query")
     InvalidQueryParameter(key) -> wisp.bad_request("Invalid query: " <> key)
     CompanyError(error) -> handle_company_error(error)
+
+    PolicyVersionMismatch(expected:, got:) ->
+      {
+        "Policy version mismatch, expected: "
+        <> int.to_string(expected)
+        <> " got: "
+        <> int.to_string(got)
+      }
+      |> wisp.bad_request
   }
 }
 

@@ -9,6 +9,64 @@ import gleam/time/timestamp.{type Timestamp}
 import pog
 import youid/uuid.{type Uuid}
 
+/// A row you get from running the `delete_current_policy` query
+/// defined in `./src/server/lgpd/sql/delete_current_policy.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v4.7.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type DeleteCurrentPolicyRow {
+  DeleteCurrentPolicyRow(
+    version: Int,
+    document_url: String,
+    document_hash: String,
+    published_at: Timestamp,
+    is_current: Bool,
+  )
+}
+
+/// makes the current policy invalid
+///
+/// > 🐿️ This function was generated automatically using v4.7.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn delete_current_policy(
+  db: pog.Connection,
+) -> Result(pog.Returned(DeleteCurrentPolicyRow), pog.QueryError) {
+  let decoder = {
+    use version <- decode.field(0, decode.int)
+    use document_url <- decode.field(1, decode.string)
+    use document_hash <- decode.field(2, decode.string)
+    use published_at <- decode.field(3, pog.timestamp_decoder())
+    use is_current <- decode.field(4, decode.bool)
+    decode.success(DeleteCurrentPolicyRow(
+      version:,
+      document_url:,
+      document_hash:,
+      published_at:,
+      is_current:,
+    ))
+  }
+
+  "-- makes the current policy invalid
+UPDATE
+    lgpd_policy
+SET
+    is_current = FALSE
+WHERE
+    is_current
+RETURNING
+    version,
+    document_url,
+    document_hash,
+    published_at,
+    is_current;
+"
+  |> pog.query
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
 /// A row you get from running the `get_current_policy` query
 /// defined in `./src/server/lgpd/sql/get_current_policy.sql`.
 ///
@@ -121,6 +179,78 @@ WHERE
 "
   |> pog.query
   |> pog.parameter(pog.int(arg_1))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
+/// A row you get from running the `register_policy` query
+/// defined in `./src/server/lgpd/sql/register_policy.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v4.7.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type RegisterPolicyRow {
+  RegisterPolicyRow(
+    version: Int,
+    document_url: String,
+    document_hash: String,
+    published_at: Timestamp,
+    is_current: Bool,
+  )
+}
+
+/// register a new policy
+///
+/// > 🐿️ This function was generated automatically using v4.7.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn register_policy(
+  db: pog.Connection,
+  arg_1: Int,
+  arg_2: String,
+  arg_3: String,
+) -> Result(pog.Returned(RegisterPolicyRow), pog.QueryError) {
+  let decoder = {
+    use version <- decode.field(0, decode.int)
+    use document_url <- decode.field(1, decode.string)
+    use document_hash <- decode.field(2, decode.string)
+    use published_at <- decode.field(3, pog.timestamp_decoder())
+    use is_current <- decode.field(4, decode.bool)
+    decode.success(RegisterPolicyRow(
+      version:,
+      document_url:,
+      document_hash:,
+      published_at:,
+      is_current:,
+    ))
+  }
+
+  "-- register a new policy
+INSERT INTO
+    lgpd_policy (
+        version,
+        document_url,
+        document_hash,
+        is_current
+    )
+VALUES
+    (
+        $1::integer,
+        $2::text,
+        $3::text,
+        TRUE
+    )
+RETURNING
+    version,
+    document_url,
+    document_hash,
+    published_at,
+    is_current;
+"
+  |> pog.query
+  |> pog.parameter(pog.int(arg_1))
+  |> pog.parameter(pog.text(arg_2))
+  |> pog.parameter(pog.text(arg_3))
   |> pog.returning(decoder)
   |> pog.execute(db)
 }

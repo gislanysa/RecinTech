@@ -642,11 +642,21 @@ pub fn get_lgpd_consent_multiple_policies_versions_test() -> Nil {
   let startup = dummy.new_startup(context.database)
 
   // Version one
+  let version = 1
   let assert Ok(policy_version_one) =
     lgpd.grant_consent(
       context.database,
       for: lgpd.Startup(id: startup.id),
-      version: 1,
+      version:,
+    )
+
+  let version = 2
+  let assert Ok(_) =
+    lgpd.register_policy_version(
+      context.database,
+      version,
+      "http://localhost/",
+      "wibble",
     )
 
   // Version two
@@ -654,13 +664,13 @@ pub fn get_lgpd_consent_multiple_policies_versions_test() -> Nil {
     lgpd.grant_consent(
       context.database,
       for: lgpd.Startup(id: startup.id),
-      version: 2,
+      version:,
     )
 
   let assert Ok(returned) =
     startup.get_lgpd_consent(context.database, startup.id)
 
-  assert returned == [policy_version_one, policy_version_two]
+  assert returned == [policy_version_two, policy_version_one]
 
   Nil
 }
