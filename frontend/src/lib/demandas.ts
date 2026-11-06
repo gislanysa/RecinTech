@@ -58,13 +58,24 @@ export type Recomendacao = {
   motivos: string[]
 }
 
+export const LIMITE_PADRAO_DEMANDAS = 100
+
 /**
- * GET /api/company/:companyId/demand
+ * GET /api/company/:companyId/demand?limit=&offset=
  *
- * Lista as demandas da empresa cadastradas no backend.
+ * Lista as demandas da empresa cadastradas no backend, de forma paginada.
  */
-export async function listarDemandas(companyId: string): Promise<Demanda[]> {
-  const { data } = await api.get<Demanda[]>(`/company/${companyId}/demand`)
+export async function listarDemandas(
+  companyId: string,
+  limit: number = LIMITE_PADRAO_DEMANDAS,
+  offset: number = 0,
+): Promise<Demanda[]> {
+  const { data } = await api.get<Demanda[]>(`/company/${companyId}/demand`, {
+    params: {
+      limit: Math.max(1, Math.floor(limit)),
+      offset: Math.max(0, Math.floor(offset)),
+    },
+  })
   return data
 }
 
