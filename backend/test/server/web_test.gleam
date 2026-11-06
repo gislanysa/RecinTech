@@ -3146,6 +3146,7 @@ pub fn grant_company_lgpd_consent_test() -> Nil {
 
   let response =
     simulate.browser_request(http.Post, endpoint)
+    |> dummy.with_session(context, web.Company(company.id), company.email)
     |> web.handle_request(context)
 
   assert response.status == 200
@@ -3178,6 +3179,7 @@ pub fn revoke_company_lgpd_consent_test() -> Nil {
 
   let response =
     simulate.browser_request(http.Delete, endpoint)
+    |> dummy.with_session(context, web.Company(company.id), company.email)
     |> web.handle_request(context)
 
   assert response.status == 200
@@ -3212,17 +3214,19 @@ pub fn grant_lgpd_consent_missing_startup_test() -> Nil {
 pub fn grant_lgpd_consent_missing_company_test() -> Nil {
   use context <- server_test.with_context()
 
-  let endpoint = "/api/company/" <> uuid.v7_string() <> "/lgpd/1"
+  let missing_id = uuid.v7()
+  let endpoint = "/api/company/" <> uuid.to_string(missing_id) <> "/lgpd/1"
   let response =
     simulate.browser_request(http.Post, endpoint)
+    |> dummy.with_session(context, web.Company(missing_id), dummy.new_email())
     |> web.handle_request(context)
 
-  assert response.status == 404
+  assert response.status == 401
 
   Nil
 }
 
-pub fn grant_lgpd_consent_invalid_id_test() -> Nil {
+pub fn grant_lgpd_consent_invalid_startup_id_test() -> Nil {
   use context <- server_test.with_context()
 
   // Invalid Startup ID
@@ -3257,6 +3261,7 @@ pub fn grant_lgpd_consent_invalid_version_test() -> Nil {
 
     let response =
       simulate.browser_request(http.Post, endpoint)
+      |> dummy.with_session(context, web.Startup(startup.id), startup.email)
       |> web.handle_request(context)
 
     assert response.status == 400
@@ -3267,6 +3272,7 @@ pub fn grant_lgpd_consent_invalid_version_test() -> Nil {
 
     let response =
       simulate.browser_request(http.Post, endpoint)
+      |> dummy.with_session(context, web.Company(company.id), company.email)
       |> web.handle_request(context)
 
     assert response.status == 400
@@ -3275,7 +3281,7 @@ pub fn grant_lgpd_consent_invalid_version_test() -> Nil {
   Nil
 }
 
-pub fn revoke_lgpd_consent_invalid_id_test() -> Nil {
+pub fn revoke_lgpd_consent_invalid_startup_id_test() -> Nil {
   use context <- server_test.with_context()
 
   let response =

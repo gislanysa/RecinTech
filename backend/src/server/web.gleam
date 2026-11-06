@@ -199,10 +199,10 @@ pub fn handle_request(request: Request, context: Context) -> Response {
       get_company_lgpd_consent(context.database, id)
 
     http.Post, ["api", "company", id, "lgpd", version] ->
-      grant_company_lgpd_consent(context.database, id, version)
+      grant_company_lgpd_consent(request, context.database, id, version)
 
     http.Delete, ["api", "company", id, "lgpd", version] ->
-      revoke_company_lgpd_consent(context.database, id, version)
+      revoke_company_lgpd_consent(request, context.database, id, version)
 
     // == bookmarks ============================================================
     http.Get, ["api", "company", id, "bookmark"] ->
@@ -717,27 +717,36 @@ fn revoke_startup_lgpd_consent(
 /// - **200** If successful.
 /// - **400** If the ID is not a valid UUID, or the policy version is not a
 ///   valid integer greater than zero.
+/// - **401** If not authenticated.
 /// - **404** If the Company is not found.
 /// - **500** If the consent could not be updated.
 ///
 fn grant_company_lgpd_consent(
+  request: Request,
   database: pog.Connection,
   id: String,
   version: String,
 ) -> Response {
   use id <- require_valid_uuid(id)
+  use session <- require_session(request)
 
-  case int.parse(version) {
-    Error(_) -> wisp.bad_request("Invalid policy version: " <> version)
-    Ok(version) ->
-      case lgpd.grant_consent(database, lgpd.Company(id), version) {
-        Ok(consent) ->
-          lgpd.consent_to_json(consent)
-          |> json.to_string()
-          |> wisp.json_response(200)
+  case session {
+    // A Company can only update its own consent
+    Company(session_id) if session_id == id ->
+      case int.parse(version) {
+        Error(_) -> wisp.bad_request("Invalid policy version: " <> version)
+        Ok(version) ->
+          case lgpd.grant_consent(database, lgpd.Company(id), version) {
+            Ok(consent) ->
+              lgpd.consent_to_json(consent)
+              |> json.to_string()
+              |> wisp.json_response(200)
 
-        Error(error) -> handle_lgpd_error(error)
+            Error(error) -> handle_lgpd_error(error)
+          }
       }
+
+    Startup(..) | Company(..) -> wisp.response(403)
   }
 }
 
@@ -772,27 +781,35 @@ fn grant_company_lgpd_consent(
 /// - **200** If successful.
 /// - **400** If the ID is not a valid UUID, or the policy version is not a
 ///   valid integer greater than zero.
+/// - **401** If not authenticated.
 /// - **404** If the Company is not found.
 /// - **500** If the consent could not be updated.
 ///
 fn revoke_company_lgpd_consent(
+  request: Request,
   database: pog.Connection,
   id: String,
   version: String,
 ) -> Response {
   use id <- require_valid_uuid(id)
+  use session <- require_session(request)
 
-  case int.parse(version) {
-    Error(_) -> wisp.bad_request("Invalid policy version: " <> version)
-    Ok(version) ->
-      case lgpd.revoke_consent(database, lgpd.Company(id), version) {
-        Ok(consent) ->
-          lgpd.consent_to_json(consent)
-          |> json.to_string()
-          |> wisp.json_response(200)
+  case session {
+    // A Company can only update its own consent
+    Company(session_id) if session_id == id ->
+      case int.parse(version) {
+        Error(_) -> wisp.bad_request("Invalid policy version: " <> version)
+        Ok(version) ->
+          case lgpd.revoke_consent(database, lgpd.Company(id), version) {
+            Ok(consent) ->
+              lgpd.consent_to_json(consent)
+              |> json.to_string()
+              |> wisp.json_response(200)
 
-        Error(error) -> handle_lgpd_error(error)
+            Error(error) -> handle_lgpd_error(error)
+          }
       }
+    Company(..) | Startup(..) -> wisp.response(403)
   }
 }
 
