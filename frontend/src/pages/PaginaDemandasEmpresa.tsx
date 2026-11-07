@@ -7,6 +7,8 @@ import { listarStartups, type StartupCatalogo } from '@/lib/startups.ts'
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useOutletContext } from 'react-router-dom'
 
+const DEMANDAS_POR_PAGINA = 10
+
 export default function PaginaDemandasEmpresa() {
   const { conta } = useOutletContext<ContextoSessao>()
   const empresa = conta as Company
@@ -18,10 +20,12 @@ export default function PaginaDemandasEmpresa() {
   const [startups, setStartups] = useState<StartupCatalogo[]>([])
   const [modalNovaDemanda, setModalNovaDemanda] = useState(false)
   const [demandaEmEdicao, setDemandaEmEdicao] = useState<Demanda | null>(null)
+  const [pagina, setPagina] = useState(0)
 
   useEffect(() => {
     let ativo = true
-    listarDemandas(empresa.id)
+    setCarregando(true)
+    listarDemandas(empresa.id, DEMANDAS_POR_PAGINA, pagina * DEMANDAS_POR_PAGINA)
       .then((lista) => {
         if (ativo) setDemandas(lista)
       })
@@ -39,13 +43,17 @@ export default function PaginaDemandasEmpresa() {
     return () => {
       ativo = false
     }
-  }, [empresa.id])
+  }, [empresa.id, pagina])
 
   async function handleRecarregar() {
     setCarregando(true)
     setErro(null)
     try {
-      const lista = await listarDemandas(empresa.id)
+      const lista = await listarDemandas(
+        empresa.id,
+        DEMANDAS_POR_PAGINA,
+        pagina * DEMANDAS_POR_PAGINA,
+      )
       setDemandas(lista)
     } catch {
       setErro('Não foi possível carregar as demandas da empresa.')
@@ -91,6 +99,26 @@ export default function PaginaDemandasEmpresa() {
         }}
         onTentarNovamente={handleRecarregar}
       />
+
+      <nav aria-label="Paginação das demandas" className="flex items-center justify-between">
+        <button
+          type="button"
+          onClick={() => setPagina((p) => Math.max(0, p - 1))}
+          disabled={pagina === 0 || carregando}
+          className="rounded-lg border border-ink-200 px-4 py-2 text-sm font-medium text-ink-700 disabled:opacity-50"
+        >
+          Anterior
+        </button>
+        <span className="text-sm text-ink-500">Página {pagina + 1}</span>
+        <button
+          type="button"
+          onClick={() => setPagina((p) => p + 1)}
+          disabled={demandas.length < DEMANDAS_POR_PAGINA || carregando}
+          className="rounded-lg border border-ink-200 px-4 py-2 text-sm font-medium text-ink-700 disabled:opacity-50"
+        >
+          Próxima
+        </button>
+      </nav>
 
       <ModalNovaDemanda
         aberto={modalNovaDemanda}

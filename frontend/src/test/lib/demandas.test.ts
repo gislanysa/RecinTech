@@ -45,9 +45,11 @@ describe('demandas.ts - Integração HTTP com a API', () => {
 
     vi.mocked(api.get).mockResolvedValueOnce({ data: mockDemandas })
 
-    const resultado = await listarDemandas(companyId)
+    const resultado = await listarDemandas(companyId, 10, 20)
 
-    expect(api.get).toHaveBeenCalledWith(`/company/${companyId}/demand`)
+    expect(api.get).toHaveBeenCalledWith(`/company/${companyId}/demand`, {
+      params: { limit: 10, offset: 20 },
+    })
     expect(resultado).toEqual(mockDemandas)
   })
 
