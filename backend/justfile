@@ -2,15 +2,28 @@ mod frontend "../frontend/justfile"
 
 set quiet
 
-# Server
-export DATABASE_URL := "postgres://aluno:123@localhost:5432/senac"
-export SECRET_KEY := "senac"
-database_container_name := "server_postgres"
-docker_compose := "docker compose -f ../docker-compose.yaml"
+db_user := env("POSTGRES_USER", "aluno")
+db_password := env("POSTGRES_PASSWORD", "123")
+db_name := env("POSTGRES_DB", "senac")
+db_host := env("POSTGRES_HOST", "localhost")
+db_port := env("POSTGRES_PORT", "5432")
 
-#   Erlang-related variables
-node_name := "wibble@127.0.0.1"
-erlang_cookie := "wibble"
+database_url := "postgres://" + db_user + ":" + db_password + "@" + db_host + ":" + db_port + "/" + db_name
+pg_isready := "pg_isready -q -h " + db_host + " -p " + db_port + " -U " + db_user + " -d " + db_name
+
+export DATABASE_URL := env("DATABASE_URL", database_url)
+export SECRET_KEY := env("SECRET_KEY", "senac")
+export IN_PARALLEL := env("IN_PARALLEL", "false")
+
+server_host := env("SERVER_HOST", "localhost")
+server_port := env("SERVER_PORT", "8000")
+server_url := "http://" + server_host + ":" + server_port
+node_name := env("NODE_NAME", "wibble@127.0.0.1")
+erlang_cookie := env("ERLANG_COOKIE", "wibble")
+
+# Server
+database_container_name := "server_postgres"
+docker_compose := "docker compose -f " + (justfile_directory() / ".." / "docker-compose.yaml")
 
 [private]
 default:
@@ -30,7 +43,7 @@ build-documentation: build
 
 # Run application
 [group("dev")]
-run: require-database build
+run: require-database
     ERL_FLAGS="-name {{ node_name }} -setcookie {{ erlang_cookie }}" gleam run
 
 # Open erlang observer
@@ -101,23 +114,36 @@ restart-database: stop-database && start-database
     echo {{ GREEN }}"󱎫  Rebuilt the PostgreSQL database"{{ NORMAL }}
 
 # Stop the database container
+[confirm("Stop container and clean resources? [y/N]")]
 [group("database")]
 stop-database:
-    docker rm -f -v {{ database_container_name }} || true
+    docker rm -f -v {{ database_container_name }}
     echo {{ GREEN }}"  Stopped the database container"{{ NORMAL }}
 
 # Check if the database is active
 [no-exit-message]
 [private]
 require-database:
-    pg_isready -q -h localhost -p 5432 -U aluno -d senac \
-    || ( echo {{ YELLOW }}"  Database is not running, starting it"{{ NORMAL }} \
+    {{ pg_isready }} \
+    || ( echo {{ YELLOW }}"  Database is not running, starting it"{{ NORMAL }} \
     && just start-database )
 
 # Check if the server is active
 [no-exit-message]
 [private]
 require-server:
-    curl -sf http://localhost:8000/api/healthcheck \
+    curl -sf {{ server_url }}/api/healthcheck \
     || ( echo {{ YELLOW }}"  HTTP Server needs to be running"{{ NORMAL }} \
     && just --usage run && exit 1 )
+
+[group("database")]
+psql: require-database
+    psql "{{ DATABASE_URL }}"
+
+[group("dev")]
+clean:
+    gleam clean
+
+[group("dev")]
+deps:
+    gleam deps download
