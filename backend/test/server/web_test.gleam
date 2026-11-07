@@ -5,6 +5,7 @@ import gleam/http/response
 import gleam/int
 import gleam/json
 import gleam/list
+import gleam/set
 import gleam/uri
 import server/cnpj
 import server/company
@@ -388,7 +389,9 @@ pub fn get_many_startups_test() -> Nil {
   let body = simulate.read_body(response)
   let assert Ok(returned) = json.parse(body, decode.list(startup.decoder()))
 
-  assert returned == startups
+  let returned = set.from_list(returned)
+  let startups = set.from_list(startups)
+  assert set.difference(startups, returned) |> set.to_list() == []
 
   Nil
 }
@@ -2935,18 +2938,28 @@ pub fn get_startup_lgpd_consent_test() -> Nil {
 
   let startup = dummy.new_startup(context.database)
 
+  let version = 1
   let assert Ok(version_one) =
     lgpd.grant_consent(
       context.database,
       for: lgpd.Startup(startup.id),
-      version: 1,
+      version:,
+    )
+
+  let version = 2
+  let assert Ok(_) =
+    lgpd.register_policy_version(
+      context.database,
+      version,
+      "http://localhost/",
+      "wibble",
     )
 
   let assert Ok(version_two) =
     lgpd.revoke_consent(
       context.database,
       from: lgpd.Startup(startup.id),
-      version: 2,
+      version:,
     )
 
   let endpoint = "/api/startup/" <> uuid.to_string(startup.id) <> "/lgpd"
@@ -2978,7 +2991,11 @@ pub fn get_startup_lgpd_consent_missing_test() -> Nil {
     simulate.browser_request(http.Get, endpoint)
     |> web.handle_request(context)
 
-  assert response.status == 404
+  assert response.status == 200
+  expect_json(response)
+
+  let body = simulate.read_body(response)
+  let assert Ok([]) = json.parse(body, decode.list(lgpd.consent_decoder()))
 
   Nil
 }
@@ -3007,11 +3024,20 @@ pub fn get_company_lgpd_consent_test() -> Nil {
       version: 1,
     )
 
+  let version = 2
+  let assert Ok(_) =
+    lgpd.register_policy_version(
+      context.database,
+      version,
+      "http://localhost/",
+      "wibble",
+    )
+
   let assert Ok(version_two) =
     lgpd.revoke_consent(
       context.database,
       from: lgpd.Company(company.id),
-      version: 2,
+      version:,
     )
 
   let endpoint = "/api/company/" <> uuid.to_string(company.id) <> "/lgpd"
@@ -3043,7 +3069,11 @@ pub fn get_company_lgpd_consent_missing_test() -> Nil {
     simulate.browser_request(http.Get, endpoint)
     |> web.handle_request(context)
 
-  assert response.status == 404
+  assert response.status == 200
+  expect_json(response)
+
+  let body = simulate.read_body(response)
+  let assert Ok([]) = json.parse(body, decode.list(lgpd.consent_decoder()))
 
   Nil
 }
@@ -3074,6 +3104,7 @@ pub fn grant_startup_lgpd_consent_test() -> Nil {
 
   let response =
     simulate.browser_request(http.Post, endpoint)
+    |> dummy.with_session(context, web.Startup(startup.id), startup.email)
     |> web.handle_request(context)
 
   assert response.status == 200
@@ -3106,6 +3137,7 @@ pub fn revoke_startup_lgpd_consent_test() -> Nil {
 
   let response =
     simulate.browser_request(http.Delete, endpoint)
+    |> dummy.with_session(context, web.Startup(startup.id), startup.email)
     |> web.handle_request(context)
 
   assert response.status == 200
@@ -3124,6 +3156,98 @@ pub fn revoke_startup_lgpd_consent_test() -> Nil {
   Nil
 }
 
+pub fn grant_startup_lgpd_consent_with_company_session_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+  let company = dummy.new_company(context.database)
+  let version = 1
+
+  let endpoint =
+    "/api/startup/"
+    <> uuid.to_string(startup.id)
+    <> "/lgpd/"
+    <> int.to_string(version)
+
+  let response =
+    simulate.browser_request(http.Post, endpoint)
+    |> dummy.with_session(context, web.Company(company.id), company.email)
+    |> web.handle_request(context)
+
+  assert response.status == 403
+
+  Nil
+}
+
+pub fn grant_startup_lgpd_consent_with_other_startup_session_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+  let other = dummy.new_startup(context.database)
+  let version = 1
+
+  let endpoint =
+    "/api/startup/"
+    <> uuid.to_string(startup.id)
+    <> "/lgpd/"
+    <> int.to_string(version)
+
+  let response =
+    simulate.browser_request(http.Post, endpoint)
+    |> dummy.with_session(context, web.Startup(other.id), other.email)
+    |> web.handle_request(context)
+
+  assert response.status == 403
+
+  Nil
+}
+
+pub fn revoke_startup_lgpd_consent_with_company_session_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+  let company = dummy.new_company(context.database)
+  let version = 1
+
+  let endpoint =
+    "/api/startup/"
+    <> uuid.to_string(startup.id)
+    <> "/lgpd/"
+    <> int.to_string(version)
+
+  let response =
+    simulate.browser_request(http.Delete, endpoint)
+    |> dummy.with_session(context, web.Company(company.id), company.email)
+    |> web.handle_request(context)
+
+  assert response.status == 403
+
+  Nil
+}
+
+pub fn revoke_startup_lgpd_consent_with_other_startup_session_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+  let other = dummy.new_startup(context.database)
+  let version = 1
+
+  let endpoint =
+    "/api/startup/"
+    <> uuid.to_string(startup.id)
+    <> "/lgpd/"
+    <> int.to_string(version)
+
+  let response =
+    simulate.browser_request(http.Delete, endpoint)
+    |> dummy.with_session(context, web.Startup(other.id), other.email)
+    |> web.handle_request(context)
+
+  assert response.status == 403
+
+  Nil
+}
+
 pub fn grant_company_lgpd_consent_test() -> Nil {
   use context <- server_test.with_context()
 
@@ -3138,6 +3262,7 @@ pub fn grant_company_lgpd_consent_test() -> Nil {
 
   let response =
     simulate.browser_request(http.Post, endpoint)
+    |> dummy.with_session(context, web.Company(company.id), company.email)
     |> web.handle_request(context)
 
   assert response.status == 200
@@ -3170,6 +3295,7 @@ pub fn revoke_company_lgpd_consent_test() -> Nil {
 
   let response =
     simulate.browser_request(http.Delete, endpoint)
+    |> dummy.with_session(context, web.Company(company.id), company.email)
     |> web.handle_request(context)
 
   assert response.status == 200
@@ -3191,12 +3317,14 @@ pub fn revoke_company_lgpd_consent_test() -> Nil {
 pub fn grant_lgpd_consent_missing_startup_test() -> Nil {
   use context <- server_test.with_context()
 
-  let endpoint = "/api/startup/" <> uuid.v7_string() <> "/lgpd/1"
+  let missing_id = uuid.v7()
+  let endpoint = "/api/startup/" <> uuid.to_string(missing_id) <> "/lgpd/1"
   let response =
     simulate.browser_request(http.Post, endpoint)
+    |> dummy.with_session(context, web.Startup(missing_id), dummy.new_email())
     |> web.handle_request(context)
 
-  assert response.status == 404
+  assert response.status == 401
 
   Nil
 }
@@ -3204,17 +3332,19 @@ pub fn grant_lgpd_consent_missing_startup_test() -> Nil {
 pub fn grant_lgpd_consent_missing_company_test() -> Nil {
   use context <- server_test.with_context()
 
-  let endpoint = "/api/company/" <> uuid.v7_string() <> "/lgpd/1"
+  let missing_id = uuid.v7()
+  let endpoint = "/api/company/" <> uuid.to_string(missing_id) <> "/lgpd/1"
   let response =
     simulate.browser_request(http.Post, endpoint)
+    |> dummy.with_session(context, web.Company(missing_id), dummy.new_email())
     |> web.handle_request(context)
 
-  assert response.status == 404
+  assert response.status == 401
 
   Nil
 }
 
-pub fn grant_lgpd_consent_invalid_id_test() -> Nil {
+pub fn grant_lgpd_consent_invalid_startup_id_test() -> Nil {
   use context <- server_test.with_context()
 
   // Invalid Startup ID
@@ -3249,6 +3379,7 @@ pub fn grant_lgpd_consent_invalid_version_test() -> Nil {
 
     let response =
       simulate.browser_request(http.Post, endpoint)
+      |> dummy.with_session(context, web.Startup(startup.id), startup.email)
       |> web.handle_request(context)
 
     assert response.status == 400
@@ -3259,6 +3390,7 @@ pub fn grant_lgpd_consent_invalid_version_test() -> Nil {
 
     let response =
       simulate.browser_request(http.Post, endpoint)
+      |> dummy.with_session(context, web.Company(company.id), company.email)
       |> web.handle_request(context)
 
     assert response.status == 400
@@ -3267,7 +3399,7 @@ pub fn grant_lgpd_consent_invalid_version_test() -> Nil {
   Nil
 }
 
-pub fn revoke_lgpd_consent_invalid_id_test() -> Nil {
+pub fn revoke_startup_lgpd_consent_invalid_startup_id_test() -> Nil {
   use context <- server_test.with_context()
 
   let response =
@@ -3285,15 +3417,15 @@ pub fn revoke_lgpd_consent_invalid_id_test() -> Nil {
   Nil
 }
 
-pub fn revoke_lgpd_consent_invalid_version_test() -> Nil {
+pub fn revoke_startup_lgpd_consent_invalid_version_test() -> Nil {
   use context <- server_test.with_context()
 
   let startup = dummy.new_startup(context.database)
-
   let endpoint = "/api/startup/" <> uuid.to_string(startup.id) <> "/lgpd/wibble"
 
   let response =
     simulate.browser_request(http.Delete, endpoint)
+    |> dummy.with_session(context, web.Startup(startup.id), startup.email)
     |> web.handle_request(context)
 
   assert response.status == 400

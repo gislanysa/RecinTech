@@ -247,7 +247,6 @@ ordered by policy version.
 
 - 200: Successful
 - 400: Invalid UUID format
-- 404: Startup not found or has no consent records
 - 500: Failed to fetch consent records
 
 ## POST /api/startup/:id/lgpd/:version
@@ -255,6 +254,8 @@ ordered by policy version.
 Grant LGPD (Lei Geral de Proteção de Dados) consent for a startup at a given
 policy version. Once granted, the startup allows its data to be used as
 described by that version of the privacy policy.
+
+A Startup session is required.
 
 ### Path Parameters
 
@@ -280,6 +281,8 @@ described by that version of the privacy policy.
 
 - 200: Successful
 - 400: Invalid UUID format or invalid policy version
+- 401: Not authenticated
+- 403: Invalid session
 - 404: Startup not found
 - 500: Failed to update consent
 
@@ -288,6 +291,8 @@ described by that version of the privacy policy.
 Revoke LGPD (Lei Geral de Proteção de Dados) consent for a startup at a given
 policy version. Once revoked, the startup no longer allows its data to be used
 as described by that version of the privacy policy.
+
+A Startup session is required.
 
 ### Path Parameters
 
@@ -313,6 +318,8 @@ as described by that version of the privacy policy.
 
 - 200: Successful
 - 400: Invalid UUID format or invalid policy version
+- 401: Not authenticated
+- 403: Invalid session
 - 404: Startup not found
 - 500: Failed to update consent
 
@@ -1258,7 +1265,6 @@ ordered by policy version.
 
 - 200: Successful
 - 400: Invalid UUID format
-- 404: Company not found or has no consent records
 - 500: Failed to fetch consent records
 
 ## POST /api/company/:id/lgpd/:version
@@ -1266,6 +1272,8 @@ ordered by policy version.
 Grant LGPD (Lei Geral de Proteção de Dados) consent for a company at a given
 policy version. Once granted, the company allows its data to be used as
 described by that version of the privacy policy.
+
+A Company session is required.
 
 ### Path Parameters
 
@@ -1291,6 +1299,8 @@ described by that version of the privacy policy.
 
 - 200: Successful
 - 400: Invalid UUID format or invalid policy version
+- 401: Not authenticated
+- 403: Invalid session
 - 404: Company not found
 - 500: Failed to update consent
 
@@ -1299,6 +1309,8 @@ described by that version of the privacy policy.
 Revoke LGPD (Lei Geral de Proteção de Dados) consent for a company at a given
 policy version. Once revoked, the company no longer allows its data to be used
 as described by that version of the privacy policy.
+
+A Company session is required.
 
 ### Path Parameters
 
@@ -1324,6 +1336,8 @@ as described by that version of the privacy policy.
 
 - 200: Successful
 - 400: Invalid UUID format or invalid policy version
+- 401: Not authenticated
+- 403: Invalid session
 - 404: Company not found
 - 500: Failed to update consent
 

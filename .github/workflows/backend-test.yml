@@ -69,7 +69,9 @@ jobs:
         run: gleam build
 
       - name: Build database tables
-        run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f postgres/00_tables.sql
+        run: |
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f postgres/00_tables.sql
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f postgres/01_seed.sql
 
       - name: Validate generated SQL queries
         run: gleam run -m squirrel check

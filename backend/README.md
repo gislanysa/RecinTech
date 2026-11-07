@@ -61,12 +61,31 @@ erDiagram
     text website
   }
 
+  LGPD_POLICY {
+    int version PK
+    text document_url
+    text document_hash
+    timestamp published_at
+    bool is_current
+  }
+
   STARTUP_LGPD_CONSENT }o..|| STARTUP : has
+  STARTUP_LGPD_CONSENT }o..|| LGPD_POLICY : accepts
   STARTUP_LGPD_CONSENT {
     uuid startup_id PK, FK
     lgpd_consent consent "granted | revoked"
     timestamp updated_at
-    int policy_version PK
+    int policy_version PK, FK
+  }
+
+  STARTUP_LGPD_CONSENT_EVENT }o..|| STARTUP : records
+  STARTUP_LGPD_CONSENT_EVENT }o..|| LGPD_POLICY : accepts
+  STARTUP_LGPD_CONSENT_EVENT {
+    uuid id PK
+    uuid startup_id FK
+    lgpd_consent consent "granted | revoked"
+    int policy_version FK
+    timestamp occurred_at
   }
 
   company {
@@ -84,11 +103,22 @@ erDiagram
   }
 
   company_LGPD_CONSENT }o..|| company : has
+  company_LGPD_CONSENT }o..|| LGPD_POLICY : accepts
   company_LGPD_CONSENT {
     uuid company_id PK, FK
     lgpd_consent consent "granted | revoked"
     timestamp updated_at
-    int policy_version PK
+    int policy_version PK, FK
+  }
+
+  company_LGPD_CONSENT_EVENT }o..|| company : records
+  company_LGPD_CONSENT_EVENT }o..|| LGPD_POLICY : accepts
+  company_LGPD_CONSENT_EVENT {
+    uuid id PK
+    uuid company_id FK
+    lgpd_consent consent "granted | revoked"
+    int policy_version FK
+    timestamp occurred_at
   }
 
   COMPANY_STARTUP_BOOKMARK }o..|| company : has

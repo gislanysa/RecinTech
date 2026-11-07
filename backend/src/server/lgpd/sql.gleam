@@ -9,6 +9,204 @@ import gleam/time/timestamp.{type Timestamp}
 import pog
 import youid/uuid.{type Uuid}
 
+/// A row you get from running the `get_current_policy` query
+/// defined in `./src/server/lgpd/sql/get_current_policy.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v4.7.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type GetCurrentPolicyRow {
+  GetCurrentPolicyRow(
+    version: Int,
+    document_url: String,
+    document_hash: String,
+    published_at: Timestamp,
+    is_current: Bool,
+  )
+}
+
+/// get information about the current lgpd policy
+///
+/// > 🐿️ This function was generated automatically using v4.7.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn get_current_policy(
+  db: pog.Connection,
+) -> Result(pog.Returned(GetCurrentPolicyRow), pog.QueryError) {
+  let decoder = {
+    use version <- decode.field(0, decode.int)
+    use document_url <- decode.field(1, decode.string)
+    use document_hash <- decode.field(2, decode.string)
+    use published_at <- decode.field(3, pog.timestamp_decoder())
+    use is_current <- decode.field(4, decode.bool)
+    decode.success(GetCurrentPolicyRow(
+      version:,
+      document_url:,
+      document_hash:,
+      published_at:,
+      is_current:,
+    ))
+  }
+
+  "-- get information about the current lgpd policy
+SELECT
+    policy.version,
+    policy.document_url,
+    policy.document_hash,
+    policy.published_at,
+    policy.is_current
+FROM
+    public.lgpd_policy AS policy
+WHERE
+    policy.is_current
+LIMIT
+    1;
+"
+  |> pog.query
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
+/// A row you get from running the `get_policy` query
+/// defined in `./src/server/lgpd/sql/get_policy.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v4.7.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type GetPolicyRow {
+  GetPolicyRow(
+    version: Int,
+    document_url: String,
+    document_hash: String,
+    published_at: Timestamp,
+    is_current: Bool,
+  )
+}
+
+/// get information about a given lgpd policy
+///
+/// > 🐿️ This function was generated automatically using v4.7.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn get_policy(
+  db: pog.Connection,
+  arg_1: Int,
+) -> Result(pog.Returned(GetPolicyRow), pog.QueryError) {
+  let decoder = {
+    use version <- decode.field(0, decode.int)
+    use document_url <- decode.field(1, decode.string)
+    use document_hash <- decode.field(2, decode.string)
+    use published_at <- decode.field(3, pog.timestamp_decoder())
+    use is_current <- decode.field(4, decode.bool)
+    decode.success(GetPolicyRow(
+      version:,
+      document_url:,
+      document_hash:,
+      published_at:,
+      is_current:,
+    ))
+  }
+
+  "-- get information about a given lgpd policy
+SELECT
+    policy.version,
+    policy.document_url,
+    policy.document_hash,
+    policy.published_at,
+    policy.is_current
+FROM
+    public.lgpd_policy AS policy
+WHERE
+    version = $1::integer;
+"
+  |> pog.query
+  |> pog.parameter(pog.int(arg_1))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
+/// A row you get from running the `register_policy` query
+/// defined in `./src/server/lgpd/sql/register_policy.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v4.7.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type RegisterPolicyRow {
+  RegisterPolicyRow(
+    version: Int,
+    document_url: String,
+    document_hash: String,
+    published_at: Timestamp,
+    is_current: Bool,
+  )
+}
+
+/// Runs the `register_policy` query
+/// defined in `./src/server/lgpd/sql/register_policy.sql`.
+///
+/// > 🐿️ This function was generated automatically using v4.7.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn register_policy(
+  db: pog.Connection,
+  arg_1: Int,
+  arg_2: String,
+  arg_3: String,
+) -> Result(pog.Returned(RegisterPolicyRow), pog.QueryError) {
+  let decoder = {
+    use version <- decode.field(0, decode.int)
+    use document_url <- decode.field(1, decode.string)
+    use document_hash <- decode.field(2, decode.string)
+    use published_at <- decode.field(3, pog.timestamp_decoder())
+    use is_current <- decode.field(4, decode.bool)
+    decode.success(RegisterPolicyRow(
+      version:,
+      document_url:,
+      document_hash:,
+      published_at:,
+      is_current:,
+    ))
+  }
+
+  "WITH previous AS (
+    UPDATE
+        lgpd_policy
+    SET
+        is_current = FALSE
+    WHERE
+        is_current
+    RETURNING
+        version
+)
+INSERT INTO
+    lgpd_policy (version, document_url, document_hash, is_current)
+SELECT
+    $1::integer,
+    $2::text,
+    $3::text,
+    TRUE
+FROM
+    (
+        SELECT
+            count(*)
+        FROM
+            previous
+    ) AS previous_count
+RETURNING
+    version,
+    document_url,
+    document_hash,
+    published_at,
+    is_current;
+"
+  |> pog.query
+  |> pog.parameter(pog.int(arg_1))
+  |> pog.parameter(pog.text(arg_2))
+  |> pog.parameter(pog.text(arg_3))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
 /// A row you get from running the `update_company_consent` query
 /// defined in `./src/server/lgpd/sql/update_company_consent.sql`.
 ///
@@ -24,7 +222,7 @@ pub type UpdateCompanyConsentRow {
   )
 }
 
-/// grant consent to lgpd
+/// update a company's lgpd consent
 ///
 /// > 🐿️ This function was generated automatically using v4.7.0 of
 /// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
@@ -48,20 +246,45 @@ pub fn update_company_consent(
     ))
   }
 
-  "-- grant consent to lgpd
+  "-- update a company's lgpd consent
+WITH recorded AS (
+    INSERT INTO
+        company_lgpd_consent_event (
+            company_id,
+            consent,
+            policy_version,
+            occurred_at
+        )
+    VALUES
+        (
+            $1::uuid,
+            $2::lgpd_consent,
+            $3::integer,
+            CURRENT_TIMESTAMP
+        )
+    RETURNING
+        company_id,
+        consent,
+        policy_version
+)
 INSERT INTO
-    company_lgpd_consent (company_id, consent, policy_version, updated_at)
-VALUES
-    (
-        $1::uuid,
-        $2::lgpd_consent,
-        $3::integer,
-        CURRENT_TIMESTAMP::timestamp
-    ) ON conflict(company_id, policy_version) DO
+    company_lgpd_consent (
+        company_id,
+        consent,
+        policy_version,
+        updated_at
+    )
+SELECT
+    recorded.company_id,
+    recorded.consent,
+    recorded.policy_version,
+    CURRENT_TIMESTAMP
+FROM
+    recorded ON conflict(company_id, policy_version) DO
 UPDATE
 SET
     consent = EXCLUDED.consent,
-    updated_at = CURRENT_TIMESTAMP
+    updated_at = EXCLUDED.updated_at
 RETURNING
     company_id::uuid,
     consent::lgpd_consent,
@@ -91,7 +314,7 @@ pub type UpdateStartupConsentRow {
   )
 }
 
-/// grant consent to lgpd
+/// update a startup's lgpd consent
 ///
 /// > 🐿️ This function was generated automatically using v4.7.0 of
 /// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
@@ -115,20 +338,45 @@ pub fn update_startup_consent(
     ))
   }
 
-  "-- grant consent to lgpd
+  "-- update a startup's lgpd consent
+WITH recorded AS (
+    INSERT INTO
+        startup_lgpd_consent_event (
+            startup_id,
+            consent,
+            policy_version,
+            occurred_at
+        )
+    VALUES
+        (
+            $1::uuid,
+            $2::lgpd_consent,
+            $3::integer,
+            CURRENT_TIMESTAMP
+        )
+    RETURNING
+        startup_id,
+        consent,
+        policy_version
+)
 INSERT INTO
-    startup_lgpd_consent (startup_id, consent, policy_version, updated_at)
-VALUES
-    (
-        $1::uuid,
-        $2::lgpd_consent,
-        $3::integer,
-        CURRENT_TIMESTAMP::timestamp
-    ) ON conflict(startup_id, policy_version) DO
+    startup_lgpd_consent (
+        startup_id,
+        consent,
+        policy_version,
+        updated_at
+    )
+SELECT
+    recorded.startup_id,
+    recorded.consent,
+    recorded.policy_version,
+    CURRENT_TIMESTAMP
+FROM
+    recorded ON conflict(startup_id, policy_version) DO
 UPDATE
 SET
     consent = EXCLUDED.consent,
-    updated_at = CURRENT_TIMESTAMP
+    updated_at = EXCLUDED.updated_at
 RETURNING
     startup_id::uuid,
     consent::lgpd_consent,

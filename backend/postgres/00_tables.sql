@@ -30,17 +30,35 @@ CREATE INDEX idx_startup_email ON startup (email);
 
 CREATE TYPE lgpd_consent AS enum ('granted', 'revoked');
 
+CREATE TABLE lgpd_policy (
+    version integer PRIMARY KEY CHECK (version > 0),
+    document_url text NOT NULL,
+    document_hash text NOT NULL,
+    published_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    is_current boolean NOT NULL DEFAULT false
+);
+
+CREATE UNIQUE INDEX idx_lgpd_policy_current ON lgpd_policy (is_current)
+WHERE
+    is_current;
+
 CREATE TABLE startup_lgpd_consent (
     startup_id uuid NOT NULL REFERENCES startup (id) ON DELETE CASCADE,
-    consent lgpd_consent NOT NULL DEFAULT 'revoked',
+    consent lgpd_consent NOT NULL,
     updated_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    policy_version integer NOT NULL CHECK (policy_version > 0),
+    policy_version integer NOT NULL REFERENCES lgpd_policy (version),
     PRIMARY KEY(startup_id, policy_version)
 );
 
-CREATE INDEX idx_startup_lgpd_consent_startup ON startup_lgpd_consent (startup_id);
+CREATE TABLE startup_lgpd_consent_event (
+    id uuid PRIMARY KEY DEFAULT uuidv7(),
+    startup_id uuid NOT NULL REFERENCES startup (id) ON DELETE CASCADE,
+    consent lgpd_consent NOT NULL,
+    policy_version integer NOT NULL REFERENCES lgpd_policy (version),
+    occurred_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
 
-CREATE INDEX idx_startup_lgpd_consent_consent ON startup_lgpd_consent (consent);
+CREATE INDEX idx_startup_lgpd_consent_event_subject_time ON startup_lgpd_consent_event (startup_id, occurred_at);
 
 CREATE TYPE company_size AS enum ('micro', 'small', 'medium', 'big');
 
@@ -75,15 +93,25 @@ CREATE INDEX idx_company_startup_bookmark_startup ON company_startup_bookmark (s
 
 CREATE TABLE company_lgpd_consent (
     company_id uuid NOT NULL REFERENCES company (id) ON DELETE CASCADE,
-    consent lgpd_consent NOT NULL DEFAULT 'revoked',
+    consent lgpd_consent NOT NULL,
     updated_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    policy_version integer NOT NULL CHECK (policy_version > 0),
+    policy_version integer NOT NULL REFERENCES lgpd_policy (version),
     PRIMARY KEY(company_id, policy_version)
 );
 
 CREATE INDEX idx_company_lgpd_consent_company ON company_lgpd_consent (company_id);
 
 CREATE INDEX idx_company_lgpd_consent_consent ON company_lgpd_consent (consent);
+
+CREATE TABLE company_lgpd_consent_event (
+    id uuid PRIMARY KEY DEFAULT uuidv7(),
+    company_id uuid NOT NULL REFERENCES company (id) ON DELETE CASCADE,
+    consent lgpd_consent NOT NULL,
+    policy_version integer NOT NULL REFERENCES lgpd_policy (version),
+    occurred_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_company_lgpd_consent_event_subject_time ON company_lgpd_consent_event (company_id, occurred_at);
 
 CREATE TABLE startup_segment (
     startup_id uuid REFERENCES startup (id) ON DELETE CASCADE,
