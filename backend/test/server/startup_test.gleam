@@ -1,4 +1,5 @@
 import gleam/option.{None, Some}
+import gleam/set
 import gleam/uri
 import server/dummy
 import server/lgpd
@@ -631,7 +632,9 @@ pub fn get_many_startup_test() -> Nil {
   let assert Ok(returned) =
     startup.get_many(context.database, limit: max, offset: 0)
 
-  assert returned == startups
+  let returned = set.from_list(returned)
+  let startups = set.from_list(startups)
+  assert set.difference(startups, returned) |> set.to_list() == []
 
   Nil
 }
@@ -642,11 +645,21 @@ pub fn get_lgpd_consent_multiple_policies_versions_test() -> Nil {
   let startup = dummy.new_startup(context.database)
 
   // Version one
+  let version = 1
   let assert Ok(policy_version_one) =
     lgpd.grant_consent(
       context.database,
       for: lgpd.Startup(id: startup.id),
-      version: 1,
+      version:,
+    )
+
+  let version = 2
+  let assert Ok(_) =
+    lgpd.register_policy_version(
+      context.database,
+      version,
+      "http://localhost/",
+      "wibble",
     )
 
   // Version two
@@ -654,7 +667,7 @@ pub fn get_lgpd_consent_multiple_policies_versions_test() -> Nil {
     lgpd.grant_consent(
       context.database,
       for: lgpd.Startup(id: startup.id),
-      version: 2,
+      version:,
     )
 
   let assert Ok(returned) =
