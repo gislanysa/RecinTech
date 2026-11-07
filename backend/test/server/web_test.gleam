@@ -2948,7 +2948,7 @@ pub fn get_startup_lgpd_consent_test() -> Nil {
 
   let version = 2
   let assert Ok(_) =
-    lgpd.register_policy_version(
+    lgpd.register_new_policy(
       context.database,
       version,
       "http://localhost/",
@@ -3026,7 +3026,7 @@ pub fn get_company_lgpd_consent_test() -> Nil {
 
   let version = 2
   let assert Ok(_) =
-    lgpd.register_policy_version(
+    lgpd.register_new_policy(
       context.database,
       version,
       "http://localhost/",

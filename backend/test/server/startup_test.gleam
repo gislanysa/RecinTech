@@ -655,7 +655,7 @@ pub fn get_lgpd_consent_multiple_policies_versions_test() -> Nil {
 
   let version = 2
   let assert Ok(_) =
-    lgpd.register_policy_version(
+    lgpd.register_new_policy(
       context.database,
       version,
       "http://localhost/",

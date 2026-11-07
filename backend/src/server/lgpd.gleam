@@ -23,7 +23,7 @@ pub type LgpdError {
 
   /// LGPD policy not found with the given version
   PolicyNotFound(version: Int)
-  /// There is already a policy with that version
+  /// Tried to register a policy version that already exists
   PolicyVersionConflict(Int)
   /// There isn't a current policy
   CurrentPolicyNotFound
@@ -49,10 +49,20 @@ pub type Policy {
   )
 }
 
-/// TODO
+/// Query information about a given policy version
+///
+/// ## Examples
+///
+/// ```gleam
+/// case lgpd.get_policy(context.database, version: 1) {
+///   Ok(lgpd.Policy(..)) -> wisp.ok()
+///   Error(lgpd.PolicyNotFound(_)) -> wisp.not_found()
+///   Error(error) -> handle_error(error)
+/// }
+/// ```
 pub fn get_policy(
   database: pog.Connection,
-  version: Int,
+  version version: Int,
 ) -> Result(Policy, LgpdError) {
   use version <- require_valid_policy_version(version)
 
@@ -75,7 +85,18 @@ pub fn get_policy(
   )
 }
 
-/// TODO
+/// Query information about the currently active policy.
+/// Returns an Error if none is found.
+///
+/// ## Examples
+///
+/// ```gleam
+/// case lgpd.get_current_policy(context.database) {
+///   Ok(lgpd.Policy(is_current: True, ..)) -> wisp.ok()
+///   Error(lgpd.CurrentPolicyNotFound) -> wisp.not_found()
+///   Error(error) -> handle_error(error)
+/// }
+/// ```
 pub fn get_current_policy(
   database: pog.Connection,
 ) -> Result(Policy, LgpdError) {
@@ -98,19 +119,33 @@ pub fn get_current_policy(
   )
 }
 
-pub fn register_policy_version(
+/// Register a new active policy document. There previous one is marked
+/// as inactive the the new one is set as current.
+///
+/// ## Examples
+///
+/// ```gleam
+/// case lgpd.register_new_policy(context.database) {
+///   Ok(lgpd.Policy(is_current: True, ..)) -> wisp.ok()
+///   Error(lgpd.PolicyVersionConflict(_)) -> wisp.response(409)
+///   Error(error) -> handle_error(error)
+/// }
+/// ```
+pub fn register_new_policy(
   database: pog.Connection,
-  version: Int,
-  document_url: String,
-  document_hash: String,
+  version version: Int,
+  document_url document_url: String,
+  document_hash document_hash: String,
 ) -> Result(Policy, LgpdError) {
   use version <- require_valid_policy_version(version)
 
   use returned <- result.try(
     case sql.register_policy(database, version, document_url, document_hash) {
-      // Conflict
       Error(pog.ConstraintViolated(constraint: "lgpd_policy_pkey", ..)) ->
         Error(PolicyVersionConflict(version))
+
+      Error(pog.ConstraintViolated(constraint: "lgpd_policy_version_check", ..)) ->
+        Error(InvalidPolicyVersion(version))
 
       Ok(data) -> Ok(data)
       Error(error) -> Error(DatabaseError(error))
