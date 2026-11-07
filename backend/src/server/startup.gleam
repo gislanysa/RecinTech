@@ -232,7 +232,7 @@ pub fn to_json(startup: Startup) -> json.Json {
 ///   Error(startup.CnpjConflict(..))
 ///   | Error(startup.EmailConflict(..)) -> wisp.response(409)
 ///
-///   Ok(data) -> wisp.response(201)
+///   Ok(startup) -> wisp.response(201)
 ///   Error(_) -> wisp.internal_server_error()
 /// }
 /// ```
@@ -335,7 +335,7 @@ pub fn register(
 /// )
 ///
 /// case result {
-///   Ok(data) -> wisp.ok()
+///   Ok(startup) -> wisp.ok()
 ///   Error(startup.NotFound(_)) -> wisp.not_found()
 ///   Error(startup.WrongPassword) -> wisp.response(401)
 ///   Error(_) -> wisp.internal_server_error()
@@ -394,7 +394,7 @@ fn stage_to_enum(stage: Stage) -> sql.StartupStage {
 /// let result = startup.get(context.database, id)
 ///
 /// case result {
-///   Ok(data) -> wisp.ok()
+///   Ok(startup) -> wisp.ok()
 ///   Error(startup.NotFound(_)) -> wisp.not_found()
 ///   Error(_) -> wisp.internal_server_error()
 /// }
@@ -777,7 +777,7 @@ pub fn get_services(
 ///   context.database,
 ///   startup_id,
 ///   assign: service_id,
-///   )
+/// )
 ///
 /// case result {
 ///   Ok(assigned) -> wisp.response(201)
@@ -957,11 +957,8 @@ pub fn unassign_technology(
 /// ## Examples
 ///
 /// ```gleam
-/// let result =
-///   startup.get_many(context.database, limit: 3, offset: 6)
-///
-/// case result {
-///   Ok(data) -> wisp.ok()
+/// case startup.get_many(context.database, limit: 3, offset: 6) {
+///   Ok(startups) -> wisp.ok()
 ///   Error(_) -> wisp.internal_server_error()
 /// }
 /// ```
@@ -1016,7 +1013,7 @@ pub fn get_many(
 /// let result = startup.get_lgpd_consent(context.database, id)
 ///
 /// case returned {
-///   Ok(data) -> wisp.ok()
+///   Ok(consent) -> wisp.ok()
 ///   Error(startup.NotFound(_)) -> wisp.not_found()
 ///   Error(_) -> wisp.internal_server_error()
 /// }

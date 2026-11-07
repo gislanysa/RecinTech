@@ -46,10 +46,8 @@ pub fn to_json(technology: Technology) -> json.Json {
 /// ## Examples
 ///
 /// ```gleam
-/// let result = technology.get(context.database, id)
-///
-/// case result {
-///   Ok(data) -> wisp.ok()
+/// case technology.get(context.database, id) {
+///   Ok(technology) -> wisp.ok()
 ///   Error(technology.NotFound(_)) -> wisp.not_found()
 ///   Error(_) -> wisp.internal_server_error()
 /// }
@@ -77,11 +75,8 @@ pub fn get(
 /// ## Examples
 ///
 /// ```gleam
-/// let result =
-///   technology.get_many(context.database, limit: 3, offset: 6)
-///
-/// case result {
-///   Ok(data) -> wisp.ok()
+/// case technology.get_many(context.database, limit: 3, offset: 6) {
+///   Ok(technologies) -> wisp.ok()
 ///   Error(_) -> wisp.internal_server_error()
 /// }
 /// ```
@@ -112,7 +107,7 @@ pub fn get_many(
 /// )
 ///
 /// case result {
-///   Ok(data) -> wisp.response(201)
+///   Ok(technology) -> wisp.response(201)
 ///   Error(_) -> wisp.internal_server_error()
 /// }
 /// ```

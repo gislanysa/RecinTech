@@ -44,10 +44,8 @@ pub fn to_json(service: Service) -> json.Json {
 /// ## Examples
 ///
 /// ```gleam
-/// let result = service.get(context.database, id)
-///
-/// case result {
-///   Ok(data) -> wisp.ok()
+/// case service.get(context.database, id) {
+///   Ok(service) -> wisp.ok()
 ///   Error(service.NotFound(_)) -> wisp.not_found()
 ///   Error(_) -> wisp.internal_server_error()
 /// }
@@ -75,11 +73,8 @@ pub fn get(
 /// ## Examples
 ///
 /// ```gleam
-/// let result =
-///   service.get_many(context.database, limit: 3, offset: 6)
-///
-/// case result {
-///   Ok(data) -> wisp.ok()
+/// case service.get_many(context.database, limit: 3, offset: 6) {
+///   Ok(services) -> wisp.ok()
 ///   Error(_) -> wisp.internal_server_error()
 /// }
 /// ```
@@ -110,7 +105,7 @@ pub fn get_many(
 /// )
 ///
 /// case result {
-///   Ok(data) -> wisp.response(201)
+///   Ok(service) -> wisp.response(201)
 ///   Error(_) -> wisp.internal_server_error()
 /// }
 /// ```
