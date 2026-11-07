@@ -247,7 +247,6 @@ ordered by policy version.
 
 - 200: Successful
 - 400: Invalid UUID format
-- 404: Startup not found or has no consent records
 - 500: Failed to fetch consent records
 
 ## POST /api/startup/:id/lgpd/:version
@@ -1266,7 +1265,6 @@ ordered by policy version.
 
 - 200: Successful
 - 400: Invalid UUID format
-- 404: Company not found or has no consent records
 - 500: Failed to fetch consent records
 
 ## POST /api/company/:id/lgpd/:version
