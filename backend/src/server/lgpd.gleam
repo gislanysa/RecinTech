@@ -1,5 +1,11 @@
-//// Manages user consent tracking and policy versioning for compliance with the
-//// Brazilian General Data Protection Law (Lei Geral de Proteção de Dados).
+//// Manages consent tracking and privacy-policy versioning for compliance with
+//// the Brazilian General Data Protection Law (Lei Geral de Proteção de Dados).
+////
+//// Every consent change is recorded for a [Subject](#Subject), which can be a
+//// Startup or a Company, and references a [Policy](#Policy) version. Policies
+//// are immutable documents: registering a new policy version marks the previous
+//// one as inactive and makes the new one current. The current version is the one
+//// the API requires when a subject grants or revokes consent.
 
 import gleam/dynamic/decode
 import gleam/json
@@ -33,23 +39,35 @@ pub type LgpdError {
 
 /// Entity (Startup or Company) granting or revoking consent to their data.
 pub type Subject {
-  /// A startup entity
+  /// A Startup entity.
   Startup(id: uuid.Uuid)
-  /// An Company entity
+  /// A Company entity.
   Company(id: uuid.Uuid)
 }
 
+/// A published version of the privacy policy.
+///
+/// Only one policy can be current at a time. When a new policy is registered,
+/// the previous current policy is marked as inactive.
 pub type Policy {
   Policy(
+    /// The policy version number.
     version: Int,
+    /// URL of the policy document.
     document_url: String,
+    /// Hash used to verify the integrity of the policy document.
     document_hash: String,
+    /// Timestamp of when the policy was published.
     published_at: timestamp.Timestamp,
+    /// Whether this is the currently active policy.
     is_current: Bool,
   )
 }
 
-/// Query information about a given policy version
+/// Fetch a policy by version.
+///
+/// Returns `PolicyNotFound` if the version does not exist, and
+/// `InvalidPolicyVersion` if the version is not greater than zero.
 ///
 /// ## Examples
 ///
@@ -85,8 +103,9 @@ pub fn get_policy(
   )
 }
 
-/// Query information about the currently active policy.
-/// Returns an Error if none is found.
+/// Fetch the currently active policy.
+///
+/// Returns `CurrentPolicyNotFound` if no policy is marked as current.
 ///
 /// ## Examples
 ///
@@ -119,15 +138,25 @@ pub fn get_current_policy(
   )
 }
 
-/// Register a new active policy document. There previous one is marked
-/// as inactive the the new one is set as current.
+/// Register a new active policy document. The previous policy is marked as
+/// inactive and the new one is set as current.
+///
+/// The version must be greater than zero and must not already exist.
 ///
 /// ## Examples
 ///
 /// ```gleam
-/// case lgpd.register_new_policy(context.database) {
-///   Ok(lgpd.Policy(is_current: True, ..)) -> wisp.ok()
+/// let result = lgpd.register_new_policy(
+///   context.database,
+///   version: 2,
+///   document_url: "https://example.com/privacy/v2",
+///   document_hash: "abc123",
+/// )
+///
+/// case result {
+///   Ok(lgpd.Policy(is_current: True, ..)) -> wisp.response(201)
 ///   Error(lgpd.PolicyVersionConflict(_)) -> wisp.response(409)
+///   Error(lgpd.InvalidPolicyVersion(_)) -> wisp.bad_request()
 ///   Error(error) -> handle_error(error)
 /// }
 /// ```
@@ -166,6 +195,7 @@ pub fn register_new_policy(
   )
 }
 
+/// A decoder that decodes [Subject](#Subject) values.
 @internal
 pub fn subject_decoder() -> decode.Decoder(Subject) {
   use variant <- decode.field("type", decode.string)
@@ -185,6 +215,7 @@ pub fn subject_decoder() -> decode.Decoder(Subject) {
   }
 }
 
+/// Encode a [Subject](#Subject) into JSON.
 @internal
 pub fn subject_to_json(subject: Subject) -> json.Json {
   case subject {
@@ -202,15 +233,32 @@ pub fn subject_to_json(subject: Subject) -> json.Json {
   }
 }
 
-/// A Startup / Company may grant or revoke consent
-/// to the General Data Protection Law.
+/// A [Subject](#Subject)'s consent state regarding a [Policy](#Policy) version.
+///
+/// The most recent consent for a subject is the one that should be considered.
 pub type Consent {
-  /// A Subject granted access to their data.
-  Granted(subject: Subject, updated_at: timestamp.Timestamp, version: Int)
-  /// A Subject revoked access to their data and we are not allowed to use it.
-  Revoked(subject: Subject, updated_at: timestamp.Timestamp, version: Int)
+  /// The Subject allowed its data to be used as described by the policy version.
+  Granted(
+    /// The Startup or Company the consent belongs to.
+    subject: Subject,
+    /// When the consent was last changed.
+    updated_at: timestamp.Timestamp,
+    /// The policy version the consent refers to.
+    version: Int,
+  )
+
+  /// The Subject revoked access to its data, so it must not be used.
+  Revoked(
+    /// The Startup or Company the consent belongs to.
+    subject: Subject,
+    /// When the consent was last changed.
+    updated_at: timestamp.Timestamp,
+    /// The policy version the consent refers to.
+    version: Int,
+  )
 }
 
+/// Encode a [Consent](#Consent) into JSON.
 @internal
 pub fn consent_to_json(consent: Consent) -> json.Json {
   case consent {
@@ -232,6 +280,7 @@ pub fn consent_to_json(consent: Consent) -> json.Json {
   }
 }
 
+/// A decoder that decodes [Consent](#Consent) values.
 @internal
 pub fn consent_decoder() -> decode.Decoder(Consent) {
   use variant <- decode.field("type", decode.string)
@@ -267,6 +316,9 @@ pub fn consent_decoder() -> decode.Decoder(Consent) {
 /// given policy version. Once granted, the Subject allows its data to be used
 /// as described by that version of the privacy policy.
 ///
+/// The HTTP layer only accepts the [current policy](#get_current_policy)
+/// version, but this function accepts any existing version.
+///
 /// ## Examples
 ///
 /// ```gleam
@@ -292,6 +344,9 @@ pub fn grant_consent(
 /// given policy version. Once revoked, the Subject no longer allows its data
 /// to be used as described by that version of the privacy policy.
 ///
+/// The HTTP layer only accepts the [current policy](#get_current_policy)
+/// version, but this function accepts any existing version.
+///
 /// ## Examples
 ///
 /// ```gleam
@@ -313,8 +368,8 @@ pub fn revoke_consent(
   do_update_consent(database, subject, sql.Revoked, version)
 }
 
-/// Returns `Error(InvalidPolicyVersion)` if the policy version
-/// is equals or less than zero.
+/// Returns `Error(InvalidPolicyVersion)` if the policy version is less than or
+/// equal to zero; otherwise calls `next` with the version.
 fn require_valid_policy_version(
   version: Int,
   next: fn(Int) -> Result(a, LgpdError),
@@ -325,6 +380,10 @@ fn require_valid_policy_version(
   }
 }
 
+/// Update the consent state of a Subject and verify that the stored value
+/// matches the requested one.
+///
+/// Used by [grant_consent](#grant_consent) and [revoke_consent](#revoke_consent).
 fn do_update_consent(
   database: pog.Connection,
   subject: Subject,

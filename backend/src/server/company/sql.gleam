@@ -105,6 +105,44 @@ FROM
   |> pog.execute(db)
 }
 
+/// A row you get from running the `ensure_exists` query
+/// defined in `./src/server/company/sql/ensure_exists.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v4.7.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type EnsureExistsRow {
+  EnsureExistsRow(found: Int)
+}
+
+/// return a single column if the given company exists
+///
+/// > 🐿️ This function was generated automatically using v4.7.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn ensure_exists(
+  db: pog.Connection,
+  arg_1: Uuid,
+) -> Result(pog.Returned(EnsureExistsRow), pog.QueryError) {
+  let decoder = {
+    use found <- decode.field(0, decode.int)
+    decode.success(EnsureExistsRow(found:))
+  }
+
+  "-- return a single column if the given company exists
+SELECT
+    1 AS found
+FROM
+    company
+WHERE
+    company.id = $1::uuid;
+"
+  |> pog.query
+  |> pog.parameter(pog.text(uuid.to_string(arg_1)))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
 /// A row you get from running the `get` query
 /// defined in `./src/server/company/sql/get.sql`.
 ///

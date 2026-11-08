@@ -1,5 +1,6 @@
-//// Companies look for technological solutions from the
-//// [Startups](startup.html#Startup) of Porto Digital.
+//// Companies are the demand side of RecInTech: organizations that use the
+//// platform to find [Startups](startup.html#Startup) from Porto Digital that
+//// can solve their technology needs.
 
 import argus
 import gleam/dynamic/decode
@@ -20,7 +21,7 @@ import server/startup
 import youid/uuid
 
 pub type CompanyError {
-  /// Failed to connect to the Database
+  /// Failed to query the Database
   DatabaseError(error: pog.QueryError)
   /// LGPD related errors
   LgpdError(lgpd.LgpdError)
@@ -40,7 +41,7 @@ pub type CompanyError {
   /// Company's website has invalid format
   InvalidWebsite(value: String)
 
-  /// Company provided an incorrect password when during login
+  /// Company provided an incorrect password during login
   WrongPassword
   /// CNPJ is already registered
   CnpjConflict(cnpj.Cnpj)
@@ -58,46 +59,47 @@ pub type CompanyError {
   BookmarkNotFound
 }
 
-/// Represents a Company supporting a [Startup](startup.html).
+/// Represents a Company supporting a [Startup](startup.html#Startup).
 pub type Company {
   Company(
-    /// User ID for the Company.
+    /// The Company's unique identifier.
     id: uuid.Uuid,
     /// The Company's full name.
     name: String,
-    /// Their size, based on the amount of workers.
+    /// The Company's size, based on the amount of workers.
     size: Size,
     /// The Company's email address.
     email: email.Email,
-    /// Their CPNJ, it must be exactly 14 digits
+    /// The Company's CNPJ, it must be exactly 14 digits.
     cnpj: cnpj.Cnpj,
-    /// The city where it is located
+    /// The city where the Company is located.
     city: String,
-    /// The state of where it is located
+    /// The state where the Company is located.
     state: String,
-    /// Timestamp of when the Company was registred.
+    /// Timestamp of when the Company was registered.
     created_at: timestamp.Timestamp,
     /// Timestamp of when the Company was last updated.
     updated_at: timestamp.Timestamp,
     /// Whether the Company is active.
     is_active: Bool,
-    /// Company's website
+    /// The Company's website.
     website: uri.Uri,
   )
 }
 
 /// A Company's size is based on the amount of workers.
 pub type Size {
-  /// Up to 9 workers
+  /// Up to 9 workers.
   Micro
-  /// 10 to 49 workers
+  /// 10 to 49 workers.
   Small
-  /// 50 to 249 workers
+  /// 50 to 249 workers.
   Medium
-  /// More than 250 workers
+  /// 250 or more workers.
   Big
 }
 
+/// Convert a [Size](#Size) into its database representation.
 @internal
 pub fn size_to_string(size: Size) -> String {
   case size {
@@ -108,12 +110,14 @@ pub fn size_to_string(size: Size) -> String {
   }
 }
 
+/// Encode a [Size](#Size) into JSON.
 @internal
 pub fn size_to_json(size: Size) -> json.Json {
   size_to_string(size)
   |> json.string
 }
 
+/// A decoder that decodes [Size](#Size) values.
 @internal
 pub fn size_decoder() -> decode.Decoder(Size) {
   use variant <- decode.then(decode.string)
@@ -187,7 +191,10 @@ pub fn to_json(company: Company) -> json.Json {
   ])
 }
 
-/// Register a Company on the Database
+/// Register a Company in the Database.
+///
+/// The password is hashed before being stored, and both the email and CNPJ must
+/// be unique.
 ///
 /// ## Examples
 ///
@@ -201,7 +208,6 @@ pub fn to_json(company: Company) -> json.Json {
 ///   password: "wibble",
 ///   size: company.Big,
 ///   cnpj: cnpj,
-///   description: "Polo de tecnologia do Recife",
 ///   city: "Recife",
 ///   state: "Pernambuco",
 ///   website: website,
@@ -247,7 +253,7 @@ pub fn register(
     )
 
   use returned <- result.try(case register_result {
-    // Every Startup CNPJ needs to be unique.
+    // Every Company CNPJ needs to be unique.
     Error(pog.ConstraintViolated(constraint: "company_cnpj_key", ..)) ->
       Error(CnpjConflict(cnpj))
 
@@ -255,7 +261,7 @@ pub fn register(
     Error(pog.ConstraintViolated(constraint: "company_cnpj_check", ..)) ->
       Error(InvalidCnpj(cnpj.to_string(cnpj)))
 
-    // Every company Email needs to be unique.
+    // Every Company Email needs to be unique.
     Error(pog.ConstraintViolated(constraint: "company_email_key", ..)) ->
       Error(EmailConflict(email))
 
@@ -298,8 +304,8 @@ pub fn register(
   )
 }
 
-/// Verifies the provided `email` and `password`, checking if they matches the
-/// ones stored in our Database. Returning Company information if correct.
+/// Verifies the provided `email` and `password`, checking if they match the
+/// ones stored in our Database. Returns the Company's information if correct.
 ///
 /// ## Examples
 ///
@@ -312,8 +318,9 @@ pub fn register(
 ///
 /// case result {
 ///   Ok(company) -> wisp.ok()
-///   Error(company.NotFound(_)) -> wisp.not_found()
-///   Error(company.WrongPassword) -> wisp.response(401)
+///   Error(company.EmailNotFound(..))
+///   | Error(company.WrongPassword) -> wisp.response(401)
+///   Error(company.NotFound(..)) -> wisp.not_found()
 ///   Error(_) -> wisp.internal_server_error()
 /// }
 /// ```
@@ -346,7 +353,7 @@ pub fn verify(
   }
 }
 
-/// Search an Company in the Database
+/// Fetch a Company from the Database by ID.
 ///
 /// ## Examples
 ///
@@ -421,16 +428,48 @@ fn size_to_enum(size: Size) -> sql.CompanySize {
   }
 }
 
-/// Get all consent records assigned to a given Company
+/// Sometimes it can be a good idea to check if a Company exists before
+/// performing a query. This middleware returns `Error(NotFound(_))`
+/// if a Company is not registered.
+///
+/// ## Examples
+///
+/// ```gleam
+/// use <- ensure_exists(database, id)
+///
+/// use returned <- result.map(
+///   sql.get_segments(database, id)
+///   |> result.map_error(DatabaseError),
+/// )
+/// ```
+pub fn ensure_exists(
+  database: pog.Connection,
+  id: uuid.Uuid,
+  next: fn() -> Result(a, CompanyError),
+) -> Result(a, CompanyError) {
+  use returned <- result.try(
+    sql.ensure_exists(database, id)
+    |> result.map_error(DatabaseError),
+  )
+
+  case list.first(returned.rows) {
+    Ok(_) -> next()
+    Error(_) -> Error(NotFound(id:))
+  }
+}
+
+/// Get all LGPD consent records for a given Company.
+///
+/// Returns an empty list if the Company has no consent records, or if the
+/// Company does not exist.
 ///
 /// ## Examples
 ///
 /// ```gleam
 /// let result = company.get_lgpd_consent(context.database, id)
 ///
-/// case returned {
+/// case result {
 ///   Ok(consent) -> wisp.ok()
-///   Error(company.NotFound(_)) -> wisp.not_found()
 ///   Error(_) -> wisp.internal_server_error()
 /// }
 /// ```
@@ -462,12 +501,16 @@ pub fn get_lgpd_consent(
   })
 }
 
-/// Get all Demands assigned to a given company
+/// Get all Demands published by a given Company.
+///
+/// `limit` is the maximum number of Demands to return and `offset` is the number
+/// of Demands to skip. Returns an empty list if the Company has no Demands, or
+/// if the Company does not exist.
 ///
 /// ## Examples
 ///
 /// ```gleam
-/// let result = company.get(
+/// let result = company.get_demands(
 ///   context.database,
 ///   from: company_id,
 ///   limit: 100,
@@ -510,7 +553,9 @@ pub fn get_demands(
 }
 
 /// Updates a Company's information.
-/// Passing `option.None` leaves a field unchanged.
+///
+/// Passing `option.None` leaves a field unchanged. Empty strings are also
+/// treated as "unchanged" by the underlying SQL query.
 ///
 /// ## Examples
 ///
@@ -529,9 +574,9 @@ pub fn get_demands(
 ///
 /// case result {
 ///   Ok(company) -> wisp.ok()
-///   Error(company.NotFound(_)) -> wisp.not_found()
-///   Error(company.CnpjConflict(_)) -> wisp.response(409)
-///   Error(company.EmailConflict(_)) -> wisp.response(409)
+///   Error(company.NotFound(..)) -> wisp.not_found()
+///   Error(company.CnpjConflict(..))
+///   | Error(company.EmailConflict(..)) -> wisp.response(409)
 ///   Error(_) -> wisp.internal_server_error()
 /// }
 /// ```
@@ -559,7 +604,7 @@ pub fn update(
       option.unwrap(option.map(website, uri.to_string), or: ""),
     )
 
-  // I'm not sure how an update can fail with a conflict while the key being
+  // I'm not sure how an update can fail with a conflict while the key is
   // `option.None`, so I'm returning a generic `FailedToUpdateCompany` error.
   use returned <- result.try(case update_result {
     Error(pog.ConstraintViolated(constraint: "company_cnpj_key", ..)) ->
@@ -621,7 +666,9 @@ pub fn update(
   )
 }
 
-/// Add a Startup to a Company's bookmarks
+/// Add a Startup to a Company's bookmarks and return the bookmarked Startup.
+///
+/// A Startup cannot be bookmarked by the same Company more than once.
 ///
 /// ## Examples
 ///
@@ -633,12 +680,12 @@ pub fn update(
 /// )
 ///
 /// case result {
-///   Error(company.BookmarkConflict(_)) -> wisp.response(409)
-///   Error(company.NotFound(_))
-///   | Error(company.StartupNotFound(_)) -> wisp.not_found()
+///   Error(company.BookmarkConflict(..)) -> wisp.response(409)
+///   Error(company.NotFound(..))
+///   | Error(company.StartupNotFound(..)) -> wisp.not_found()
 ///
 ///   Error(_) -> wisp.internal_server_error()
-///   Ok(startup) -> wisp.ok()
+///   Ok(startup) -> wisp.response(201)
 /// }
 /// ```
 pub fn bookmark_startup(
@@ -710,7 +757,9 @@ pub fn bookmark_startup(
   )
 }
 
-/// Remove a Startup from a Company's bookmarks
+/// Remove a Startup from a Company's bookmarks and return the removed Startup.
+///
+/// Returns `BookmarkNotFound` if the Startup is not bookmarked by the Company.
 ///
 /// ## Examples
 ///
@@ -778,7 +827,11 @@ pub fn unbookmark_startup(
   )
 }
 
-/// Get all Startups bookmarked by a given Company
+/// Get all Startups bookmarked by a given Company.
+///
+/// `limit` is the maximum number of Startups to return and `offset` is the
+/// number of Startups to skip. Returns an empty list if the Company has no
+/// bookmarks, or if the Company does not exist.
 ///
 /// ## Examples
 ///
@@ -791,9 +844,8 @@ pub fn unbookmark_startup(
 /// )
 ///
 /// case result {
-///   Error(company.BookmarkNotFound) -> wisp.not_found()
+///   Ok(bookmarked) -> wisp.ok()
 ///   Error(_) -> wisp.internal_server_error()
-///   Ok(removed) -> wisp.ok()
 /// }
 /// ```
 pub fn get_bookmarked_startups(
