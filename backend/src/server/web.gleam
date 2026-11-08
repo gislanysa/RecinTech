@@ -283,6 +283,34 @@ pub fn handle_request(request: Request, context: Context) -> Response {
   }
 }
 
+/// Return 403 if the session token is not from a Startup
+pub fn require_startup_session(
+  request: Request,
+  next: fn(Session) -> Response,
+) -> Response {
+  use session <- require_session(request)
+  case session {
+    Startup(_) -> next(session)
+    Company(_) ->
+      "Startup session is required"
+      |> wisp.string_body(wisp.response(403), _)
+  }
+}
+
+/// Return 403 if the session token is not from a Company
+pub fn require_company_session(
+  request: Request,
+  next: fn(Session) -> Response,
+) -> Response {
+  use session <- require_session(request)
+  case session {
+    Company(_) -> next(session)
+    Startup(_) ->
+      "Company session is required"
+      |> wisp.string_body(wisp.response(403), _)
+  }
+}
+
 /// ## `GET /api/company/:id/bookmark`
 ///
 /// Fetch all Startups bookmarked by a Company, ordered by bookmark date.
@@ -620,28 +648,24 @@ fn grant_startup_lgpd_consent(
   version: String,
 ) -> Response {
   use id <- require_valid_uuid(id)
-  use session <- require_session(request)
+  use session <- require_startup_session(request)
 
-  case session {
-    // A startup can only update its own consent
-    Startup(session_id) if session_id == id ->
-      case int.parse(version) {
-        Error(_) -> wisp.bad_request("Invalid policy version: " <> version)
-        Ok(version) -> {
-          use <- require_latest_lgpd_policy(database, version)
+  case int.parse(version) {
+    Ok(version) if session.id == id -> {
+      use <- require_latest_lgpd_policy(database, version)
 
-          case lgpd.grant_consent(database, lgpd.Startup(id), version) {
-            Ok(consent) ->
-              lgpd.consent_to_json(consent)
-              |> json.to_string()
-              |> wisp.json_response(200)
+      case lgpd.grant_consent(database, lgpd.Startup(id), version) {
+        Ok(consent) ->
+          lgpd.consent_to_json(consent)
+          |> json.to_string()
+          |> wisp.json_response(200)
 
-            Error(error) -> handle_lgpd_error(error)
-          }
-        }
+        Error(error) -> handle_lgpd_error(error)
       }
+    }
 
-    Startup(..) | Company(..) -> wisp.response(403)
+    Error(_) -> wisp.bad_request("Invalid policy version: " <> version)
+    Ok(_) -> wisp.response(403)
   }
 }
 
@@ -687,28 +711,24 @@ fn revoke_startup_lgpd_consent(
   version: String,
 ) -> Response {
   use id <- require_valid_uuid(id)
-  use session <- require_session(request)
+  use session <- require_startup_session(request)
 
-  case session {
-    // A startup can only update its own consent
-    Startup(session_id) if session_id == id ->
-      case int.parse(version) {
-        Error(_) -> wisp.bad_request("Invalid policy version: " <> version)
-        Ok(version) -> {
-          use <- require_latest_lgpd_policy(database, version)
+  case int.parse(version) {
+    Ok(version) if session.id == id -> {
+      use <- require_latest_lgpd_policy(database, version)
 
-          case lgpd.revoke_consent(database, lgpd.Startup(id), version) {
-            Ok(consent) ->
-              lgpd.consent_to_json(consent)
-              |> json.to_string()
-              |> wisp.json_response(200)
+      case lgpd.revoke_consent(database, lgpd.Startup(id), version) {
+        Ok(consent) ->
+          lgpd.consent_to_json(consent)
+          |> json.to_string()
+          |> wisp.json_response(200)
 
-            Error(error) -> handle_lgpd_error(error)
-          }
-        }
+        Error(error) -> handle_lgpd_error(error)
       }
+    }
 
-    Startup(..) | Company(..) -> wisp.response(403)
+    Ok(_) -> wisp.response(403)
+    Error(_) -> wisp.bad_request("Invalid policy version: " <> version)
   }
 }
 
@@ -754,28 +774,24 @@ fn grant_company_lgpd_consent(
   version: String,
 ) -> Response {
   use id <- require_valid_uuid(id)
-  use session <- require_session(request)
+  use session <- require_company_session(request)
 
-  case session {
-    // A Company can only update its own consent
-    Company(session_id) if session_id == id ->
-      case int.parse(version) {
-        Error(_) -> wisp.bad_request("Invalid policy version: " <> version)
-        Ok(version) -> {
-          use <- require_latest_lgpd_policy(database, version)
+  case int.parse(version) {
+    Ok(version) if session.id == id -> {
+      use <- require_latest_lgpd_policy(database, version)
 
-          case lgpd.grant_consent(database, lgpd.Company(id), version) {
-            Ok(consent) ->
-              lgpd.consent_to_json(consent)
-              |> json.to_string()
-              |> wisp.json_response(200)
+      case lgpd.grant_consent(database, lgpd.Company(id), version) {
+        Ok(consent) ->
+          lgpd.consent_to_json(consent)
+          |> json.to_string()
+          |> wisp.json_response(200)
 
-            Error(error) -> handle_lgpd_error(error)
-          }
-        }
+        Error(error) -> handle_lgpd_error(error)
       }
+    }
 
-    Startup(..) | Company(..) -> wisp.response(403)
+    Ok(_) -> wisp.response(403)
+    Error(_) -> wisp.bad_request("Invalid policy version: " <> version)
   }
 }
 
@@ -836,27 +852,24 @@ fn revoke_company_lgpd_consent(
   version: String,
 ) -> Response {
   use id <- require_valid_uuid(id)
-  use session <- require_session(request)
+  use session <- require_company_session(request)
 
-  case session {
-    // A Company can only update its own consent
-    Company(session_id) if session_id == id ->
-      case int.parse(version) {
-        Error(_) -> wisp.bad_request("Invalid policy version: " <> version)
-        Ok(version) -> {
-          use <- require_latest_lgpd_policy(database, version)
+  case int.parse(version) {
+    Ok(version) if session.id == id -> {
+      use <- require_latest_lgpd_policy(database, version)
 
-          case lgpd.revoke_consent(database, lgpd.Company(id), version) {
-            Ok(consent) ->
-              lgpd.consent_to_json(consent)
-              |> json.to_string()
-              |> wisp.json_response(200)
+      case lgpd.revoke_consent(database, lgpd.Company(id), version) {
+        Ok(consent) ->
+          lgpd.consent_to_json(consent)
+          |> json.to_string()
+          |> wisp.json_response(200)
 
-            Error(error) -> handle_lgpd_error(error)
-          }
-        }
+        Error(error) -> handle_lgpd_error(error)
       }
-    Company(..) | Startup(..) -> wisp.response(403)
+    }
+
+    Ok(_) -> wisp.response(403)
+    Error(_) -> wisp.bad_request("Invalid policy version: " <> version)
   }
 }
 
