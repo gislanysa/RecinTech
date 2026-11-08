@@ -865,7 +865,7 @@ pub fn refresh_session_missing_token_test() -> Nil {
   Nil
 }
 
-pub fn assign_startup_to_segment_test() -> Nil {
+pub fn assign_segment_to_startup_test() -> Nil {
   use context <- server_test.with_context()
 
   let startup = dummy.new_startup(context.database)
@@ -892,7 +892,7 @@ pub fn assign_startup_to_segment_test() -> Nil {
   Nil
 }
 
-pub fn assign_startup_to_segment_conflict_test() -> Nil {
+pub fn assign_segment_to_startup_conflict_test() -> Nil {
   use context <- server_test.with_context()
 
   let startup = dummy.new_startup(context.database)
@@ -919,7 +919,7 @@ pub fn assign_startup_to_segment_conflict_test() -> Nil {
   Nil
 }
 
-pub fn assign_startup_to_technology_test() -> Nil {
+pub fn assign_technology_to_startup_test() -> Nil {
   use context <- server_test.with_context()
 
   let startup = dummy.new_startup(context.database)
@@ -946,7 +946,7 @@ pub fn assign_startup_to_technology_test() -> Nil {
   Nil
 }
 
-pub fn assign_startup_to_technology_conflict_test() -> Nil {
+pub fn assign_technology_to_startup_conflict_test() -> Nil {
   use context <- server_test.with_context()
 
   let startup = dummy.new_startup(context.database)
@@ -973,7 +973,7 @@ pub fn assign_startup_to_technology_conflict_test() -> Nil {
   Nil
 }
 
-pub fn assign_startup_to_expertise_test() -> Nil {
+pub fn assign_expertise_to_startup_test() -> Nil {
   use context <- server_test.with_context()
 
   let startup = dummy.new_startup(context.database)
@@ -1000,7 +1000,7 @@ pub fn assign_startup_to_expertise_test() -> Nil {
   Nil
 }
 
-pub fn assign_startup_to_expertise_conflict_test() -> Nil {
+pub fn assign_expertise__to_startup_conflict_test() -> Nil {
   use context <- server_test.with_context()
 
   let startup = dummy.new_startup(context.database)
@@ -1027,7 +1027,7 @@ pub fn assign_startup_to_expertise_conflict_test() -> Nil {
   Nil
 }
 
-pub fn assign_startup_to_service_test() -> Nil {
+pub fn assign_service_to_startup_test() -> Nil {
   use context <- server_test.with_context()
 
   let startup = dummy.new_startup(context.database)
@@ -1054,7 +1054,7 @@ pub fn assign_startup_to_service_test() -> Nil {
   Nil
 }
 
-pub fn assign_startup_to_service_conflict_test() -> Nil {
+pub fn assign_service_to_startup__conflict_test() -> Nil {
   use context <- server_test.with_context()
 
   let startup = dummy.new_startup(context.database)
@@ -1081,7 +1081,7 @@ pub fn assign_startup_to_service_conflict_test() -> Nil {
   Nil
 }
 
-pub fn unassign_startup_from_segment_test() -> Nil {
+pub fn unassign_segment_from_startup_test() -> Nil {
   use context <- server_test.with_context()
 
   let startup = dummy.new_startup(context.database)
@@ -1113,7 +1113,7 @@ pub fn unassign_startup_from_segment_test() -> Nil {
   Nil
 }
 
-pub fn unassign_missing_segment_test() -> Nil {
+pub fn unassign_missing_segment_from_startup_test() -> Nil {
   use context <- server_test.with_context()
 
   let startup = dummy.new_startup(context.database)
@@ -1134,13 +1134,13 @@ pub fn unassign_missing_segment_test() -> Nil {
   Nil
 }
 
-pub fn unassign_segment_invalid_id_test() -> Nil {
+pub fn unassign_segment_from_startup_invalid_startup_id_test() -> Nil {
   use context <- server_test.with_context()
 
   let startup = dummy.new_startup(context.database)
   let segment = dummy.new_segment(context.database)
 
-  // Invalid startup ID
+  // invalid startup id
   let endpoint = "/api/startup/wibble/segment/" <> uuid.to_string(segment.id)
 
   let response =
@@ -1149,7 +1149,7 @@ pub fn unassign_segment_invalid_id_test() -> Nil {
 
   assert response.status == 400
 
-  // Invalid segment ID
+  // invalid segment id
   let endpoint =
     "/api/startup/" <> uuid.to_string(startup.id) <> "/segment/wibble"
 
@@ -1162,7 +1162,7 @@ pub fn unassign_segment_invalid_id_test() -> Nil {
   Nil
 }
 
-pub fn unassign_startup_from_service_test() -> Nil {
+pub fn unassign_service_from_startup_test() -> Nil {
   use context <- server_test.with_context()
 
   let startup = dummy.new_startup(context.database)
@@ -1193,7 +1193,7 @@ pub fn unassign_startup_from_service_test() -> Nil {
   Nil
 }
 
-pub fn unassign_missing_service_test() -> Nil {
+pub fn unassign_missing_service_from_startup_test() -> Nil {
   use context <- server_test.with_context()
 
   let startup = dummy.new_startup(context.database)
@@ -1214,7 +1214,7 @@ pub fn unassign_missing_service_test() -> Nil {
   Nil
 }
 
-pub fn unassign_service_invalid_id_test() -> Nil {
+pub fn unassign_service_from_startup_invalid_startup_id_test() -> Nil {
   use context <- server_test.with_context()
 
   let startup = dummy.new_startup(context.database)
@@ -1242,7 +1242,7 @@ pub fn unassign_service_invalid_id_test() -> Nil {
   Nil
 }
 
-pub fn unassign_startup_from_expertise_test() -> Nil {
+pub fn unassign_expertise_from_startup_test() -> Nil {
   use context <- server_test.with_context()
 
   let startup = dummy.new_startup(context.database)
@@ -1273,7 +1273,7 @@ pub fn unassign_startup_from_expertise_test() -> Nil {
   Nil
 }
 
-pub fn unassign_missing_expertise_test() -> Nil {
+pub fn unassign_missing_expertise_from_startup_test() -> Nil {
   use context <- server_test.with_context()
 
   let startup = dummy.new_startup(context.database)
@@ -1294,7 +1294,7 @@ pub fn unassign_missing_expertise_test() -> Nil {
   Nil
 }
 
-pub fn unassign_expertise_invalid_id_test() -> Nil {
+pub fn unassign_expertise_from_startup_invalid_startup_id_test() -> Nil {
   use context <- server_test.with_context()
 
   let startup = dummy.new_startup(context.database)
@@ -1323,7 +1323,7 @@ pub fn unassign_expertise_invalid_id_test() -> Nil {
   Nil
 }
 
-pub fn unassign_startup_from_technology_test() -> Nil {
+pub fn unassign_technology_from_startup_test() -> Nil {
   use context <- server_test.with_context()
 
   let startup = dummy.new_startup(context.database)
@@ -1358,7 +1358,7 @@ pub fn unassign_startup_from_technology_test() -> Nil {
   Nil
 }
 
-pub fn unassign_missing_technology_test() -> Nil {
+pub fn unassign_missing_technology_from_startup_test() -> Nil {
   use context <- server_test.with_context()
 
   let startup = dummy.new_startup(context.database)
@@ -1379,7 +1379,7 @@ pub fn unassign_missing_technology_test() -> Nil {
   Nil
 }
 
-pub fn unassign_technology_invalid_id_test() -> Nil {
+pub fn unassign_technology_from_startup_invalid_startup_id_test() -> Nil {
   use context <- server_test.with_context()
 
   let startup = dummy.new_startup(context.database)
@@ -2439,7 +2439,7 @@ pub fn get_demand_segments_invalid_id_test() -> Nil {
   Nil
 }
 
-pub fn assign_demand_to_segment_test() -> Nil {
+pub fn assign_segment_to_demand_test() -> Nil {
   use context <- server_test.with_context()
 
   let company = dummy.new_company(context.database)
@@ -2466,7 +2466,7 @@ pub fn assign_demand_to_segment_test() -> Nil {
   Nil
 }
 
-pub fn assign_demand_to_segment_conflict_test() -> Nil {
+pub fn assign_segment_to_demand_conflict_test() -> Nil {
   use context <- server_test.with_context()
 
   let company = dummy.new_company(context.database)
@@ -2493,7 +2493,7 @@ pub fn assign_demand_to_segment_conflict_test() -> Nil {
   Nil
 }
 
-pub fn unassign_demand_from_segment_test() -> Nil {
+pub fn unassign_segment_from_demand_test() -> Nil {
   use context <- server_test.with_context()
 
   let company = dummy.new_company(context.database)
@@ -2903,7 +2903,7 @@ pub fn assign_missing_segment_to_demand_test() -> Nil {
   Nil
 }
 
-pub fn assign_demand_invalid_id_test() -> Nil {
+pub fn assign_segment_to_demand_invalid_demand_id_test() -> Nil {
   use context <- server_test.with_context()
 
   let segment = dummy.new_segment(context.database)

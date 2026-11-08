@@ -132,10 +132,10 @@ pub fn handle_request(request: Request, context: Context) -> Response {
       get_startup_segments(context.database, id)
 
     http.Post, ["api", "startup", id, "segment"] ->
-      assign_startup_to_segment(request, context.database, id)
+      assign_segment_to_startup(request, context.database, id)
 
     http.Delete, ["api", "startup", id, "segment", segment_id] ->
-      unassign_startup_from_segment(context.database, id, segment_id)
+      unassign_segment_from_startup(context.database, id, segment_id)
 
     // == service ==============================================================
     http.Get, ["api", "service", id] -> get_service_by_id(context.database, id)
@@ -146,10 +146,10 @@ pub fn handle_request(request: Request, context: Context) -> Response {
       get_startup_services(context.database, id)
 
     http.Post, ["api", "startup", id, "service"] ->
-      assign_startup_to_service(request, context.database, id)
+      assign_service_to_startup(request, context.database, id)
 
     http.Delete, ["api", "startup", id, "service", service_id] ->
-      unassign_startup_from_service(context.database, id, service_id)
+      unassign_service_from_startup(context.database, id, service_id)
 
     // == expertise ============================================================
     http.Get, ["api", "expertise", id] ->
@@ -162,10 +162,10 @@ pub fn handle_request(request: Request, context: Context) -> Response {
       get_startup_expertises(context.database, id)
 
     http.Post, ["api", "startup", id, "expertise"] ->
-      assign_startup_to_expertise(request, context.database, id)
+      assign_expertise_to_startup(request, context.database, id)
 
     http.Delete, ["api", "startup", id, "expertise", expertise_id] ->
-      unassign_startup_from_expertise(context.database, id, expertise_id)
+      unassign_expertise_from_expertise(context.database, id, expertise_id)
 
     // == technology ===========================================================
     http.Get, ["api", "technology", id] ->
@@ -178,10 +178,10 @@ pub fn handle_request(request: Request, context: Context) -> Response {
       get_startup_technologies(context.database, id)
 
     http.Post, ["api", "startup", id, "technology"] ->
-      assign_startup_to_technology(request, context.database, id)
+      assign_technology_to_startup(request, context.database, id)
 
     http.Delete, ["api", "startup", id, "technology", technology_id] ->
-      unassign_startup_from_technology(context.database, id, technology_id)
+      unassign_technology_from_startup(context.database, id, technology_id)
 
     // +-----------------------------------------------------------------------+
     // | COMPANY                                                               |
@@ -236,40 +236,40 @@ pub fn handle_request(request: Request, context: Context) -> Response {
       get_demand_segments(context.database, id)
 
     http.Post, ["api", "company", "demand", id, "segment"] ->
-      assign_demand_to_segment(request, context.database, id)
+      assign_segment_to_demand(request, context.database, id)
 
     http.Delete, ["api", "company", "demand", id, "segment", segment_id] ->
-      unassign_demand_from_segment(context.database, id, segment_id)
+      unassign_segment_from_demand(context.database, id, segment_id)
 
     // == service ==============================================================
     http.Get, ["api", "company", "demand", id, "service"] ->
       get_demand_services(context.database, id)
 
     http.Post, ["api", "company", "demand", id, "service"] ->
-      assign_demand_to_service(request, context.database, id)
+      assign_service_to_demand(request, context.database, id)
 
     http.Delete, ["api", "company", "demand", id, "service", service_id] ->
-      unassign_demand_from_service(context.database, id, service_id)
+      unassign_service_from_demand(context.database, id, service_id)
 
     // == technology ===========================================================
     http.Get, ["api", "company", "demand", id, "technology"] ->
       get_demand_technologies(context.database, id)
 
     http.Post, ["api", "company", "demand", id, "technology"] ->
-      assign_demand_to_technology(request, context.database, id)
+      assign_technology_to_demand(request, context.database, id)
 
     http.Delete, ["api", "company", "demand", id, "technology", technology_id]
-    -> unassign_demand_from_technology(context.database, id, technology_id)
+    -> unassign_technology_from_demand(context.database, id, technology_id)
 
     // == expertise ============================================================
     http.Get, ["api", "company", "demand", id, "expertise"] ->
       get_demand_expertises(context.database, id)
 
     http.Post, ["api", "company", "demand", id, "expertise"] ->
-      assign_demand_to_expertise(request, context.database, id)
+      assign_expertise_to_demand(request, context.database, id)
 
     http.Delete, ["api", "company", "demand", id, "expertise", expertise_id] ->
-      unassign_demand_from_expertise(context.database, id, expertise_id)
+      unassign_expertise_from_demand(context.database, id, expertise_id)
 
     // +-----------------------------------------------------------------------+
     // | NOT FOUND                                                             |
@@ -1650,7 +1650,7 @@ fn get_demand_expertises(database: pog.Connection, id: String) -> Response {
 /// - **404** If Demand or Segment is not found.
 /// - **409** If Segment is already assigned to the Demand.
 ///
-fn assign_demand_to_segment(
+fn assign_segment_to_demand(
   request: Request,
   database: pog.Connection,
   id: String,
@@ -1697,7 +1697,7 @@ fn assign_demand_to_segment(
 /// - **400** if :id or :segment_id is not a valid UUID.
 /// - **404** If the Segment is not assigned to the Demand.
 ///
-fn unassign_demand_from_segment(
+fn unassign_segment_from_demand(
   database: pog.Connection,
   id: String,
   segment_id: String,
@@ -1744,7 +1744,7 @@ fn unassign_demand_from_segment(
 /// - **404** If Demand or Service is not found.
 /// - **409** If Service is already assigned to the Demand.
 ///
-fn assign_demand_to_service(
+fn assign_service_to_demand(
   request: Request,
   database: pog.Connection,
   id: String,
@@ -1791,7 +1791,7 @@ fn assign_demand_to_service(
 /// - **400** if :id or :service_id is not a valid UUID.
 /// - **404** If the Service is not assigned to the Demand.
 ///
-fn unassign_demand_from_service(
+fn unassign_service_from_demand(
   database: pog.Connection,
   id: String,
   service_id: String,
@@ -1838,7 +1838,7 @@ fn unassign_demand_from_service(
 /// - **404** If Demand or Technology is not found.
 /// - **409** If Technology is already assigned to the Demand.
 ///
-fn assign_demand_to_technology(
+fn assign_technology_to_demand(
   request: Request,
   database: pog.Connection,
   id: String,
@@ -1885,7 +1885,7 @@ fn assign_demand_to_technology(
 /// - **400** if :id or :technology_id is not a valid UUID.
 /// - **404** If the Technology is not assigned to the Demand.
 ///
-fn unassign_demand_from_technology(
+fn unassign_technology_from_demand(
   database: pog.Connection,
   id: String,
   technology_id: String,
@@ -1932,7 +1932,7 @@ fn unassign_demand_from_technology(
 /// - **404** If Demand or Expertise is not found.
 /// - **409** If Expertise is already assigned to the Demand.
 ///
-fn assign_demand_to_expertise(
+fn assign_expertise_to_demand(
   request: Request,
   database: pog.Connection,
   id: String,
@@ -1979,7 +1979,7 @@ fn assign_demand_to_expertise(
 /// - **400** if :id or :expertise_id is not a valid UUID.
 /// - **404** If the Expertise is not assigned to the Demand.
 ///
-fn unassign_demand_from_expertise(
+fn unassign_expertise_from_demand(
   database: pog.Connection,
   id: String,
   expertise_id: String,
@@ -2340,7 +2340,7 @@ fn get_company_by_id(database: pog.Connection, id: String) -> Response {
 /// - **404** If Startup or Segment is not found.
 /// - **409** If Segment is already assigned to the Startup.
 ///
-fn assign_startup_to_segment(
+fn assign_segment_to_startup(
   request: Request,
   database: pog.Connection,
   id: String,
@@ -2396,7 +2396,7 @@ fn assign_startup_to_segment(
 /// - **404** If Startup or Technology is not found.
 /// - **409** If Technology is already assigned to the Startup.
 ///
-fn assign_startup_to_technology(
+fn assign_technology_to_startup(
   request: Request,
   database: pog.Connection,
   id: String,
@@ -2452,7 +2452,7 @@ fn assign_startup_to_technology(
 /// - **404** If Startup or Expertise is not found.
 /// - **409** If Expertise is already assigned to the Startup.
 ///
-fn assign_startup_to_expertise(
+fn assign_expertise_to_startup(
   request: Request,
   database: pog.Connection,
   id: String,
@@ -2508,7 +2508,7 @@ fn assign_startup_to_expertise(
 /// - **404** If Startup or Service is not found.
 /// - **409** If Service is already assigned to the Startup.
 ///
-fn assign_startup_to_service(
+fn assign_service_to_startup(
   request: Request,
   database: pog.Connection,
   id: String,
@@ -2652,7 +2652,7 @@ fn get_startup_expertises(database: pog.Connection, id: String) -> Response {
 /// - **400** if :id or :expertise_id is not a valid UUID.
 /// - **404** If the Expertise is not assigned to the Startup.
 ///
-fn unassign_startup_from_expertise(
+fn unassign_expertise_from_expertise(
   database: pog.Connection,
   id: String,
   expertise_id: String,
@@ -2762,7 +2762,7 @@ fn get_startup_services(database: pog.Connection, id: String) -> Response {
 /// - **400** if :id or :service_id is not a valid UUID.
 /// - **404** If the Service is not assigned to the Startup.
 ///
-fn unassign_startup_from_service(
+fn unassign_service_from_startup(
   database: pog.Connection,
   id: String,
   service_id: String,
@@ -2839,7 +2839,7 @@ fn get_startup_segments(database: pog.Connection, id: String) -> Response {
 /// - **400** if :id or :segment_id is not a valid UUID.
 /// - **404** If the Segment is not assigned to the Startup.
 ///
-fn unassign_startup_from_segment(
+fn unassign_segment_from_startup(
   database: pog.Connection,
   id: String,
   segment_id: String,
@@ -2916,7 +2916,7 @@ fn get_startup_technologies(database: pog.Connection, id: String) -> Response {
 /// - **400** if :id or :technology_id is not a valid UUID.
 /// - **404** If the Technology is not assigned to the Startup.
 ///
-fn unassign_startup_from_technology(
+fn unassign_technology_from_startup(
   database: pog.Connection,
   id: String,
   technology_id: String,
