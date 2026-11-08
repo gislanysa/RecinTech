@@ -396,24 +396,24 @@ fn do_update_consent(
         case sql.update_company_consent(database, id, consent, version) {
           // company not found
           Error(pog.ConstraintViolated(
-            constraint: "startup_lgpd_consent_startup_id_fkey",
+            constraint: "company_lgpd_consent_company_id_fkey",
             ..,
           )) -> Error(SubjectNotFound(id:))
 
           // policy not found
           Error(pog.ConstraintViolated(
-            constraint: "startup_lgpd_consent_policy_version_fkey",
+            constraint: "company_lgpd_consent_policy_version_fkey",
             ..,
           )) -> Error(PolicyNotFound(version:))
 
           // needed once consent events are inserted by the same statement
           Error(pog.ConstraintViolated(
-            constraint: "startup_lgpd_consent_event_startup_id_fkey",
+            constraint: "company_lgpd_consent_event_company_id_fkey",
             ..,
           )) -> Error(SubjectNotFound(id:))
 
           Error(pog.ConstraintViolated(
-            constraint: "startup_lgpd_consent_event_policy_version_fkey",
+            constraint: "company_lgpd_consent_event_policy_version_fkey",
             ..,
           )) -> Error(PolicyNotFound(version:))
 
