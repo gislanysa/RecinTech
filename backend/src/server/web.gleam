@@ -790,7 +790,7 @@ fn require_latest_lgpd_policy(
     Ok(policy) if policy.version == version -> next()
 
     Ok(policy) ->
-      handle_error(PolicyVersionMismatch(expected: version, got: policy.version))
+      handle_error(PolicyVersionMismatch(expected: policy.version, got: version))
   }
 }
 
