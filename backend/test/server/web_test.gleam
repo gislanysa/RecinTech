@@ -880,6 +880,7 @@ pub fn assign_segment_to_startup_test() -> Nil {
   let response =
     simulate.browser_request(http.Post, endpoint)
     |> simulate.json_body(body)
+    |> dummy.with_session(context, web.Startup(startup.id), startup.email)
     |> web.handle_request(context)
 
   assert response.status == 201
@@ -912,6 +913,7 @@ pub fn assign_segment_to_startup_conflict_test() -> Nil {
   let response =
     simulate.browser_request(http.Post, endpoint)
     |> simulate.json_body(body)
+    |> dummy.with_session(context, web.Startup(startup.id), startup.email)
     |> web.handle_request(context)
 
   assert response.status == 409
@@ -934,6 +936,7 @@ pub fn assign_technology_to_startup_test() -> Nil {
   let response =
     simulate.browser_request(http.Post, endpoint)
     |> simulate.json_body(body)
+    |> dummy.with_session(context, web.Startup(startup.id), startup.email)
     |> web.handle_request(context)
 
   assert response.status == 201
@@ -966,6 +969,7 @@ pub fn assign_technology_to_startup_conflict_test() -> Nil {
   let response =
     simulate.browser_request(http.Post, endpoint)
     |> simulate.json_body(body)
+    |> dummy.with_session(context, web.Startup(startup.id), startup.email)
     |> web.handle_request(context)
 
   assert response.status == 409
@@ -988,6 +992,7 @@ pub fn assign_expertise_to_startup_test() -> Nil {
   let response =
     simulate.browser_request(http.Post, endpoint)
     |> simulate.json_body(body)
+    |> dummy.with_session(context, web.Startup(startup.id), startup.email)
     |> web.handle_request(context)
 
   assert response.status == 201
@@ -1020,6 +1025,7 @@ pub fn assign_expertise__to_startup_conflict_test() -> Nil {
   let response =
     simulate.browser_request(http.Post, endpoint)
     |> simulate.json_body(body)
+    |> dummy.with_session(context, web.Startup(startup.id), startup.email)
     |> web.handle_request(context)
 
   assert response.status == 409
@@ -1042,6 +1048,7 @@ pub fn assign_service_to_startup_test() -> Nil {
   let response =
     simulate.browser_request(http.Post, endpoint)
     |> simulate.json_body(body)
+    |> dummy.with_session(context, web.Startup(startup.id), startup.email)
     |> web.handle_request(context)
 
   assert response.status == 201
@@ -1074,6 +1081,7 @@ pub fn assign_service_to_startup__conflict_test() -> Nil {
   let response =
     simulate.browser_request(http.Post, endpoint)
     |> simulate.json_body(body)
+    |> dummy.with_session(context, web.Startup(startup.id), startup.email)
     |> web.handle_request(context)
 
   assert response.status == 409
@@ -1098,6 +1106,7 @@ pub fn unassign_segment_from_startup_test() -> Nil {
 
   let response =
     simulate.browser_request(http.Delete, endpoint)
+    |> dummy.with_session(context, web.Startup(startup.id), startup.email)
     |> web.handle_request(context)
 
   assert response.status == 200
@@ -1127,6 +1136,7 @@ pub fn unassign_missing_segment_from_startup_test() -> Nil {
 
   let response =
     simulate.browser_request(http.Delete, endpoint)
+    |> dummy.with_session(context, web.Startup(startup.id), startup.email)
     |> web.handle_request(context)
 
   assert response.status == 404
@@ -1145,6 +1155,7 @@ pub fn unassign_segment_from_startup_invalid_startup_id_test() -> Nil {
 
   let response =
     simulate.browser_request(http.Delete, endpoint)
+    |> dummy.with_session(context, web.Startup(startup.id), startup.email)
     |> web.handle_request(context)
 
   assert response.status == 400
@@ -1155,6 +1166,7 @@ pub fn unassign_segment_from_startup_invalid_startup_id_test() -> Nil {
 
   let response =
     simulate.browser_request(http.Delete, endpoint)
+    |> dummy.with_session(context, web.Startup(startup.id), startup.email)
     |> web.handle_request(context)
 
   assert response.status == 400
@@ -1179,6 +1191,7 @@ pub fn unassign_service_from_startup_test() -> Nil {
 
   let response =
     simulate.browser_request(http.Delete, endpoint)
+    |> dummy.with_session(context, web.Startup(startup.id), startup.email)
     |> web.handle_request(context)
 
   assert response.status == 200
@@ -1207,6 +1220,7 @@ pub fn unassign_missing_service_from_startup_test() -> Nil {
 
   let response =
     simulate.browser_request(http.Delete, endpoint)
+    |> dummy.with_session(context, web.Startup(startup.id), startup.email)
     |> web.handle_request(context)
 
   assert response.status == 404
@@ -1225,6 +1239,7 @@ pub fn unassign_service_from_startup_invalid_startup_id_test() -> Nil {
 
   let response =
     simulate.browser_request(http.Delete, endpoint)
+    |> dummy.with_session(context, web.Startup(startup.id), startup.email)
     |> web.handle_request(context)
 
   assert response.status == 400
@@ -1235,6 +1250,7 @@ pub fn unassign_service_from_startup_invalid_startup_id_test() -> Nil {
 
   let response =
     simulate.browser_request(http.Delete, endpoint)
+    |> dummy.with_session(context, web.Startup(startup.id), startup.email)
     |> web.handle_request(context)
 
   assert response.status == 400
@@ -1259,6 +1275,7 @@ pub fn unassign_expertise_from_startup_test() -> Nil {
 
   let response =
     simulate.browser_request(http.Delete, endpoint)
+    |> dummy.with_session(context, web.Startup(startup.id), startup.email)
     |> web.handle_request(context)
 
   assert response.status == 200
@@ -1287,6 +1304,7 @@ pub fn unassign_missing_expertise_from_startup_test() -> Nil {
 
   let response =
     simulate.browser_request(http.Delete, endpoint)
+    |> dummy.with_session(context, web.Startup(startup.id), startup.email)
     |> web.handle_request(context)
 
   assert response.status == 404
@@ -1306,6 +1324,7 @@ pub fn unassign_expertise_from_startup_invalid_startup_id_test() -> Nil {
 
   let response =
     simulate.browser_request(http.Delete, endpoint)
+    |> dummy.with_session(context, web.Startup(startup.id), startup.email)
     |> web.handle_request(context)
 
   assert response.status == 400
@@ -1316,6 +1335,7 @@ pub fn unassign_expertise_from_startup_invalid_startup_id_test() -> Nil {
 
   let response =
     simulate.browser_request(http.Delete, endpoint)
+    |> dummy.with_session(context, web.Startup(startup.id), startup.email)
     |> web.handle_request(context)
 
   assert response.status == 400
@@ -1344,6 +1364,7 @@ pub fn unassign_technology_from_startup_test() -> Nil {
 
   let response =
     simulate.browser_request(http.Delete, endpoint)
+    |> dummy.with_session(context, web.Startup(startup.id), startup.email)
     |> web.handle_request(context)
 
   assert response.status == 200
@@ -1372,6 +1393,7 @@ pub fn unassign_missing_technology_from_startup_test() -> Nil {
 
   let response =
     simulate.browser_request(http.Delete, endpoint)
+    |> dummy.with_session(context, web.Startup(startup.id), startup.email)
     |> web.handle_request(context)
 
   assert response.status == 404
@@ -1401,6 +1423,7 @@ pub fn unassign_technology_from_startup_invalid_startup_id_test() -> Nil {
 
   let response =
     simulate.browser_request(http.Delete, endpoint)
+    |> dummy.with_session(context, web.Startup(startup.id), startup.email)
     |> web.handle_request(context)
 
   assert response.status == 400

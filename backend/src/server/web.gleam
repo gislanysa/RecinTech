@@ -135,7 +135,7 @@ pub fn handle_request(request: Request, context: Context) -> Response {
       assign_segment_to_startup(request, context.database, id)
 
     http.Delete, ["api", "startup", id, "segment", segment_id] ->
-      unassign_segment_from_startup(context.database, id, segment_id)
+      unassign_segment_from_startup(request, context.database, id, segment_id)
 
     // == service ==============================================================
     http.Get, ["api", "service", id] -> get_service_by_id(context.database, id)
@@ -149,7 +149,7 @@ pub fn handle_request(request: Request, context: Context) -> Response {
       assign_service_to_startup(request, context.database, id)
 
     http.Delete, ["api", "startup", id, "service", service_id] ->
-      unassign_service_from_startup(context.database, id, service_id)
+      unassign_service_from_startup(request, context.database, id, service_id)
 
     // == expertise ============================================================
     http.Get, ["api", "expertise", id] ->
@@ -181,7 +181,12 @@ pub fn handle_request(request: Request, context: Context) -> Response {
       assign_technology_to_startup(request, context.database, id)
 
     http.Delete, ["api", "startup", id, "technology", technology_id] ->
-      unassign_technology_from_startup(context.database, id, technology_id)
+      unassign_technology_from_startup(
+        request,
+        context.database,
+        id,
+        technology_id,
+      )
 
     // +-----------------------------------------------------------------------+
     // | COMPANY                                                               |
@@ -2337,6 +2342,8 @@ fn get_company_by_id(database: pog.Connection, id: String) -> Response {
 ///
 /// - **201** If successful.
 /// - **400** if :id or :segment is not a valid UUID.
+/// - **401** If Not authenticated
+/// - **403** If Not authorized
 /// - **404** If Startup or Segment is not found.
 /// - **409** If Segment is already assigned to the Startup.
 ///
@@ -2347,6 +2354,7 @@ fn assign_segment_to_startup(
 ) -> Response {
   use id <- require_valid_uuid(id)
   use body <- wisp.require_json(request)
+  use session <- require_startup_session(request)
 
   let decoder = {
     use segment <- decode.field("segment", internal.uuid_decoder())
@@ -2354,8 +2362,7 @@ fn assign_segment_to_startup(
   }
 
   case decode.run(body, decoder) {
-    Error(_) -> wisp.bad_request("Invalid JSON")
-    Ok(segment) ->
+    Ok(segment) if session.id == id ->
       case startup.assign_segment(database, id, assign: segment) {
         Ok(data) ->
           segment.to_json(data)
@@ -2364,6 +2371,9 @@ fn assign_segment_to_startup(
 
         Error(error) -> handle_startup_error(error)
       }
+
+    Ok(_) -> wisp.response(403)
+    Error(_) -> wisp.bad_request("Invalid JSON")
   }
 }
 
@@ -2393,6 +2403,8 @@ fn assign_segment_to_startup(
 ///
 /// - **201** If successful.
 /// - **400** if :id or :technology is not a valid UUID.
+/// - **401** If Not authenticated
+/// - **403** If Not authorized
 /// - **404** If Startup or Technology is not found.
 /// - **409** If Technology is already assigned to the Startup.
 ///
@@ -2403,6 +2415,7 @@ fn assign_technology_to_startup(
 ) -> Response {
   use id <- require_valid_uuid(id)
   use body <- wisp.require_json(request)
+  use session <- require_startup_session(request)
 
   let decoder = {
     use technology <- decode.field("technology", internal.uuid_decoder())
@@ -2410,8 +2423,7 @@ fn assign_technology_to_startup(
   }
 
   case decode.run(body, decoder) {
-    Error(_) -> wisp.bad_request("Invalid JSON")
-    Ok(technology) ->
+    Ok(technology) if session.id == id ->
       case startup.assign_technology(database, id, assign: technology) {
         Ok(data) ->
           technology.to_json(data)
@@ -2420,6 +2432,9 @@ fn assign_technology_to_startup(
 
         Error(error) -> handle_startup_error(error)
       }
+
+    Ok(_) -> wisp.response(403)
+    Error(_) -> wisp.bad_request("Invalid JSON")
   }
 }
 
@@ -2449,6 +2464,8 @@ fn assign_technology_to_startup(
 ///
 /// - **201** If successful.
 /// - **400** if :id or :expertise is not a valid UUID.
+/// - **401** If Not authenticated
+/// - **403** If Not authorized
 /// - **404** If Startup or Expertise is not found.
 /// - **409** If Expertise is already assigned to the Startup.
 ///
@@ -2459,6 +2476,7 @@ fn assign_expertise_to_startup(
 ) -> Response {
   use id <- require_valid_uuid(id)
   use body <- wisp.require_json(request)
+  use session <- require_startup_session(request)
 
   let decoder = {
     use expertise <- decode.field("expertise", internal.uuid_decoder())
@@ -2466,8 +2484,7 @@ fn assign_expertise_to_startup(
   }
 
   case decode.run(body, decoder) {
-    Error(_) -> wisp.bad_request("Invalid JSON")
-    Ok(expertise) ->
+    Ok(expertise) if session.id == id ->
       case startup.assign_expertise(database, id, assign: expertise) {
         Ok(data) ->
           expertise.to_json(data)
@@ -2476,6 +2493,9 @@ fn assign_expertise_to_startup(
 
         Error(error) -> handle_startup_error(error)
       }
+
+    Ok(_) -> wisp.response(403)
+    Error(_) -> wisp.bad_request("Invalid JSON")
   }
 }
 
@@ -2505,6 +2525,8 @@ fn assign_expertise_to_startup(
 ///
 /// - **201** If successful.
 /// - **400** if :id or :service is not a valid UUID.
+/// - **401** If Not authenticated
+/// - **403** If Not authorized
 /// - **404** If Startup or Service is not found.
 /// - **409** If Service is already assigned to the Startup.
 ///
@@ -2515,6 +2537,7 @@ fn assign_service_to_startup(
 ) -> Response {
   use id <- require_valid_uuid(id)
   use body <- wisp.require_json(request)
+  use session <- require_startup_session(request)
 
   let decoder = {
     use service <- decode.field("service", internal.uuid_decoder())
@@ -2522,8 +2545,7 @@ fn assign_service_to_startup(
   }
 
   case decode.run(body, decoder) {
-    Error(_) -> wisp.bad_request("Invalid JSON")
-    Ok(service) ->
+    Ok(service) if session.id == id ->
       case startup.assign_service(database, id, assign: service) {
         Ok(data) ->
           service.to_json(data)
@@ -2532,6 +2554,9 @@ fn assign_service_to_startup(
 
         Error(error) -> handle_startup_error(error)
       }
+
+    Ok(_) -> wisp.response(403)
+    Error(_) -> wisp.bad_request("Invalid JSON")
   }
 }
 
@@ -2760,22 +2785,27 @@ fn get_startup_services(database: pog.Connection, id: String) -> Response {
 ///
 /// - **200** If successful.
 /// - **400** if :id or :service_id is not a valid UUID.
+/// - **401** If Not authenticated
+/// - **403** If Not authorized
 /// - **404** If the Service is not assigned to the Startup.
 ///
 fn unassign_service_from_startup(
+  request: Request,
   database: pog.Connection,
   id: String,
   service_id: String,
 ) -> Response {
   use id <- require_valid_uuid(id)
   use service <- require_valid_uuid(service_id)
+  use session <- require_startup_session(request)
 
   case startup.unassign_service(database, id, unassign: service) {
-    Ok(data) ->
+    Ok(data) if session.id == id ->
       service.to_json(data)
       |> json.to_string()
       |> wisp.json_response(200)
 
+    Ok(_) -> wisp.response(403)
     Error(error) -> handle_startup_error(error)
   }
 }
@@ -2837,22 +2867,27 @@ fn get_startup_segments(database: pog.Connection, id: String) -> Response {
 ///
 /// - **200** If successful.
 /// - **400** if :id or :segment_id is not a valid UUID.
+/// - **401** If Not authenticated
+/// - **403** If Not authorized
 /// - **404** If the Segment is not assigned to the Startup.
 ///
 fn unassign_segment_from_startup(
+  request: Request,
   database: pog.Connection,
   id: String,
   segment_id: String,
 ) -> Response {
   use id <- require_valid_uuid(id)
   use segment <- require_valid_uuid(segment_id)
+  use session <- require_startup_session(request)
 
   case startup.unassign_segment(database, id, unassign: segment) {
-    Ok(data) ->
+    Ok(data) if session.id == id ->
       segment.to_json(data)
       |> json.to_string()
       |> wisp.json_response(200)
 
+    Ok(_) -> wisp.response(403)
     Error(error) -> handle_startup_error(error)
   }
 }
@@ -2914,22 +2949,27 @@ fn get_startup_technologies(database: pog.Connection, id: String) -> Response {
 ///
 /// - **200** If successful.
 /// - **400** if :id or :technology_id is not a valid UUID.
+/// - **401** If Not authenticated
+/// - **403** If Not authorized
 /// - **404** If the Technology is not assigned to the Startup.
 ///
 fn unassign_technology_from_startup(
+  request: Request,
   database: pog.Connection,
   id: String,
   technology_id: String,
 ) -> Response {
   use id <- require_valid_uuid(id)
   use technology <- require_valid_uuid(technology_id)
+  use session <- require_startup_session(request)
 
   case startup.unassign_technology(database, id, unassign: technology) {
-    Ok(data) ->
+    Ok(data) if session.id == id ->
       technology.to_json(data)
       |> json.to_string()
       |> wisp.json_response(200)
 
+    Ok(_) -> wisp.response(403)
     Error(error) -> handle_startup_error(error)
   }
 }
