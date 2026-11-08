@@ -624,6 +624,7 @@ pub fn update_startup_test() -> Nil {
   let response =
     simulate.browser_request(http.Patch, endpoint)
     |> simulate.json_body(body)
+    |> dummy.with_session(context, web.Startup(startup.id), startup.email)
     |> web.handle_request(context)
 
   assert response.status == 200
@@ -659,6 +660,7 @@ pub fn update_startup_partial_test() -> Nil {
   let response =
     simulate.browser_request(http.Patch, endpoint)
     |> simulate.json_body(body)
+    |> dummy.with_session(context, web.Startup(startup.id), startup.email)
     |> web.handle_request(context)
 
   assert response.status == 200
@@ -698,6 +700,7 @@ pub fn update_startup_ignores_empty_strings_test() -> Nil {
   let response =
     simulate.browser_request(http.Patch, endpoint)
     |> simulate.json_body(body)
+    |> dummy.with_session(context, web.Startup(startup.id), startup.email)
     |> web.handle_request(context)
 
   assert response.status == 200
@@ -726,6 +729,7 @@ pub fn update_startup_invalid_json_test() -> Nil {
     simulate.browser_request(http.Patch, endpoint)
     |> simulate.string_body("{not valid json")
     |> request.set_header("content-type", "application/json")
+    |> dummy.with_session(context, web.Startup(startup.id), startup.email)
     |> web.handle_request(context)
 
   assert response.status == 400
@@ -736,9 +740,11 @@ pub fn update_startup_invalid_json_test() -> Nil {
 pub fn update_startup_invalid_id_test() -> Nil {
   use context <- server_test.with_context()
 
+  let startup = dummy.new_startup(context.database)
   let response =
     simulate.browser_request(http.Patch, "/api/startup/wibble")
     |> simulate.json_body(json.object([]))
+    |> dummy.with_session(context, web.Startup(startup.id), startup.email)
     |> web.handle_request(context)
 
   assert response.status == 400
@@ -749,13 +755,15 @@ pub fn update_startup_invalid_id_test() -> Nil {
 pub fn update_missing_startup_test() -> Nil {
   use context <- server_test.with_context()
 
+  let startup = dummy.new_startup(context.database)
   let endpoint = "/api/startup/" <> uuid.v7_string()
   let response =
     simulate.browser_request(http.Patch, endpoint)
     |> simulate.json_body(json.object([]))
+    |> dummy.with_session(context, web.Startup(startup.id), startup.email)
     |> web.handle_request(context)
 
-  assert response.status == 404
+  assert response.status == 403
 
   Nil
 }
@@ -772,6 +780,7 @@ pub fn update_startup_email_conflict_test() -> Nil {
   let response =
     simulate.browser_request(http.Patch, endpoint)
     |> simulate.json_body(body)
+    |> dummy.with_session(context, web.Startup(startup.id), startup.email)
     |> web.handle_request(context)
 
   assert response.status == 409
@@ -791,6 +800,7 @@ pub fn update_startup_cnpj_conflict_test() -> Nil {
   let response =
     simulate.browser_request(http.Patch, endpoint)
     |> simulate.json_body(body)
+    |> dummy.with_session(context, web.Startup(startup.id), startup.email)
     |> web.handle_request(context)
 
   assert response.status == 409
@@ -814,6 +824,7 @@ pub fn update_startup_invalid_fields_test() -> Nil {
     let response =
       simulate.browser_request(http.Patch, endpoint)
       |> simulate.json_body(body)
+      |> dummy.with_session(context, web.Startup(startup.id), startup.email)
       |> web.handle_request(context)
 
     assert response.status == 400
@@ -1839,6 +1850,7 @@ pub fn update_company_test() -> Nil {
   let response =
     simulate.browser_request(http.Patch, endpoint)
     |> simulate.json_body(body)
+    |> dummy.with_session(context, web.Company(company.id), company.email)
     |> web.handle_request(context)
 
   assert response.status == 200
@@ -1873,6 +1885,7 @@ pub fn update_company_partial_test() -> Nil {
   let response =
     simulate.browser_request(http.Patch, endpoint)
     |> simulate.json_body(body)
+    |> dummy.with_session(context, web.Company(company.id), company.email)
     |> web.handle_request(context)
 
   assert response.status == 200
@@ -1909,6 +1922,7 @@ pub fn update_company_ignores_empty_strings_test() -> Nil {
   let response =
     simulate.browser_request(http.Patch, endpoint)
     |> simulate.json_body(body)
+    |> dummy.with_session(context, web.Company(company.id), company.email)
     |> web.handle_request(context)
 
   assert response.status == 200
@@ -1936,6 +1950,7 @@ pub fn update_company_invalid_json_test() -> Nil {
     simulate.browser_request(http.Patch, endpoint)
     |> simulate.string_body("{not valid json")
     |> request.set_header("content-type", "application/json")
+    |> dummy.with_session(context, web.Company(company.id), company.email)
     |> web.handle_request(context)
 
   assert response.status == 400
@@ -1946,9 +1961,11 @@ pub fn update_company_invalid_json_test() -> Nil {
 pub fn update_company_invalid_id_test() -> Nil {
   use context <- server_test.with_context()
 
+  let company = dummy.new_company(context.database)
   let response =
     simulate.browser_request(http.Patch, "/api/company/wibble")
     |> simulate.json_body(json.object([]))
+    |> dummy.with_session(context, web.Company(company.id), company.email)
     |> web.handle_request(context)
 
   assert response.status == 400
@@ -1959,13 +1976,15 @@ pub fn update_company_invalid_id_test() -> Nil {
 pub fn update_missing_company_test() -> Nil {
   use context <- server_test.with_context()
 
+  let company = dummy.new_company(context.database)
   let endpoint = "/api/company/" <> uuid.v7_string()
   let response =
     simulate.browser_request(http.Patch, endpoint)
     |> simulate.json_body(json.object([]))
+    |> dummy.with_session(context, web.Company(company.id), company.email)
     |> web.handle_request(context)
 
-  assert response.status == 404
+  assert response.status == 403
 
   Nil
 }
@@ -1982,6 +2001,7 @@ pub fn update_company_email_conflict_test() -> Nil {
   let response =
     simulate.browser_request(http.Patch, endpoint)
     |> simulate.json_body(body)
+    |> dummy.with_session(context, web.Company(company.id), company.email)
     |> web.handle_request(context)
 
   assert response.status == 409
@@ -2001,6 +2021,7 @@ pub fn update_company_cnpj_conflict_test() -> Nil {
   let response =
     simulate.browser_request(http.Patch, endpoint)
     |> simulate.json_body(body)
+    |> dummy.with_session(context, web.Company(company.id), company.email)
     |> web.handle_request(context)
 
   assert response.status == 409
@@ -2024,6 +2045,7 @@ pub fn update_company_invalid_fields_test() -> Nil {
     let response =
       simulate.browser_request(http.Patch, endpoint)
       |> simulate.json_body(body)
+      |> dummy.with_session(context, web.Company(company.id), company.email)
       |> web.handle_request(context)
 
     assert response.status == 400

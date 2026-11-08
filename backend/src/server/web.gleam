@@ -424,6 +424,8 @@ fn get_company_bookmarks(
 /// ## Status Codes
 ///
 /// - 201 If successful.
+/// - 400 If the request body is invalid JSON, or the ID or Startup is not a
+///   valid UUID.
 /// - 404 If Company or Startup is not found.
 /// - 409 If Startup is already bookmarked
 ///
@@ -478,6 +480,7 @@ fn company_bookmark_startup(
 /// ## Status Codes
 ///
 /// - 200 If successful.
+/// - 400 If the ID or Startup is not a valid UUID.
 /// - 404 If Company or Startup is not found.
 /// - 404 If the bookmark is not found.
 ///
@@ -536,7 +539,6 @@ fn company_unbookmark_startup(
 ///
 /// - **200** If successful.
 /// - **400** If the ID is not a valid UUID.
-/// - **404** If the Company is not found or has no consent records.
 /// - **500** If the consent records could not be fetched.
 ///
 fn get_company_lgpd_consent(database: pog.Connection, id: String) -> Response {
@@ -590,7 +592,6 @@ fn get_company_lgpd_consent(database: pog.Connection, id: String) -> Response {
 ///
 /// - **200** If successful.
 /// - **400** If the ID is not a valid UUID.
-/// - **404** If the Startup is not found or has no consent records.
 /// - **500** If the consent records could not be fetched.
 ///
 fn get_startup_lgpd_consent(database: pog.Connection, id: String) -> Response {
@@ -638,6 +639,8 @@ fn get_startup_lgpd_consent(database: pog.Connection, id: String) -> Response {
 /// - **400** If the ID is not a valid UUID, or the policy version is not a
 ///   valid integer greater than zero.
 /// - **401** If not authenticated.
+/// - **403** If the session is not a Startup session, or it belongs to a
+///   different Startup.
 /// - **404** If the Startup is not found.
 /// - **500** If the consent could not be updated.
 ///
@@ -701,6 +704,8 @@ fn grant_startup_lgpd_consent(
 /// - **400** If the ID is not a valid UUID, or the policy version is not a
 ///   valid integer greater than zero.
 /// - **401** If not authenticated
+/// - **403** If the session is not a Startup session, or it belongs to a
+///   different Startup.
 /// - **404** If the Startup is not found.
 /// - **500** If the consent could not be updated.
 ///
@@ -764,6 +769,8 @@ fn revoke_startup_lgpd_consent(
 /// - **400** If the ID is not a valid UUID, or the policy version is not a
 ///   valid integer greater than zero.
 /// - **401** If not authenticated.
+/// - **403** If the session is not a Company session, or it belongs to a
+///   different Company.
 /// - **404** If the Company is not found.
 /// - **500** If the consent could not be updated.
 ///
@@ -842,6 +849,8 @@ fn require_latest_lgpd_policy(
 /// - **400** If the ID is not a valid UUID, or the policy version is not a
 ///   valid integer greater than zero.
 /// - **401** If not authenticated.
+/// - **403** If the session is not a Company session, or it belongs to a
+///   different Company.
 /// - **404** If the Company is not found.
 /// - **500** If the consent could not be updated.
 ///
@@ -957,6 +966,9 @@ fn handle_lgpd_error(error: lgpd.LgpdError) -> Response {
 /// - **200** If successful.
 /// - **400** If the ID is not a valid UUID, the request body is invalid JSON,
 ///   or a field has an invalid value.
+/// - **401** If not authenticated.
+/// - **403** If the session is not a Startup session, or it belongs to a
+///   different Startup.
 /// - **404** If the Startup is not found.
 /// - **409** If the new email or CNPJ is already in use.
 ///
@@ -967,6 +979,7 @@ fn update_startup(
 ) -> Response {
   use body <- wisp.require_json(request)
   use id <- require_valid_uuid(id)
+  use session <- require_startup_session(request)
 
   let decoder = {
     use name <- decode.optional_field("name", "", decode.string)
@@ -1011,12 +1024,10 @@ fn update_startup(
   }
 
   case decode.run(body, decoder) {
-    Error(_) -> wisp.bad_request("Invalid JSON")
-
-    Ok(payload) -> {
-      let website = case uri.to_string(payload.website) {
-        "" -> None
-        _ -> Some(payload.website)
+    Ok(payload) if session.id == id -> {
+      let website = case payload.website == uri.empty {
+        True -> None
+        False -> Some(payload.website)
       }
 
       let result =
@@ -1043,6 +1054,9 @@ fn update_startup(
         Error(error) -> handle_error(error)
       }
     }
+
+    Ok(_) -> wisp.response(403)
+    Error(_) -> wisp.bad_request("Invalid JSON")
   }
 }
 
@@ -1307,6 +1321,7 @@ fn register_demand(
 ///
 /// - **200** If successful.
 /// - **400** if ID is not a valid UUID.
+/// - **404** if Demand is not found.
 ///
 fn update_demand(
   request: Request,
@@ -1362,6 +1377,7 @@ fn update_demand(
 ///
 /// - **200** If successful.
 /// - **400** if ID is not a valid UUID.
+/// - **404** if Demand is not found.
 ///
 fn get_demand_by_id(database: pog.Connection, id: String) -> Response {
   use id <- require_valid_uuid(id)
@@ -2163,6 +2179,9 @@ fn get_service_by_id(database: pog.Connection, id: String) -> Response {
 /// - **200** If successful.
 /// - **400** If the ID is not a valid UUID, the request body is invalid JSON,
 ///   or a field has an invalid value.
+/// - **401** If not authenticated.
+/// - **403** If the session is not a Company session, or it belongs to a
+///   different Company.
 /// - **404** If the Company is not found.
 /// - **409** If the new email or CNPJ is already in use.
 ///
@@ -2173,6 +2192,7 @@ fn update_company(
 ) -> Response {
   use body <- wisp.require_json(request)
   use id <- require_valid_uuid(id)
+  use session <- require_company_session(request)
 
   let decoder = {
     use name <- decode.optional_field("name", "", decode.string)
@@ -2215,12 +2235,10 @@ fn update_company(
   }
 
   case decode.run(body, decoder) {
-    Error(_) -> wisp.bad_request("Invalid JSON")
-
-    Ok(payload) -> {
-      let website = case uri.to_string(payload.website) {
-        "" -> None
-        _ -> Some(payload.website)
+    Ok(payload) if session.id == id -> {
+      let website = case payload.website == uri.empty {
+        True -> None
+        False -> Some(payload.website)
       }
 
       let result =
@@ -2246,6 +2264,9 @@ fn update_company(
         Error(error) -> handle_error(error)
       }
     }
+
+    Ok(_) -> wisp.response(403)
+    Error(_) -> wisp.bad_request("Invalid JSON")
   }
 }
 
@@ -2317,6 +2338,7 @@ fn get_company_by_id(database: pog.Connection, id: String) -> Response {
 /// - **201** If successful.
 /// - **400** if :id or :segment is not a valid UUID.
 /// - **404** If Startup or Segment is not found.
+/// - **409** If Segment is already assigned to the Startup.
 ///
 fn assign_startup_to_segment(
   request: Request,
@@ -2372,6 +2394,7 @@ fn assign_startup_to_segment(
 /// - **201** If successful.
 /// - **400** if :id or :technology is not a valid UUID.
 /// - **404** If Startup or Technology is not found.
+/// - **409** If Technology is already assigned to the Startup.
 ///
 fn assign_startup_to_technology(
   request: Request,
@@ -2427,6 +2450,7 @@ fn assign_startup_to_technology(
 /// - **201** If successful.
 /// - **400** if :id or :expertise is not a valid UUID.
 /// - **404** If Startup or Expertise is not found.
+/// - **409** If Expertise is already assigned to the Startup.
 ///
 fn assign_startup_to_expertise(
   request: Request,
@@ -2482,6 +2506,7 @@ fn assign_startup_to_expertise(
 /// - **201** If successful.
 /// - **400** if :id or :service is not a valid UUID.
 /// - **404** If Startup or Service is not found.
+/// - **409** If Service is already assigned to the Startup.
 ///
 fn assign_startup_to_service(
   request: Request,
@@ -2516,6 +2541,12 @@ fn assign_startup_to_service(
 ///
 /// > **NOTE:**  
 /// > This function **does not** refresh the session token duration.
+///
+/// ## Status Codes
+///
+/// - 200 If successful.
+/// - 401 If the session cookie is missing or invalid.
+/// - 404 If the Startup or Company is not found.
 pub fn restore_session(request: Request, database: pog.Connection) -> Response {
   use session <- require_session(request)
 
@@ -2544,7 +2575,7 @@ pub fn restore_session(request: Request, database: pog.Connection) -> Response {
 ///
 /// ## Status Codes
 ///
-/// - 200 if successfull
+/// - 204 if successfull
 /// - 401 if token is missing
 pub fn refresh_session(request: Request) -> Response {
   use session <- require_session(request)
@@ -2555,7 +2586,7 @@ pub fn refresh_session(request: Request) -> Response {
 ///
 /// ## Status Codes
 ///
-/// - 200 if successfull
+/// - 204 if successfull
 /// - 401 if token is missing
 fn handle_logout(request: Request) -> Response {
   use session <- require_session(request)
@@ -2587,7 +2618,6 @@ fn handle_logout(request: Request) -> Response {
 ///
 /// - **200** If successful.
 /// - **400** if ID is not a valid UUID.
-/// - **404** If Startup is not found.
 ///
 fn get_startup_expertises(database: pog.Connection, id: String) -> Response {
   use id <- require_valid_uuid(id)
@@ -2698,7 +2728,6 @@ pub fn require_session(
 ///
 /// - **200** If successful.
 /// - **400** if ID is not a valid UUID.
-/// - **404** If Startup is not found.
 ///
 fn get_startup_services(database: pog.Connection, id: String) -> Response {
   use id <- require_valid_uuid(id)
@@ -2776,7 +2805,6 @@ fn unassign_startup_from_service(
 ///
 /// - **200** If successful.
 /// - **400** if ID is not a valid UUID.
-/// - **404** If Startup is not found.
 ///
 fn get_startup_segments(database: pog.Connection, id: String) -> Response {
   use id <- require_valid_uuid(id)
@@ -2854,7 +2882,6 @@ fn unassign_startup_from_segment(
 ///
 /// - **200** If successful.
 /// - **400** if ID is not a valid UUID.
-/// - **404** If Startup is not found.
 ///
 fn get_startup_technologies(database: pog.Connection, id: String) -> Response {
   use id <- require_valid_uuid(id)
@@ -3299,6 +3326,10 @@ fn get_many_services(request: Request, database: pog.Connection) -> Response {
 
 /// Send the necessary HTML for the client-side application. The user will
 /// use it to communicate with the Server.
+///
+/// ## Status Codes
+///
+/// - 200 If successful.
 fn get_root_document() -> Response {
   let body =
     html.html([attribute.lang("pt-BR")], [
@@ -3445,6 +3476,7 @@ pub fn require_valid_uuid(
 /// ## Status Codes
 ///
 /// - 200 If successful.
+/// - 400 If the ID is not a valid UUID.
 /// - 404 If Startup is not found.
 ///
 fn get_startup_by_id(database: pog.Connection, id: String) -> Response {
@@ -3601,8 +3633,9 @@ pub const session_cookie = "SESSION"
 /// ## Status Codes
 ///
 /// - 200 If successful.
+/// - 400 If the request body is invalid JSON, the email is not a valid
+///   format, or the session type is invalid.
 /// - 401 If email or password is incorrect.
-/// - 400 If email is not a valid format.
 ///
 fn handle_login(request: Request, database: pog.Connection) -> Response {
   use body <- wisp.require_json(request)
@@ -3626,7 +3659,7 @@ fn handle_login(request: Request, database: pog.Connection) -> Response {
   }
 
   case decode.run(body, decoder) {
-    // Startup session
+    // startup session
     Ok(payload.Login(session: "startup", email:, password:)) ->
       case startup.verify(database, email:, password:) {
         Error(error) -> handle_startup_error(error)
@@ -3637,7 +3670,7 @@ fn handle_login(request: Request, database: pog.Connection) -> Response {
           |> set_session_token(request, Startup(startup.id), duration)
       }
 
-    // Company session
+    // company session
     Ok(payload.Login(session: "company", email:, password:)) ->
       case company.verify(database, email:, password:) {
         Error(error) -> handle_company_error(error)
@@ -3648,11 +3681,11 @@ fn handle_login(request: Request, database: pog.Connection) -> Response {
           |> set_session_token(request, Company(company.id), duration)
       }
 
-    // Correct Json but invalid session type
+    // correct json but invalid session type
     Ok(payload.Login(session:, ..)) ->
       wisp.bad_request("Invalid session type: " <> session)
 
-    // Incorrect Json
+    // incorrect json
     Error(_) -> wisp.bad_request("Invalid JSON format")
   }
 }
@@ -3704,6 +3737,8 @@ fn set_session_token(
 /// ## Status Codes
 ///
 /// - **201** If successful.
+/// - **400** If the request body is invalid JSON, or a field has an invalid
+///   value.
 /// - **409** If duplicated email or CNPJ.
 ///
 fn register_startup(request: Request, database: pog.Connection) -> Response {
@@ -3785,6 +3820,7 @@ fn register_startup(request: Request, database: pog.Connection) -> Response {
 /// ## Status Codes
 ///
 /// - 201 If successful.
+/// - 400 If the request body is invalid JSON, or a field has an invalid value.
 /// - 409 If duplicated email or cnpj.
 ///
 fn register_company(request: Request, database: pog.Connection) -> Response {

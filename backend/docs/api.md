@@ -206,6 +206,8 @@ ignored.
 
 - 200: Successful
 - 400: Invalid JSON, invalid UUID format or invalid field value
+- 401: Not authenticated
+- 403: Invalid session
 - 404: Startup not found
 - 409: Email or CNPJ already in use
 
@@ -654,7 +656,6 @@ Fetch all segments that a startup is assigned to.
 
 - 200: Successful
 - 400: Invalid UUID format
-- 404: Startup not found
 
 ## POST /api/startup/:id/segment
 
@@ -743,7 +744,6 @@ Fetch all services that a startup is assigned to.
 
 - 200: Successful
 - 400: Invalid UUID format
-- 404: Startup not found
 
 ## POST /api/startup/:id/service
 
@@ -832,7 +832,6 @@ Fetch all expertises that a startup is assigned to.
 
 - 200: Successful
 - 400: Invalid UUID format
-- 404: Startup not found
 
 ## POST /api/startup/:id/expertise
 
@@ -921,7 +920,6 @@ Fetch all technologies that a startup is assigned to.
 
 - 200: Successful
 - 400: Invalid UUID format
-- 404: Startup not found
 
 ## POST /api/startup/:id/technology
 
@@ -1107,6 +1105,8 @@ ignored.
 
 - 200: Successful
 - 400: Invalid JSON, invalid UUID format or invalid field value
+- 401: Not authenticated
+- 403: Invalid session
 - 404: Company not found
 - 409: Email or CNPJ already in use
 
