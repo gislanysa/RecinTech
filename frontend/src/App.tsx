@@ -18,6 +18,8 @@ import PaginaRecomendacoesEmpresa from '@/pages/PaginaRecomendacoesEmpresa.tsx'
 import { AuthProvider } from '@/contexts/AuthContext.tsx'
 import ParaEmpresas from '@/pages/ParaEmpresas.tsx'
 import ParaStartups from '@/pages/ParaStartups.tsx'
+import PoliticaPrivacidade from '@/pages/PoliticaPrivacidade.tsx'
+import TermosDeUso from '@/pages/TermosDeUso.tsx'
 import PerfilStartup from '@/pages/PerfilStartup.tsx'
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
 
@@ -33,6 +35,10 @@ export default function App() {
           <Route path="/para-startups" element={<ParaStartups />} />
           <Route path="/para-empresas" element={<ParaEmpresas />} />
           <Route path="/entrar" element={<Entrar />} />
+
+          {/* Documentos legais, abertos a quem não tem conta. */}
+          <Route path="/privacidade" element={<PoliticaPrivacidade />} />
+          <Route path="/termos" element={<TermosDeUso />} />
 
           {/* Cadastro de usuário */}
           <Route path="/criar-conta" element={<CriarConta />} />
