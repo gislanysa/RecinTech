@@ -3690,8 +3690,8 @@ fn set_session_token(
 ///
 /// ## Status Codes
 ///
-/// - 200 If successful.
-/// - 409 If duplicated email or cnpj.
+/// - **201** If successful.
+/// - **409** If duplicated email or CNPJ.
 ///
 fn register_startup(request: Request, database: pog.Connection) -> Response {
   use body <- wisp.require_json(request)
@@ -3771,7 +3771,7 @@ fn register_startup(request: Request, database: pog.Connection) -> Response {
 ///
 /// ## Status Codes
 ///
-/// - 200 If successful.
+/// - 201 If successful.
 /// - 409 If duplicated email or cnpj.
 ///
 fn register_company(request: Request, database: pog.Connection) -> Response {
