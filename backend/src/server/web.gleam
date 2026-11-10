@@ -1,4 +1,43 @@
-//// Http handlers and middlewares
+//// HTTP routing, handlers, sessions and error mapping for the RecInTech API.
+////
+//// This module is the boundary between the HTTP server and the rest of the
+//// application.
+////
+//// Unknown paths under `/api` return `404 Not Found`. Any other unknown path
+//// returns the single-page client document, which lets the frontend router
+//// handle its own routes.
+////
+//// ## Authentication
+////
+//// Authentication is cookie-based. A successful `POST /api/auth/login` stores a
+//// signed `SESSION` cookie containing a JSON value such as:
+////
+//// ```json
+//// { "type": "startup", "id": "01a058ae-057f-73e8-b2a0-50986559767b" }
+//// ```
+////
+//// The `type` field is either `"startup"` or `"company"`. Use
+//// [`require_session`](#require_session),
+//// [`require_startup_session`](#require_startup_session) and
+//// [`require_company_session`](#require_company_session) to guard handlers.
+////
+//// ## Example
+////
+//// ```gleam
+//// import server/web
+////
+//// pub fn main() {
+////   let assert Ok(static_directory) = server.static_directory()
+////
+////   let context = web.Context(
+////     database: database,
+////     static_directory: static_directory
+////   )
+////
+////   let response = web.handle_request(request, context)
+////   assert response.status == 200
+//// }
+//// ```
 
 import gleam/dynamic/decode
 import gleam/float
@@ -31,39 +70,62 @@ import server/technology
 import wisp.{type Request, type Response}
 import youid/uuid
 
+/// Runtime dependencies shared by every request handler.
+///
+/// A single `Context` value is created at application startup and passed to
+/// [`handle_request`](#handle_request) for each incoming request.
 pub type Context {
   Context(
-    /// PostgreSQL connection pool
+    /// PostgreSQL connection pool used by the service layer.
+    ///
+    /// The pool is shared by all handlers and is safe to reuse between
+    /// requests.
     database: pog.Connection,
-    /// Path to the application's priv directory
+    /// Absolute path to the directory containing the application's static
+    /// assets.
+    ///
+    /// Files below this directory are served under the `/static` URL prefix by
+    /// the request middleware.
     static_directory: String,
   )
 }
 
+/// Errors that can occur while handling a request.
+///
+/// `WebError` unifies the errors raised by the different domains and by the
+/// request parsing helpers. It is converted into an HTTP response by
+/// [`handle_error`](#handle_error).
 type WebError {
-  /// Startup related errors
+  /// An error returned by the startup domain.
   StartupError(error: startup.StartupError)
-  /// Segment related errors
+  /// An error returned by the segment domain.
   SegmentError(error: segment.SegmentError)
-  /// Company related errors
+  /// An error returned by the company domain.
   CompanyError(error: company.CompanyError)
-  /// Technology related errors
+  /// An error returned by the technology domain.
   TechnologyError(error: technology.TechnologyError)
-  /// Expertise related errors
+  /// An error returned by the expertise domain.
   ExpertiseError(error: expertise.ExpertiseError)
-  /// Service related errors
+  /// An error returned by the service domain.
   ServiceError(error: service.ServiceError)
-  /// Demand related errors
+  /// An error returned by the demand domain.
   DemandError(error: demand.DemandError)
-  /// Missing request query
+  /// The request has no query string.
   MissingQuery
-  /// Invalid query parameter
+  /// A required query parameter is missing or has an invalid value.
   InvalidQueryParameter(key: String)
-  /// Policy needs to be the latest one
+  /// The requested LGPD policy version is not the current policy version.
   PolicyVersionMismatch(expected: Int, got: Int)
 }
 
-/// Handle incoming HTTP requests
+/// Route an HTTP request to its handler.
+///
+/// Requests to unknown `/api/...` paths return `404 Not Found`. Requests to any
+/// other unknown path return the client-side application document, allowing the
+/// frontend router to render its own 404 page.
+///
+/// The route handlers are documented individually below each handler function,
+/// including their parameters, response bodies and status codes.
 ///
 /// ## Examples
 ///
@@ -288,7 +350,30 @@ pub fn handle_request(request: Request, context: Context) -> Response {
   }
 }
 
-/// Return 403 if the session token is not from a Startup
+/// Require an authenticated Startup session.
+///
+/// The `SESSION` cookie is decoded with [`require_session`](#require_session).
+/// If the session belongs to a Startup, `next` is called with it. If the
+/// session belongs to a Company, the request is rejected with `403 Forbidden`.
+///
+/// Handlers that operate on a specific Startup should also check that
+/// `session.id` matches the Startup ID in the path.
+///
+/// ## Status Codes
+///
+/// - **401** If the session cookie is missing or invalid.
+/// - **403** If the session belongs to a Company instead of a Startup.
+///
+/// ## Examples
+///
+/// ```gleam
+/// pub fn update_profile(request: Request) -> Response {
+///   use session <- require_startup_session(request)
+///
+///   // The session is now guaranteed to be a Startup session.
+///   update_startup_profile(session.id, request)
+/// }
+/// ```
 pub fn require_startup_session(
   request: Request,
   next: fn(Session) -> Response,
@@ -302,7 +387,30 @@ pub fn require_startup_session(
   }
 }
 
-/// Return 403 if the session token is not from a Company
+/// Require an authenticated Company session.
+///
+/// The `SESSION` cookie is decoded with [`require_session`](#require_session).
+/// If the session belongs to a Company, `next` is called with it. If the
+/// session belongs to a Startup, the request is rejected with `403 Forbidden`.
+///
+/// Handlers that operate on a specific Company should also check that
+/// `session.id` matches the Company ID in the path.
+///
+/// ## Status Codes
+///
+/// - **401** If the session cookie is missing or invalid.
+/// - **403** If the session belongs to a Startup instead of a Company.
+///
+/// ## Examples
+///
+/// ```gleam
+/// pub fn update_profile(request: Request) -> Response {
+///   use session <- require_company_session(request)
+///
+///   // The session is now guaranteed to be a Company session.
+///   update_company_profile(session.id, request)
+/// }
+/// ```
 pub fn require_company_session(
   request: Request,
   next: fn(Session) -> Response,
@@ -354,8 +462,8 @@ pub fn require_company_session(
 /// ## Status Codes
 ///
 /// - **200** If successful.
-/// - **400** if ID is not a valid UUID, or if the query is missing, invalid or
-///   incomplete.
+/// - **400** If the Company ID is not a valid UUID, or the query is missing,
+///   invalid or incomplete.
 ///
 fn get_company_bookmarks(
   request: Request,
@@ -398,13 +506,17 @@ fn get_company_bookmarks(
 
 /// ## `POST /api/company/:id/bookmark`
 ///
-/// Add a Startup to a company's bookmarks
+/// Add a Startup to a Company's bookmarks.
 ///
-/// ## Request
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Company's ID.
+///
+/// ## Request Body
 ///
 /// ```json
 /// {
-///  "startup": "01a058ae-057f-73e8-b2a0-50986559767b"
+///   "startup": "01a058ae-057f-73e8-b2a0-50986559767b"
 /// }
 /// ```
 ///
@@ -428,11 +540,11 @@ fn get_company_bookmarks(
 ///
 /// ## Status Codes
 ///
-/// - 201 If successful.
-/// - 400 If the request body is invalid JSON, or the ID or Startup is not a
-///   valid UUID.
-/// - 404 If Company or Startup is not found.
-/// - 409 If Startup is already bookmarked
+/// - **201** If the Startup was bookmarked.
+/// - **400** If the request body is invalid JSON, or the Company ID or Startup
+///   ID is not a valid UUID.
+/// - **404** If the Company or Startup is not found.
+/// - **409** If the Startup is already bookmarked.
 ///
 fn company_bookmark_startup(
   request: Request,
@@ -462,7 +574,12 @@ fn company_bookmark_startup(
 
 /// ## `DELETE /api/company/:id/bookmark/:startup_id`
 ///
-/// Remove a Startup from a company's bookmarks
+/// Remove a Startup from a Company's bookmarks.
+///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Company's ID.
+/// - `startup_id` (UUID, required): the bookmarked Startup's ID.
 ///
 /// ## Response Body
 ///
@@ -484,10 +601,9 @@ fn company_bookmark_startup(
 ///
 /// ## Status Codes
 ///
-/// - 200 If successful.
-/// - 400 If the ID or Startup is not a valid UUID.
-/// - 404 If Company or Startup is not found.
-/// - 404 If the bookmark is not found.
+/// - **200** If the Startup was removed from the bookmarks.
+/// - **400** If the Company ID or Startup ID is not a valid UUID.
+/// - **404** If the Company, Startup or bookmark is not found.
 ///
 fn company_unbookmark_startup(
   database: pog.Connection,
@@ -807,7 +923,10 @@ fn grant_company_lgpd_consent(
   }
 }
 
-/// Requires that `version` matches the lates policy version
+/// Require `version` to be the current LGPD policy version.
+///
+/// The current policy version is read from the database. If it matches, `next`
+/// is called; otherwise the request is rejected with `400 Bad Request`.
 fn require_latest_lgpd_policy(
   database: pog.Connection,
   version: Int,
@@ -887,6 +1006,7 @@ fn revoke_company_lgpd_consent(
   }
 }
 
+/// Convert an LGPD error into an HTTP response.
 fn handle_lgpd_error(error: lgpd.LgpdError) -> Response {
   case error {
     lgpd.DatabaseError(_) -> wisp.internal_server_error()
@@ -927,7 +1047,8 @@ fn handle_lgpd_error(error: lgpd.LgpdError) -> Response {
 ///
 /// ## Path Parameters
 ///
-/// - `id` (UUID, required)
+/// - `id` (UUID, required): the Startup's ID. It must match the Startup ID in
+///   the current session.
 ///
 /// ## Request Body
 ///
@@ -1065,11 +1186,17 @@ fn update_startup(
   }
 }
 
-/// ## DELETE `/api/company/demand/{id}`
+/// ## `DELETE /api/company/demand/:id`
 ///
-/// Delete a registered Demand
+/// Delete a registered Demand.
 ///
-/// ## Response
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Demand's ID.
+///
+/// ## Response Body
+///
+/// The deleted Demand:
 ///
 /// ```json
 /// {
@@ -1085,9 +1212,9 @@ fn update_startup(
 ///
 /// ## Status Codes
 ///
-/// - **200** If successful.
-/// - **400** if ID is not a valid UUID.
-/// - **404** if Demand is not found.
+/// - **200** If the Demand was deleted.
+/// - **400** If the ID is not a valid UUID.
+/// - **404** If the Demand is not found.
 ///
 fn delete_demand(database: pog.Connection, id: String) -> Response {
   use id <- require_valid_uuid(id)
@@ -1107,7 +1234,9 @@ fn delete_demand(database: pog.Connection, id: String) -> Response {
 /// Register a new Demand for a Company. Segments, Services, Expertises and
 /// Technologies can be assigned to the Demand in the same request.
 ///
-/// `:id` is the Company's UUID.
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Company's ID.
 ///
 /// ## Request Body
 ///
@@ -1294,10 +1423,14 @@ fn register_demand(
   }
 }
 
-/// PATCH `/api/company/demand/{id}/`
+/// ## `PATCH /api/company/demand/:id`
 ///
-/// Update information about a Demand. Missing fields and empty strings will be
+/// Update information about a Demand. Missing fields and empty strings are
 /// ignored.
+///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Demand's ID.
 ///
 /// ## Request Body
 ///
@@ -1308,7 +1441,10 @@ fn register_demand(
 /// }
 /// ```
 ///
-/// ## Response
+/// - Both fields are optional.
+/// - Empty strings are treated as missing fields.
+///
+/// ## Response Body
 ///
 /// ```json
 /// {
@@ -1324,9 +1460,9 @@ fn register_demand(
 ///
 /// ## Status Codes
 ///
-/// - **200** If successful.
-/// - **400** if ID is not a valid UUID.
-/// - **404** if Demand is not found.
+/// - **200** If the Demand was updated.
+/// - **400** If the ID is not a valid UUID or the request body is invalid JSON.
+/// - **404** If the Demand is not found.
 ///
 fn update_demand(
   request: Request,
@@ -1360,11 +1496,15 @@ fn update_demand(
   }
 }
 
-/// ## GET `/api/company/demand/{id}`
+/// ## `GET /api/company/demand/:id`
 ///
-/// Get information about a Demand
+/// Fetch information about a Demand.
 ///
-/// ## Response
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Demand's ID.
+///
+/// ## Response Body
 ///
 /// ```json
 /// {
@@ -1381,8 +1521,8 @@ fn update_demand(
 /// ## Status Codes
 ///
 /// - **200** If successful.
-/// - **400** if ID is not a valid UUID.
-/// - **404** if Demand is not found.
+/// - **400** If the ID is not a valid UUID.
+/// - **404** If the Demand is not found.
 ///
 fn get_demand_by_id(database: pog.Connection, id: String) -> Response {
   use id <- require_valid_uuid(id)
@@ -1397,11 +1537,20 @@ fn get_demand_by_id(database: pog.Connection, id: String) -> Response {
   }
 }
 
-/// ## GET `/api/company/{id}/demand`
+/// ## `GET /api/company/:id/demand`
 ///
-/// Get all Demands assigned to a given Company.
+/// Fetch all Demands assigned to a Company.
 ///
-/// ## Response
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Company's ID.
+///
+/// ## Query Parameters
+///
+/// - `limit` (Int, required): the maximum number of Demands to return.
+/// - `offset` (Int, required): the number of Demands to skip.
+///
+/// ## Response Body
 ///
 /// ```json
 /// [
@@ -1429,7 +1578,8 @@ fn get_demand_by_id(database: pog.Connection, id: String) -> Response {
 /// ## Status Codes
 ///
 /// - **200** If successful.
-/// - **400** if ID is not a valid UUID.
+/// - **400** If the ID is not a valid UUID, or the query is missing, invalid
+///   or incomplete.
 ///
 fn get_company_demands(
   request: Request,
@@ -1472,7 +1622,14 @@ fn get_company_demands(
 
 /// ## `GET /api/company/demand/:id/segment`
 ///
-/// Fetch all Segments that a Demand is assigned to.
+/// Fetch all Segments assigned to a Demand.
+///
+/// Returns an empty list if the Demand does not exist or has no assigned
+/// segments.
+///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Demand's ID.
 ///
 /// ## Response Body
 ///
@@ -1494,7 +1651,7 @@ fn get_company_demands(
 /// ## Status Codes
 ///
 /// - **200** If successful.
-/// - **400** if ID is not a valid UUID.
+/// - **400** If the ID is not a valid UUID.
 ///
 fn get_demand_segments(database: pog.Connection, id: String) -> Response {
   use id <- require_valid_uuid(id)
@@ -1511,7 +1668,14 @@ fn get_demand_segments(database: pog.Connection, id: String) -> Response {
 
 /// ## `GET /api/company/demand/:id/service`
 ///
-/// Fetch all Services that a Demand is assigned to.
+/// Fetch all Services assigned to a Demand.
+///
+/// Returns an empty list if the Demand does not exist or has no assigned
+/// services.
+///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Demand's ID.
 ///
 /// ## Response Body
 ///
@@ -1533,7 +1697,7 @@ fn get_demand_segments(database: pog.Connection, id: String) -> Response {
 /// ## Status Codes
 ///
 /// - **200** If successful.
-/// - **400** if ID is not a valid UUID.
+/// - **400** If the ID is not a valid UUID.
 ///
 fn get_demand_services(database: pog.Connection, id: String) -> Response {
   use id <- require_valid_uuid(id)
@@ -1550,7 +1714,14 @@ fn get_demand_services(database: pog.Connection, id: String) -> Response {
 
 /// ## `GET /api/company/demand/:id/technology`
 ///
-/// Fetch all Technologies that a Demand is assigned to.
+/// Fetch all Technologies assigned to a Demand.
+///
+/// Returns an empty list if the Demand does not exist or has no assigned
+/// technologies.
+///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Demand's ID.
 ///
 /// ## Response Body
 ///
@@ -1572,7 +1743,7 @@ fn get_demand_services(database: pog.Connection, id: String) -> Response {
 /// ## Status Codes
 ///
 /// - **200** If successful.
-/// - **400** if ID is not a valid UUID.
+/// - **400** If the ID is not a valid UUID.
 ///
 fn get_demand_technologies(database: pog.Connection, id: String) -> Response {
   use id <- require_valid_uuid(id)
@@ -1589,7 +1760,14 @@ fn get_demand_technologies(database: pog.Connection, id: String) -> Response {
 
 /// ## `GET /api/company/demand/:id/expertise`
 ///
-/// Fetch all Expertises that a Demand is assigned to.
+/// Fetch all Expertises assigned to a Demand.
+///
+/// Returns an empty list if the Demand does not exist or has no assigned
+/// expertises.
+///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Demand's ID.
 ///
 /// ## Response Body
 ///
@@ -1611,7 +1789,7 @@ fn get_demand_technologies(database: pog.Connection, id: String) -> Response {
 /// ## Status Codes
 ///
 /// - **200** If successful.
-/// - **400** if ID is not a valid UUID.
+/// - **400** If the ID is not a valid UUID.
 ///
 fn get_demand_expertises(database: pog.Connection, id: String) -> Response {
   use id <- require_valid_uuid(id)
@@ -1629,6 +1807,10 @@ fn get_demand_expertises(database: pog.Connection, id: String) -> Response {
 /// ## `POST /api/company/demand/:id/segment`
 ///
 /// Assign a Segment to a Company's Demand.
+///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Demand's ID.
 ///
 /// ## Request Body
 ///
@@ -1651,7 +1833,7 @@ fn get_demand_expertises(database: pog.Connection, id: String) -> Response {
 /// ## Status Codes
 ///
 /// - **201** If successful.
-/// - **400** if :id or :segment is not a valid UUID.
+/// - **400** If the ID or the segment ID is not a valid UUID.
 /// - **404** If Demand or Segment is not found.
 /// - **409** If Segment is already assigned to the Demand.
 ///
@@ -1686,6 +1868,11 @@ fn assign_segment_to_demand(
 ///
 /// Unassign a Segment from a Company's Demand.
 ///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Demand's ID.
+/// - `segment_id` (UUID, required): the Segment's ID.
+///
 /// ## Response Body
 ///
 /// ```json
@@ -1699,7 +1886,7 @@ fn assign_segment_to_demand(
 /// ## Status Codes
 ///
 /// - **200** If successful.
-/// - **400** if :id or :segment_id is not a valid UUID.
+/// - **400** If the ID or the segment ID is not a valid UUID.
 /// - **404** If the Segment is not assigned to the Demand.
 ///
 fn unassign_segment_from_demand(
@@ -1724,6 +1911,10 @@ fn unassign_segment_from_demand(
 ///
 /// Assign a Service to a Company's Demand.
 ///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Demand's ID.
+///
 /// ## Request Body
 ///
 /// ```json
@@ -1745,7 +1936,7 @@ fn unassign_segment_from_demand(
 /// ## Status Codes
 ///
 /// - **201** If successful.
-/// - **400** if :id or :service is not a valid UUID.
+/// - **400** If the ID or the service ID is not a valid UUID.
 /// - **404** If Demand or Service is not found.
 /// - **409** If Service is already assigned to the Demand.
 ///
@@ -1780,6 +1971,11 @@ fn assign_service_to_demand(
 ///
 /// Unassign a Service from a Company's Demand.
 ///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Demand's ID.
+/// - `service_id` (UUID, required): the Service's ID.
+///
 /// ## Response Body
 ///
 /// ```json
@@ -1793,7 +1989,7 @@ fn assign_service_to_demand(
 /// ## Status Codes
 ///
 /// - **200** If successful.
-/// - **400** if :id or :service_id is not a valid UUID.
+/// - **400** If the ID or the service ID is not a valid UUID.
 /// - **404** If the Service is not assigned to the Demand.
 ///
 fn unassign_service_from_demand(
@@ -1818,6 +2014,10 @@ fn unassign_service_from_demand(
 ///
 /// Assign a Technology to a Company's Demand.
 ///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Demand's ID.
+///
 /// ## Request Body
 ///
 /// ```json
@@ -1839,7 +2039,7 @@ fn unassign_service_from_demand(
 /// ## Status Codes
 ///
 /// - **201** If successful.
-/// - **400** if :id or :technology is not a valid UUID.
+/// - **400** If the ID or the technology ID is not a valid UUID.
 /// - **404** If Demand or Technology is not found.
 /// - **409** If Technology is already assigned to the Demand.
 ///
@@ -1874,6 +2074,11 @@ fn assign_technology_to_demand(
 ///
 /// Unassign a Technology from a Company's Demand.
 ///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Demand's ID.
+/// - `technology_id` (UUID, required): the Technology's ID.
+///
 /// ## Response Body
 ///
 /// ```json
@@ -1887,7 +2092,7 @@ fn assign_technology_to_demand(
 /// ## Status Codes
 ///
 /// - **200** If successful.
-/// - **400** if :id or :technology_id is not a valid UUID.
+/// - **400** If the ID or the technology ID is not a valid UUID.
 /// - **404** If the Technology is not assigned to the Demand.
 ///
 fn unassign_technology_from_demand(
@@ -1912,6 +2117,10 @@ fn unassign_technology_from_demand(
 ///
 /// Assign an Expertise to a Company's Demand.
 ///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Demand's ID.
+///
 /// ## Request Body
 ///
 /// ```json
@@ -1933,7 +2142,7 @@ fn unassign_technology_from_demand(
 /// ## Status Codes
 ///
 /// - **201** If successful.
-/// - **400** if :id or :expertise is not a valid UUID.
+/// - **400** If the ID or the expertise ID is not a valid UUID.
 /// - **404** If Demand or Expertise is not found.
 /// - **409** If Expertise is already assigned to the Demand.
 ///
@@ -1968,6 +2177,11 @@ fn assign_expertise_to_demand(
 ///
 /// Unassign an Expertise from a Company's Demand.
 ///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Demand's ID.
+/// - `expertise_id` (UUID, required): the Expertise's ID.
+///
 /// ## Response Body
 ///
 /// ```json
@@ -1981,7 +2195,7 @@ fn assign_expertise_to_demand(
 /// ## Status Codes
 ///
 /// - **200** If successful.
-/// - **400** if :id or :expertise_id is not a valid UUID.
+/// - **400** If the ID or the expertise ID is not a valid UUID.
 /// - **404** If the Expertise is not assigned to the Demand.
 ///
 fn unassign_expertise_from_demand(
@@ -2004,7 +2218,11 @@ fn unassign_expertise_from_demand(
 
 /// ## `GET /api/segment/:id`
 ///
-/// Fetch information about a Segment
+/// Fetch information about a Segment.
+///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Segment's ID.
 ///
 /// ## Response Body
 ///
@@ -2019,8 +2237,8 @@ fn unassign_expertise_from_demand(
 /// ## Status Codes
 ///
 /// - **200** If successful.
-/// - **400** if ID is not a valid UUID.
-/// - **404** If Segment is not found.
+/// - **400** If the ID is not a valid UUID.
+/// - **404** If the Segment is not found.
 ///
 fn get_segment_by_id(database: pog.Connection, id: String) -> Response {
   use id <- require_valid_uuid(id)
@@ -2039,6 +2257,10 @@ fn get_segment_by_id(database: pog.Connection, id: String) -> Response {
 ///
 /// Fetch information about a Technology.
 ///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Technology's ID.
+///
 /// ## Response Body
 ///
 /// ```json
@@ -2052,8 +2274,8 @@ fn get_segment_by_id(database: pog.Connection, id: String) -> Response {
 /// ## Status Codes
 ///
 /// - **200** If successful.
-/// - **400** if ID is not a valid UUID.
-/// - **404** If Technology is not found.
+/// - **400** If the ID is not a valid UUID.
+/// - **404** If the Technology is not found.
 ///
 fn get_technology_by_id(database: pog.Connection, id: String) -> Response {
   use id <- require_valid_uuid(id)
@@ -2072,6 +2294,10 @@ fn get_technology_by_id(database: pog.Connection, id: String) -> Response {
 ///
 /// Fetch information about an Expertise.
 ///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Expertise's ID.
+///
 /// ## Response Body
 ///
 /// ```json
@@ -2085,8 +2311,8 @@ fn get_technology_by_id(database: pog.Connection, id: String) -> Response {
 /// ## Status Codes
 ///
 /// - **200** If successful.
-/// - **400** if ID is not a valid UUID.
-/// - **404** If Expertise is not found.
+/// - **400** If the ID is not a valid UUID.
+/// - **404** If the Expertise is not found.
 ///
 fn get_expertise_by_id(database: pog.Connection, id: String) -> Response {
   use id <- require_valid_uuid(id)
@@ -2105,6 +2331,10 @@ fn get_expertise_by_id(database: pog.Connection, id: String) -> Response {
 ///
 /// Fetch information about a Service.
 ///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Service's ID.
+///
 /// ## Response Body
 ///
 /// ```json
@@ -2118,8 +2348,8 @@ fn get_expertise_by_id(database: pog.Connection, id: String) -> Response {
 /// ## Status Codes
 ///
 /// - **200** If successful.
-/// - **400** if ID is not a valid UUID.
-/// - **404** If Service is not found.
+/// - **400** If the ID is not a valid UUID.
+/// - **404** If the Service is not found.
 ///
 fn get_service_by_id(database: pog.Connection, id: String) -> Response {
   use id <- require_valid_uuid(id)
@@ -2141,7 +2371,8 @@ fn get_service_by_id(database: pog.Connection, id: String) -> Response {
 ///
 /// ## Path Parameters
 ///
-/// - `id` (UUID, required)
+/// - `id` (UUID, required): the Company's ID. It must match the Company ID in
+///   the current session.
 ///
 /// ## Request Body
 ///
@@ -2279,7 +2510,11 @@ fn update_company(
 ///
 /// Fetch information about a Company.
 ///
-/// ## Examples
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Company's ID.
+///
+/// ## Response Body
 ///
 /// ```json
 /// {
@@ -2299,9 +2534,9 @@ fn update_company(
 ///
 /// ## Status Codes
 ///
-/// - 200 If successful.
-/// - 400 If the ID is not a valid UUID.
-/// - 404 If Company is not found.
+/// - **200** If successful.
+/// - **400** If the ID is not a valid UUID.
+/// - **404** If the Company is not found.
 ///
 fn get_company_by_id(database: pog.Connection, id: String) -> Response {
   use id <- require_valid_uuid(id)
@@ -2318,7 +2553,11 @@ fn get_company_by_id(database: pog.Connection, id: String) -> Response {
 
 /// ## `POST /api/startup/:id/segment`
 ///
-/// Assign a Segment to a Startup
+/// Assign a Segment to a Startup.
+///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Startup's ID.
 ///
 /// ## Request Body
 ///
@@ -2341,9 +2580,9 @@ fn get_company_by_id(database: pog.Connection, id: String) -> Response {
 /// ## Status Codes
 ///
 /// - **201** If successful.
-/// - **400** if :id or :segment is not a valid UUID.
-/// - **401** If Not authenticated
-/// - **403** If Not authorized
+/// - **400** If the ID or the segment ID is not a valid UUID.
+/// - **401** If not authenticated.
+/// - **403** If the session is not authorized for this Startup.
 /// - **404** If Startup or Segment is not found.
 /// - **409** If Segment is already assigned to the Startup.
 ///
@@ -2379,7 +2618,11 @@ fn assign_segment_to_startup(
 
 /// ## `POST /api/startup/:id/technology`
 ///
-/// Assign a Technology to a Startup
+/// Assign a Technology to a Startup.
+///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Startup's ID.
 ///
 /// ## Request Body
 ///
@@ -2394,17 +2637,17 @@ fn assign_segment_to_startup(
 /// ```json
 /// {
 ///   "id": "01a155b2-69c7-75d7-8cc1-8d2626c6bc9b",
-///   "name": "Javascript",
-///   "description": "dont",
+///   "name": "Gleam",
+///   "description": "A friendly language for building type-safe systems"
 /// }
 /// ```
 ///
 /// ## Status Codes
 ///
 /// - **201** If successful.
-/// - **400** if :id or :technology is not a valid UUID.
-/// - **401** If Not authenticated
-/// - **403** If Not authorized
+/// - **400** If the ID or the technology ID is not a valid UUID.
+/// - **401** If not authenticated.
+/// - **403** If the session is not authorized for this Startup.
 /// - **404** If Startup or Technology is not found.
 /// - **409** If Technology is already assigned to the Startup.
 ///
@@ -2440,7 +2683,11 @@ fn assign_technology_to_startup(
 
 /// ## `POST /api/startup/:id/expertise`
 ///
-/// Assign an Expertise to a Startup
+/// Assign an Expertise to a Startup.
+///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Startup's ID.
 ///
 /// ## Request Body
 ///
@@ -2463,9 +2710,9 @@ fn assign_technology_to_startup(
 /// ## Status Codes
 ///
 /// - **201** If successful.
-/// - **400** if :id or :expertise is not a valid UUID.
-/// - **401** If Not authenticated
-/// - **403** If Not authorized
+/// - **400** If the ID or the expertise ID is not a valid UUID.
+/// - **401** If not authenticated.
+/// - **403** If the session is not authorized for this Startup.
 /// - **404** If Startup or Expertise is not found.
 /// - **409** If Expertise is already assigned to the Startup.
 ///
@@ -2501,7 +2748,11 @@ fn assign_expertise_to_startup(
 
 /// ## `POST /api/startup/:id/service`
 ///
-/// Assign a Service to a Startup
+/// Assign a Service to a Startup.
+///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Startup's ID.
 ///
 /// ## Request Body
 ///
@@ -2524,9 +2775,9 @@ fn assign_expertise_to_startup(
 /// ## Status Codes
 ///
 /// - **201** If successful.
-/// - **400** if :id or :service is not a valid UUID.
-/// - **401** If Not authenticated
-/// - **403** If Not authorized
+/// - **400** If the ID or the service ID is not a valid UUID.
+/// - **401** If not authenticated.
+/// - **403** If the session is not authorized for this Startup.
 /// - **404** If Startup or Service is not found.
 /// - **409** If Service is already assigned to the Startup.
 ///
@@ -2560,18 +2811,21 @@ fn assign_service_to_startup(
   }
 }
 
-/// Checks if there's an active session token in the user request.
-/// On sucess, the server will send Startup / Company JSON data to the client
-/// depending on their previous session type.
+/// ## `GET /api/auth/restore`
 ///
-/// > **NOTE:**  
-/// > This function **does not** refresh the session token duration.
+/// Restore the account associated with the current session.
+///
+/// The signed `SESSION` cookie is decoded and used to load the corresponding
+/// Startup or Company. The response body contains the account as JSON.
+///
+/// > **Note:** This route does **not** refresh the session token duration. Use
+/// > [`refresh_session`](#refresh_session) for that.
 ///
 /// ## Status Codes
 ///
-/// - 200 If successful.
-/// - 401 If the session cookie is missing or invalid.
-/// - 404 If the Startup or Company is not found.
+/// - **200** If the session is valid and the account exists.
+/// - **401** If the session cookie is missing or invalid.
+/// - **404** If the Startup or Company referenced by the session is not found.
 pub fn restore_session(request: Request, database: pog.Connection) -> Response {
   use session <- require_session(request)
 
@@ -2596,31 +2850,48 @@ pub fn restore_session(request: Request, database: pog.Connection) -> Response {
   }
 }
 
+/// ## `GET /api/auth/refresh`
+///
 /// Refresh the current session token duration.
+///
+/// A new signed `SESSION` cookie is issued with a one-hour lifetime. The
+/// response has no body.
 ///
 /// ## Status Codes
 ///
-/// - 204 if successfull
-/// - 401 if token is missing
+/// - **204** If the cookie was refreshed.
+/// - **401** If the session cookie is missing or invalid.
 pub fn refresh_session(request: Request) -> Response {
   use session <- require_session(request)
   set_session_token(wisp.no_content(), request, session, duration.hours(1))
 }
 
-/// Sets to cookie duration to 0.
+/// ## `POST /api/auth/logout`
+///
+/// Log out by expiring the session cookie.
+///
+/// The current session is required so the cookie can be overwritten with an
+/// empty value and a zero-second lifetime. The response has no body.
 ///
 /// ## Status Codes
 ///
-/// - 204 if successfull
-/// - 401 if token is missing
+/// - **204** If the cookie was expired.
+/// - **401** If the session cookie is missing or invalid.
 fn handle_logout(request: Request) -> Response {
   use session <- require_session(request)
   set_session_token(wisp.no_content(), request, session, duration.seconds(0))
 }
 
-/// ## `GET /api/startup/expertise/:id`
+/// ## `GET /api/startup/:id/expertise`
 ///
-/// Fetch all Expertises that a Startup is assigned to.
+/// Fetch all Expertises assigned to a Startup.
+///
+/// Returns an empty list if the Startup does not exist or has no assigned
+/// expertises.
+///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Startup's ID.
 ///
 /// ## Response Body
 ///
@@ -2629,12 +2900,12 @@ fn handle_logout(request: Request) -> Response {
 ///   {
 ///    "id": "01a058ae-057f-73e8-b2a0-50986559767b",
 ///    "name": "Education",
-///    "description": "",
+///    "description": ""
 ///   },
 ///   {
 ///    "id": "01a0dbb3-153a-7b84-8c3d-631788972d4a",
 ///    "name": "Health",
-///    "description": "Medical stuff",
+///    "description": "Medical stuff"
 ///   }
 /// ]
 /// ```
@@ -2642,7 +2913,7 @@ fn handle_logout(request: Request) -> Response {
 /// ## Status Codes
 ///
 /// - **200** If successful.
-/// - **400** if ID is not a valid UUID.
+/// - **400** If the ID is not a valid UUID.
 ///
 fn get_startup_expertises(database: pog.Connection, id: String) -> Response {
   use id <- require_valid_uuid(id)
@@ -2661,6 +2932,11 @@ fn get_startup_expertises(database: pog.Connection, id: String) -> Response {
 ///
 /// Unassign an Expertise from a Startup.
 ///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Startup's ID.
+/// - `expertise_id` (UUID, required): the Expertise's ID.
+///
 /// ## Response Body
 ///
 /// ```json
@@ -2674,7 +2950,7 @@ fn get_startup_expertises(database: pog.Connection, id: String) -> Response {
 /// ## Status Codes
 ///
 /// - **200** If successful.
-/// - **400** if :id or :expertise_id is not a valid UUID.
+/// - **400** If the ID or the expertise ID is not a valid UUID.
 /// - **404** If the Expertise is not assigned to the Startup.
 ///
 fn unassign_expertise_from_expertise(
@@ -2695,15 +2971,27 @@ fn unassign_expertise_from_expertise(
   }
 }
 
-/// Return HTTP 401 if the Session token is not found
+/// Require a valid signed session cookie.
+///
+/// The `SESSION` cookie is verified and decoded with
+/// [`session_decoder`](#session_decoder). On success, the decoded
+/// [`Session`](#Session) is passed to `next`.
+///
+/// ## Status Codes
+///
+/// - **401** If the session cookie is missing, has an invalid signature, or
+///   contains an invalid session payload.
 ///
 /// ## Examples
 ///
 /// ```gleam
-/// pub fn handle_request(request, context, id) -> wisp.Response {
+/// pub fn handle_request(request: Request) -> Response {
 ///   use session <- require_session(request)
 ///
-///   // rest of the code
+///   case session {
+///     Startup(id:) -> handle_startup_session(request, id)
+///     Company(id:) -> handle_company_session(request, id)
+///   }
 /// }
 /// ```
 pub fn require_session(
@@ -2730,7 +3018,14 @@ pub fn require_session(
 
 /// ## `GET /api/startup/:id/service`
 ///
-/// Fetch all Services that a Startup is assigned to.
+/// Fetch all Services assigned to a Startup.
+///
+/// Returns an empty list if the Startup does not exist or has no assigned
+/// services.
+///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Startup's ID.
 ///
 /// ## Response Body
 ///
@@ -2752,7 +3047,7 @@ pub fn require_session(
 /// ## Status Codes
 ///
 /// - **200** If successful.
-/// - **400** if ID is not a valid UUID.
+/// - **400** If the ID is not a valid UUID.
 ///
 fn get_startup_services(database: pog.Connection, id: String) -> Response {
   use id <- require_valid_uuid(id)
@@ -2771,6 +3066,11 @@ fn get_startup_services(database: pog.Connection, id: String) -> Response {
 ///
 /// Unassign a Service from a Startup.
 ///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Startup's ID.
+/// - `service_id` (UUID, required): the Service's ID.
+///
 /// ## Response Body
 ///
 /// ```json
@@ -2784,9 +3084,9 @@ fn get_startup_services(database: pog.Connection, id: String) -> Response {
 /// ## Status Codes
 ///
 /// - **200** If successful.
-/// - **400** if :id or :service_id is not a valid UUID.
-/// - **401** If Not authenticated
-/// - **403** If Not authorized
+/// - **400** If the ID or the service ID is not a valid UUID.
+/// - **401** If not authenticated.
+/// - **403** If the session is not authorized for this Startup.
 /// - **404** If the Service is not assigned to the Startup.
 ///
 fn unassign_service_from_startup(
@@ -2812,7 +3112,14 @@ fn unassign_service_from_startup(
 
 /// ## `GET /api/startup/:id/segment`
 ///
-/// Fetch all Segments that a Startup is assigned to.
+/// Fetch all Segments assigned to a Startup.
+///
+/// Returns an empty list if the Startup does not exist or has no assigned
+/// segments.
+///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Startup's ID.
 ///
 /// ## Response Body
 ///
@@ -2834,7 +3141,7 @@ fn unassign_service_from_startup(
 /// ## Status Codes
 ///
 /// - **200** If successful.
-/// - **400** if ID is not a valid UUID.
+/// - **400** If the ID is not a valid UUID.
 ///
 fn get_startup_segments(database: pog.Connection, id: String) -> Response {
   use id <- require_valid_uuid(id)
@@ -2853,6 +3160,11 @@ fn get_startup_segments(database: pog.Connection, id: String) -> Response {
 ///
 /// Unassign a Segment from a Startup.
 ///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Startup's ID.
+/// - `segment_id` (UUID, required): the Segment's ID.
+///
 /// ## Response Body
 ///
 /// ```json
@@ -2866,9 +3178,9 @@ fn get_startup_segments(database: pog.Connection, id: String) -> Response {
 /// ## Status Codes
 ///
 /// - **200** If successful.
-/// - **400** if :id or :segment_id is not a valid UUID.
-/// - **401** If Not authenticated
-/// - **403** If Not authorized
+/// - **400** If the ID or the segment ID is not a valid UUID.
+/// - **401** If not authenticated.
+/// - **403** If the session is not authorized for this Startup.
 /// - **404** If the Segment is not assigned to the Startup.
 ///
 fn unassign_segment_from_startup(
@@ -2894,7 +3206,14 @@ fn unassign_segment_from_startup(
 
 /// ## `GET /api/startup/:id/technology`
 ///
-/// Fetch all Technologies that a Startup is assigned to.
+/// Fetch all Technologies assigned to a Startup.
+///
+/// Returns an empty list if the Startup does not exist or has no assigned
+/// technologies.
+///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Startup's ID.
 ///
 /// ## Response Body
 ///
@@ -2902,13 +3221,13 @@ fn unassign_segment_from_startup(
 /// [
 ///   {
 ///    "id": "01a058ae-057f-73e8-b2a0-50986559767b",
-///    "name": "Javascript",
-///    "description": "dont",
+///    "name": "Gleam",
+///    "description": "A friendly language for building type-safe systems"
 ///   },
 ///   {
 ///    "id": "01a0dbb3-153a-7b84-8c3d-631788972d4a",
-///    "name": "Python",
-///    "description": "Please dont"
+///    "name": "PostgreSQL",
+///    "description": "The world's most advanced open source database"
 ///   }
 /// ]
 /// ```
@@ -2916,7 +3235,7 @@ fn unassign_segment_from_startup(
 /// ## Status Codes
 ///
 /// - **200** If successful.
-/// - **400** if ID is not a valid UUID.
+/// - **400** If the ID is not a valid UUID.
 ///
 fn get_startup_technologies(database: pog.Connection, id: String) -> Response {
   use id <- require_valid_uuid(id)
@@ -2935,6 +3254,11 @@ fn get_startup_technologies(database: pog.Connection, id: String) -> Response {
 ///
 /// Unassign a Technology from a Startup.
 ///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Startup's ID.
+/// - `technology_id` (UUID, required): the Technology's ID.
+///
 /// ## Response Body
 ///
 /// ```json
@@ -2948,9 +3272,9 @@ fn get_startup_technologies(database: pog.Connection, id: String) -> Response {
 /// ## Status Codes
 ///
 /// - **200** If successful.
-/// - **400** if :id or :technology_id is not a valid UUID.
-/// - **401** If Not authenticated
-/// - **403** If Not authorized
+/// - **400** If the ID or the technology ID is not a valid UUID.
+/// - **401** If not authenticated.
+/// - **403** If the session is not authorized for this Startup.
 /// - **404** If the Technology is not assigned to the Startup.
 ///
 fn unassign_technology_from_startup(
@@ -2976,11 +3300,12 @@ fn unassign_technology_from_startup(
 
 /// ## `GET /api/startup`
 ///
-/// Fetch a list of registered Startups, pagination is available.
+/// Fetch a paginated list of registered Startups.
 ///
-/// Required parameters:
-/// - limit: `Int`
-/// - offset: `Int`
+/// ## Query Parameters
+///
+/// - `limit` (Int, required): the maximum number of Startups to return.
+/// - `offset` (Int, required): the number of Startups to skip.
 ///
 /// ## Response Body
 ///
@@ -3017,8 +3342,8 @@ fn unassign_technology_from_startup(
 ///
 /// ## Status Codes
 ///
-/// - **200** if successful
-/// - **400** if query is missing, invalid or incomplete.
+/// - **200** If successful.
+/// - **400** If the query is missing, invalid or incomplete.
 ///
 fn get_many_startups(request: Request, database: pog.Connection) -> Response {
   let result = {
@@ -3053,7 +3378,7 @@ fn get_many_startups(request: Request, database: pog.Connection) -> Response {
   }
 }
 
-/// Handle [WebError](#WebError)
+/// Convert a [`WebError`](#WebError) into an HTTP response.
 fn handle_error(error: WebError) -> Response {
   case error {
     StartupError(error) -> handle_startup_error(error)
@@ -3077,6 +3402,7 @@ fn handle_error(error: WebError) -> Response {
   }
 }
 
+/// Convert a Segment error into an HTTP response.
 fn handle_segment_error(error: segment.SegmentError) -> Response {
   case error {
     segment.DatabaseError(error:) -> handle_database_error(error)
@@ -3085,6 +3411,7 @@ fn handle_segment_error(error: segment.SegmentError) -> Response {
   }
 }
 
+/// Convert a Technology error into an HTTP response.
 fn handle_technology_error(error: technology.TechnologyError) -> Response {
   case error {
     technology.DatabaseError(error:) -> handle_database_error(error)
@@ -3093,6 +3420,7 @@ fn handle_technology_error(error: technology.TechnologyError) -> Response {
   }
 }
 
+/// Convert an Expertise error into an HTTP response.
 fn handle_expertise_error(error: expertise.ExpertiseError) -> Response {
   case error {
     expertise.DatabaseError(error) -> handle_database_error(error)
@@ -3101,6 +3429,7 @@ fn handle_expertise_error(error: expertise.ExpertiseError) -> Response {
   }
 }
 
+/// Convert a Service error into an HTTP response.
 fn handle_service_error(error: service.ServiceError) -> Response {
   case error {
     service.DatabaseError(error:) -> handle_database_error(error)
@@ -3111,11 +3440,12 @@ fn handle_service_error(error: service.ServiceError) -> Response {
 
 /// ## `GET /api/segment`
 ///
-/// Fetch a list of registered Startups, pagination is available.
+/// Fetch a paginated list of registered Segments.
 ///
-/// Required parameters:
-/// - limit: `Int`
-/// - offset: `Int`
+/// ## Query Parameters
+///
+/// - `limit` (Int, required): the maximum number of Segments to return.
+/// - `offset` (Int, required): the number of Segments to skip.
 ///
 /// ## Response Body
 ///
@@ -3136,8 +3466,8 @@ fn handle_service_error(error: service.ServiceError) -> Response {
 ///
 /// ## Status Codes
 ///
-/// - **200** if successful
-/// - **400** if query is missing, invalid or incomplete.
+/// - **200** If successful.
+/// - **400** If the query is missing, invalid or incomplete.
 ///
 fn get_many_segments(request: Request, database: pog.Connection) -> Response {
   let result = {
@@ -3174,11 +3504,12 @@ fn get_many_segments(request: Request, database: pog.Connection) -> Response {
 
 /// ## `GET /api/technology`
 ///
-/// Fetch a list of registered Technologies, pagination is available.
+/// Fetch a paginated list of registered Technologies.
 ///
-/// Required parameters:
-/// - limit: `Int`
-/// - offset: `Int`
+/// ## Query Parameters
+///
+/// - `limit` (Int, required): the maximum number of Technologies to return.
+/// - `offset` (Int, required): the number of Technologies to skip.
 ///
 /// ## Response Body
 ///
@@ -3199,8 +3530,8 @@ fn get_many_segments(request: Request, database: pog.Connection) -> Response {
 ///
 /// ## Status Codes
 ///
-/// - **200** if successful
-/// - **400** if query is missing, invalid or incomplete.
+/// - **200** If successful.
+/// - **400** If the query is missing, invalid or incomplete.
 ///
 fn get_many_technologies(
   request: Request,
@@ -3240,11 +3571,12 @@ fn get_many_technologies(
 
 /// ## `GET /api/expertise`
 ///
-/// Fetch a list of registered Expertises, pagination is available.
+/// Fetch a paginated list of registered Expertises.
 ///
-/// Required parameters:
-/// - limit: `Int`
-/// - offset: `Int`
+/// ## Query Parameters
+///
+/// - `limit` (Int, required): the maximum number of Expertises to return.
+/// - `offset` (Int, required): the number of Expertises to skip.
 ///
 /// ## Response Body
 ///
@@ -3265,8 +3597,8 @@ fn get_many_technologies(
 ///
 /// ## Status Codes
 ///
-/// - **200** if successful
-/// - **400** if query is missing, invalid or incomplete.
+/// - **200** If successful.
+/// - **400** If the query is missing, invalid or incomplete.
 ///
 fn get_many_expertises(request: Request, database: pog.Connection) -> Response {
   let result = {
@@ -3303,11 +3635,12 @@ fn get_many_expertises(request: Request, database: pog.Connection) -> Response {
 
 /// ## `GET /api/service`
 ///
-/// Fetch a list of registered Services, pagination is available.
+/// Fetch a paginated list of registered Services.
 ///
-/// Required parameters:
-/// - limit: `Int`
-/// - offset: `Int`
+/// ## Query Parameters
+///
+/// - `limit` (Int, required): the maximum number of Services to return.
+/// - `offset` (Int, required): the number of Services to skip.
 ///
 /// ## Response Body
 ///
@@ -3328,8 +3661,8 @@ fn get_many_expertises(request: Request, database: pog.Connection) -> Response {
 ///
 /// ## Status Codes
 ///
-/// - **200** if successful
-/// - **400** if query is missing, invalid or incomplete.
+/// - **200** If successful.
+/// - **400** If the query is missing, invalid or incomplete.
 ///
 fn get_many_services(request: Request, database: pog.Connection) -> Response {
   let result = {
@@ -3364,12 +3697,14 @@ fn get_many_services(request: Request, database: pog.Connection) -> Response {
   }
 }
 
+/// ## `GET /`
+///
 /// Send the necessary HTML for the client-side application. The user will
 /// use it to communicate with the Server.
 ///
 /// ## Status Codes
 ///
-/// - 200 If successful.
+/// - **200** If successful.
 fn get_root_document() -> Response {
   let body =
     html.html([attribute.lang("pt-BR")], [
@@ -3452,6 +3787,10 @@ fn get_root_document() -> Response {
   |> wisp.html_body(wisp.ok(), _)
 }
 
+/// Apply the common HTTP middleware stack to a request.
+///
+/// If none of the middleware short-circuits the request, `next` is called with
+/// the transformed request.
 fn middleware(
   request: Request,
   context: Context,
@@ -3467,17 +3806,26 @@ fn middleware(
   next(request)
 }
 
-/// Return "400 Bad Request" if `id` is not a valid UUID format.
+/// Validate that `id` is a UUID before continuing.
+///
+/// If the value is a valid UUID, it is passed to `next` as a
+/// [`uuid.Uuid`](https://hexdocs.pm/youid/youid_uuid.html#Uuid). Otherwise the
+/// request is rejected with `400 Bad Request` and a message containing the
+/// invalid value.
+///
+/// ## Status Codes
+///
+/// - **400** If `id` is not a valid UUID.
 ///
 /// ## Examples
 ///
 /// ```gleam
-/// pub fn handle_request(request, context, id) -> wisp.Response {
+/// pub fn handle_request(database: pog.Connection, id: String) -> Response {
 ///   use id <- require_valid_uuid(id)
 ///
 ///   case startup.get(database, id) {
 ///     Ok(data) -> wisp.ok()
-///     Error(error) -> handle_error(error)
+///     Error(error) -> handle_startup_error(error)
 ///   }
 /// }
 /// ```
@@ -3494,6 +3842,10 @@ pub fn require_valid_uuid(
 /// ## `GET /api/startup/:id`
 ///
 /// Fetch information about a Startup.
+///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Startup's ID.
 ///
 /// ## Response Body
 ///
@@ -3515,9 +3867,9 @@ pub fn require_valid_uuid(
 ///
 /// ## Status Codes
 ///
-/// - 200 If successful.
-/// - 400 If the ID is not a valid UUID.
-/// - 404 If Startup is not found.
+/// - **200** If successful.
+/// - **400** If the ID is not a valid UUID.
+/// - **404** If the Startup is not found.
 ///
 fn get_startup_by_id(database: pog.Connection, id: String) -> Response {
   use id <- require_valid_uuid(id)
@@ -3532,7 +3884,7 @@ fn get_startup_by_id(database: pog.Connection, id: String) -> Response {
   }
 }
 
-/// Handle startup.StartupError errors
+/// Convert a Startup error into an HTTP response.
 fn handle_startup_error(error: startup.StartupError) -> Response {
   case error {
     startup.DatabaseError(error) -> handle_database_error(error)
@@ -3596,7 +3948,7 @@ fn handle_startup_error(error: startup.StartupError) -> Response {
   }
 }
 
-/// Handle pog.QueryError errors
+/// Convert a database error into an HTTP response.
 fn handle_database_error(error: pog.QueryError) -> Response {
   case error {
     pog.QueryTimeout | pog.ConnectionUnavailable -> wisp.response(503)
@@ -3609,13 +3961,19 @@ fn handle_database_error(error: pog.QueryError) -> Response {
   }
 }
 
-/// A user can be logged in as an Startup or as an Company
+/// An authenticated account session.
+///
+/// A session identifies whether the logged-in account is a Startup or a
+/// Company and stores its ID. It is persisted as JSON in the signed `SESSION`
+/// cookie.
 pub type Session {
+  /// An authenticated Startup.
   Startup(id: uuid.Uuid)
+  /// An authenticated Company.
   Company(id: uuid.Uuid)
 }
 
-/// Encode a Session into JSON
+/// Encode a [`Session`](#Session) as JSON.
 pub fn session_to_json(session: Session) -> json.Json {
   case session {
     Startup(id:) ->
@@ -3632,7 +3990,7 @@ pub fn session_to_json(session: Session) -> json.Json {
   }
 }
 
-/// A decoder that decodes `Session` values.
+/// Decode a JSON [`Session`](#Session) value.
 pub fn session_decoder() -> decode.Decoder(Session) {
   use variant <- decode.field("type", decode.string)
 
@@ -3651,14 +4009,16 @@ pub fn session_decoder() -> decode.Decoder(Session) {
   }
 }
 
-/// Cookie storing the user session.
+/// Name of the signed cookie that stores the user's [`Session`](#Session).
 pub const session_cookie = "SESSION"
 
 /// ## `POST /api/auth/login`
 ///
-/// Sets a session cookie if successful, it will last exactly one hour.
-/// The response body will include a Json string containing information about the
-/// Startup / Company being authorized.
+/// Authenticate a Startup or a Company.
+///
+/// On success, a signed [`session_cookie`](#session_cookie) is set on the
+/// response and lasts for one hour. The response body contains the
+/// authenticated Startup or Company as JSON.
 ///
 /// ## Request Body
 ///
@@ -3670,12 +4030,20 @@ pub const session_cookie = "SESSION"
 /// }
 /// ```
 ///
+/// - `session`: either `"startup"` or `"company"`.
+///
+/// ## Response Body
+///
+/// The authenticated Startup or Company object. See
+/// [`get_startup_by_id`](#get_startup_by_id) and
+/// [`get_company_by_id`](#get_company_by_id) for example payloads.
+///
 /// ## Status Codes
 ///
-/// - 200 If successful.
-/// - 400 If the request body is invalid JSON, the email is not a valid
+/// - **200** If the credentials are valid.
+/// - **400** If the request body is invalid JSON, the email has an invalid
 ///   format, or the session type is invalid.
-/// - 401 If email or password is incorrect.
+/// - **401** If the email or password is incorrect.
 ///
 fn handle_login(request: Request, database: pog.Connection) -> Response {
   use body <- wisp.require_json(request)
@@ -3730,7 +4098,11 @@ fn handle_login(request: Request, database: pog.Connection) -> Response {
   }
 }
 
-/// Set a session cookie on the request.
+/// Attach a signed session cookie to a response.
+///
+/// The [`Session`](#Session) is encoded as JSON, signed, and stored in the
+/// [`session_cookie`](#session_cookie) cookie. `duration` controls the cookie's
+/// `Max-Age`; pass `duration.seconds(0)` to expire it during logout.
 fn set_session_token(
   response: Response,
   request: Request,
@@ -3756,7 +4128,7 @@ fn set_session_token(
 
 /// ## `POST /api/startup`
 ///
-/// Register a new Startup
+/// Register a new Startup.
 ///
 /// ## Request Body
 ///
@@ -3774,12 +4146,19 @@ fn set_session_token(
 /// }
 /// ```
 ///
+/// - `stage`: either `"traction"` or `"scaling"`.
+///
+/// ## Response Body
+///
+/// The created Startup. See [`get_startup_by_id`](#get_startup_by_id) for an
+/// example payload.
+///
 /// ## Status Codes
 ///
-/// - **201** If successful.
+/// - **201** If the Startup was created.
 /// - **400** If the request body is invalid JSON, or a field has an invalid
 ///   value.
-/// - **409** If duplicated email or CNPJ.
+/// - **409** If the email or CNPJ is already registered.
 ///
 fn register_startup(request: Request, database: pog.Connection) -> Response {
   use body <- wisp.require_json(request)
@@ -3840,7 +4219,7 @@ fn register_startup(request: Request, database: pog.Connection) -> Response {
 
 /// ## `POST /api/company`
 ///
-/// Register a new Company
+/// Register a new Company.
 ///
 /// ## Request Body
 ///
@@ -3857,11 +4236,19 @@ fn register_startup(request: Request, database: pog.Connection) -> Response {
 /// }
 /// ```
 ///
+/// - `size`: one of `"micro"`, `"small"`, `"medium"` or `"big"`.
+///
+/// ## Response Body
+///
+/// The created Company. See [`get_company_by_id`](#get_company_by_id) for an
+/// example payload.
+///
 /// ## Status Codes
 ///
-/// - 201 If successful.
-/// - 400 If the request body is invalid JSON, or a field has an invalid value.
-/// - 409 If duplicated email or cnpj.
+/// - **201** If the Company was created.
+/// - **400** If the request body is invalid JSON, or a field has an invalid
+///   value.
+/// - **409** If the email or CNPJ is already registered.
 ///
 fn register_company(request: Request, database: pog.Connection) -> Response {
   use body <- wisp.require_json(request)
@@ -3917,6 +4304,10 @@ fn register_company(request: Request, database: pog.Connection) -> Response {
   }
 }
 
+/// Convert a Demand error into an HTTP response.
+///
+/// Database or assignment failures become `500`, missing demands, companies
+/// and entities become `404`, and duplicate assignments become `409`.
 fn handle_demand_error(error: demand.DemandError) -> Response {
   case error {
     demand.DatabaseError(error) -> handle_database_error(error)
@@ -3949,6 +4340,7 @@ fn handle_demand_error(error: demand.DemandError) -> Response {
   }
 }
 
+/// Convert a Company error into an HTTP response.
 fn handle_company_error(error: company.CompanyError) -> Response {
   case error {
     company.DatabaseError(error) -> handle_database_error(error)
