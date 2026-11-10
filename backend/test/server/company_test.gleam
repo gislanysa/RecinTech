@@ -1,3 +1,4 @@
+import gleam/list
 import gleam/option.{None, Some}
 import gleam/uri
 import server/cnpj
@@ -288,6 +289,74 @@ pub fn request_connection_missing_startup_test() -> Nil {
     company.request_connection(context.database, company.id, to: startup_id)
 
   assert returned == startup_id
+
+  Nil
+}
+
+pub fn get_company_connections_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let startup_a = dummy.new_startup(context.database)
+  let startup_b = dummy.new_startup(context.database)
+
+  // The Company requests connections with both Startups
+  let assert Ok(requested_a) =
+    company.request_connection(context.database, company.id, to: startup_a.id)
+  let assert Ok(requested_b) =
+    company.request_connection(context.database, company.id, to: startup_b.id)
+
+  let assert Ok(returned) =
+    company.get_connections(context.database, company.id, limit: 100, offset: 0)
+
+  // Connections created in the same transaction share their created_at, so
+  // their order is not guaranteed
+  assert returned == [requested_a, requested_b]
+    || returned == [requested_b, requested_a]
+
+  Nil
+}
+
+pub fn get_company_connections_pagination_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let startup_a = dummy.new_startup(context.database)
+  let startup_b = dummy.new_startup(context.database)
+  let startup_c = dummy.new_startup(context.database)
+
+  // requesting three connections
+  let assert Ok(_) =
+    company.request_connection(context.database, company.id, to: startup_a.id)
+  let assert Ok(_) =
+    company.request_connection(context.database, company.id, to: startup_b.id)
+  let assert Ok(_) =
+    company.request_connection(context.database, company.id, to: startup_c.id)
+
+  // only two connections fit in the first page
+  let assert Ok(page) =
+    company.get_connections(context.database, company.id, limit: 2, offset: 0)
+  assert list.length(page) == 2
+
+  // the last page holds the remaining connection
+  let assert Ok(page) =
+    company.get_connections(context.database, company.id, limit: 2, offset: 2)
+  assert list.length(page) == 1
+
+  // offsetting past every connection returns an empty list
+  let assert Ok([]) =
+    company.get_connections(context.database, company.id, limit: 2, offset: 10)
+
+  Nil
+}
+
+pub fn get_missing_company_connections_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company_id = uuid.v7()
+
+  let assert Ok([]) =
+    company.get_connections(context.database, company_id, limit: 100, offset: 0)
 
   Nil
 }

@@ -1082,3 +1082,66 @@ pub fn decline_connection_blocks_new_requests_test() -> Nil {
 
   Nil
 }
+
+pub fn get_startup_connections_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company_a = dummy.new_company(context.database)
+  let company_b = dummy.new_company(context.database)
+  let startup = dummy.new_startup(context.database)
+
+  // both companies request a connection with the startup
+  let assert Ok(requested_a) =
+    company.request_connection(context.database, company_a.id, to: startup.id)
+  let assert Ok(requested_b) =
+    company.request_connection(context.database, company_b.id, to: startup.id)
+
+  let assert Ok(returned) =
+    startup.get_connections(context.database, startup.id, limit: 100, offset: 0)
+
+  // connections created in the same transaction share their created_at, so
+  // their order is not guaranteed
+  assert returned == [requested_a, requested_b]
+    || returned == [requested_b, requested_a]
+
+  Nil
+}
+
+/// the listing reflects the response the startup gave to each request.
+pub fn get_startup_connections_statuses_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company_a = dummy.new_company(context.database)
+  let company_b = dummy.new_company(context.database)
+  let startup = dummy.new_startup(context.database)
+
+  // both companies request a connection with the startup
+  let assert Ok(_) =
+    company.request_connection(context.database, company_a.id, to: startup.id)
+  let assert Ok(_) =
+    company.request_connection(context.database, company_b.id, to: startup.id)
+
+  // the startup accepts one request and declines the other
+  let assert Ok(accepted) =
+    startup.accept_connection(context.database, startup.id, from: company_a.id)
+  let assert Ok(declined) =
+    startup.decline_connection(context.database, startup.id, from: company_b.id)
+
+  let assert Ok(returned) =
+    startup.get_connections(context.database, startup.id, limit: 100, offset: 0)
+
+  assert returned == [accepted, declined] || returned == [declined, accepted]
+
+  Nil
+}
+
+pub fn get_missing_startup_connections_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup_id = uuid.v7()
+
+  let assert Ok([]) =
+    startup.get_connections(context.database, startup_id, limit: 100, offset: 0)
+
+  Nil
+}

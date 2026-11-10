@@ -1369,3 +1369,55 @@ pub fn decline_connection(
     updated_at: row.updated_at,
   )
 }
+
+/// Get all [Connections](connection.html#Connection) received by a Startup,
+/// newest first.
+///
+/// `limit` is the maximum number of Connections to return and `offset` is the
+/// number of Connections to skip. Returns an empty list if the Startup has
+/// received no Connections, or if the Startup does not exist. Use
+/// [ensure_exists](#ensure_exists) first if you need to distinguish those
+/// cases.
+///
+/// ## Examples
+///
+/// ```gleam
+/// let result = startup.get_connections(
+///   context.database,
+///   startup_id,
+///   limit: 100,
+///   offset: 0,
+/// )
+///
+/// case result {
+///   Ok(connections) -> wisp.ok()
+///   Error(_) -> wisp.internal_server_error()
+/// }
+/// ```
+pub fn get_connections(
+  database: pog.Connection,
+  id: uuid.Uuid,
+  limit limit: Int,
+  offset offset: Int,
+) -> Result(List(connection.Connection), StartupError) {
+  use returned <- result.map(
+    sql.get_connections(database, id, limit, offset)
+    |> result.map_error(DatabaseError),
+  )
+
+  list.map(returned.rows, fn(row) {
+    let status = case row.connection_status {
+      sql.Accepted -> connection.Accepted
+      sql.Declined -> connection.Declined
+      sql.Pending -> connection.Pending
+    }
+
+    connection.Connection(
+      company: row.company_id,
+      created_at: row.created_at,
+      startup: row.startup_id,
+      status:,
+      updated_at: row.updated_at,
+    )
+  })
+}

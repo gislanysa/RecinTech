@@ -129,6 +129,72 @@ WHERE
   |> pog.execute(db)
 }
 
+/// A row you get from running the `get_connections` query
+/// defined in `./src/server/company/sql/get_connections.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v4.7.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type GetConnectionsRow {
+  GetConnectionsRow(
+    company_id: Uuid,
+    startup_id: Uuid,
+    connection_status: ConnectionStatusEnum,
+    created_at: Timestamp,
+    updated_at: Timestamp,
+  )
+}
+
+/// get all connections from a company
+///
+/// > 🐿️ This function was generated automatically using v4.7.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn get_connections(
+  db: pog.Connection,
+  arg_1: Uuid,
+  arg_2: Int,
+  arg_3: Int,
+) -> Result(pog.Returned(GetConnectionsRow), pog.QueryError) {
+  let decoder = {
+    use company_id <- decode.field(0, uuid_decoder())
+    use startup_id <- decode.field(1, uuid_decoder())
+    use connection_status <- decode.field(2, connection_status_enum_decoder())
+    use created_at <- decode.field(3, pog.timestamp_decoder())
+    use updated_at <- decode.field(4, pog.timestamp_decoder())
+    decode.success(GetConnectionsRow(
+      company_id:,
+      startup_id:,
+      connection_status:,
+      created_at:,
+      updated_at:,
+    ))
+  }
+
+  "-- get all connections from a company
+SELECT
+    company_id,
+    startup_id,
+    connection.connection_status,
+    created_at,
+    updated_at
+FROM
+    public.company_startup_connection AS connection
+WHERE
+    connection.company_id = $1::uuid
+ORDER BY
+    connection.created_at DESC
+LIMIT
+    $2::int OFFSET $3::int;
+"
+  |> pog.query
+  |> pog.parameter(pog.text(uuid.to_string(arg_1)))
+  |> pog.parameter(pog.int(arg_2))
+  |> pog.parameter(pog.int(arg_3))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
 /// A row you get from running the `get_credentials` query
 /// defined in `./src/server/company/sql/get_credentials.sql`.
 ///
