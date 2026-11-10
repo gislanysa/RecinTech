@@ -2,6 +2,7 @@ import gleam/option.{None, Some}
 import gleam/uri
 import server/cnpj
 import server/company
+import server/connection
 import server/dummy
 import server/email
 import server_test
@@ -218,6 +219,75 @@ pub fn update_company_email_conflict_test() -> Nil {
     )
 
   assert email == company_a.email
+
+  Nil
+}
+
+pub fn request_connection_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let startup = dummy.new_startup(context.database)
+
+  let assert Ok(returned) =
+    company.request_connection(context.database, company.id, to: startup.id)
+
+  // a new connection is always pending until the startup responds to it.
+  assert returned
+    == connection.Connection(
+      company: company.id,
+      startup: startup.id,
+      status: connection.Pending,
+      created_at: returned.created_at,
+      updated_at: returned.updated_at,
+    )
+
+  Nil
+}
+
+pub fn request_connection_conflict_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let startup = dummy.new_startup(context.database)
+
+  // Requesting once
+  let assert Ok(_) =
+    company.request_connection(context.database, company.id, to: startup.id)
+
+  // Requesting twice, this one must return an Error.
+  let assert Error(company.ConnectionConflict(returned)) =
+    company.request_connection(context.database, company.id, to: startup.id)
+
+  assert returned == startup.id
+
+  Nil
+}
+
+pub fn request_connection_missing_company_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company_id = uuid.v7()
+  let startup = dummy.new_startup(context.database)
+
+  let assert Error(company.NotFound(returned)) =
+    company.request_connection(context.database, company_id, to: startup.id)
+
+  assert returned == company_id
+
+  Nil
+}
+
+pub fn request_connection_missing_startup_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let startup_id = uuid.v7()
+
+  let assert Error(company.StartupNotFound(returned)) =
+    company.request_connection(context.database, company.id, to: startup_id)
+
+  assert returned == startup_id
 
   Nil
 }

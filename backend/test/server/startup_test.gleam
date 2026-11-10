@@ -1,6 +1,8 @@
 import gleam/option.{None, Some}
 import gleam/set
 import gleam/uri
+import server/company
+import server/connection
 import server/dummy
 import server/lgpd
 import server/startup
@@ -889,6 +891,194 @@ pub fn unassign_missing_technology_test() -> Nil {
     )
 
   assert returned == missing_id
+
+  Nil
+}
+
+pub fn accept_connection_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let startup = dummy.new_startup(context.database)
+
+  // The Company requests a connection with the Startup
+  let assert Ok(requested) =
+    company.request_connection(context.database, company.id, to: startup.id)
+
+  // The Startup accepts the request
+  let assert Ok(returned) =
+    startup.accept_connection(context.database, startup.id, from: company.id)
+
+  assert returned
+    == connection.Connection(
+      company: company.id,
+      startup: startup.id,
+      status: connection.Accepted,
+      created_at: requested.created_at,
+      updated_at: returned.updated_at,
+    )
+
+  Nil
+}
+
+pub fn decline_connection_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let startup = dummy.new_startup(context.database)
+
+  // The Company requests a connection with the Startup
+  let assert Ok(requested) =
+    company.request_connection(context.database, company.id, to: startup.id)
+
+  // The Startup declines the request
+  let assert Ok(returned) =
+    startup.decline_connection(context.database, startup.id, from: company.id)
+
+  assert returned
+    == connection.Connection(
+      company: company.id,
+      startup: startup.id,
+      status: connection.Declined,
+      created_at: requested.created_at,
+      updated_at: returned.updated_at,
+    )
+
+  Nil
+}
+
+pub fn accept_connection_twice_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let startup = dummy.new_startup(context.database)
+
+  // Requesting and accepting
+  let assert Ok(_) =
+    company.request_connection(context.database, company.id, to: startup.id)
+  let assert Ok(_) =
+    startup.accept_connection(context.database, startup.id, from: company.id)
+
+  // Only pending connections can be accepted
+  let assert Error(startup.ConnectionNotFound(returned)) =
+    startup.accept_connection(context.database, startup.id, from: company.id)
+
+  assert returned == company.id
+
+  Nil
+}
+
+pub fn decline_connection_twice_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let startup = dummy.new_startup(context.database)
+
+  // Requesting and declining
+  let assert Ok(_) =
+    company.request_connection(context.database, company.id, to: startup.id)
+  let assert Ok(_) =
+    startup.decline_connection(context.database, startup.id, from: company.id)
+
+  // Only pending connections can be declined
+  let assert Error(startup.ConnectionNotFound(returned)) =
+    startup.decline_connection(context.database, startup.id, from: company.id)
+
+  assert returned == company.id
+
+  Nil
+}
+
+/// A declined connection cannot be accepted later.
+pub fn accept_connection_after_decline_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let startup = dummy.new_startup(context.database)
+
+  // Requesting and declining
+  let assert Ok(_) =
+    company.request_connection(context.database, company.id, to: startup.id)
+  let assert Ok(_) =
+    startup.decline_connection(context.database, startup.id, from: company.id)
+
+  let assert Error(startup.ConnectionNotFound(returned)) =
+    startup.accept_connection(context.database, startup.id, from: company.id)
+
+  assert returned == company.id
+
+  Nil
+}
+
+/// An accepted connection cannot be declined later.
+pub fn decline_connection_after_accept_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let startup = dummy.new_startup(context.database)
+
+  // Requesting and accepting
+  let assert Ok(_) =
+    company.request_connection(context.database, company.id, to: startup.id)
+  let assert Ok(_) =
+    startup.accept_connection(context.database, startup.id, from: company.id)
+
+  let assert Error(startup.ConnectionNotFound(returned)) =
+    startup.decline_connection(context.database, startup.id, from: company.id)
+
+  assert returned == company.id
+
+  Nil
+}
+
+pub fn accept_missing_connection_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let startup = dummy.new_startup(context.database)
+
+  // no request was sent, so there is no connection to accept
+  let assert Error(startup.ConnectionNotFound(returned)) =
+    startup.accept_connection(context.database, startup.id, from: company.id)
+
+  assert returned == company.id
+
+  Nil
+}
+
+pub fn decline_missing_connection_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let startup = dummy.new_startup(context.database)
+
+  // No request was sent, so there is no connection to decline
+  let assert Error(startup.ConnectionNotFound(returned)) =
+    startup.decline_connection(context.database, startup.id, from: company.id)
+
+  assert returned == company.id
+
+  Nil
+}
+
+/// A declined connection is kept in the Database, so the Company cannot
+/// request it again.
+pub fn decline_connection_blocks_new_requests_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let startup = dummy.new_startup(context.database)
+
+  // Requesting and declining
+  let assert Ok(_) =
+    company.request_connection(context.database, company.id, to: startup.id)
+  let assert Ok(_) =
+    startup.decline_connection(context.database, startup.id, from: company.id)
+
+  let assert Error(company.ConnectionConflict(returned)) =
+    company.request_connection(context.database, company.id, to: startup.id)
+
+  assert returned == startup.id
 
   Nil
 }

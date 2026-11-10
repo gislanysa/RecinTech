@@ -11,6 +11,7 @@ import gleam/time/timestamp
 import gleam/uri
 import pog
 import server/cnpj
+import server/connection
 import server/email
 import server/expertise
 import server/internal
@@ -66,6 +67,9 @@ pub type StartupError {
   /// Failed to unassign an entity from a Startup because the assignment was
   /// not found
   AssignmentNotFound(id: uuid.Uuid)
+
+  /// No pending connection requests found from the given company
+  ConnectionNotFound(from: uuid.Uuid)
 }
 
 pub type Startup {
@@ -1258,5 +1262,110 @@ pub fn update(
     updated_at: row.updated_at,
     is_active: row.is_active,
     website:,
+  )
+}
+
+/// Accept a pending [Connection](connection.html#Connection) request from a
+/// [Company](company.html#Company) and return the updated connection.
+///
+/// Only pending connections can be accepted: if the request does not exist,
+/// or if it was already accepted or declined, `Error(ConnectionNotFound)` is
+/// returned.
+///
+/// ## Examples
+///
+/// ```gleam
+/// let result = startup.accept_connection(
+///   context.database,
+///   startup.id,
+///   from: company.id,
+/// )
+///
+/// case result {
+///   Ok(connection) -> wisp.ok()
+///   Error(startup.ConnectionNotFound(..)) -> wisp.not_found()
+///   Error(_) -> wisp.internal_server_error()
+/// }
+/// ```
+pub fn accept_connection(
+  database: pog.Connection,
+  id: uuid.Uuid,
+  from company: uuid.Uuid,
+) -> Result(connection.Connection, StartupError) {
+  use returned <- result.try(
+    sql.accept_connection(database, company, id)
+    |> result.map_error(DatabaseError),
+  )
+
+  use row <- result.map(
+    list.first(returned.rows)
+    |> result.replace_error(ConnectionNotFound(company)),
+  )
+
+  let status = case row.connection_status {
+    sql.Accepted -> connection.Accepted
+    sql.Declined -> connection.Declined
+    sql.Pending -> connection.Pending
+  }
+
+  connection.Connection(
+    company: row.company_id,
+    created_at: row.created_at,
+    startup: row.startup_id,
+    status:,
+    updated_at: row.updated_at,
+  )
+}
+
+/// Decline a pending [Connection](connection.html#Connection) request from a
+/// [Company](company.html#Company) and return the updated connection.
+///
+/// Only pending connections can be declined: if the request does not exist,
+/// or if it was already accepted or declined, `Error(ConnectionNotFound)` is
+/// returned. A declined connection is kept in the Database, so the Company
+/// cannot request it again.
+///
+/// ## Examples
+///
+/// ```gleam
+/// let result = startup.decline_connection(
+///   context.database,
+///   startup.id,
+///   from: company.id,
+/// )
+///
+/// case result {
+///   Ok(connection) -> wisp.ok()
+///   Error(startup.ConnectionNotFound(..)) -> wisp.not_found()
+///   Error(_) -> wisp.internal_server_error()
+/// }
+/// ```
+pub fn decline_connection(
+  database: pog.Connection,
+  id: uuid.Uuid,
+  from company: uuid.Uuid,
+) -> Result(connection.Connection, StartupError) {
+  use returned <- result.try(
+    sql.decline_connection(database, company, id)
+    |> result.map_error(DatabaseError),
+  )
+
+  use row <- result.map(
+    list.first(returned.rows)
+    |> result.replace_error(ConnectionNotFound(company)),
+  )
+
+  let status = case row.connection_status {
+    sql.Accepted -> connection.Accepted
+    sql.Declined -> connection.Declined
+    sql.Pending -> connection.Pending
+  }
+
+  connection.Connection(
+    company: row.company_id,
+    created_at: row.created_at,
+    startup: row.startup_id,
+    status:,
+    updated_at: row.updated_at,
   )
 }

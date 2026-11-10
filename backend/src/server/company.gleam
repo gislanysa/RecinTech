@@ -713,9 +713,37 @@ pub fn revoke_lgpd_consent(
   |> result.map_error(LgpdError)
 }
 
+/// Request a [Connection](connection.html#Connection) with a
+/// [Startup](startup.html#Startup) and return it if successful.
+///
+/// The connection starts as [Pending](connection.html#Pending) and stays that
+/// way until the Startup [accepts](startup.html#accept_connection) or
+/// [declines](startup.html#decline_connection) it.
+///
+/// A connection is unique: a Company cannot request one with the same Startup
+/// more than once, even if the request was previously declined.
+///
+/// ## Examples
+///
+/// ```gleam
+/// let result = company.request_connection(
+///   context.database,
+///   company.id,
+///   to: startup.id,
+/// )
+///
+/// case result {
+///   Error(company.ConnectionConflict(..)) -> wisp.response(409)
+///   Error(company.NotFound(..))
+///   | Error(company.StartupNotFound(..)) -> wisp.not_found()
+///
+///   Error(_) -> wisp.internal_server_error()
+///   Ok(connection) -> wisp.response(201)
+/// }
+/// ```
 pub fn request_connection(
   database: pog.Connection,
-  from company: uuid.Uuid,
+  company: uuid.Uuid,
   to startup: uuid.Uuid,
 ) -> Result(connection.Connection, CompanyError) {
   use returned <- result.try(
@@ -728,7 +756,7 @@ pub fn request_connection(
       Error(pog.ConstraintViolated(
         constraint: "company_startup_connection_startup_id_fkey",
         ..,
-      )) -> Error(StartupNotFound(company))
+      )) -> Error(StartupNotFound(startup))
 
       Error(pog.ConstraintViolated(
         constraint: "company_startup_connection_pkey",

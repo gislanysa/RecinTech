@@ -3737,6 +3737,10 @@ fn handle_startup_error(error: startup.StartupError) -> Response {
     startup.InvalidWebsite(value:) ->
       { "Invalid website: " <> value }
       |> wisp.bad_request
+
+    startup.ConnectionNotFound(from) ->
+      { "Connection request from " <> uuid.to_string(from) <> " not found" }
+      |> wisp.string_body(wisp.not_found(), _)
   }
 }
 
@@ -4175,5 +4179,13 @@ fn handle_company_error(error: company.CompanyError) -> Response {
     company.StartupNotFound(id) ->
       { "Startup not found: " <> uuid.to_string(id) }
       |> wisp.string_body(wisp.not_found(), _)
+
+    company.ConnectionConflict(id) ->
+      { "Connection already requested with Startup: " <> uuid.to_string(id) }
+      |> wisp.string_body(wisp.response(409), _)
+
+    company.FailedToCreateConnection(_) ->
+      "Failed to request connection"
+      |> wisp.string_body(wisp.internal_server_error(), _)
   }
 }
