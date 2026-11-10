@@ -123,8 +123,8 @@ erDiagram
     timestamp occurred_at
   }
 
-  COMPANY_STARTUP_CONNECTION }o..|| company : requested by
-  COMPANY_STARTUP_CONNECTION }o..|| STARTUP : connects with
+  COMPANY_STARTUP_CONNECTION }o..|| company : requested_by
+  COMPANY_STARTUP_CONNECTION }o..|| STARTUP : connects_with
   COMPANY_STARTUP_CONNECTION {
     uuid company_id PK, FK
     uuid startup_id PK, FK
