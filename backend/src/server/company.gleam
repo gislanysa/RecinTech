@@ -14,6 +14,7 @@ import pog
 import server/cnpj
 import server/company/demand
 import server/company/sql
+import server/connection
 import server/email
 import server/internal
 import server/lgpd
@@ -48,8 +49,13 @@ pub type CompanyError {
   EmailConflict(email.Email)
   /// Failed to register a new Company
   FailedToRegisterCompany
+
   /// Startup not registered
   StartupNotFound(uuid.Uuid)
+  /// Already tried to connect to the given Startup
+  ConnectionConflict(uuid.Uuid)
+  /// Failed to connect to a Startup
+  FailedToCreateConnection(uuid.Uuid)
 }
 
 /// Represents a Company supporting a [Startup](startup.html#Startup).
@@ -705,4 +711,51 @@ pub fn revoke_lgpd_consent(
 ) -> Result(lgpd.Consent, CompanyError) {
   lgpd.revoke_consent(database, lgpd.Company(id), version)
   |> result.map_error(LgpdError)
+}
+
+pub fn request_connection(
+  database: pog.Connection,
+  from company: uuid.Uuid,
+  to startup: uuid.Uuid,
+) -> Result(connection.Connection, CompanyError) {
+  use returned <- result.try(
+    case sql.request_connection(database, company, startup) {
+      Error(pog.ConstraintViolated(
+        constraint: "company_startup_connection_company_id_fkey",
+        ..,
+      )) -> Error(NotFound(company))
+
+      Error(pog.ConstraintViolated(
+        constraint: "company_startup_connection_startup_id_fkey",
+        ..,
+      )) -> Error(StartupNotFound(company))
+
+      Error(pog.ConstraintViolated(
+        constraint: "company_startup_connection_pkey",
+        ..,
+      )) -> Error(ConnectionConflict(startup))
+
+      Ok(data) -> Ok(data)
+      Error(error) -> Error(DatabaseError(error))
+    },
+  )
+
+  use row <- result.map(
+    list.first(returned.rows)
+    |> result.replace_error(FailedToCreateConnection(startup)),
+  )
+
+  let status = case row.connection_status {
+    sql.Accepted -> connection.Accepted
+    sql.Declined -> connection.Declined
+    sql.Pending -> connection.Pending
+  }
+
+  connection.Connection(
+    company: row.company_id,
+    created_at: row.created_at,
+    startup: row.startup_id,
+    status:,
+    updated_at: row.updated_at,
+  )
 }
