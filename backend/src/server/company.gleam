@@ -14,10 +14,10 @@ import pog
 import server/cnpj
 import server/company/demand
 import server/company/sql
+import server/connection
 import server/email
 import server/internal
 import server/lgpd
-import server/startup
 import youid/uuid
 
 pub type CompanyError {
@@ -49,14 +49,13 @@ pub type CompanyError {
   EmailConflict(email.Email)
   /// Failed to register a new Company
   FailedToRegisterCompany
+
   /// Startup not registered
   StartupNotFound(uuid.Uuid)
-  /// Startup is already bookmarked
-  BookmarkConflict(uuid.Uuid)
-  /// Failed to bookmark a Startup
-  FailedToBookmarkStartup(uuid.Uuid)
-  /// Bookmark was not found
-  BookmarkNotFound
+  /// Already tried to connect to the given Startup
+  ConnectionConflict(uuid.Uuid)
+  /// Failed to connect to a Startup
+  FailedToCreateConnection(uuid.Uuid)
 }
 
 /// Represents a Company supporting a [Startup](startup.html#Startup).
@@ -666,237 +665,6 @@ pub fn update(
   )
 }
 
-/// Add a Startup to a Company's bookmarks and return the bookmarked Startup.
-///
-/// A Startup cannot be bookmarked by the same Company more than once.
-///
-/// ## Examples
-///
-/// ```gleam
-/// let result = company.bookmark_startup(
-///   context.database,
-///   id,
-///   bookmark: startup
-/// )
-///
-/// case result {
-///   Error(company.BookmarkConflict(..)) -> wisp.response(409)
-///   Error(company.NotFound(..))
-///   | Error(company.StartupNotFound(..)) -> wisp.not_found()
-///
-///   Error(_) -> wisp.internal_server_error()
-///   Ok(startup) -> wisp.response(201)
-/// }
-/// ```
-pub fn bookmark_startup(
-  database: pog.Connection,
-  id: uuid.Uuid,
-  bookmark startup: uuid.Uuid,
-) -> Result(startup.Startup, CompanyError) {
-  use returned <- result.try(case sql.bookmark_startup(database, id, startup) {
-    // Company is not found
-    Error(pog.ConstraintViolated(
-      constraint: "company_startup_bookmark_company_id_fkey",
-      ..,
-    )) -> Error(NotFound(id))
-
-    // Startup is not found
-    Error(pog.ConstraintViolated(
-      constraint: "company_startup_bookmark_startup_id_fkey",
-      ..,
-    )) -> Error(StartupNotFound(startup))
-
-    // Startup is already bookmarked
-    Error(pog.ConstraintViolated(
-      constraint: "company_startup_bookmark_pkey",
-      ..,
-    )) -> Error(BookmarkConflict(startup))
-
-    Error(error) -> Error(DatabaseError(error))
-    Ok(data) -> Ok(data)
-  })
-
-  use row <- result.try(
-    list.first(returned.rows)
-    |> result.replace_error(FailedToBookmarkStartup(startup)),
-  )
-
-  use cnpj <- result.try(
-    cnpj.parse(row.cnpj)
-    |> result.replace_error(InvalidCnpj(value: row.cnpj)),
-  )
-
-  use email <- result.try(
-    email.parse(row.email)
-    |> result.replace_error(InvalidEmail(value: row.email)),
-  )
-
-  use website <- result.map(
-    uri.parse(row.website)
-    |> result.replace_error(InvalidWebsite(value: row.website)),
-  )
-
-  let stage = case row.stage {
-    sql.Scaling -> startup.Scaling
-    sql.Traction -> startup.Traction
-  }
-
-  startup.Startup(
-    id: row.id,
-    name: row.name,
-    email:,
-    stage:,
-    cnpj:,
-    description: row.description,
-    city: row.city,
-    state: row.state,
-    created_at: row.created_at,
-    updated_at: row.updated_at,
-    is_active: row.is_active,
-    website:,
-  )
-}
-
-/// Remove a Startup from a Company's bookmarks and return the removed Startup.
-///
-/// Returns `BookmarkNotFound` if the Startup is not bookmarked by the Company.
-///
-/// ## Examples
-///
-/// ```gleam
-/// let result = company.unbookmark_startup(
-///   context.database,
-///   id,
-///   remove: startup
-/// )
-///
-/// case result {
-///   Error(company.BookmarkNotFound) -> wisp.not_found()
-///   Error(_) -> wisp.internal_server_error()
-///   Ok(removed) -> wisp.ok()
-/// }
-/// ```
-pub fn unbookmark_startup(
-  database: pog.Connection,
-  id: uuid.Uuid,
-  remove startup: uuid.Uuid,
-) -> Result(startup.Startup, CompanyError) {
-  use returned <- result.try(
-    sql.unbookmark_startup(database, id, startup)
-    |> result.map_error(DatabaseError),
-  )
-
-  use row <- result.try(
-    list.first(returned.rows)
-    |> result.replace_error(BookmarkNotFound),
-  )
-
-  use cnpj <- result.try(
-    cnpj.parse(row.cnpj)
-    |> result.replace_error(InvalidCnpj(value: row.cnpj)),
-  )
-
-  use email <- result.try(
-    email.parse(row.email)
-    |> result.replace_error(InvalidEmail(value: row.email)),
-  )
-
-  use website <- result.map(
-    uri.parse(row.website)
-    |> result.replace_error(InvalidWebsite(value: row.website)),
-  )
-
-  let stage = case row.stage {
-    sql.Scaling -> startup.Scaling
-    sql.Traction -> startup.Traction
-  }
-
-  startup.Startup(
-    id: row.id,
-    name: row.name,
-    email:,
-    stage:,
-    cnpj:,
-    description: row.description,
-    city: row.city,
-    state: row.state,
-    created_at: row.created_at,
-    updated_at: row.updated_at,
-    is_active: row.is_active,
-    website:,
-  )
-}
-
-/// Get all Startups bookmarked by a given Company.
-///
-/// `limit` is the maximum number of Startups to return and `offset` is the
-/// number of Startups to skip. Returns an empty list if the Company has no
-/// bookmarks, or if the Company does not exist.
-///
-/// ## Examples
-///
-/// ```gleam
-/// let result = company.get_bookmarked_startups(
-///   context.database,
-///   id,
-///   limit: 100,
-///   offset: 0,
-/// )
-///
-/// case result {
-///   Ok(bookmarked) -> wisp.ok()
-///   Error(_) -> wisp.internal_server_error()
-/// }
-/// ```
-pub fn get_bookmarked_startups(
-  database: pog.Connection,
-  id: uuid.Uuid,
-  limit limit: Int,
-  offset offset: Int,
-) -> Result(List(startup.Startup), CompanyError) {
-  use returned <- result.try(
-    sql.get_bookmarked_startups(database, id, limit, offset)
-    |> result.map_error(DatabaseError),
-  )
-
-  list.try_map(returned.rows, fn(row) {
-    use cnpj <- result.try(
-      cnpj.parse(row.cnpj)
-      |> result.replace_error(InvalidCnpj(value: row.cnpj)),
-    )
-
-    use email <- result.try(
-      email.parse(row.email)
-      |> result.replace_error(InvalidEmail(value: row.email)),
-    )
-
-    use website <- result.map(
-      uri.parse(row.website)
-      |> result.replace_error(InvalidWebsite(value: row.website)),
-    )
-
-    let stage = case row.stage {
-      sql.Scaling -> startup.Scaling
-      sql.Traction -> startup.Traction
-    }
-
-    startup.Startup(
-      id: row.id,
-      name: row.name,
-      email:,
-      stage:,
-      cnpj:,
-      description: row.description,
-      city: row.city,
-      state: row.state,
-      created_at: row.created_at,
-      updated_at: row.updated_at,
-      is_active: row.is_active,
-      website:,
-    )
-  })
-}
-
 /// Grant LGPD (Lei Geral de Proteção de Dados) consent for a Company at a
 /// given policy version. Once granted, the Company allows its data to be used
 /// as described by that version of the privacy policy.
@@ -943,4 +711,129 @@ pub fn revoke_lgpd_consent(
 ) -> Result(lgpd.Consent, CompanyError) {
   lgpd.revoke_consent(database, lgpd.Company(id), version)
   |> result.map_error(LgpdError)
+}
+
+/// Request a [Connection](connection.html#Connection) with a
+/// [Startup](startup.html#Startup) and return it if successful.
+///
+/// The connection starts as [Pending](connection.html#Pending) and stays that
+/// way until the Startup [accepts](startup.html#accept_connection) or
+/// [declines](startup.html#decline_connection) it.
+///
+/// A connection is unique: a Company cannot request one with the same Startup
+/// more than once, even if the request was previously declined.
+///
+/// ## Examples
+///
+/// ```gleam
+/// let result = company.request_connection(
+///   context.database,
+///   company.id,
+///   to: startup.id,
+/// )
+///
+/// case result {
+///   Error(company.ConnectionConflict(..)) -> wisp.response(409)
+///   Error(company.NotFound(..))
+///   | Error(company.StartupNotFound(..)) -> wisp.not_found()
+///
+///   Error(_) -> wisp.internal_server_error()
+///   Ok(connection) -> wisp.response(201)
+/// }
+/// ```
+pub fn request_connection(
+  database: pog.Connection,
+  company: uuid.Uuid,
+  to startup: uuid.Uuid,
+) -> Result(connection.Connection, CompanyError) {
+  use returned <- result.try(
+    case sql.request_connection(database, company, startup) {
+      Error(pog.ConstraintViolated(
+        constraint: "company_startup_connection_company_id_fkey",
+        ..,
+      )) -> Error(NotFound(company))
+
+      Error(pog.ConstraintViolated(
+        constraint: "company_startup_connection_startup_id_fkey",
+        ..,
+      )) -> Error(StartupNotFound(startup))
+
+      Error(pog.ConstraintViolated(
+        constraint: "company_startup_connection_pkey",
+        ..,
+      )) -> Error(ConnectionConflict(startup))
+
+      Ok(data) -> Ok(data)
+      Error(error) -> Error(DatabaseError(error))
+    },
+  )
+
+  use row <- result.map(
+    list.first(returned.rows)
+    |> result.replace_error(FailedToCreateConnection(startup)),
+  )
+
+  let status = case row.connection_status {
+    sql.Accepted -> connection.Accepted
+    sql.Declined -> connection.Declined
+    sql.Pending -> connection.Pending
+  }
+
+  connection.Connection(
+    company: row.company_id,
+    created_at: row.created_at,
+    startup: row.startup_id,
+    status:,
+    updated_at: row.updated_at,
+  )
+}
+
+/// Get all [Connections](connection.html#Connection) requested by a Company,
+/// newest first.
+///
+/// `limit` is the maximum number of Connections to return and `offset` is the
+/// number of Connections to skip. Returns an empty list if the Company has
+/// requested no Connections, or if the Company does not exist.
+///
+/// ## Examples
+///
+/// ```gleam
+/// let result = company.get_connections(
+///   context.database,
+///   company_id,
+///   limit: 100,
+///   offset: 0,
+/// )
+///
+/// case result {
+///   Ok(connections) -> wisp.ok()
+///   Error(_) -> wisp.internal_server_error()
+/// }
+/// ```
+pub fn get_connections(
+  database: pog.Connection,
+  id: uuid.Uuid,
+  limit limit: Int,
+  offset offset: Int,
+) -> Result(List(connection.Connection), CompanyError) {
+  use returned <- result.map(
+    sql.get_connections(database, id, limit, offset)
+    |> result.map_error(DatabaseError),
+  )
+
+  list.map(returned.rows, fn(row) {
+    let status = case row.connection_status {
+      sql.Accepted -> connection.Accepted
+      sql.Declined -> connection.Declined
+      sql.Pending -> connection.Pending
+    }
+
+    connection.Connection(
+      company: row.company_id,
+      created_at: row.created_at,
+      startup: row.startup_id,
+      status:,
+      updated_at: row.updated_at,
+    )
+  })
 }

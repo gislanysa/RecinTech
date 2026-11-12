@@ -58,6 +58,7 @@ import pog
 import server/cnpj
 import server/company
 import server/company/demand
+import server/connection
 import server/email
 import server/expertise
 import server/internal
@@ -273,16 +274,6 @@ pub fn handle_request(request: Request, context: Context) -> Response {
     http.Delete, ["api", "company", id, "lgpd", version] ->
       revoke_company_lgpd_consent(request, context.database, id, version)
 
-    // == bookmarks ============================================================
-    http.Get, ["api", "company", id, "bookmark"] ->
-      get_company_bookmarks(request, context.database, id)
-
-    http.Post, ["api", "company", id, "bookmark"] ->
-      company_bookmark_startup(request, context.database, id)
-
-    http.Delete, ["api", "company", id, "bookmark", startup] ->
-      company_unbookmark_startup(context.database, id, startup)
-
     // +-----------------------------------------------------------------------+
     // | DEMAND                                                                |
     // +-----------------------------------------------------------------------+
@@ -337,6 +328,28 @@ pub fn handle_request(request: Request, context: Context) -> Response {
 
     http.Delete, ["api", "company", "demand", id, "expertise", expertise_id] ->
       unassign_expertise_from_demand(context.database, id, expertise_id)
+
+    // +-----------------------------------------------------------------------+
+    // | CONNECTION                                                            |
+    // +-----------------------------------------------------------------------+
+    //
+    http.Post, ["api", "company", id, "connection"] ->
+      request_connection(request, context.database, id)
+
+    http.Get, ["api", "company", id, "connection"] ->
+      get_company_connections(request, context.database, id)
+
+    http.Get, ["api", "startup", id, "connection"] ->
+      get_startup_connections(request, context.database, id)
+
+    http.Patch, ["api", "startup", id, "connection", company_id] ->
+      update_connection(request, context.database, id, company_id)
+
+    http.Delete, ["api", "company", id, "connection", startup_id] ->
+      delete_company_connection(request, context.database, id, startup_id)
+
+    http.Delete, ["api", "startup", id, "connection", company_id] ->
+      delete_startup_connection(request, context.database, id, company_id)
 
     // +-----------------------------------------------------------------------+
     // | NOT FOUND                                                             |
@@ -421,204 +434,6 @@ pub fn require_company_session(
     Startup(_) ->
       "Company session is required"
       |> wisp.string_body(wisp.response(403), _)
-  }
-}
-
-/// ## `GET /api/company/:id/bookmark`
-///
-/// Fetch all Startups bookmarked by a Company, ordered by bookmark date.
-/// Pagination is available.
-///
-/// ## Path Parameters
-///
-/// - `id` (UUID, required): the Company's ID.
-///
-/// ## Query Parameters
-///
-/// - `limit` (Int, required): the maximum number of Startups to return.
-/// - `offset` (Int, required): the number of Startups to skip.
-///
-/// ## Response Body
-///
-/// ```json
-/// [
-///   {
-///    "id": "01a058ae-057f-73e8-b2a0-50986559767b",
-///    "name": "Critic Level",
-///    "email": "critic@email.dev",
-///    "stage": "traction",
-///    "cnpj": "12345678901234",
-///    "description": "startup muito maneira",
-///    "city": "Recife",
-///    "state": "Pernambuco",
-///    "created_at": "2026-09-14T20:08:02.000Z",
-///    "updated_at": "2026-09-14T20:08:02.000Z",
-///    "is_active": true,
-///    "website": "criticlevel.dev"
-///   }
-/// ]
-/// ```
-///
-/// ## Status Codes
-///
-/// - **200** If successful.
-/// - **400** If the Company ID is not a valid UUID, or the query is missing,
-///   invalid or incomplete.
-///
-fn get_company_bookmarks(
-  request: Request,
-  database: pog.Connection,
-  id: String,
-) -> Response {
-  use id <- require_valid_uuid(id)
-
-  let result = {
-    use query <- result.try(
-      request.get_query(request)
-      |> result.replace_error(MissingQuery),
-    )
-
-    use limit <- result.try(
-      list.key_find(query, "limit")
-      |> result.try(int.parse)
-      |> result.replace_error(InvalidQueryParameter("limit")),
-    )
-
-    use offset <- result.try(
-      list.key_find(query, "offset")
-      |> result.try(int.parse)
-      |> result.replace_error(InvalidQueryParameter("offset")),
-    )
-
-    company.get_bookmarked_startups(database, id, limit:, offset:)
-    |> result.map_error(CompanyError)
-  }
-
-  case result {
-    Ok(startups) ->
-      json.array(startups, startup.to_json)
-      |> json.to_string
-      |> wisp.json_response(200)
-
-    Error(error) -> handle_error(error)
-  }
-}
-
-/// ## `POST /api/company/:id/bookmark`
-///
-/// Add a Startup to a Company's bookmarks.
-///
-/// ## Path Parameters
-///
-/// - `id` (UUID, required): the Company's ID.
-///
-/// ## Request Body
-///
-/// ```json
-/// {
-///   "startup": "01a058ae-057f-73e8-b2a0-50986559767b"
-/// }
-/// ```
-///
-/// ## Response Body
-///
-/// ```json
-/// {
-///  "id": "01a058ae-057f-73e8-b2a0-50986559767b",
-///  "name": "Critic Level",
-///  "email": "critic@email.dev",
-///  "stage": "traction",
-///  "cnpj": "12345678901234",
-///  "description": "startup muito maneira",
-///  "city": "Recife",
-///  "state": "Pernambuco",
-///  "created_at": "2026-09-14T20:08:02.000Z",
-///  "is_active": true,
-///  "website": "criticlevel.dev"
-/// }
-/// ```
-///
-/// ## Status Codes
-///
-/// - **201** If the Startup was bookmarked.
-/// - **400** If the request body is invalid JSON, or the Company ID or Startup
-///   ID is not a valid UUID.
-/// - **404** If the Company or Startup is not found.
-/// - **409** If the Startup is already bookmarked.
-///
-fn company_bookmark_startup(
-  request: Request,
-  database: pog.Connection,
-  id: String,
-) -> Response {
-  use body <- wisp.require_json(request)
-  use id <- require_valid_uuid(id)
-
-  let decoder = {
-    use id <- decode.field("startup", internal.uuid_decoder())
-    decode.success(id)
-  }
-
-  case decode.run(body, decoder) {
-    Error(_) -> wisp.bad_request("Invalid JSON")
-    Ok(startup) ->
-      case company.bookmark_startup(database, id, bookmark: startup) {
-        Error(error) -> handle_company_error(error)
-        Ok(startup) ->
-          startup.to_json(startup)
-          |> json.to_string()
-          |> wisp.json_response(201)
-      }
-  }
-}
-
-/// ## `DELETE /api/company/:id/bookmark/:startup_id`
-///
-/// Remove a Startup from a Company's bookmarks.
-///
-/// ## Path Parameters
-///
-/// - `id` (UUID, required): the Company's ID.
-/// - `startup_id` (UUID, required): the bookmarked Startup's ID.
-///
-/// ## Response Body
-///
-/// ```json
-/// {
-///  "id": "01a058ae-057f-73e8-b2a0-50986559767b",
-///  "name": "Critic Level",
-///  "email": "critic@email.dev",
-///  "stage": "traction",
-///  "cnpj": "12345678901234",
-///  "description": "startup muito maneira",
-///  "city": "Recife",
-///  "state": "Pernambuco",
-///  "created_at": "2026-09-14T20:08:02.000Z",
-///  "is_active": true,
-///  "website": "criticlevel.dev"
-/// }
-/// ```
-///
-/// ## Status Codes
-///
-/// - **200** If the Startup was removed from the bookmarks.
-/// - **400** If the Company ID or Startup ID is not a valid UUID.
-/// - **404** If the Company, Startup or bookmark is not found.
-///
-fn company_unbookmark_startup(
-  database: pog.Connection,
-  id: String,
-  startup: String,
-) -> Response {
-  use id <- require_valid_uuid(id)
-  use startup <- require_valid_uuid(startup)
-
-  case company.unbookmark_startup(database, id, remove: startup) {
-    Error(error) -> handle_company_error(error)
-    Ok(startup) ->
-      startup.to_json(startup)
-      |> json.to_string()
-      |> wisp.json_response(200)
   }
 }
 
@@ -3378,6 +3193,440 @@ fn get_many_startups(request: Request, database: pog.Connection) -> Response {
   }
 }
 
+/// ## `POST /api/company/:id/connection`
+///
+/// Request a [Connection](../server/connection.html#Connection) with a Startup.
+/// The connection starts as `pending` until the Startup accepts or declines it.
+///
+/// A Company session is required, and it must belong to the Company identified
+/// by `id`.
+///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Company's ID.
+///
+/// ## Request Body
+///
+/// ```json
+/// {
+///   "startup": "01a173cb-9533-7ebd-87a0-590965ef3653"
+/// }
+/// ```
+///
+/// ## Response Body
+///
+/// ```json
+/// {
+///   "company": "01a173cb-9533-7eb5-9522-9686fef4f2a4",
+///   "startup": "01a173cb-9533-7ebd-87a0-590965ef3653",
+///   "status": "pending",
+///   "created_at": "2026-09-14T20:08:02.000Z",
+///   "updated_at": "2026-09-14T20:08:02.000Z"
+/// }
+/// ```
+///
+/// ## Status Codes
+///
+/// - **201** If the connection was requested.
+/// - **400** If the Company or Startup ID is not a valid UUID, or the request
+///   body is invalid JSON.
+/// - **401** If not authenticated.
+/// - **403** If the session is not a Company session, or it belongs to a
+///   different Company.
+/// - **404** If the Company or Startup is not found.
+/// - **409** If a connection with the Startup was already requested.
+///
+fn request_connection(
+  request: Request,
+  database: pog.Connection,
+  id: String,
+) -> Response {
+  use body <- wisp.require_json(request)
+  use id <- require_valid_uuid(id)
+  use session <- require_company_session(request)
+
+  let decoder = {
+    use startup <- decode.field("startup", internal.uuid_decoder())
+    decode.success(payload.RequestConnection(startup:))
+  }
+
+  case decode.run(body, decoder) {
+    Ok(payload) if session.id == id ->
+      case company.request_connection(database, id, to: payload.startup) {
+        Ok(connection) ->
+          connection.to_json(connection)
+          |> json.to_string
+          |> wisp.json_response(201)
+
+        Error(error) -> handle_company_error(error)
+      }
+
+    Ok(_) -> wisp.response(403)
+    Error(_) -> wisp.bad_request("Invalid JSON")
+  }
+}
+
+/// ## `GET /api/company/:id/connection`
+///
+/// Fetch all Connections requested by a Company, newest first.
+///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Company's ID.
+///
+/// ## Query Parameters
+///
+/// - `limit` (Int, required): the maximum number of Connections to return.
+/// - `offset` (Int, required): the number of Connections to skip.
+///
+/// ## Response Body
+///
+/// ```json
+/// [
+///   {
+///     "company": "01a173cb-9533-7eb5-9522-9686fef4f2a4",
+///     "startup": "01a173cb-9533-7ebd-87a0-590965ef3653",
+///     "status": "accepted",
+///     "created_at": "2026-09-14T20:08:02.000Z",
+///     "updated_at": "2026-09-15T20:08:02.000Z"
+///   }
+/// ]
+/// ```
+///
+/// ## Status Codes
+///
+/// - **200** If successful.
+/// - **400** If the ID is not a valid UUID, or the query is missing, invalid
+///   or incomplete.
+///
+fn get_company_connections(
+  request: Request,
+  database: pog.Connection,
+  id: String,
+) -> Response {
+  use id <- require_valid_uuid(id)
+
+  let result = {
+    use query <- result.try(
+      request.get_query(request)
+      |> result.replace_error(MissingQuery),
+    )
+
+    use limit <- result.try(
+      list.key_find(query, "limit")
+      |> result.try(int.parse)
+      |> result.replace_error(InvalidQueryParameter("limit")),
+    )
+
+    use offset <- result.try(
+      list.key_find(query, "offset")
+      |> result.try(int.parse)
+      |> result.replace_error(InvalidQueryParameter("offset")),
+    )
+
+    company.get_connections(database, id, limit:, offset:)
+    |> result.map_error(CompanyError)
+  }
+
+  case result {
+    Ok(connections) ->
+      json.array(connections, connection.to_json)
+      |> json.to_string
+      |> wisp.json_response(200)
+
+    Error(error) -> handle_error(error)
+  }
+}
+
+/// ## `GET /api/startup/:id/connection`
+///
+/// Fetch all Connections received by a Startup, newest first.
+///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Startup's ID.
+///
+/// ## Query Parameters
+///
+/// - `limit` (Int, required): the maximum number of Connections to return.
+/// - `offset` (Int, required): the number of Connections to skip.
+///
+/// ## Response Body
+///
+/// ```json
+/// [
+///   {
+///     "company": "01a173cb-9533-7eb5-9522-9686fef4f2a4",
+///     "startup": "01a173cb-9533-7ebd-87a0-590965ef3653",
+///     "status": "pending",
+///     "created_at": "2026-09-14T20:08:02.000Z",
+///     "updated_at": "2026-09-14T20:08:02.000Z"
+///   }
+/// ]
+/// ```
+///
+/// ## Status Codes
+///
+/// - **200** If successful.
+/// - **400** If the ID is not a valid UUID, or the query is missing, invalid
+///   or incomplete.
+///
+fn get_startup_connections(
+  request: Request,
+  database: pog.Connection,
+  id: String,
+) -> Response {
+  use id <- require_valid_uuid(id)
+
+  let result = {
+    use query <- result.try(
+      request.get_query(request)
+      |> result.replace_error(MissingQuery),
+    )
+
+    use limit <- result.try(
+      list.key_find(query, "limit")
+      |> result.try(int.parse)
+      |> result.replace_error(InvalidQueryParameter("limit")),
+    )
+
+    use offset <- result.try(
+      list.key_find(query, "offset")
+      |> result.try(int.parse)
+      |> result.replace_error(InvalidQueryParameter("offset")),
+    )
+
+    startup.get_connections(database, id, limit:, offset:)
+    |> result.map_error(StartupError)
+  }
+
+  case result {
+    Ok(connections) ->
+      json.array(connections, connection.to_json)
+      |> json.to_string
+      |> wisp.json_response(200)
+
+    Error(error) -> handle_error(error)
+  }
+}
+
+/// ## `PATCH /api/startup/:id/connection/:company_id`
+///
+/// Accept or decline a pending Connection request received by a Startup.
+///
+/// A Startup session is required, and it must belong to the Startup identified
+/// by `id`.
+///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Startup's ID.
+/// - `company_id` (UUID, required): the ID of the Company that requested the
+///   connection.
+///
+/// ## Request Body
+///
+/// ```json
+/// {
+///   "status": "accepted"
+/// }
+/// ```
+///
+/// - `status`: either `"accepted"` or `"declined"`.
+///
+/// ## Response Body
+///
+/// ```json
+/// {
+///   "company": "01a173cb-9533-7eb5-9522-9686fef4f2a4",
+///   "startup": "01a173cb-9533-7ebd-87a0-590965ef3653",
+///   "status": "accepted",
+///   "created_at": "2026-09-14T20:08:02.000Z",
+///   "updated_at": "2026-09-15T20:08:02.000Z"
+/// }
+/// ```
+///
+/// ## Status Codes
+///
+/// - **200** If the Connection was updated.
+/// - **400** If an ID is not a valid UUID, the request body is invalid JSON, or
+///   `status` is not `"accepted"` or `"declined"`.
+/// - **401** If not authenticated.
+/// - **403** If the session is not a Startup session, or it belongs to a
+///   different Startup.
+/// - **404** If no pending Connection from the Company exists.
+///
+fn update_connection(
+  request: Request,
+  database: pog.Connection,
+  id: String,
+  company_id: String,
+) -> Response {
+  use body <- wisp.require_json(request)
+  use id <- require_valid_uuid(id)
+  use company <- require_valid_uuid(company_id)
+  use session <- require_startup_session(request)
+
+  let decoder = {
+    use status <- decode.field("status", connection.status_decoder())
+    decode.success(payload.UpdateConnectionStatus(status:))
+  }
+
+  case decode.run(body, decoder) {
+    Ok(payload) if session.id == id ->
+      case payload.status {
+        connection.Accepted ->
+          case startup.accept_connection(database, id, from: company) {
+            Ok(data) ->
+              connection.to_json(data)
+              |> json.to_string()
+              |> wisp.json_response(200)
+
+            Error(error) -> handle_startup_error(error)
+          }
+
+        connection.Declined ->
+          case startup.decline_connection(database, id, from: company) {
+            Ok(data) ->
+              connection.to_json(data)
+              |> json.to_string()
+              |> wisp.json_response(200)
+
+            Error(error) -> handle_startup_error(error)
+          }
+
+        connection.Pending ->
+          wisp.bad_request("Invalid connection status: pending")
+      }
+
+    Ok(_) -> wisp.response(403)
+    Error(_) -> wisp.bad_request("Invalid JSON")
+  }
+}
+
+/// ## `DELETE /api/company/:id/connection/:startup_id`
+///
+/// Delete the Connection between a Company and a Startup. The Company is
+/// identified by the path and must match the current Company session.
+///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Company's ID.
+/// - `startup_id` (UUID, required): the Startup's ID.
+///
+/// ## Response Body
+///
+/// The deleted Connection:
+///
+/// ```json
+/// {
+///   "company": "01a173cb-9533-7eb5-9522-9686fef4f2a4",
+///   "startup": "01a173cb-9533-7ebd-87a0-590965ef3653",
+///   "status": "declined",
+///   "created_at": "2026-09-14T20:08:02.000Z",
+///   "updated_at": "2026-09-15T20:08:02.000Z"
+/// }
+/// ```
+///
+/// ## Status Codes
+///
+/// - **200** If the Connection was deleted.
+/// - **400** If an ID is not a valid UUID.
+/// - **401** If not authenticated.
+/// - **403** If the session is not a Company session, or it belongs to a
+///   different Company.
+/// - **404** If the Connection is not found.
+///
+fn delete_company_connection(
+  request: Request,
+  database: pog.Connection,
+  id: String,
+  startup_id: String,
+) -> Response {
+  use id <- require_valid_uuid(id)
+  use startup <- require_valid_uuid(startup_id)
+  use session <- require_company_session(request)
+
+  case session.id == id {
+    False -> wisp.response(403)
+
+    True ->
+      case connection.delete(database, company: id, startup: startup) {
+        Ok(deleted) ->
+          connection.to_json(deleted)
+          |> json.to_string
+          |> wisp.json_response(200)
+
+        Error(error) -> handle_connection_error(error)
+      }
+  }
+}
+
+/// ## `DELETE /api/startup/:id/connection/:company_id`
+///
+/// Delete the Connection between a Startup and a Company. The Startup is
+/// identified by the path and must match the current Startup session.
+///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Startup's ID.
+/// - `company_id` (UUID, required): the Company's ID.
+///
+/// ## Response Body
+///
+/// The deleted Connection:
+///
+/// ```json
+/// {
+///   "company": "01a173cb-9533-7eb5-9522-9686fef4f2a4",
+///   "startup": "01a173cb-9533-7ebd-87a0-590965ef3653",
+///   "status": "accepted",
+///   "created_at": "2026-09-14T20:08:02.000Z",
+///   "updated_at": "2026-09-15T20:08:02.000Z"
+/// }
+/// ```
+///
+/// ## Status Codes
+///
+/// - **200** If the Connection was deleted.
+/// - **400** If an ID is not a valid UUID.
+/// - **401** If not authenticated.
+/// - **403** If the session is not a Startup session, or it belongs to a
+///   different Startup.
+/// - **404** If the Connection is not found.
+///
+fn delete_startup_connection(
+  request: Request,
+  database: pog.Connection,
+  id: String,
+  company_id: String,
+) -> Response {
+  use id <- require_valid_uuid(id)
+  use from <- require_valid_uuid(company_id)
+  use session <- require_startup_session(request)
+
+  case session.id == id {
+    False -> wisp.response(403)
+
+    True ->
+      case connection.delete(database, company: from, startup: id) {
+        Ok(deleted) ->
+          connection.to_json(deleted)
+          |> json.to_string
+          |> wisp.json_response(200)
+
+        Error(error) -> handle_connection_error(error)
+      }
+  }
+}
+
+/// Convert a Connection error into an HTTP response.
+fn handle_connection_error(error: connection.ConnectionError) -> Response {
+  case error {
+    connection.DatabaseError(error) -> handle_database_error(error)
+    connection.NotFound -> wisp.not_found()
+  }
+}
+
 /// Convert a [`WebError`](#WebError) into an HTTP response.
 fn handle_error(error: WebError) -> Response {
   case error {
@@ -3945,6 +4194,10 @@ fn handle_startup_error(error: startup.StartupError) -> Response {
     startup.InvalidWebsite(value:) ->
       { "Invalid website: " <> value }
       |> wisp.bad_request
+
+    startup.ConnectionNotFound(from) ->
+      { "Connection request from " <> uuid.to_string(from) <> " not found" }
+      |> wisp.string_body(wisp.not_found(), _)
   }
 }
 
@@ -4384,16 +4637,12 @@ fn handle_company_error(error: company.CompanyError) -> Response {
       { "Startup not found: " <> uuid.to_string(id) }
       |> wisp.string_body(wisp.not_found(), _)
 
-    company.BookmarkConflict(id) ->
-      { "Startup already bookmarked: " <> uuid.to_string(id) }
+    company.ConnectionConflict(id) ->
+      { "Connection already requested with Startup: " <> uuid.to_string(id) }
       |> wisp.string_body(wisp.response(409), _)
 
-    company.FailedToBookmarkStartup(_) ->
-      "Failed to bookmark Startup"
+    company.FailedToCreateConnection(_) ->
+      "Failed to request connection"
       |> wisp.string_body(wisp.internal_server_error(), _)
-
-    company.BookmarkNotFound ->
-      "Bookmark not found"
-      |> wisp.string_body(wisp.not_found(), _)
   }
 }

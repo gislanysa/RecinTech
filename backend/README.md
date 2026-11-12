@@ -57,6 +57,7 @@ erDiagram
     text city
     text state
     timestamp created_at
+    timestamp updated_at
     bool is_active
     text website
   }
@@ -94,10 +95,11 @@ erDiagram
     text email UK
     company_size size "micro | small | medium | big"
     text password_hash
-    text cnpj
+    text cnpj UK
     text city
     text state
     timestamp created_at
+    timestamp updated_at
     bool is_active
     text website
   }
@@ -121,12 +123,14 @@ erDiagram
     timestamp occurred_at
   }
 
-  COMPANY_STARTUP_BOOKMARK }o..|| company : has
-  COMPANY_STARTUP_BOOKMARK }o..|| STARTUP : has
-  COMPANY_STARTUP_BOOKMARK {
+  COMPANY_STARTUP_CONNECTION }o..|| company : requested_by
+  COMPANY_STARTUP_CONNECTION }o..|| STARTUP : connects_with
+  COMPANY_STARTUP_CONNECTION {
     uuid company_id PK, FK
     uuid startup_id PK, FK
+    connection_status_enum connection_status "pending | accepted | declined"
     timestamp created_at
+    timestamp updated_at
   }
 
   STARTUP_SEGMENT }o..|| STARTUP : has

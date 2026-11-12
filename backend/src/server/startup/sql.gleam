@@ -9,6 +9,71 @@ import gleam/time/timestamp.{type Timestamp}
 import pog
 import youid/uuid.{type Uuid}
 
+/// A row you get from running the `accept_connection` query
+/// defined in `./src/server/startup/sql/accept_connection.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v4.7.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type AcceptConnectionRow {
+  AcceptConnectionRow(
+    company_id: Uuid,
+    startup_id: Uuid,
+    connection_status: ConnectionStatusEnum,
+    created_at: Timestamp,
+    updated_at: Timestamp,
+  )
+}
+
+/// accept a company's request to connect
+///
+/// > 🐿️ This function was generated automatically using v4.7.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn accept_connection(
+  db: pog.Connection,
+  arg_1: Uuid,
+  arg_2: Uuid,
+) -> Result(pog.Returned(AcceptConnectionRow), pog.QueryError) {
+  let decoder = {
+    use company_id <- decode.field(0, uuid_decoder())
+    use startup_id <- decode.field(1, uuid_decoder())
+    use connection_status <- decode.field(2, connection_status_enum_decoder())
+    use created_at <- decode.field(3, pog.timestamp_decoder())
+    use updated_at <- decode.field(4, pog.timestamp_decoder())
+    decode.success(AcceptConnectionRow(
+      company_id:,
+      startup_id:,
+      connection_status:,
+      created_at:,
+      updated_at:,
+    ))
+  }
+
+  "-- accept a company's request to connect
+UPDATE
+    public.company_startup_connection AS connection
+SET
+    connection_status = 'accepted',
+    updated_at = CURRENT_TIMESTAMP
+WHERE
+    connection.company_id = $1::uuid
+    AND connection.startup_id = $2::uuid
+    AND connection.connection_status = 'pending'
+RETURNING
+    company_id,
+    startup_id,
+    connection_status,
+    created_at,
+    updated_at;
+"
+  |> pog.query
+  |> pog.parameter(pog.text(uuid.to_string(arg_1)))
+  |> pog.parameter(pog.text(uuid.to_string(arg_2)))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
 /// A row you get from running the `assign_expertise` query
 /// defined in `./src/server/startup/sql/assign_expertise.sql`.
 ///
@@ -215,6 +280,71 @@ FROM
   |> pog.execute(db)
 }
 
+/// A row you get from running the `decline_connection` query
+/// defined in `./src/server/startup/sql/decline_connection.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v4.7.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type DeclineConnectionRow {
+  DeclineConnectionRow(
+    company_id: Uuid,
+    startup_id: Uuid,
+    connection_status: ConnectionStatusEnum,
+    created_at: Timestamp,
+    updated_at: Timestamp,
+  )
+}
+
+/// decline a company's request to connect
+///
+/// > 🐿️ This function was generated automatically using v4.7.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn decline_connection(
+  db: pog.Connection,
+  arg_1: Uuid,
+  arg_2: Uuid,
+) -> Result(pog.Returned(DeclineConnectionRow), pog.QueryError) {
+  let decoder = {
+    use company_id <- decode.field(0, uuid_decoder())
+    use startup_id <- decode.field(1, uuid_decoder())
+    use connection_status <- decode.field(2, connection_status_enum_decoder())
+    use created_at <- decode.field(3, pog.timestamp_decoder())
+    use updated_at <- decode.field(4, pog.timestamp_decoder())
+    decode.success(DeclineConnectionRow(
+      company_id:,
+      startup_id:,
+      connection_status:,
+      created_at:,
+      updated_at:,
+    ))
+  }
+
+  "-- decline a company's request to connect
+UPDATE
+    public.company_startup_connection AS connection
+SET
+    connection_status = 'declined',
+    updated_at = CURRENT_TIMESTAMP
+WHERE
+    connection.company_id = $1::uuid
+    AND connection.startup_id = $2::uuid
+    AND connection.connection_status = 'pending'
+RETURNING
+    company_id,
+    startup_id,
+    connection_status,
+    created_at,
+    updated_at;
+"
+  |> pog.query
+  |> pog.parameter(pog.text(uuid.to_string(arg_1)))
+  |> pog.parameter(pog.text(uuid.to_string(arg_2)))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
 /// A row you get from running the `ensure_exists` query
 /// defined in `./src/server/startup/sql/ensure_exists.sql`.
 ///
@@ -335,6 +465,72 @@ WHERE
 "
   |> pog.query
   |> pog.parameter(pog.text(uuid.to_string(arg_1)))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
+/// A row you get from running the `get_connections` query
+/// defined in `./src/server/startup/sql/get_connections.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v4.7.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type GetConnectionsRow {
+  GetConnectionsRow(
+    company_id: Uuid,
+    startup_id: Uuid,
+    connection_status: ConnectionStatusEnum,
+    created_at: Timestamp,
+    updated_at: Timestamp,
+  )
+}
+
+/// get all connections from a startup
+///
+/// > 🐿️ This function was generated automatically using v4.7.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn get_connections(
+  db: pog.Connection,
+  arg_1: Uuid,
+  arg_2: Int,
+  arg_3: Int,
+) -> Result(pog.Returned(GetConnectionsRow), pog.QueryError) {
+  let decoder = {
+    use company_id <- decode.field(0, uuid_decoder())
+    use startup_id <- decode.field(1, uuid_decoder())
+    use connection_status <- decode.field(2, connection_status_enum_decoder())
+    use created_at <- decode.field(3, pog.timestamp_decoder())
+    use updated_at <- decode.field(4, pog.timestamp_decoder())
+    decode.success(GetConnectionsRow(
+      company_id:,
+      startup_id:,
+      connection_status:,
+      created_at:,
+      updated_at:,
+    ))
+  }
+
+  "-- get all connections from a startup
+SELECT
+    company_id,
+    startup_id,
+    connection.connection_status,
+    created_at,
+    updated_at
+FROM
+    public.company_startup_connection AS connection
+WHERE
+    connection.startup_id = $1::uuid
+ORDER BY
+    connection.created_at DESC
+LIMIT
+    $2::int OFFSET $3::int;
+"
+  |> pog.query
+  |> pog.parameter(pog.text(uuid.to_string(arg_1)))
+  |> pog.parameter(pog.int(arg_2))
+  |> pog.parameter(pog.int(arg_3))
   |> pog.returning(decoder)
   |> pog.execute(db)
 }
@@ -1148,6 +1344,27 @@ RETURNING
 }
 
 // --- Enums -------------------------------------------------------------------
+
+/// Corresponds to the Postgres `connection_status_enum` enum.
+///
+/// > 🐿️ This type definition was generated automatically using v4.7.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type ConnectionStatusEnum {
+  Declined
+  Accepted
+  Pending
+}
+
+fn connection_status_enum_decoder() -> decode.Decoder(ConnectionStatusEnum) {
+  use connection_status_enum <- decode.then(decode.string)
+  case connection_status_enum {
+    "declined" -> decode.success(Declined)
+    "accepted" -> decode.success(Accepted)
+    "pending" -> decode.success(Pending)
+    _ -> decode.failure(Declined, "ConnectionStatusEnum")
+  }
+}
 
 /// Corresponds to the Postgres `lgpd_consent` enum.
 ///
