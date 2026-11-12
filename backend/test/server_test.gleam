@@ -20,6 +20,9 @@ fn global_context() -> web.Context {
     let db_process_name = process.new_name("database_connection")
     let assert Ok(database_url) = envoy.get("DATABASE_URL")
     let assert Ok(pog_config) = pog.url_config(db_process_name, database_url)
+    // Tests can run in parallel, and each test holds a transaction for its
+    // duration. Keep enough connections available to avoid starving them.
+    let pog_config = pog.pool_size(pog_config, 50)
     let database = pog.named_connection(db_process_name)
 
     // --- Building the Context type

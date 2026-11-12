@@ -1787,3 +1787,217 @@ Unassign an expertise from a company's demand.
 - 200: Successful
 - 400: Invalid UUID format
 - 404: Expertise is not assigned to the demand
+
+## POST /api/company/:id/connection
+
+Request a connection with a startup. The connection starts as `pending` until
+the startup accepts or declines it.
+
+A Company session is required, and it must belong to the company identified by
+`id`.
+
+### Path Parameters
+
+- `id` (UUID, required): the company's ID.
+
+### Request Body
+
+```json
+{
+  "startup": "01a173cb-9533-7ebd-87a0-590965ef3653"
+}
+```
+
+### Response Body
+
+```json
+{
+  "company": "01a173cb-9533-7eb5-9522-9686fef4f2a4",
+  "startup": "01a173cb-9533-7ebd-87a0-590965ef3653",
+  "status": "pending",
+  "created_at": "2026-09-14T20:08:02.000Z",
+  "updated_at": "2026-09-14T20:08:02.000Z"
+}
+```
+
+- `status`: one of `"pending"`, `"accepted"` or `"declined"`.
+
+### Status Codes
+
+- 201: Successful
+- 400: Invalid JSON or invalid UUID
+- 401: Not authenticated
+- 403: Invalid session
+- 404: Company or Startup not found
+- 409: A connection with the startup was already requested
+
+## GET /api/company/:id/connection
+
+Fetch all connections requested by a company, newest first.
+
+### Path Parameters
+
+- `id` (UUID, required): the company's ID.
+
+### Query Parameters
+
+- `limit` (int, required)
+- `offset` (int, required)
+
+### Response Body
+
+```json
+[
+  {
+    "company": "01a173cb-9533-7eb5-9522-9686fef4f2a4",
+    "startup": "01a173cb-9533-7ebd-87a0-590965ef3653",
+    "status": "accepted",
+    "created_at": "2026-09-14T20:08:02.000Z",
+    "updated_at": "2026-09-15T20:08:02.000Z"
+  }
+]
+```
+
+### Status Codes
+
+- 200: Successful
+- 400: Invalid UUID, or missing, invalid or incomplete query parameters
+
+## GET /api/startup/:id/connection
+
+Fetch all connections received by a startup, newest first.
+
+### Path Parameters
+
+- `id` (UUID, required): the startup's ID.
+
+### Query Parameters
+
+- `limit` (int, required)
+- `offset` (int, required)
+
+### Response Body
+
+```json
+[
+  {
+    "company": "01a173cb-9533-7eb5-9522-9686fef4f2a4",
+    "startup": "01a173cb-9533-7ebd-87a0-590965ef3653",
+    "status": "pending",
+    "created_at": "2026-09-14T20:08:02.000Z",
+    "updated_at": "2026-09-14T20:08:02.000Z"
+  }
+]
+```
+
+### Status Codes
+
+- 200: Successful
+- 400: Invalid UUID, or missing, invalid or incomplete query parameters
+
+## PATCH /api/startup/:id/connection/:company_id
+
+Accept or decline a pending connection request received by a startup.
+
+A Startup session is required, and it must belong to the startup identified by
+`id`.
+
+### Path Parameters
+
+- `id` (UUID, required): the startup's ID.
+- `company_id` (UUID, required): the ID of the company that requested the
+  connection.
+
+### Request Body
+
+```json
+{
+  "status": "accepted"
+}
+```
+
+- `status`: either `"accepted"` or `"declined"`.
+
+### Response Body
+
+```json
+{
+  "company": "01a173cb-9533-7eb5-9522-9686fef4f2a4",
+  "startup": "01a173cb-9533-7ebd-87a0-590965ef3653",
+  "status": "accepted",
+  "created_at": "2026-09-14T20:08:02.000Z",
+  "updated_at": "2026-09-15T20:08:02.000Z"
+}
+```
+
+### Status Codes
+
+- 200: Successful
+- 400: Invalid JSON, invalid UUID, or invalid status
+- 401: Not authenticated
+- 403: Invalid session
+- 404: No pending connection from the company exists
+
+## DELETE /api/company/:id/connection/:startup_id
+
+Delete the connection between a company and a startup. The company identified
+by the path must match the current Company session.
+
+### Path Parameters
+
+- `id` (UUID, required): the company's ID.
+- `startup_id` (UUID, required): the startup's ID.
+
+### Response Body
+
+The deleted connection:
+
+```json
+{
+  "company": "01a173cb-9533-7eb5-9522-9686fef4f2a4",
+  "startup": "01a173cb-9533-7ebd-87a0-590965ef3653",
+  "status": "declined",
+  "created_at": "2026-09-14T20:08:02.000Z",
+  "updated_at": "2026-09-15T20:08:02.000Z"
+}
+```
+
+### Status Codes
+
+- 200: Successful
+- 400: Invalid UUID format
+- 401: Not authenticated
+- 403: Invalid session
+- 404: Connection not found
+
+## DELETE /api/startup/:id/connection/:company_id
+
+Delete the connection between a startup and a company. The startup identified
+by the path must match the current Startup session.
+
+### Path Parameters
+
+- `id` (UUID, required): the startup's ID.
+- `company_id` (UUID, required): the company's ID.
+
+### Response Body
+
+The deleted connection:
+
+```json
+{
+  "company": "01a173cb-9533-7eb5-9522-9686fef4f2a4",
+  "startup": "01a173cb-9533-7ebd-87a0-590965ef3653",
+  "status": "accepted",
+  "created_at": "2026-09-14T20:08:02.000Z",
+  "updated_at": "2026-09-15T20:08:02.000Z"
+}
+```
+
+### Status Codes
+
+- 200: Successful
+- 400: Invalid UUID format
+- 401: Not authenticated
+- 403: Invalid session
+- 404: Connection not found

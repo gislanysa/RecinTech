@@ -2,11 +2,14 @@
 //// RecInTech, to [Startups](startup.html#Startup), the supply side. A Company
 //// requests a connection with a Startup, which can then accept or decline it.
 
+import gleam/dynamic/decode
+import gleam/json
 import gleam/list
 import gleam/result
 import gleam/time/timestamp
 import pog
 import server/connection/sql
+import server/internal
 import youid/uuid
 
 pub type ConnectionError {
@@ -27,6 +30,28 @@ pub type Status {
   Declined
 }
 
+/// Encode a [Status](#Status) into JSON.
+@internal
+pub fn status_to_json(status: Status) -> json.Json {
+  case status {
+    Pending -> json.string("pending")
+    Accepted -> json.string("accepted")
+    Declined -> json.string("declined")
+  }
+}
+
+/// A decoder that decodes [Status](#Status) values.
+@internal
+pub fn status_decoder() -> decode.Decoder(Status) {
+  use variant <- decode.then(decode.string)
+  case variant {
+    "pending" -> decode.success(Pending)
+    "accepted" -> decode.success(Accepted)
+    "declined" -> decode.success(Declined)
+    _ -> decode.failure(Pending, "Status")
+  }
+}
+
 /// A connection between a [Company](company.html#Company) and a
 /// [Startup](startup.html#Startup).
 pub type Connection {
@@ -43,6 +68,37 @@ pub type Connection {
     /// declined.
     updated_at: timestamp.Timestamp,
   )
+}
+
+/// A decoder that decodes `Connection` values.
+pub fn decoder() -> decode.Decoder(Connection) {
+  use company <- decode.field("company", internal.uuid_decoder())
+  use startup <- decode.field("startup", internal.uuid_decoder())
+  use status <- decode.field("status", status_decoder())
+  use created_at <- decode.field("created_at", internal.timestamp_decoder())
+  use updated_at <- decode.field("updated_at", internal.timestamp_decoder())
+
+  decode.success(Connection(
+    company:,
+    startup:,
+    status:,
+    created_at:,
+    updated_at:,
+  ))
+}
+
+/// Encode a `Connection` into JSON.
+pub fn to_json(connection: Connection) -> json.Json {
+  let Connection(company:, startup:, status:, created_at:, updated_at:) =
+    connection
+
+  json.object([
+    #("company", internal.uuid_to_json(company)),
+    #("startup", internal.uuid_to_json(startup)),
+    #("status", status_to_json(status)),
+    #("created_at", internal.timestamp_to_json(created_at)),
+    #("updated_at", internal.timestamp_to_json(updated_at)),
+  ])
 }
 
 /// Delete the [Connection](#Connection) between a
