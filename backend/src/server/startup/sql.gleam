@@ -469,6 +469,80 @@ WHERE
   |> pog.execute(db)
 }
 
+/// A row you get from running the `get_canvas` query
+/// defined in `./src/server/startup/sql/get_canvas.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v4.7.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type GetCanvasRow {
+  GetCanvasRow(
+    customer_segments: String,
+    value_proposition: String,
+    channels: String,
+    customer_relationships: String,
+    revenue_streams: String,
+    key_resources: String,
+    key_activities: String,
+    key_partnerships: String,
+    cost_structure: String,
+  )
+}
+
+/// get a startup's business model canvas
+///
+/// > 🐿️ This function was generated automatically using v4.7.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn get_canvas(
+  db: pog.Connection,
+  arg_1: Uuid,
+) -> Result(pog.Returned(GetCanvasRow), pog.QueryError) {
+  let decoder = {
+    use customer_segments <- decode.field(0, decode.string)
+    use value_proposition <- decode.field(1, decode.string)
+    use channels <- decode.field(2, decode.string)
+    use customer_relationships <- decode.field(3, decode.string)
+    use revenue_streams <- decode.field(4, decode.string)
+    use key_resources <- decode.field(5, decode.string)
+    use key_activities <- decode.field(6, decode.string)
+    use key_partnerships <- decode.field(7, decode.string)
+    use cost_structure <- decode.field(8, decode.string)
+    decode.success(GetCanvasRow(
+      customer_segments:,
+      value_proposition:,
+      channels:,
+      customer_relationships:,
+      revenue_streams:,
+      key_resources:,
+      key_activities:,
+      key_partnerships:,
+      cost_structure:,
+    ))
+  }
+
+  "-- get a startup's business model canvas
+SELECT
+    canvas.customer_segments,
+    canvas.value_proposition,
+    canvas.channels,
+    canvas.customer_relationships,
+    canvas.revenue_streams,
+    canvas.key_resources,
+    canvas.key_activities,
+    canvas.key_partnerships,
+    canvas.cost_structure
+FROM
+    public.startup_canvas AS canvas
+WHERE
+    canvas.startup_id = $1::uuid;
+"
+  |> pog.query
+  |> pog.parameter(pog.text(uuid.to_string(arg_1)))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
 /// A row you get from running the `get_connections` query
 /// defined in `./src/server/startup/sql/get_connections.sql`.
 ///
@@ -1339,6 +1413,132 @@ RETURNING
   |> pog.parameter(pog.text(arg_7))
   |> pog.parameter(pog.text(arg_8))
   |> pog.parameter(pog.text(arg_9))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
+/// A row you get from running the `upsert_canvas` query
+/// defined in `./src/server/startup/sql/upsert_canvas.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v4.7.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type UpsertCanvasRow {
+  UpsertCanvasRow(
+    customer_segments: String,
+    value_proposition: String,
+    channels: String,
+    customer_relationships: String,
+    revenue_streams: String,
+    key_resources: String,
+    key_activities: String,
+    key_partnerships: String,
+    cost_structure: String,
+  )
+}
+
+/// create or update a startup's business model canvas
+///
+/// > 🐿️ This function was generated automatically using v4.7.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn upsert_canvas(
+  db: pog.Connection,
+  arg_1: Uuid,
+  arg_2: String,
+  arg_3: String,
+  arg_4: String,
+  arg_5: String,
+  arg_6: String,
+  arg_7: String,
+  arg_8: String,
+  arg_9: String,
+  arg_10: String,
+) -> Result(pog.Returned(UpsertCanvasRow), pog.QueryError) {
+  let decoder = {
+    use customer_segments <- decode.field(0, decode.string)
+    use value_proposition <- decode.field(1, decode.string)
+    use channels <- decode.field(2, decode.string)
+    use customer_relationships <- decode.field(3, decode.string)
+    use revenue_streams <- decode.field(4, decode.string)
+    use key_resources <- decode.field(5, decode.string)
+    use key_activities <- decode.field(6, decode.string)
+    use key_partnerships <- decode.field(7, decode.string)
+    use cost_structure <- decode.field(8, decode.string)
+    decode.success(UpsertCanvasRow(
+      customer_segments:,
+      value_proposition:,
+      channels:,
+      customer_relationships:,
+      revenue_streams:,
+      key_resources:,
+      key_activities:,
+      key_partnerships:,
+      cost_structure:,
+    ))
+  }
+
+  "-- create or update a startup's business model canvas
+INSERT INTO
+    public.startup_canvas (
+        startup_id,
+        customer_segments,
+        value_proposition,
+        channels,
+        customer_relationships,
+        revenue_streams,
+        key_resources,
+        key_activities,
+        key_partnerships,
+        cost_structure
+    )
+VALUES
+    (
+        $1::uuid,
+        $2::text,
+        $3::text,
+        $4::text,
+        $5::text,
+        $6::text,
+        $7::text,
+        $8::text,
+        $9::text,
+        $10::text
+    ) ON CONFLICT (startup_id) DO
+UPDATE
+SET
+    customer_segments = excluded.customer_segments,
+    value_proposition = excluded.value_proposition,
+    channels = excluded.channels,
+    customer_relationships = excluded.customer_relationships,
+    revenue_streams = excluded.revenue_streams,
+    key_resources = excluded.key_resources,
+    key_activities = excluded.key_activities,
+    key_partnerships = excluded.key_partnerships,
+    cost_structure = excluded.cost_structure,
+    updated_at = CURRENT_TIMESTAMP
+RETURNING
+    customer_segments,
+    value_proposition,
+    channels,
+    customer_relationships,
+    revenue_streams,
+    key_resources,
+    key_activities,
+    key_partnerships,
+    cost_structure;
+"
+  |> pog.query
+  |> pog.parameter(pog.text(uuid.to_string(arg_1)))
+  |> pog.parameter(pog.text(arg_2))
+  |> pog.parameter(pog.text(arg_3))
+  |> pog.parameter(pog.text(arg_4))
+  |> pog.parameter(pog.text(arg_5))
+  |> pog.parameter(pog.text(arg_6))
+  |> pog.parameter(pog.text(arg_7))
+  |> pog.parameter(pog.text(arg_8))
+  |> pog.parameter(pog.text(arg_9))
+  |> pog.parameter(pog.text(arg_10))
   |> pog.returning(decoder)
   |> pog.execute(db)
 }

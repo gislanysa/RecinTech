@@ -4198,6 +4198,10 @@ fn handle_startup_error(error: startup.StartupError) -> Response {
     startup.ConnectionNotFound(from) ->
       { "Connection request from " <> uuid.to_string(from) <> " not found" }
       |> wisp.string_body(wisp.not_found(), _)
+
+    startup.FailedToSaveCanvas(id:) ->
+      { "Failed to save BMC for: " <> uuid.to_string(id) }
+      |> wisp.string_body(wisp.internal_server_error(), _)
   }
 }
 

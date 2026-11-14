@@ -70,6 +70,7 @@ pub type StartupError {
 
   /// No pending connection requests found from the given company
   ConnectionNotFound(from: uuid.Uuid)
+  FailedToSaveCanvas(id: uuid.Uuid)
 }
 
 pub type Startup {
@@ -1420,4 +1421,162 @@ pub fn get_connections(
       updated_at: row.updated_at,
     )
   })
+}
+
+pub type Canvas {
+  Canvas(
+    customer_segments: String,
+    value_proposition: String,
+    channels: String,
+    customer_relationships: String,
+    revenue_streams: String,
+    key_resources: String,
+    key_activities: String,
+    key_partnerships: String,
+    cost_structure: String,
+  )
+}
+
+pub fn canvas_to_json(canvas: Canvas) -> json.Json {
+  let Canvas(
+    customer_segments:,
+    value_proposition:,
+    channels:,
+    customer_relationships:,
+    revenue_streams:,
+    key_resources:,
+    key_activities:,
+    key_partnerships:,
+    cost_structure:,
+  ) = canvas
+
+  json.object([
+    #("customer_segments", json.string(customer_segments)),
+    #("value_proposition", json.string(value_proposition)),
+    #("channels", json.string(channels)),
+    #("customer_relationships", json.string(customer_relationships)),
+    #("revenue_streams", json.string(revenue_streams)),
+    #("key_resources", json.string(key_resources)),
+    #("key_activities", json.string(key_activities)),
+    #("key_partnerships", json.string(key_partnerships)),
+    #("cost_structure", json.string(cost_structure)),
+  ])
+}
+
+pub fn canvas_decoder() -> decode.Decoder(Canvas) {
+  use customer_segments <- decode.field("customer_segments", decode.string)
+  use value_proposition <- decode.field("value_proposition", decode.string)
+  use channels <- decode.field("channels", decode.string)
+  use customer_relationships <- decode.field(
+    "customer_relationships",
+    decode.string,
+  )
+  use revenue_streams <- decode.field("revenue_streams", decode.string)
+  use key_resources <- decode.field("key_resources", decode.string)
+  use key_activities <- decode.field("key_activities", decode.string)
+  use key_partnerships <- decode.field("key_partnerships", decode.string)
+  use cost_structure <- decode.field("cost_structure", decode.string)
+
+  decode.success(Canvas(
+    customer_segments:,
+    value_proposition:,
+    channels:,
+    customer_relationships:,
+    revenue_streams:,
+    key_resources:,
+    key_activities:,
+    key_partnerships:,
+    cost_structure:,
+  ))
+}
+
+const empty_canvas =
+  Canvas(
+    customer_segments: "",
+    value_proposition: "",
+    channels: "",
+    customer_relationships: "",
+    revenue_streams: "",
+    key_resources: "",
+    key_activities: "",
+    key_partnerships: "",
+    cost_structure: "",
+  )
+
+pub fn get_canvas(
+  database: pog.Connection,
+  id: uuid.Uuid,
+) -> Result(Canvas, StartupError) {
+  use <- ensure_exists(database, id)
+
+  use returned <- result.map(
+    sql.get_canvas(database, id)
+    |> result.map_error(DatabaseError),
+  )
+
+  case list.first(returned.rows) {
+    Ok(row) ->
+      Canvas(
+        customer_segments: row.customer_segments,
+        value_proposition: row.value_proposition,
+        channels: row.channels,
+        customer_relationships: row.customer_relationships,
+        revenue_streams: row.revenue_streams,
+        key_resources: row.key_resources,
+        key_activities: row.key_activities,
+        key_partnerships: row.key_partnerships,
+        cost_structure: row.cost_structure,
+      )
+
+    Error(_) -> empty_canvas
+  }
+}
+
+pub fn upsert_canvas(
+  database: pog.Connection,
+  id: uuid.Uuid,
+  canvas: Canvas,
+) -> Result(Canvas, StartupError) {
+  let result =
+    sql.upsert_canvas(
+      database,
+      id,
+      canvas.customer_segments,
+      canvas.value_proposition,
+      canvas.channels,
+      canvas.customer_relationships,
+      canvas.revenue_streams,
+      canvas.key_resources,
+      canvas.key_activities,
+      canvas.key_partnerships,
+      canvas.cost_structure,
+    )
+
+  use returned <- result.try(case result {
+    // startup not registered
+    Error(pog.ConstraintViolated(
+      constraint: "startup_canvas_startup_id_fkey",
+      ..,
+    )) -> Error(NotFound(id:))
+
+    Ok(rows) -> Ok(rows)
+    Error(error) -> Error(DatabaseError(error))
+  })
+
+  use row <- result.map(
+    list.first(returned.rows)
+    |> result.replace_error(FailedToSaveCanvas(id:)),
+  )
+
+  Canvas(
+    customer_segments: row.customer_segments,
+    value_proposition: row.value_proposition,
+    channels: row.channels,
+    customer_relationships: row.customer_relationships,
+    revenue_streams: row.revenue_streams,
+    key_resources: row.key_resources,
+    key_activities: row.key_activities,
+    key_partnerships: row.key_partnerships,
+    cost_structure: row.cost_structure,
+  )
 }
