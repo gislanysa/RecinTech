@@ -70,6 +70,7 @@ pub type StartupError {
 
   /// No pending connection requests found from the given company
   ConnectionNotFound(from: uuid.Uuid)
+  /// Something went wrong when saving a Startup's Business Model Canvas
   FailedToSaveCanvas(id: uuid.Uuid)
 }
 
@@ -1423,20 +1424,34 @@ pub fn get_connections(
   })
 }
 
+/// A Startup's Business Model Canvas.
+///
+/// Every block is free narrative text, and an empty string means the block was
+/// left blank.
 pub type Canvas {
   Canvas(
+    /// The customer segments the Startup serves
     customer_segments: String,
+    /// The value the Startup delivers to its customer segments
     value_proposition: String,
+    /// How the Startup reaches its customer segments
     channels: String,
+    /// The relationship the Startup builds with its customer segments
     customer_relationships: String,
+    /// How the Startup earns money from its customer segments
     revenue_streams: String,
+    /// The assets required to make the business model work
     key_resources: String,
+    /// The most important things the Startup must do to make the model work
     key_activities: String,
+    /// The suppliers and partners that make the business model work
     key_partnerships: String,
+    /// The costs incurred to operate the business model
     cost_structure: String,
   )
 }
 
+/// Encode a [Canvas](#Canvas) into JSON
 pub fn canvas_to_json(canvas: Canvas) -> json.Json {
   let Canvas(
     customer_segments:,
@@ -1463,6 +1478,7 @@ pub fn canvas_to_json(canvas: Canvas) -> json.Json {
   ])
 }
 
+/// A decoder that decodes `Canvas` values.
 pub fn canvas_decoder() -> decode.Decoder(Canvas) {
   use customer_segments <- decode.field("customer_segments", decode.string)
   use value_proposition <- decode.field("value_proposition", decode.string)
@@ -1490,6 +1506,7 @@ pub fn canvas_decoder() -> decode.Decoder(Canvas) {
   ))
 }
 
+/// A [Canvas](#Canvas) with every block left blank.
 pub const empty_canvas =
   Canvas(
     customer_segments: "",
@@ -1503,6 +1520,20 @@ pub const empty_canvas =
     cost_structure: "",
   )
 
+/// Fetch a Startup's [Canvas](#Canvas) from the Database.
+///
+/// Returns [empty_canvas](#empty_canvas) if the Startup has not saved a canvas
+/// yet, and `Error(NotFound(_))` if the Startup is not registered.
+///
+/// ## Examples
+///
+/// ```gleam
+/// case startup.get_canvas(context.database, id) {
+///   Ok(canvas) -> wisp.ok()
+///   Error(startup.NotFound(_)) -> wisp.not_found()
+///   Error(_) -> wisp.internal_server_error()
+/// }
+/// ```
 pub fn get_canvas(
   database: pog.Connection,
   id: uuid.Uuid,
@@ -1532,6 +1563,20 @@ pub fn get_canvas(
   }
 }
 
+/// Create or replace a Startup's [Canvas](#Canvas) and return the saved canvas.
+///
+/// This is a full replacement: every block is written as given, so an empty
+/// string clears a block instead of keeping its previous value.
+///
+/// ## Examples
+///
+/// ```gleam
+/// case startup.upsert_canvas(context.database, id, canvas) {
+///   Ok(canvas) -> wisp.ok()
+///   Error(startup.NotFound(_)) -> wisp.not_found()
+///   Error(_) -> wisp.internal_server_error()
+/// }
+/// ```
 pub fn upsert_canvas(
   database: pog.Connection,
   id: uuid.Uuid,
