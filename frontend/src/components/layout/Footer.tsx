@@ -14,8 +14,10 @@ const COLUNAS = [
     titulo: 'Empresas',
     links: [
       { label: 'Criar conta', to: '/criar-conta' },
-      { label: 'Cadastrar necessidade', to: '/demandas/nova' },
-      { label: 'Painel da empresa', to: '/painel' },
+      // Cadastrar necessidade é um modal dentro do dashboard, não tem página
+      // própria, então o link leva à tela onde a ação vive.
+      { label: 'Cadastrar necessidade', to: '/dashboard/empresa/demandas' },
+      { label: 'Painel da empresa', to: '/dashboard/empresa' },
     ],
   },
   {
