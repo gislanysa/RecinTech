@@ -4350,3 +4350,406 @@ pub fn delete_connection_requires_matching_session_test() -> Nil {
 
   Nil
 }
+
+pub fn get_startup_canvas_empty_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+  let endpoint = "/api/startup/" <> uuid.to_string(startup.id) <> "/canvas"
+
+  let response =
+    simulate.browser_request(http.Get, endpoint)
+    |> dummy.with_session(context, web.Startup(startup.id), startup.email)
+    |> web.handle_request(context)
+
+  assert response.status == 200
+  expect_json(response)
+
+  let body = simulate.read_body(response)
+  let assert Ok(returned) = json.parse(body, startup.canvas_decoder())
+  assert returned == startup.empty_canvas
+
+  Nil
+}
+
+pub fn get_startup_canvas_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+
+  let canvas =
+    startup.Canvas(
+      customer_segments: "Pequenas e médias empresas",
+      value_proposition: "Reduzir custos operacionais com automação",
+      channels: "Site, vendas diretas e parceiros",
+      customer_relationships: "Suporte dedicado e onboarding",
+      revenue_streams: "Assinatura mensal e implantação",
+      key_resources: "Equipe de engenharia e infraestrutura em nuvem",
+      key_activities: "Desenvolvimento, suporte e vendas",
+      key_partnerships: "Provedores de nuvem e consultorias",
+      cost_structure: "Folha de pagamento, nuvem e marketing",
+    )
+
+  let assert Ok(_) = startup.upsert_canvas(context.database, startup.id, canvas)
+
+  let endpoint = "/api/startup/" <> uuid.to_string(startup.id) <> "/canvas"
+  let response =
+    simulate.browser_request(http.Get, endpoint)
+    |> dummy.with_session(context, web.Startup(startup.id), startup.email)
+    |> web.handle_request(context)
+
+  assert response.status == 200
+  expect_json(response)
+
+  let body = simulate.read_body(response)
+  let assert Ok(returned) = json.parse(body, startup.canvas_decoder())
+  assert returned == canvas
+
+  Nil
+}
+
+pub fn get_startup_canvas_missing_session_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+  let endpoint = "/api/startup/" <> uuid.to_string(startup.id) <> "/canvas"
+
+  let response =
+    simulate.browser_request(http.Get, endpoint)
+    |> web.handle_request(context)
+
+  assert response.status == 401
+
+  Nil
+}
+
+pub fn get_startup_canvas_invalid_id_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let response =
+    simulate.browser_request(http.Get, "/api/startup/wibble/canvas")
+    |> web.handle_request(context)
+
+  assert response.status == 400
+
+  Nil
+}
+
+pub fn get_missing_startup_canvas_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+  let endpoint = "/api/startup/" <> uuid.v7_string() <> "/canvas"
+
+  let response =
+    simulate.browser_request(http.Get, endpoint)
+    |> dummy.with_session(context, web.Startup(startup.id), startup.email)
+    |> web.handle_request(context)
+
+  assert response.status == 404
+
+  Nil
+}
+
+pub fn upsert_startup_canvas_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+
+  let canvas =
+    startup.Canvas(
+      customer_segments: "Pequenas e médias empresas",
+      value_proposition: "Reduzir custos operacionais com automação",
+      channels: "Site, vendas diretas e parceiros",
+      customer_relationships: "Suporte dedicado e onboarding",
+      revenue_streams: "Assinatura mensal e implantação",
+      key_resources: "Equipe de engenharia e infraestrutura em nuvem",
+      key_activities: "Desenvolvimento, suporte e vendas",
+      key_partnerships: "Provedores de nuvem e consultorias",
+      cost_structure: "Folha de pagamento, nuvem e marketing",
+    )
+
+  let body =
+    json.object([
+      #("customer_segments", json.string(canvas.customer_segments)),
+      #("value_proposition", json.string(canvas.value_proposition)),
+      #("channels", json.string(canvas.channels)),
+      #("customer_relationships", json.string(canvas.customer_relationships)),
+      #("revenue_streams", json.string(canvas.revenue_streams)),
+      #("key_resources", json.string(canvas.key_resources)),
+      #("key_activities", json.string(canvas.key_activities)),
+      #("key_partnerships", json.string(canvas.key_partnerships)),
+      #("cost_structure", json.string(canvas.cost_structure)),
+    ])
+
+  let endpoint = "/api/startup/" <> uuid.to_string(startup.id) <> "/canvas"
+  let response =
+    simulate.browser_request(http.Put, endpoint)
+    |> simulate.json_body(body)
+    |> dummy.with_session(context, web.Startup(startup.id), startup.email)
+    |> web.handle_request(context)
+
+  assert response.status == 200
+  expect_json(response)
+
+  let body = simulate.read_body(response)
+  let assert Ok(returned) = json.parse(body, startup.canvas_decoder())
+  assert returned == canvas
+
+  // the saved canvas can be fetched back
+  let assert Ok(returned) = startup.get_canvas(context.database, startup.id)
+  assert returned == canvas
+
+  Nil
+}
+
+pub fn upsert_startup_canvas_replaces_all_blocks_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+  let endpoint = "/api/startup/" <> uuid.to_string(startup.id) <> "/canvas"
+
+  let first =
+    startup.Canvas(
+      customer_segments: "Pequenas e médias empresas",
+      value_proposition: "Reduzir custos operacionais com automação",
+      channels: "Site, vendas diretas e parceiros",
+      customer_relationships: "Suporte dedicado e onboarding",
+      revenue_streams: "Assinatura mensal e implantação",
+      key_resources: "Equipe de engenharia e infraestrutura em nuvem",
+      key_activities: "Desenvolvimento, suporte e vendas",
+      key_partnerships: "Provedores de nuvem e consultorias",
+      cost_structure: "Folha de pagamento, nuvem e marketing",
+    )
+
+  let first_body =
+    json.object([
+      #("customer_segments", json.string(first.customer_segments)),
+      #("value_proposition", json.string(first.value_proposition)),
+      #("channels", json.string(first.channels)),
+      #("customer_relationships", json.string(first.customer_relationships)),
+      #("revenue_streams", json.string(first.revenue_streams)),
+      #("key_resources", json.string(first.key_resources)),
+      #("key_activities", json.string(first.key_activities)),
+      #("key_partnerships", json.string(first.key_partnerships)),
+      #("cost_structure", json.string(first.cost_structure)),
+    ])
+
+  let response =
+    simulate.browser_request(http.Put, endpoint)
+    |> simulate.json_body(first_body)
+    |> dummy.with_session(context, web.Startup(startup.id), startup.email)
+    |> web.handle_request(context)
+
+  assert response.status == 200
+
+  // a second save replaces every block
+  let second =
+    startup.Canvas(
+      customer_segments: "Outro segmento",
+      value_proposition: "",
+      channels: "Marketplace",
+      customer_relationships: "",
+      revenue_streams: "Comissão por venda",
+      key_resources: "",
+      key_activities: "Curadoria de fornecedores",
+      key_partnerships: "",
+      cost_structure: "Marketing",
+    )
+
+  let second_body =
+    json.object([
+      #("customer_segments", json.string(second.customer_segments)),
+      #("value_proposition", json.string(second.value_proposition)),
+      #("channels", json.string(second.channels)),
+      #("customer_relationships", json.string(second.customer_relationships)),
+      #("revenue_streams", json.string(second.revenue_streams)),
+      #("key_resources", json.string(second.key_resources)),
+      #("key_activities", json.string(second.key_activities)),
+      #("key_partnerships", json.string(second.key_partnerships)),
+      #("cost_structure", json.string(second.cost_structure)),
+    ])
+
+  let response =
+    simulate.browser_request(http.Put, endpoint)
+    |> simulate.json_body(second_body)
+    |> dummy.with_session(context, web.Startup(startup.id), startup.email)
+    |> web.handle_request(context)
+
+  assert response.status == 200
+  expect_json(response)
+
+  let body = simulate.read_body(response)
+  let assert Ok(returned) = json.parse(body, startup.canvas_decoder())
+  assert returned == second
+
+  Nil
+}
+
+pub fn upsert_startup_canvas_missing_session_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+  let endpoint = "/api/startup/" <> uuid.to_string(startup.id) <> "/canvas"
+
+  let body =
+    json.object([
+      #("customer_segments", json.string("")),
+      #("value_proposition", json.string("")),
+      #("channels", json.string("")),
+      #("customer_relationships", json.string("")),
+      #("revenue_streams", json.string("")),
+      #("key_resources", json.string("")),
+      #("key_activities", json.string("")),
+      #("key_partnerships", json.string("")),
+      #("cost_structure", json.string("")),
+    ])
+
+  let response =
+    simulate.browser_request(http.Put, endpoint)
+    |> simulate.json_body(body)
+    |> web.handle_request(context)
+
+  assert response.status == 401
+
+  Nil
+}
+
+pub fn upsert_startup_canvas_with_company_session_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+  let company = dummy.new_company(context.database)
+  let endpoint = "/api/startup/" <> uuid.to_string(startup.id) <> "/canvas"
+
+  let body =
+    json.object([
+      #("customer_segments", json.string("")),
+      #("value_proposition", json.string("")),
+      #("channels", json.string("")),
+      #("customer_relationships", json.string("")),
+      #("revenue_streams", json.string("")),
+      #("key_resources", json.string("")),
+      #("key_activities", json.string("")),
+      #("key_partnerships", json.string("")),
+      #("cost_structure", json.string("")),
+    ])
+
+  let response =
+    simulate.browser_request(http.Put, endpoint)
+    |> simulate.json_body(body)
+    |> dummy.with_session(context, web.Company(company.id), company.email)
+    |> web.handle_request(context)
+
+  assert response.status == 403
+
+  Nil
+}
+
+pub fn upsert_startup_canvas_with_other_startup_session_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+  let other = dummy.new_startup(context.database)
+  let endpoint = "/api/startup/" <> uuid.to_string(startup.id) <> "/canvas"
+
+  let body =
+    json.object([
+      #("customer_segments", json.string("")),
+      #("value_proposition", json.string("")),
+      #("channels", json.string("")),
+      #("customer_relationships", json.string("")),
+      #("revenue_streams", json.string("")),
+      #("key_resources", json.string("")),
+      #("key_activities", json.string("")),
+      #("key_partnerships", json.string("")),
+      #("cost_structure", json.string("")),
+    ])
+
+  let response =
+    simulate.browser_request(http.Put, endpoint)
+    |> simulate.json_body(body)
+    |> dummy.with_session(context, web.Startup(other.id), other.email)
+    |> web.handle_request(context)
+
+  assert response.status == 403
+
+  Nil
+}
+
+pub fn upsert_startup_canvas_invalid_json_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+  let endpoint = "/api/startup/" <> uuid.to_string(startup.id) <> "/canvas"
+
+  let response =
+    simulate.browser_request(http.Put, endpoint)
+    |> simulate.string_body("{not valid json")
+    |> request.set_header("content-type", "application/json")
+    |> dummy.with_session(context, web.Startup(startup.id), startup.email)
+    |> web.handle_request(context)
+
+  assert response.status == 400
+
+  Nil
+}
+
+pub fn upsert_startup_canvas_missing_block_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+  let endpoint = "/api/startup/" <> uuid.to_string(startup.id) <> "/canvas"
+
+  // the "cost_structure" block is missing
+  let body =
+    json.object([
+      #("customer_segments", json.string("")),
+      #("value_proposition", json.string("")),
+      #("channels", json.string("")),
+      #("customer_relationships", json.string("")),
+      #("revenue_streams", json.string("")),
+      #("key_resources", json.string("")),
+      #("key_activities", json.string("")),
+      #("key_partnerships", json.string("")),
+    ])
+
+  let response =
+    simulate.browser_request(http.Put, endpoint)
+    |> simulate.json_body(body)
+    |> dummy.with_session(context, web.Startup(startup.id), startup.email)
+    |> web.handle_request(context)
+
+  assert response.status == 400
+
+  Nil
+}
+
+pub fn upsert_startup_canvas_invalid_id_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+
+  let body =
+    json.object([
+      #("customer_segments", json.string("")),
+      #("value_proposition", json.string("")),
+      #("channels", json.string("")),
+      #("customer_relationships", json.string("")),
+      #("revenue_streams", json.string("")),
+      #("key_resources", json.string("")),
+      #("key_activities", json.string("")),
+      #("key_partnerships", json.string("")),
+      #("cost_structure", json.string("")),
+    ])
+
+  let response =
+    simulate.browser_request(http.Put, "/api/startup/wibble/canvas")
+    |> simulate.json_body(body)
+    |> dummy.with_session(context, web.Startup(startup.id), startup.email)
+    |> web.handle_request(context)
+
+  assert response.status == 400
+
+  Nil
+}
