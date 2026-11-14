@@ -30,8 +30,8 @@ export default function CartaoOportunidade({
       <article
         aria-busy={ocupado}
         className={[
-          'flex h-full flex-col gap-4 rounded-card border bg-surface p-5 transition-all',
-          interessado ? 'border-brand-300' : 'border-brand-100 hover:-translate-y-0.5 hover:shadow-sm',
+          'flex h-full flex-col gap-4 rounded-card bg-surface p-5 shadow-sm transition-all',
+          interessado ? 'ring-2 ring-brand-500/20' : 'hover:-translate-y-0.5 hover:shadow-md',
           estado === 'ignorando' ? 'opacity-50' : '',
         ].join(' ')}
       >
@@ -95,7 +95,7 @@ export default function CartaoOportunidade({
 
 export function CartaoOportunidadeCarregando() {
   return (
-    <li className="animate-pulse rounded-card border border-brand-100 bg-surface p-5" aria-hidden="true">
+    <li className="animate-pulse rounded-card bg-surface p-5 shadow-sm" aria-hidden="true">
       <div className="flex justify-between gap-3">
         <div className="h-4 w-1/2 rounded bg-brand-100" />
         <div className="h-6 w-12 rounded-full bg-brand-100" />

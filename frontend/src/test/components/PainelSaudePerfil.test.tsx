@@ -1,9 +1,10 @@
 import PainelSaudePerfil from '@/components/dashboard-startup/PainelSaudePerfil.tsx'
 import type { Startup } from '@/lib/api.ts'
+import { canvasVazio, salvarCanvas } from '@/lib/canvas.ts'
 import type { Tags } from '@/lib/perfil.ts'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const startupMock: Startup = {
   id: 'startup-1',
@@ -33,48 +34,51 @@ const tagsCompletas: Tags = {
   segments: ['Saas / Software'],
 }
 
+function instalarStorageEmMemoria() {
+  const dados = new Map<string, string>()
+  vi.stubGlobal('localStorage', {
+    getItem: (k: string) => dados.get(k) ?? null,
+    setItem: (k: string, v: string) => void dados.set(k, v),
+    removeItem: (k: string) => void dados.delete(k),
+    clear: () => dados.clear(),
+  })
+}
+
 describe('PainelSaudePerfil', () => {
-  it('não deve mostrar os passos que faltam logo de cara', () => {
+  beforeEach(() => {
+    instalarStorageEmMemoria()
+  })
+
+  afterEach(() => {
+    cleanup()
+    vi.unstubAllGlobals()
+  })
+
+  it('deve exibir a tag cinza com a quantidade de pendências quando houver itens faltando', () => {
     render(
       <MemoryRouter>
         <PainelSaudePerfil startup={startupMock} tags={tagsVazias} />
       </MemoryRouter>,
     )
 
-    // O cabeçalho "Próximos passos" existe
-    expect(screen.getByText('Próximos passos')).toBeInTheDocument()
+    // Tag de pendências visível com cor cinza claro
+    const tag = screen.getByText(/pendências/i)
+    expect(tag).toBeInTheDocument()
+    expect(tag).toHaveClass('bg-gray-100', 'text-gray-700')
+    expect(tag).toHaveTextContent('7 pendências')
 
-    // O botão de toggle existe e indica que está fechado
-    const btnToggle = screen.getByRole('button', { name: /próximos passos/i })
-    expect(btnToggle).toHaveAttribute('aria-expanded', 'false')
-
-    // A lista com os passos pendentes NÃO deve estar no documento logo de cara
-    expect(screen.queryByRole('list')).not.toBeInTheDocument()
+    // Botão para ver o perfil
+    const btnPerfil = screen.getByRole('link', { name: /ver meu perfil/i })
+    expect(btnPerfil).toBeInTheDocument()
+    expect(btnPerfil).toHaveAttribute('href', '/dashboard/startup/perfil')
   })
 
-  it('deve expandir e mostrar os passos pendentes quando o usuário clicar em Próximos passos', () => {
-    render(
-      <MemoryRouter>
-        <PainelSaudePerfil startup={startupMock} tags={tagsVazias} />
-      </MemoryRouter>,
-    )
+  it('não deve exibir a tag de pendências quando o perfil estiver 100% completo', () => {
+    salvarCanvas(startupMock.id, {
+      ...canvasVazio(),
+      propostaValor: 'Plataforma líder',
+    })
 
-    const btnToggle = screen.getByRole('button', { name: /próximos passos/i })
-    fireEvent.click(btnToggle)
-
-    expect(btnToggle).toHaveAttribute('aria-expanded', 'true')
-
-    // Agora a lista deve estar no documento
-    const lista = screen.getByRole('list')
-    expect(lista).toBeInTheDocument()
-
-    // Clicar novamente deve ocultar a lista
-    fireEvent.click(btnToggle)
-    expect(btnToggle).toHaveAttribute('aria-expanded', 'false')
-    expect(screen.queryByRole('list')).not.toBeInTheDocument()
-  })
-
-  it('não deve exibir botão de próximos passos quando o perfil estiver 100% completo', () => {
     const startupCompleta: Startup = {
       ...startupMock,
       description: 'Startup completa',
@@ -88,6 +92,6 @@ describe('PainelSaudePerfil', () => {
     )
 
     expect(screen.getByText(/Seu perfil está completo/i)).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /próximos passos/i })).not.toBeInTheDocument()
+    expect(screen.queryByText(/pendências|pendência/i)).not.toBeInTheDocument()
   })
 })

@@ -7,6 +7,7 @@ type PainelDemandasProps = {
   erro: string | null
   demandaAtivaId?: string
   contagemRecomendacoesPorDemanda: Record<string, number>
+  modo?: 'dashboard' | 'pagina'
   onNovaDemanda: () => void
   onEditarDemanda?: (demanda: Demanda) => void
   onSelecionarDemanda: (id: string) => void
@@ -39,6 +40,7 @@ export default function PainelDemandas({
   erro,
   demandaAtivaId,
   contagemRecomendacoesPorDemanda,
+  modo = 'dashboard',
   onNovaDemanda,
   onEditarDemanda,
   onSelecionarDemanda,
@@ -47,31 +49,47 @@ export default function PainelDemandas({
   return (
     <section
       aria-labelledby="titulo-demandas"
-      className="flex flex-col gap-5 rounded-card border border-brand-100 bg-surface p-5 shadow-sm sm:p-6"
+      className="flex flex-col gap-5 rounded-card bg-surface p-5 shadow-sm sm:p-6"
     >
-      {/* Cabeçalho interno do painel com título e botão de adicionar nova demanda */}
-      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-brand-100 pb-5">
-        <div>
-          <div className="flex items-center gap-2">
-            <h2 id="titulo-demandas" className="font-display text-xl font-bold text-ink-900 sm:text-2xl">
-              Minhas demandas
-            </h2>
-            {!carregando && (
-              <span className="text-base font-semibold text-ink-500 sm:text-lg">
-                ({demandas.length})
-              </span>
-            )}
-          </div>
-          <p className="mt-1 text-xs text-ink-500 sm:text-sm">
-            Gerencie as necessidades tecnológicas da sua empresa e acompanhe as recomendações.
-          </p>
-        </div>
+      {modo === 'pagina' ? (
+        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-gray-100 pb-4">
+          <h2 id="titulo-demandas" className="font-display text-xl font-bold text-ink-900 sm:text-2xl">
+            Demandas
+          </h2>
 
-        <Botao onClick={onNovaDemanda} id="btn-adicionar-demanda">
-          <span className="text-base font-bold">+</span>
-          Adicionar nova demanda
-        </Botao>
-      </div>
+          {onNovaDemanda && (
+            <Botao onClick={onNovaDemanda} id="btn-adicionar-demanda">
+              <span className="text-base font-bold">+</span>
+              Adicionar nova demanda
+            </Botao>
+          )}
+        </div>
+      ) : (
+        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-gray-100 pb-5">
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 id="titulo-demandas" className="font-display text-xl font-bold text-ink-900 sm:text-2xl">
+                Minhas demandas
+              </h2>
+              {!carregando && (
+                <span className="text-base font-semibold text-ink-500 sm:text-lg">
+                  ({demandas.length})
+                </span>
+              )}
+            </div>
+            <p className="mt-1 text-xs text-ink-500 sm:text-sm">
+              Gerencie as necessidades tecnológicas da sua empresa e acompanhe as recomendações.
+            </p>
+          </div>
+
+          {onNovaDemanda && (
+            <Botao onClick={onNovaDemanda} id="btn-adicionar-demanda">
+              <span className="text-base font-bold">+</span>
+              Adicionar nova demanda
+            </Botao>
+          )}
+        </div>
+      )}
 
       {/* Estado de Carregamento */}
       {carregando && (
@@ -79,7 +97,7 @@ export default function PainelDemandas({
           {[1, 2].map((i) => (
             <div
               key={i}
-              className="animate-pulse rounded-xl border border-brand-100 bg-surface-2/60 p-5 shadow-sm"
+              className="animate-pulse rounded-xl bg-surface-2/60 p-5 shadow-sm"
             >
               <div className="h-4 w-24 rounded bg-brand-100" />
               <div className="mt-3 h-5 w-3/4 rounded bg-brand-100" />
@@ -111,7 +129,7 @@ export default function PainelDemandas({
 
       {/* Estado Vazio */}
       {!carregando && !erro && demandas.length === 0 && (
-        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-brand-200 bg-surface-2/40 px-6 py-12 text-center">
+        <div className="flex flex-col items-center justify-center rounded-xl bg-surface px-6 py-12 text-center shadow-sm">
           <h3 className="font-display text-base font-semibold text-ink-900">
             Você ainda não possui demandas cadastradas
           </h3>
@@ -146,11 +164,11 @@ export default function PainelDemandas({
                   }
                 }}
                 className={[
-                  'group flex flex-col justify-between rounded-xl border p-4 sm:p-5 text-left transition-all',
+                  'group flex flex-col justify-between rounded-xl p-4 sm:p-5 text-left transition-all',
                   temRecomendacoes ? 'cursor-pointer' : 'cursor-default',
                   ativa
-                    ? 'border-brand-500 bg-brand-50/40 ring-2 ring-brand-500/20 shadow-sm'
-                    : 'border-brand-100 bg-surface-2/40 hover:border-brand-300 hover:bg-surface hover:shadow-sm',
+                    ? 'bg-brand-50/40 ring-2 ring-brand-500/20 shadow-md'
+                    : 'bg-surface shadow-sm hover:shadow-md',
                 ].join(' ')}
               >
                 <div>
@@ -206,7 +224,7 @@ export default function PainelDemandas({
                   </div>
                 </div>
 
-                <div className="mt-5 flex items-center justify-between border-t border-brand-100 pt-3 text-xs">
+                <div className="mt-5 flex items-center justify-between border-t border-gray-100 pt-3 text-xs">
                   <span className="font-medium text-ink-700">
                     {temRecomendacoes ? (
                       <>

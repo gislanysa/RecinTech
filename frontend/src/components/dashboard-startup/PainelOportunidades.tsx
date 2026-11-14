@@ -151,7 +151,7 @@ export default function PainelOportunidades({
         )}
 
         {carga.status === 'erro' && (
-          <div role="alert" className="rounded-card border border-accent-300 bg-accent-100 p-6 text-center">
+          <div role="alert" className="rounded-card bg-accent-50 p-6 text-center shadow-sm">
             <p className="text-sm font-semibold text-ink-900">Não foi possível carregar as oportunidades.</p>
             <button
               type="button"
@@ -164,7 +164,7 @@ export default function PainelOportunidades({
         )}
 
         {carga.status === 'ok' && oportunidades.length === 0 && (
-          <div className="rounded-card border border-dashed border-brand-200 bg-surface p-8 text-center">
+          <div className="rounded-card bg-surface p-8 text-center shadow-sm">
             <p className="text-sm font-semibold text-ink-900">Nenhuma oportunidade no momento</p>
             <p className="mt-1 text-sm text-ink-500">
               Complete seu perfil e volte em breve: novas demandas compatíveis aparecem aqui.

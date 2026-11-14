@@ -75,6 +75,7 @@ export default function PaginaDemandasEmpresa() {
       </header>
 
       <PainelDemandas
+        modo="pagina"
         demandas={demandas}
         carregando={carregando}
         erro={erro}
@@ -96,7 +97,7 @@ export default function PaginaDemandasEmpresa() {
       {/* Paginação com proteção contra página vazia */}
       <nav
         aria-label="Paginação das demandas"
-        className="flex items-center justify-between rounded-xl border border-brand-100 bg-surface px-4 py-3"
+        className="flex items-center justify-between rounded-xl bg-surface px-4 py-3 shadow-sm"
       >
         <button
           type="button"

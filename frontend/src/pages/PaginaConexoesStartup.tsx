@@ -102,13 +102,13 @@ export default function PaginaConexoesStartup() {
       )}
 
       {carga.status === 'erro' && (
-        <p className="rounded-card border border-dashed border-brand-200 px-6 py-12 text-center text-sm text-ink-500">
+        <p className="rounded-card bg-surface px-6 py-12 text-center text-sm text-ink-500 shadow-sm">
           Não foi possível carregar suas conexões. Tente novamente em instantes.
         </p>
       )}
 
       {carga.status === 'ok' && conexoes.length === 0 && (
-        <div className="rounded-card border border-dashed border-brand-200 bg-surface px-6 py-16 text-center">
+        <div className="rounded-card bg-surface px-6 py-16 text-center shadow-sm">
           <h2 className="text-lg font-semibold text-ink-900">Você ainda não se conectou com nenhuma empresa</h2>
           <p className="mx-auto mt-2 max-w-md text-sm text-ink-500">
             Quando você demonstrar interesse em uma oportunidade, ela aparece aqui com a resposta da empresa.
@@ -150,8 +150,8 @@ function Contador({ rotulo, valor, destaque }: { rotulo: string; valor: number; 
   return (
     <div
       className={[
-        'rounded-card border p-5 text-center',
-        destaque && valor > 0 ? 'border-accent-300 bg-accent-100' : 'border-brand-100 bg-surface',
+        'rounded-card p-5 text-center shadow-sm',
+        destaque && valor > 0 ? 'bg-accent-100' : 'bg-surface',
       ].join(' ')}
     >
       <dd className="font-display text-3xl font-bold text-ink-900">{valor}</dd>
@@ -172,12 +172,7 @@ function LinhaConexao({
   const podeResponder = conexao.iniciado_por === 'company' && conexao.status === 'pendente' && conexao.company_id
 
   return (
-    <li
-      className={[
-        'rounded-card border bg-surface p-5',
-        match ? 'border-accent-300' : 'border-brand-100',
-      ].join(' ')}
-    >
+    <li className="rounded-card bg-surface p-5 shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <h2 className="text-base font-semibold text-ink-900">{conexao.oportunidade.empresa}</h2>

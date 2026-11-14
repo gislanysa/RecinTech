@@ -18,7 +18,7 @@ const ITENS_STARTUP: ItemNavegacaoDashboard[] = [
   { rotulo: 'Meu perfil', to: '/dashboard/startup/perfil', Icone: UserIcon },
   { rotulo: 'Oportunidades', to: '/dashboard/startup/oportunidades', Icone: TargetIcon },
   { rotulo: 'Conexões', to: '/dashboard/startup/conexoes', Icone: UsersIcon },
-  { rotulo: 'Catálogo', to: '/startups', Icone: GridIcon },
+  { rotulo: 'Catálogo', to: '/dashboard/startup/catalogo', Icone: GridIcon },
   { rotulo: 'Plano', to: '/dashboard/startup/plano', Icone: CreditCardIcon },
 ]
 

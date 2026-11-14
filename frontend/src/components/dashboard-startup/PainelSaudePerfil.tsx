@@ -1,30 +1,20 @@
 import Botao from '@/components/Botao.tsx'
-import { AlertIcon, CheckIcon, ChevronDownIcon } from '@/components/icons.tsx'
+import { AlertIcon, CheckIcon } from '@/components/icons.tsx'
 import type { Startup } from '@/lib/api.ts'
 import {
   DIAS_PARA_PERFIL_DESATUALIZADO,
   calcularSaudeDoPerfil,
   diasSemAtualizar,
-  type ItemSaude,
   type Tags,
 } from '@/lib/perfil.ts'
-import { useState } from 'react'
-import { Link } from 'react-router-dom'
 
 const ROTA_EDITAR_PERFIL = '/dashboard/startup/perfil'
 
 /**
  * Painel "Saúde do perfil".
  *
- * Mostra quanto do perfil está preenchido e, no lugar de só apontar o que
- * falta, transforma cada pendência em um próximo passo com verbo e botão.
- *
- * O número fica à esquerda e a lista de passos à direita, em duas colunas,
- * para o painel não empurrar o resto do dashboard para fora da tela.
- *
- * `tags === null` significa "ainda carregando". Como quatro dos dez itens são
- * tags, calcular a porcentagem antes delas chegarem mostraria um número baixo
- * que logo salta, por isso o número e a barra só aparecem depois.
+ * Mostra quanto do perfil está preenchido e exibe a tag com a quantidade
+ * de pendências restantes, permitindo acessar diretamente a tela de Meu Perfil.
  */
 export default function PainelSaudePerfil({ startup, tags }: { startup: Startup; tags: Tags | null }) {
   const carregando = tags === null
@@ -32,19 +22,25 @@ export default function PainelSaudePerfil({ startup, tags }: { startup: Startup;
   const dias = diasSemAtualizar(startup)
   const desatualizado = dias !== null && dias > DIAS_PARA_PERFIL_DESATUALIZADO
   const completo = !carregando && saude.faltando.length === 0
-  const [mostrarPassos, setMostrarPassos] = useState(false)
 
   return (
     <section
       aria-labelledby="titulo-saude-perfil"
-      className="rounded-card border border-brand-100 bg-surface p-5 shadow-sm sm:p-6"
+      className="rounded-card bg-surface p-5 shadow-sm sm:p-6"
     >
       <div className="flex flex-col gap-6">
         <div className="min-w-0">
           <div className="flex items-start justify-between gap-4">
-            <h2 id="titulo-saude-perfil" className="text-lg font-semibold">
-              Saúde do perfil
-            </h2>
+            <div className="flex flex-wrap items-center gap-2.5">
+              <h2 id="titulo-saude-perfil" className="text-lg font-semibold text-ink-900">
+                Saúde do perfil
+              </h2>
+              {!carregando && !completo && (
+                <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-700">
+                  {saude.faltando.length} {saude.faltando.length === 1 ? 'pendência' : 'pendências'}
+                </span>
+              )}
+            </div>
 
             {carregando ? (
               <div className="h-9 w-16 animate-pulse rounded-lg bg-brand-100" aria-hidden="true" />
@@ -108,79 +104,7 @@ export default function PainelSaudePerfil({ startup, tags }: { startup: Startup;
             </Botao>
           </div>
         </div>
-
-        {!carregando && !completo && (
-          <div className="border-t border-brand-100 pt-4">
-            <button
-              type="button"
-              id="btn-toggle-proximos-passos"
-              onClick={() => setMostrarPassos((prev) => !prev)}
-              aria-expanded={mostrarPassos}
-              aria-controls="lista-proximos-passos"
-              className="group flex w-full items-center justify-between rounded-xl py-2 text-left transition-colors hover:bg-brand-50/70"
-            >
-              <div className="flex items-center gap-2.5">
-                <h3 className="text-sm font-semibold text-ink-900 group-hover:text-brand-700">
-                  Próximos passos
-                </h3>
-                <span className="rounded-full bg-brand-100 px-2 py-0.5 text-xs font-medium text-brand-700">
-                  {saude.faltando.length} {saude.faltando.length === 1 ? 'pendência' : 'pendências'}
-                </span>
-              </div>
-              <div className="flex items-center gap-1.5 text-xs font-medium text-ink-500 group-hover:text-ink-700">
-                <span>{mostrarPassos ? 'Ocultar' : 'Ver o que falta'}</span>
-                <ChevronDownIcon
-                  className={[
-                    'size-4 transition-transform duration-200',
-                    mostrarPassos ? 'rotate-180' : '',
-                  ].join(' ')}
-                />
-              </div>
-            </button>
-
-            {mostrarPassos && (
-              <ul id="lista-proximos-passos" className="mt-3 flex flex-col gap-2">
-                {saude.faltando.map((item) => (
-                  <ProximoPasso key={item.chave} item={item} />
-                ))}
-              </ul>
-            )}
-          </div>
-        )}
       </div>
     </section>
-  )
-}
-
-/**
- * Uma pendência como linha de ação.
- *
- * Itens com `disponivel: false` dependem de uma rota de alteração que o
- * backend ainda não tem, então o botão fica desligado e a linha explica isso
- * em vez de levar a pessoa a uma tela onde ela não consegue fazer nada.
- */
-function ProximoPasso({ item }: { item: ItemSaude }) {
-  return (
-    <li className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-brand-100 bg-surface-2 px-4 py-3">
-      <div className="min-w-0">
-        <p className="text-sm font-medium text-ink-900">{item.comoPreencher}</p>
-        {!item.disponivel && (
-          <p className="text-xs text-ink-500">Disponível quando a edição do cadastro existir.</p>
-        )}
-      </div>
-
-      {item.disponivel ? (
-        <Link
-          to={ROTA_EDITAR_PERFIL}
-          className="shrink-0 rounded-full bg-brand-100 px-4 py-1.5 text-sm font-medium text-ink-900 ring-1 ring-brand-200 transition-colors hover:bg-brand-600 hover:text-white hover:ring-brand-600"
-        >
-          {item.acao}
-        </Link>
-      ) : (
-        <span className="shrink-0 rounded-full px-4 py-1.5 text-sm font-medium text-ink-500 ring-1 ring-brand-100">
-          {item.acao}
-        </span>
-      )}
-    </li>
   )
 }

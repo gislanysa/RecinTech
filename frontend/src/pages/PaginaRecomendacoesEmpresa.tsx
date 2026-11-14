@@ -54,6 +54,7 @@ export default function PaginaRecomendacoesEmpresa() {
       </header>
 
       <PainelRecomendacoes
+        modo="pagina"
         recomendacoes={recomendacoes}
         demandas={demandas}
         demandaAtivaId={demandaFiltroId}

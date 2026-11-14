@@ -1,7 +1,9 @@
 import BotaoVoltar from '@/components/BotaoVoltar.tsx'
 import Footer from '@/components/layout/Footer.tsx'
+import CanvasPublico from '@/components/perfil/CanvasPublico.tsx'
 import Header from '@/components/layout/Header.tsx'
 import type { Startup } from '@/lib/api.ts'
+import { carregarCanvas } from '@/lib/canvas.ts'
 import { calcularTempoAtuacao } from '@/lib/formatadores.ts'
 import { buscarStartupPorId, carregarTagsDaStartup, iniciais } from '@/lib/startups.ts'
 import axios from 'axios'
@@ -179,6 +181,8 @@ function Conteudo({ startup, tags }: { startup: Startup; tags: Tags | null }) {
             <ListaDeTags titulo="Segmentos" itens={tags.segments} />
           </div>
         )}
+
+        <CanvasPublico canvas={carregarCanvas(startup.id)} />
       </section>
     </>
   )

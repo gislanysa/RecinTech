@@ -17,7 +17,7 @@ const ITENS_EMPRESA: ItemNavegacaoDashboard[] = [
   { rotulo: 'Minhas demandas', to: '/dashboard/empresa/demandas', Icone: TargetIcon },
   { rotulo: 'Recomendações', to: '/dashboard/empresa/recomendacoes', Icone: RocketIcon },
   { rotulo: 'Conexões', to: '/dashboard/empresa/conexoes', Icone: HandshakeIcon },
-  { rotulo: 'Catálogo', to: '/startups', Icone: GridIcon },
+  { rotulo: 'Catálogo', to: '/dashboard/empresa/catalogo', Icone: GridIcon },
 ]
 
 export default function LayoutDashboardEmpresa() {

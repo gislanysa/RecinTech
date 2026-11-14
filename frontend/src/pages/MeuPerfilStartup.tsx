@@ -4,6 +4,14 @@ import type { ContextoSessao } from '@/components/RotaProtegida.tsx'
 import { Campo as CampoForm, CampoSelect } from '@/components/forms/Campo.tsx'
 import { CheckIcon, CloseIcon } from '@/components/icons.tsx'
 import { atualizarStartup, type Startup } from '@/lib/api.ts'
+import {
+  BLOCOS_CANVAS,
+  carregarCanvas,
+  salvarCanvas,
+  temConteudo,
+  type CanvasStartup,
+  type ChaveCanvas,
+} from '@/lib/canvas.ts'
 import type { Tags } from '@/lib/perfil.ts'
 import { carregarTagsDaStartup } from '@/lib/startups.ts'
 import { useEffect, useState } from 'react'
@@ -125,6 +133,34 @@ export default function MeuPerfilStartup() {
     }
   }
 
+  // Estados do Business Model Canvas
+  const [canvas, setCanvas] = useState<CanvasStartup>(() => carregarCanvas(dadosStartup.id))
+  const [editandoCanvas, setEditandoCanvas] = useState(false)
+  const [erroCanvas, setErroCanvas] = useState('')
+
+  function alterarCanvas(chave: ChaveCanvas, valor: string) {
+    setCanvas((atual) => ({ ...atual, [chave]: valor }))
+  }
+
+  function handleSalvarCanvas(e: React.FormEvent) {
+    e.preventDefault()
+    try {
+      salvarCanvas(dadosStartup.id, canvas)
+      setErroCanvas('')
+      setEditandoCanvas(false)
+      setMensagemSucesso('Business Model Canvas salvo com sucesso!')
+      setTimeout(() => setMensagemSucesso(''), 4000)
+    } catch {
+      setErroCanvas('Não foi possível salvar o canvas neste navegador.')
+    }
+  }
+
+  function handleCancelarCanvas() {
+    setCanvas(carregarCanvas(dadosStartup.id))
+    setErroCanvas('')
+    setEditandoCanvas(false)
+  }
+
   return (
     <div className="flex flex-col gap-8">
       <header className="flex flex-wrap items-start justify-between gap-4">
@@ -144,7 +180,7 @@ export default function MeuPerfilStartup() {
             Ver meu perfil público
           </Link>
           <Link
-            to="/startups"
+            to="/dashboard/startup/catalogo"
             className="text-sm font-medium text-brand-600 underline-offset-4 hover:underline"
           >
             Ver outras startups
@@ -159,7 +195,7 @@ export default function MeuPerfilStartup() {
         </div>
       )}
 
-      <section className="rounded-card border border-brand-100 bg-surface p-5 shadow-sm sm:p-6">
+      <section id="cadastro" className="rounded-card bg-surface p-5 shadow-sm sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <h2 className="text-lg font-semibold text-ink-900">Dados do cadastro</h2>
           <Botao onClick={abrirEdicao}>
@@ -183,7 +219,7 @@ export default function MeuPerfilStartup() {
         </dl>
       </section>
 
-      <section className="rounded-card border border-brand-100 bg-surface p-5 shadow-sm sm:p-6">
+      <section id="tags" className="rounded-card bg-surface p-5 shadow-sm sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <h2 className="text-lg font-semibold text-ink-900">Áreas, serviços e tecnologias</h2>
@@ -191,7 +227,7 @@ export default function MeuPerfilStartup() {
               São estas marcações que fazem sua startup aparecer nas buscas das empresas.
             </p>
           </div>
-          <Botao onClick={() => setModalTagsAberto(true)}>
+          <Botao onClick={() => setModalTagsAberto(true)} aria-label="Editar áreas, serviços e tecnologias">
             Editar
           </Botao>
         </div>
@@ -204,6 +240,102 @@ export default function MeuPerfilStartup() {
             <GrupoDeTags rotulo="Serviços" itens={tags.services} />
             <GrupoDeTags rotulo="Tecnologias" itens={tags.technologies} />
             <GrupoDeTags rotulo="Segmentos" itens={tags.segments} />
+          </dl>
+        )}
+      </section>
+
+      {/* Business Model Canvas */}
+      <section id="canvas" className="rounded-card bg-surface p-5 shadow-sm sm:p-6">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h2 className="text-lg font-semibold text-ink-900">Business Model Canvas</h2>
+            <p className="mt-1 text-sm text-ink-500">
+              Preencha os blocos do seu modelo de negócio. As informações ficam visíveis no seu perfil público.
+            </p>
+          </div>
+          {!editandoCanvas && (
+            <Botao
+              onClick={() => setEditandoCanvas(true)}
+              aria-label={temConteudo(canvas) ? 'Editar canvas' : 'Preencher canvas'}
+            >
+              {temConteudo(canvas) ? 'Editar' : 'Preencher canvas'}
+            </Botao>
+          )}
+        </div>
+
+        {editandoCanvas ? (
+          <form onSubmit={handleSalvarCanvas} className="mt-6 flex flex-col gap-6">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {BLOCOS_CANVAS.map(({ chave, titulo, dica }) => (
+                <div key={chave} className="flex flex-col gap-1.5">
+                  <label htmlFor={`canvas-${chave}`} className="text-sm font-semibold text-ink-900">
+                    {titulo}
+                  </label>
+                  <textarea
+                    id={`canvas-${chave}`}
+                    rows={3}
+                    value={canvas[chave]}
+                    onChange={(e) => alterarCanvas(chave, e.target.value)}
+                    placeholder={dica}
+                    className="w-full min-h-[100px] sm:min-h-[110px] rounded-xl border border-gray-200 bg-white p-3 text-sm text-ink-900 shadow-sm outline-none placeholder:text-ink-500/60 focus:border-transparent focus:ring-2 focus:ring-accent-500"
+                  />
+                </div>
+              ))}
+            </div>
+
+            {erroCanvas && (
+              <p role="alert" className="text-sm font-medium text-red-700">
+                {erroCanvas}
+              </p>
+            )}
+
+            <div className="flex flex-wrap items-center gap-3">
+              <Botao type="submit">Salvar canvas</Botao>
+              <button
+                type="button"
+                onClick={handleCancelarCanvas}
+                className="rounded-xl border border-brand-200 px-4 py-2 text-sm font-medium text-ink-700 hover:bg-brand-50"
+              >
+                Cancelar
+              </button>
+            </div>
+          </form>
+        ) : !temConteudo(canvas) ? (
+          <div className="mt-6 rounded-xl border border-dashed border-gray-200 bg-white p-6 text-center shadow-sm">
+            <p className="text-sm text-ink-500">
+              Você ainda não preencheu o seu Business Model Canvas.
+            </p>
+            <p className="mt-1 text-xs text-ink-500/80">
+              Defina proposta de valor, segmentos de clientes, fontes de receita e outros blocos essenciais.
+            </p>
+            <div className="mt-4 flex justify-center">
+              <Botao onClick={() => setEditandoCanvas(true)}>
+                Preencher agora
+              </Botao>
+            </div>
+          </div>
+        ) : (
+          <dl className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {BLOCOS_CANVAS.map(({ chave, titulo }) => {
+              const texto = canvas[chave]?.trim()
+              return (
+                <div
+                  key={chave}
+                  className="flex flex-col min-h-[100px] sm:min-h-[110px] rounded-xl border border-gray-100 bg-white p-3.5 sm:p-4 shadow-sm"
+                >
+                  <dt className="text-xs font-semibold uppercase tracking-wide text-ink-500">{titulo}</dt>
+                  <dd
+                    className={
+                      texto
+                        ? 'mt-1.5 flex-1 whitespace-pre-line text-sm leading-relaxed text-ink-700'
+                        : 'mt-1.5 flex-1 text-sm italic text-ink-400'
+                    }
+                  >
+                    {texto || 'Não informado'}
+                  </dd>
+                </div>
+              )
+            })}
           </dl>
         )}
       </section>

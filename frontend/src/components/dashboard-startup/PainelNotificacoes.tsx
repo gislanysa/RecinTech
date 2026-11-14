@@ -40,7 +40,7 @@ export default function PainelNotificacoes({ conexoes }: { conexoes: Conexao[] |
   return (
     <section
       aria-labelledby="titulo-notificacoes"
-      className="rounded-card border border-brand-100 bg-surface p-5 shadow-sm"
+      className="rounded-card bg-surface p-5 shadow-sm"
     >
       <div className="flex items-center gap-2">
         <BellIcon className="size-5 text-brand-600" />
