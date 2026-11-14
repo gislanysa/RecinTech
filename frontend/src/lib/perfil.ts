@@ -1,4 +1,5 @@
 import type { Startup } from '@/lib/api.ts'
+import { carregarCanvas, temConteudo, type CanvasStartup } from '@/lib/canvas.ts'
 import { carregarTagsDaStartup } from '@/lib/startups.ts'
 
 /** Dias sem atualizar o perfil a partir dos quais o alerta aparece. */
@@ -10,30 +11,66 @@ export type ItemSaude = {
   chave: string
   rotulo: string
   preenchido: boolean
-  /** O que fazer para preencher, escrito como instrução. */
+  /** O que fazer para preencher, escrito como instrução clara. */
   comoPreencher: string
-  /** Verbo do botão de ação. */
+  /** Verbo padronizado do botão de ação. */
   acao: string
-  /**
-   * `true` quando o campo pode ser preenchido hoje. As quatro tags têm rota de
-   * atribuição no backend (`POST /api/startup/<recurso>`); os campos do
-   * cadastro não têm rota de alteração, então ainda não há como mexer neles.
-   */
+  /** `true` pois todos os itens podem ser preenchidos diretamente na tela de Meu Perfil. */
   disponivel: boolean
+  /** Rota com âncora para ir direto à seção correspondente. */
+  rota?: string
 }
 
-/** Texto e verbo de cada item, na ordem em que fazem sentido para quem lê. */
-const COMO_PREENCHER: Record<string, { comoPreencher: string; acao: string; disponivel: boolean }> = {
-  description: { comoPreencher: 'Escreva o que sua startup faz, em poucas linhas', acao: 'Escrever', disponivel: false },
-  website: { comoPreencher: 'Informe o site ou uma rede social da startup', acao: 'Informar', disponivel: false },
-  city: { comoPreencher: 'Informe a cidade onde a startup atua', acao: 'Informar', disponivel: false },
-  state: { comoPreencher: 'Informe o estado onde a startup atua', acao: 'Informar', disponivel: false },
-  stage: { comoPreencher: 'Diga em que estágio a startup está', acao: 'Informar', disponivel: false },
-  cnpj: { comoPreencher: 'Informe o CNPJ da startup', acao: 'Informar', disponivel: false },
-  area: { comoPreencher: 'Defina sua área de atuação principal', acao: 'Definir', disponivel: true },
-  services: { comoPreencher: 'Marque os serviços que vocês entregam', acao: 'Marcar', disponivel: true },
-  technologies: { comoPreencher: 'Liste as tecnologias que vocês usam', acao: 'Listar', disponivel: true },
-  segments: { comoPreencher: 'Escolha os segmentos de mercado que atende', acao: 'Escolher', disponivel: true },
+/** Texto e verbo padronizado de cada item da tela de Meu Perfil. */
+const COMO_PREENCHER: Record<string, { comoPreencher: string; acao: string; disponivel: boolean; rota?: string }> = {
+  description: {
+    comoPreencher: 'Preencher a descrição da sua startup',
+    acao: 'Preencher',
+    disponivel: true,
+    rota: '/dashboard/startup/perfil#cadastro',
+  },
+  website: {
+    comoPreencher: 'Preencher o site ou rede social da sua startup',
+    acao: 'Preencher',
+    disponivel: true,
+    rota: '/dashboard/startup/perfil#cadastro',
+  },
+  location: {
+    comoPreencher: 'Preencher a localização (cidade e estado) onde atua',
+    acao: 'Preencher',
+    disponivel: true,
+    rota: '/dashboard/startup/perfil#cadastro',
+  },
+  area: {
+    comoPreencher: 'Preencher a área de atuação principal',
+    acao: 'Preencher',
+    disponivel: true,
+    rota: '/dashboard/startup/perfil#tags',
+  },
+  services: {
+    comoPreencher: 'Preencher os serviços que sua startup oferece',
+    acao: 'Preencher',
+    disponivel: true,
+    rota: '/dashboard/startup/perfil#tags',
+  },
+  technologies: {
+    comoPreencher: 'Preencher as tecnologias utilizadas pela sua startup',
+    acao: 'Preencher',
+    disponivel: true,
+    rota: '/dashboard/startup/perfil#tags',
+  },
+  segments: {
+    comoPreencher: 'Preencher os segmentos de mercado atendidos',
+    acao: 'Preencher',
+    disponivel: true,
+    rota: '/dashboard/startup/perfil#tags',
+  },
+  canvas: {
+    comoPreencher: 'Preencher o Business Model Canvas da sua startup',
+    acao: 'Preencher',
+    disponivel: true,
+    rota: '/dashboard/startup/perfil#canvas',
+  },
 }
 
 export type SaudeDoPerfil = {
@@ -44,13 +81,19 @@ export type SaudeDoPerfil = {
 }
 
 /**
- * Campos considerados "relevantes" para o perfil: os do cadastro
- * (`POST /startup`) mais as tags (serviços, tecnologias, segmentos e área de
- * atuação), que o dashboard busca nas rotas `/startup/:id/<recurso>`.
- * Todos têm o mesmo peso.
+ * Campos considerados para a saúde do perfil: baseados exatamente nas
+ * informações que constam na tela de Meu Perfil da startup:
+ * - Dados do cadastro (descrição, site, localização)
+ * - Áreas, serviços e tecnologias (área principal, serviços, tecnologias, segmentos)
+ * - Business Model Canvas (blocos do modelo de negócio)
  */
-export function calcularSaudeDoPerfil(startup: Startup, tags: Tags | null): SaudeDoPerfil {
+export function calcularSaudeDoPerfil(
+  startup: Startup,
+  tags: Tags | null,
+  canvas?: CanvasStartup | null,
+): SaudeDoPerfil {
   const preenchido = (valor: string | undefined) => !!valor && valor.trim().length > 0
+  const dadosCanvas = canvas !== undefined ? canvas : startup.id ? carregarCanvas(startup.id) : null
 
   const base: { chave: string; rotulo: string; preenchido: boolean }[] = [
     { chave: 'description', rotulo: 'Descrição', preenchido: preenchido(startup.description) },
@@ -59,10 +102,8 @@ export function calcularSaudeDoPerfil(startup: Startup, tags: Tags | null): Saud
     { chave: 'technologies', rotulo: 'Tecnologias', preenchido: (tags?.technologies.length ?? 0) > 0 },
     { chave: 'segments', rotulo: 'Segmentos', preenchido: (tags?.segments.length ?? 0) > 0 },
     { chave: 'website', rotulo: 'Site', preenchido: preenchido(startup.website) },
-    { chave: 'city', rotulo: 'Cidade', preenchido: preenchido(startup.city) },
-    { chave: 'state', rotulo: 'Estado', preenchido: preenchido(startup.state) },
-    { chave: 'stage', rotulo: 'Estágio', preenchido: preenchido(startup.stage) },
-    { chave: 'cnpj', rotulo: 'CNPJ', preenchido: preenchido(startup.cnpj) },
+    { chave: 'location', rotulo: 'Localização', preenchido: preenchido(startup.city) && preenchido(startup.state) },
+    { chave: 'canvas', rotulo: 'Business Model Canvas', preenchido: dadosCanvas ? temConteudo(dadosCanvas) : false },
   ]
 
   const itens: ItemSaude[] = base.map((item) => ({ ...item, ...COMO_PREENCHER[item.chave] }))

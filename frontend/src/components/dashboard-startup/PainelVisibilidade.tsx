@@ -16,7 +16,7 @@ export default function PainelVisibilidade() {
   return (
     <section
       aria-labelledby="titulo-visibilidade"
-      className="rounded-card border border-brand-100 bg-surface p-5 shadow-sm sm:p-6"
+      className="rounded-card bg-surface p-5 shadow-sm sm:p-6"
     >
       <h2 id="titulo-visibilidade" className="text-lg font-semibold">
         Visibilidade
@@ -45,7 +45,7 @@ function Metrica({
   rotulo: string
 }) {
   return (
-    <div className="rounded-xl border border-brand-100 bg-surface-2 p-4">
+    <div className="rounded-xl bg-surface-2/60 p-4 shadow-sm">
       <Icone className="size-4 text-ink-500" />
       <dd className="mt-2 font-display text-2xl font-bold text-ink-500">0</dd>
       <dt className="mt-0.5 text-xs text-ink-500">{rotulo}</dt>

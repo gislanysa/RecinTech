@@ -1,6 +1,7 @@
 import Botao from '@/components/Botao.tsx'
 import { CheckIcon, CloseIcon } from '@/components/icons.tsx'
 import { enviarConviteReuniao, type Demanda } from '@/lib/demandas.ts'
+import { calcularTempoAtuacao } from '@/lib/formatadores.ts'
 import type { StartupCatalogo } from '@/lib/startups.ts'
 import { useEffect, useState } from 'react'
 
@@ -11,24 +12,6 @@ type ModalPerfilStartupProps = {
   companyId: string
   aoFechar: () => void
   onConviteEnviado?: () => void
-}
-
-/**
- * Calcula o tempo aproximado desde o cadastro da startup na plataforma.
- */
-function calcularTempoAtuacao(dataCriacao: string): string {
-  try {
-    const criacao = new Date(dataCriacao)
-    const agora = new Date()
-    const diffMeses = (agora.getFullYear() - criacao.getFullYear()) * 12 + (agora.getMonth() - criacao.getMonth())
-
-    if (diffMeses <= 1) return 'Recém-chegada na plataforma'
-    if (diffMeses < 12) return `${diffMeses} meses na plataforma`
-    const anos = Math.floor(diffMeses / 12)
-    return `${anos} ${anos === 1 ? 'ano' : 'anos'} na plataforma`
-  } catch {
-    return 'Tempo na plataforma não informado'
-  }
 }
 
 export default function ModalPerfilStartup(props: ModalPerfilStartupProps) {

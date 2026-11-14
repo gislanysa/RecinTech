@@ -4,7 +4,6 @@ import LayoutDashboardStartup from '@/components/dashboard-startup/LayoutDashboa
 import CriarConta from '@/pages/CriarConta.tsx'
 import DashboardEmpresa from '@/pages/DashboardEmpresa.tsx'
 import DashboardStartup from '@/pages/DashboardStartup.tsx'
-import EmConstrucao from '@/pages/EmConstrucao.tsx'
 import Entrar from '@/pages/Entrar.tsx'
 import ExplorarStartups from '@/pages/ExplorarStartups.tsx'
 import Home from '@/pages/Home.tsx'
@@ -12,6 +11,8 @@ import MeuPerfilStartup from '@/pages/MeuPerfilStartup.tsx'
 import PaginaConexoesEmpresa from '@/pages/PaginaConexoesEmpresa.tsx'
 import PaginaConexoesStartup from '@/pages/PaginaConexoesStartup.tsx'
 import PaginaDemandasEmpresa from '@/pages/PaginaDemandasEmpresa.tsx'
+import PaginaNaoEncontrada from '@/pages/PaginaNaoEncontrada.tsx'
+import MuralStartups from '@/pages/MuralStartups.tsx'
 import PaginaOportunidadesStartup from '@/pages/PaginaOportunidadesStartup.tsx'
 import PaginaPlanoStartup from '@/pages/PaginaPlanoStartup.tsx'
 import PaginaRecomendacoesEmpresa from '@/pages/PaginaRecomendacoesEmpresa.tsx'
@@ -19,7 +20,7 @@ import { AuthProvider } from '@/contexts/AuthContext.tsx'
 import ParaEmpresas from '@/pages/ParaEmpresas.tsx'
 import ParaStartups from '@/pages/ParaStartups.tsx'
 import PerfilStartup from '@/pages/PerfilStartup.tsx'
-import { BrowserRouter, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 
 export default function App() {
   return (
@@ -47,6 +48,8 @@ export default function App() {
               <Route path="/dashboard/startup/perfil" element={<MeuPerfilStartup />} />
               <Route path="/dashboard/startup/oportunidades" element={<PaginaOportunidadesStartup />} />
               <Route path="/dashboard/startup/conexoes" element={<PaginaConexoesStartup />} />
+              <Route path="/dashboard/startup/catalogo" element={<MuralStartups />} />
+              <Route path="/dashboard/startup/canvas" element={<Navigate to="/dashboard/startup/perfil" replace />} />
               <Route path="/dashboard/startup/plano" element={<PaginaPlanoStartup />} />
             </Route>
           </Route>
@@ -56,10 +59,11 @@ export default function App() {
               <Route path="/dashboard/empresa/demandas" element={<PaginaDemandasEmpresa />} />
               <Route path="/dashboard/empresa/recomendacoes" element={<PaginaRecomendacoesEmpresa />} />
               <Route path="/dashboard/empresa/conexoes" element={<PaginaConexoesEmpresa />} />
+              <Route path="/dashboard/empresa/catalogo" element={<MuralStartups />} />
             </Route>
           </Route>
 
-          <Route path="*" element={<EmConstrucao titulo="Página não encontrada" />} />
+          <Route path="*" element={<PaginaNaoEncontrada />} />
         </Routes>
       </AuthProvider>
     </BrowserRouter>

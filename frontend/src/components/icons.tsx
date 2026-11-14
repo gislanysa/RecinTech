@@ -129,6 +129,14 @@ export function ChevronRightIcon(props: IconProps) {
   )
 }
 
+export function ChevronDownIcon(props: IconProps) {
+  return (
+    <svg {...stroke} {...props}>
+      <path d="m6 9 6 6 6-6" />
+    </svg>
+  )
+}
+
 /** Sino de notificações. */
 export function BellIcon(props: IconProps) {
   return (

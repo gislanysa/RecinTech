@@ -71,10 +71,18 @@ const atraso = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve
  *   GET   /api/company/:id/connection
  *   PATCH /api/connection/:id
  */
+import {
+  listarConexoesStartup,
+  responderConexaoStartup,
+  type ConexaoBackend,
+} from '@/lib/api.ts'
+
 export type StatusConexao = 'pendente' | 'aceito' | 'recusado'
 
 export type Conexao = {
   id: string
+  company_id?: string
+  startup_id?: string
   oportunidade: Oportunidade
   iniciado_por: 'startup' | 'company'
   status: StatusConexao
@@ -93,6 +101,7 @@ export type Conexao = {
 const CONEXOES_SIMULADAS: Conexao[] = [
   {
     id: 'cnx-exemplo-1',
+    company_id: 'emp-1',
     oportunidade: {
       id: 'sim-4',
       empresa: 'Hospital Santa Clara',
@@ -107,6 +116,7 @@ const CONEXOES_SIMULADAS: Conexao[] = [
   },
   {
     id: 'cnx-exemplo-2',
+    company_id: 'emp-2',
     oportunidade: {
       id: 'sim-5',
       empresa: 'Rede Mercadão Nordeste',
@@ -123,17 +133,68 @@ const CONEXOES_SIMULADAS: Conexao[] = [
 /** Ids que já viraram conexão e por isso saem das recomendações. */
 const inscritas = new Set(CONEXOES_SIMULADAS.map((c) => c.oportunidade.id))
 
+function normalizarStatusBackend(status: ConexaoBackend['status']): StatusConexao {
+  switch (status) {
+    case 'accepted':
+      return 'aceito'
+    case 'declined':
+      return 'recusado'
+    default:
+      return 'pendente'
+  }
+}
+
 /**
- * GET /startup/:id/connection — quando existir.
+ * GET /api/startup/:id/connection
  *
- * Lista o que a startup já se inscreveu, com a resposta da empresa.
+ * Lista as conexões recebidas ou iniciadas pela startup via backend.
  */
-export async function listarConexoes(): Promise<{
+export async function listarConexoes(startupId?: string): Promise<{
   conexoes: Conexao[]
   origem: OrigemDosDados
 }> {
-  await atraso(500)
+  if (startupId) {
+    try {
+      const dados = await listarConexoesStartup(startupId)
+      if (Array.isArray(dados) && dados.length > 0) {
+        const conexoesReais: Conexao[] = dados.map((c) => ({
+          id: `${c.company}-${c.startup}`,
+          company_id: c.company,
+          startup_id: c.startup,
+          oportunidade: {
+            id: `demanda-${c.company}`,
+            empresa: 'Empresa Parceira',
+            demanda: 'Solicitação de conexão e parceria com a sua startup.',
+            compatibilidade: 100,
+            tecnologias: [],
+          },
+          iniciado_por: 'company',
+          status: normalizarStatusBackend(c.status),
+          created_at: c.created_at,
+          respondido_em: c.updated_at !== c.created_at ? c.updated_at : undefined,
+        }))
+        return { conexoes: conexoesReais, origem: 'api' }
+      }
+    } catch {
+      // Fallback gracioso para dados simulados se endpoint não responder
+    }
+  }
+
+  await atraso(300)
   return { conexoes: [...CONEXOES_SIMULADAS], origem: 'simulado' }
+}
+
+/**
+ * PATCH /api/startup/:id/connection/:company_id
+ *
+ * Atualiza o status da conexão da perspectiva da startup ('accepted' ou 'declined').
+ */
+export async function responderSolicitacaoConexao(
+  startupId: string,
+  companyId: string,
+  status: 'accepted' | 'declined',
+): Promise<ConexaoBackend> {
+  return responderConexaoStartup(startupId, companyId, status)
 }
 
 export async function listarOportunidades(): Promise<{

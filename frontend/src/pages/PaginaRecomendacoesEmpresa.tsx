@@ -2,8 +2,9 @@ import ModalNovaDemanda from '@/components/dashboard-empresa/ModalNovaDemanda.ts
 import ModalPerfilStartup from '@/components/dashboard-empresa/ModalPerfilStartup.tsx'
 import PainelRecomendacoes from '@/components/dashboard-empresa/PainelRecomendacoes.tsx'
 import type { ContextoSessao } from '@/components/RotaProtegida.tsx'
+import { useDemandas } from '@/hooks/useDemandas.ts'
 import type { Company } from '@/lib/api.ts'
-import { calcularRecomendacoes, listarDemandas, type Demanda } from '@/lib/demandas.ts'
+import { calcularRecomendacoes } from '@/lib/demandas.ts'
 import { listarStartups, type StartupCatalogo } from '@/lib/startups.ts'
 import { useEffect, useMemo, useState } from 'react'
 import { useOutletContext } from 'react-router-dom'
@@ -12,8 +13,12 @@ export default function PaginaRecomendacoesEmpresa() {
   const { conta } = useOutletContext<ContextoSessao>()
   const empresa = conta as Company
 
-  const [demandas, setDemandas] = useState<Demanda[]>([])
-  const [carregandoDemandas, setCarregandoDemandas] = useState(true)
+  const {
+    demandas,
+    carregando: carregandoDemandas,
+    salvarDemandaLocal,
+  } = useDemandas({ companyId: empresa?.id })
+
   const [startups, setStartups] = useState<StartupCatalogo[]>([])
   const [carregandoStartups, setCarregandoStartups] = useState(true)
 
@@ -23,14 +28,10 @@ export default function PaginaRecomendacoesEmpresa() {
   const [demandaSugeridaParaModal, setDemandaSugeridaParaModal] = useState<string | undefined>()
 
   useEffect(() => {
-    listarDemandas(empresa.id)
-      .then(setDemandas)
-      .finally(() => setCarregandoDemandas(false))
-
     listarStartups({ limit: 50, offset: 0 })
       .then(setStartups)
       .finally(() => setCarregandoStartups(false))
-  }, [empresa.id])
+  }, [])
 
   const recomendacoes = useMemo(() => {
     return calcularRecomendacoes(demandas, startups, demandaFiltroId)
@@ -53,6 +54,7 @@ export default function PaginaRecomendacoesEmpresa() {
       </header>
 
       <PainelRecomendacoes
+        modo="pagina"
         recomendacoes={recomendacoes}
         demandas={demandas}
         demandaAtivaId={demandaFiltroId}
@@ -65,9 +67,7 @@ export default function PaginaRecomendacoesEmpresa() {
         aberto={modalNovaDemanda}
         companyId={empresa.id}
         aoFechar={() => setModalNovaDemanda(false)}
-        aoCriar={(nova) => {
-          setDemandas((prev) => [nova, ...prev])
-        }}
+        aoSalvar={salvarDemandaLocal}
       />
 
       <ModalPerfilStartup
