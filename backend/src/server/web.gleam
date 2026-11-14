@@ -184,6 +184,9 @@ pub fn handle_request(request: Request, context: Context) -> Response {
     http.Delete, ["api", "startup", id, "lgpd", version] ->
       revoke_startup_lgpd_consent(request, context.database, id, version)
 
+    http.Get, ["api", "startup", id, "canvas"] ->
+      get_startup_canvas(request, context.database, id)
+
     // Fetching specific information about startups
     //
     // == segment ==============================================================
@@ -360,6 +363,24 @@ pub fn handle_request(request: Request, context: Context) -> Response {
 
     // Page not found in the frontend
     _, _ -> get_root_document()
+  }
+}
+
+fn get_startup_canvas(
+  request: Request,
+  database: pog.Connection,
+  id: String,
+) -> Response {
+  use id <- require_valid_uuid(id)
+  use _ <- require_session(request)
+
+  case startup.get_canvas(database, id) {
+    Ok(canvas) ->
+      startup.canvas_to_json(canvas)
+      |> json.to_string
+      |> wisp.json_response(200)
+
+    Error(error) -> handle_startup_error(error)
   }
 }
 
