@@ -1,12 +1,17 @@
 import type { ContaLogada, TipoSessao } from '@/lib/api.ts'
 import { createContext } from 'react'
 
-export type EstadoAutenticacao = 'carregando' | 'autenticado' | 'nao-autenticado'
+export type EstadoAutenticacao =
+  | 'carregando'
+  | 'autenticado'
+  | 'nao-autenticado'
+  | 'erro-temporario'
 
 export type AuthContextTipo = {
   conta: ContaLogada | null
   tipoConta: TipoSessao | null
   estado: EstadoAutenticacao
+  erroTemporario?: string | null
   login: (email: string, senha: string, tipo?: TipoSessao) => Promise<ContaLogada>
   logout: () => Promise<void>
   recarregarSessao: () => Promise<ContaLogada | null>

@@ -1,8 +1,13 @@
 import Botao from '@/components/Botao.tsx'
 import { Campo, CampoSelect } from '@/components/forms/Campo.tsx'
 import { CloseIcon } from '@/components/icons.tsx'
+import {
+  buscarSegmentos,
+  buscarServicos,
+  buscarTecnologias,
+  type ItemCatalogo,
+} from '@/lib/catalogos.ts'
 import { atualizarDemanda, criarDemanda, type Demanda, type StatusDemanda } from '@/lib/demandas.ts'
-import { SEGMENTS, SERVICES, TECHNOLOGIES } from '@/lib/startups.ts'
 import { useEffect, useState } from 'react'
 
 type ModalNovaDemandaProps = {
@@ -26,6 +31,10 @@ function FormularioDemanda({
   aoFechar: () => void
   aoSalvar: (demanda: Demanda) => void
 }) {
+  const [listaSegmentos, setListaSegmentos] = useState<ItemCatalogo[]>([])
+  const [listaServicos, setListaServicos] = useState<ItemCatalogo[]>([])
+  const [listaTecnologias, setListaTecnologias] = useState<ItemCatalogo[]>([])
+
   const [titulo, setTitulo] = useState(demandaParaEditar?.titulo ?? '')
   const [descricao, setDescricao] = useState(demandaParaEditar?.descricao ?? '')
   const [segmento, setSegmento] = useState(demandaParaEditar?.segmento ?? '')
@@ -34,6 +43,21 @@ function FormularioDemanda({
   const [tecnologias, setTecnologias] = useState<string[]>(demandaParaEditar?.tecnologias ?? [])
   const [enviando, setEnviando] = useState(false)
   const [erro, setErro] = useState('')
+
+  useEffect(() => {
+    let ativo = true
+    Promise.all([buscarSegmentos(), buscarServicos(), buscarTecnologias()]).then(
+      ([segs, servs, tecs]) => {
+        if (!ativo) return
+        setListaSegmentos(segs)
+        setListaServicos(servs)
+        setListaTecnologias(tecs)
+      },
+    )
+    return () => {
+      ativo = false
+    }
+  }, [])
 
   const isEdicao = Boolean(demandaParaEditar)
 
@@ -160,7 +184,7 @@ function FormularioDemanda({
               setSegmento(v)
               if (erro) setErro('')
             }}
-            opcoes={SEGMENTS}
+            opcoes={listaSegmentos.map((s) => s.name)}
             placeholder="Selecione o segmento principal"
           />
 
@@ -186,13 +210,13 @@ function FormularioDemanda({
               Serviços procurados (opcional)
             </span>
             <div className="flex flex-wrap gap-1.5">
-              {SERVICES.map((s) => {
-                const selecionado = servicos.includes(s)
+              {listaServicos.map((s) => {
+                const selecionado = servicos.includes(s.name)
                 return (
                   <button
-                    key={s}
+                    key={s.id}
                     type="button"
-                    onClick={() => alternarServico(s)}
+                    onClick={() => alternarServico(s.name)}
                     className={[
                       'rounded-full px-3 py-1 text-xs font-medium transition-all',
                       selecionado
@@ -200,7 +224,7 @@ function FormularioDemanda({
                         : 'bg-brand-50 text-ink-700 hover:bg-brand-100 ring-1 ring-brand-200',
                     ].join(' ')}
                   >
-                    {s}
+                    {s.name}
                   </button>
                 )
               })}
@@ -213,13 +237,13 @@ function FormularioDemanda({
               Tecnologias de interesse (opcional)
             </span>
             <div className="flex flex-wrap gap-1.5">
-              {TECHNOLOGIES.slice(0, 16).map((t) => {
-                const selecionado = tecnologias.includes(t)
+              {listaTecnologias.slice(0, 16).map((t) => {
+                const selecionado = tecnologias.includes(t.name)
                 return (
                   <button
-                    key={t}
+                    key={t.id}
                     type="button"
-                    onClick={() => alternarTecnologia(t)}
+                    onClick={() => alternarTecnologia(t.name)}
                     className={[
                       'rounded-full px-3 py-1 text-xs font-medium transition-all',
                       selecionado
@@ -227,7 +251,7 @@ function FormularioDemanda({
                         : 'bg-surface text-ink-700 hover:bg-brand-50 ring-1 ring-brand-200',
                     ].join(' ')}
                   >
-                    {t}
+                    {t.name}
                   </button>
                 )
               })}

@@ -1,12 +1,16 @@
 import { CheckIcon } from '@/components/icons.tsx'
 import Botao from '@/components/Botao.tsx'
+import type { ContextoSessao } from '@/components/RotaProtegida.tsx'
+import type { Startup } from '@/lib/api.ts'
 import {
   listarConexoes,
+  responderSolicitacaoConexao,
   type Conexao,
   type OrigemDosDados,
   type StatusConexao,
 } from '@/lib/oportunidades.ts'
 import { useEffect, useState } from 'react'
+import { useOutletContext } from 'react-router-dom'
 
 type Carga =
   | { status: 'carregando' }
@@ -33,12 +37,15 @@ function formatarData(iso: string): string {
  * perderem no meio das novas.
  */
 export default function PaginaConexoesStartup() {
+  const contexto = useOutletContext<ContextoSessao | undefined>()
+  const startup = contexto?.conta as Startup | undefined
+
   const [carga, setCarga] = useState<Carga>({ status: 'carregando' })
   const [conexoes, setConexoes] = useState<Conexao[]>([])
 
   useEffect(() => {
     let ativo = true
-    listarConexoes()
+    listarConexoes(startup?.id)
       .then(({ conexoes, origem }) => {
         if (!ativo) return
         setConexoes(conexoes)
@@ -50,7 +57,21 @@ export default function PaginaConexoesStartup() {
     return () => {
       ativo = false
     }
-  }, [])
+  }, [startup?.id])
+
+  async function handleResponder(conexaoId: string, companyId: string, status: 'accepted' | 'declined') {
+    if (!startup?.id) return
+    try {
+      await responderSolicitacaoConexao(startup.id, companyId, status)
+      setConexoes((prev) =>
+        prev.map((c) =>
+          c.id === conexaoId ? { ...c, status: status === 'accepted' ? 'aceito' : 'recusado' } : c,
+        ),
+      )
+    } catch {
+      // Falha silenciosa
+    }
+  }
 
   const contar = (status: StatusConexao) => conexoes.filter((c) => c.status === status).length
 
@@ -108,7 +129,15 @@ export default function PaginaConexoesStartup() {
 
           <ul className="flex flex-col gap-3">
             {conexoes.map((conexao) => (
-              <LinhaConexao key={conexao.id} conexao={conexao} />
+              <LinhaConexao
+                key={conexao.id}
+                conexao={conexao}
+                onResponder={(status) => {
+                  if (conexao.company_id) {
+                    void handleResponder(conexao.id, conexao.company_id, status)
+                  }
+                }}
+              />
             ))}
           </ul>
         </>
@@ -131,9 +160,16 @@ function Contador({ rotulo, valor, destaque }: { rotulo: string; valor: number; 
   )
 }
 
-function LinhaConexao({ conexao }: { conexao: Conexao }) {
+function LinhaConexao({
+  conexao,
+  onResponder,
+}: {
+  conexao: Conexao
+  onResponder?: (status: 'accepted' | 'declined') => void
+}) {
   const rotulo = ROTULO[conexao.status]
   const match = conexao.status === 'aceito'
+  const podeResponder = conexao.iniciado_por === 'company' && conexao.status === 'pendente' && conexao.company_id
 
   return (
     <li
@@ -158,9 +194,24 @@ function LinhaConexao({ conexao }: { conexao: Conexao }) {
         {conexao.respondido_em && ` · Respondido em ${formatarData(conexao.respondido_em)}`}
       </p>
 
+      {podeResponder && onResponder && (
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Botao onClick={() => onResponder('accepted')}>
+            Aceitar conexão
+          </Botao>
+          <button
+            type="button"
+            onClick={() => onResponder('declined')}
+            className="rounded-xl border border-brand-200 px-3 py-1.5 text-xs font-medium text-ink-700 hover:bg-brand-50"
+          >
+            Recusar
+          </button>
+        </div>
+      )}
+
       {match && (
         <p className="mt-3 rounded-xl bg-accent-100 px-4 py-3 text-sm text-ink-700">
-          <span className="font-semibold text-ink-900">A empresa aceitou seu interesse.</span> O próximo
+          <span className="font-semibold text-ink-900">A conexão foi aceita.</span> O próximo
           passo é combinar uma conversa.
         </p>
       )}

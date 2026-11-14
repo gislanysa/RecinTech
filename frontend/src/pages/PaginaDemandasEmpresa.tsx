@@ -1,8 +1,9 @@
 import ModalNovaDemanda from '@/components/dashboard-empresa/ModalNovaDemanda.tsx'
 import PainelDemandas from '@/components/dashboard-empresa/PainelDemandas.tsx'
 import type { ContextoSessao } from '@/components/RotaProtegida.tsx'
+import { useDemandas } from '@/hooks/useDemandas.ts'
 import type { Company } from '@/lib/api.ts'
-import { calcularRecomendacoes, listarDemandas, type Demanda } from '@/lib/demandas.ts'
+import { calcularRecomendacoes, type Demanda } from '@/lib/demandas.ts'
 import { listarStartups, type StartupCatalogo } from '@/lib/startups.ts'
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useOutletContext } from 'react-router-dom'
@@ -14,53 +15,45 @@ export default function PaginaDemandasEmpresa() {
   const empresa = conta as Company
   const navigate = useNavigate()
 
-  const [demandas, setDemandas] = useState<Demanda[]>([])
-  const [carregando, setCarregando] = useState(true)
-  const [erro, setErro] = useState<string | null>(null)
+  const {
+    demandas,
+    carregando,
+    erro,
+    pagina,
+    proximaPagina,
+    paginaAnterior,
+    temProximaPagina,
+    temPaginaAnterior,
+    recarregar,
+    salvarDemandaLocal,
+  } = useDemandas({
+    companyId: empresa?.id,
+    porPagina: DEMANDAS_POR_PAGINA,
+  })
+
   const [startups, setStartups] = useState<StartupCatalogo[]>([])
   const [modalNovaDemanda, setModalNovaDemanda] = useState(false)
   const [demandaEmEdicao, setDemandaEmEdicao] = useState<Demanda | null>(null)
-  const [pagina, setPagina] = useState(0)
 
   useEffect(() => {
     let ativo = true
-    setCarregando(true)
-    listarDemandas(empresa.id, DEMANDAS_POR_PAGINA, pagina * DEMANDAS_POR_PAGINA)
-      .then((lista) => {
-        if (ativo) setDemandas(lista)
-      })
-      .catch(() => {
-        if (ativo) setErro('Não foi possível carregar as demandas da empresa.')
-      })
-      .finally(() => {
-        if (ativo) setCarregando(false)
-      })
-
-    listarStartups({ limit: 50, offset: 0 }).then((dados) => {
+    listarStartups({
+      limit: 50,
+      offset: 0,
+      aoAtualizar: (atualizada) => {
+        if (!ativo) return
+        setStartups((prev) =>
+          prev.map((s) => (s.id === atualizada.id ? atualizada : s)),
+        )
+      },
+    }).then((dados) => {
       if (ativo) setStartups(dados)
     })
 
     return () => {
       ativo = false
     }
-  }, [empresa.id, pagina])
-
-  async function handleRecarregar() {
-    setCarregando(true)
-    setErro(null)
-    try {
-      const lista = await listarDemandas(
-        empresa.id,
-        DEMANDAS_POR_PAGINA,
-        pagina * DEMANDAS_POR_PAGINA,
-      )
-      setDemandas(lista)
-    } catch {
-      setErro('Não foi possível carregar as demandas da empresa.')
-    } finally {
-      setCarregando(false)
-    }
-  }
+  }, [])
 
   const contagemPorDemanda = useMemo(() => {
     const mapa: Record<string, number> = {}
@@ -97,24 +90,30 @@ export default function PaginaDemandasEmpresa() {
         onSelecionarDemanda={() => {
           navigate('/dashboard/empresa/recomendacoes')
         }}
-        onTentarNovamente={handleRecarregar}
+        onTentarNovamente={recarregar}
       />
 
-      <nav aria-label="Paginação das demandas" className="flex items-center justify-between">
+      {/* Paginação com proteção contra página vazia */}
+      <nav
+        aria-label="Paginação das demandas"
+        className="flex items-center justify-between rounded-xl border border-brand-100 bg-surface px-4 py-3"
+      >
         <button
           type="button"
-          onClick={() => setPagina((p) => Math.max(0, p - 1))}
-          disabled={pagina === 0 || carregando}
-          className="rounded-lg border border-ink-200 px-4 py-2 text-sm font-medium text-ink-700 disabled:opacity-50"
+          onClick={paginaAnterior}
+          disabled={!temPaginaAnterior || carregando}
+          className="rounded-lg border border-ink-200 px-4 py-2 text-sm font-medium text-ink-700 transition-colors hover:bg-brand-50 disabled:cursor-not-allowed disabled:opacity-40"
         >
           Anterior
         </button>
-        <span className="text-sm text-ink-500">Página {pagina + 1}</span>
+        <span className="text-sm font-medium text-ink-600">
+          Página {pagina + 1}
+        </span>
         <button
           type="button"
-          onClick={() => setPagina((p) => p + 1)}
-          disabled={demandas.length < DEMANDAS_POR_PAGINA || carregando}
-          className="rounded-lg border border-ink-200 px-4 py-2 text-sm font-medium text-ink-700 disabled:opacity-50"
+          onClick={proximaPagina}
+          disabled={!temProximaPagina || carregando}
+          className="rounded-lg border border-ink-200 px-4 py-2 text-sm font-medium text-ink-700 transition-colors hover:bg-brand-50 disabled:cursor-not-allowed disabled:opacity-40"
         >
           Próxima
         </button>
@@ -128,17 +127,7 @@ export default function PaginaDemandasEmpresa() {
           setModalNovaDemanda(false)
           setDemandaEmEdicao(null)
         }}
-        aoSalvar={(salva) => {
-          setDemandas((prev) => {
-            const index = prev.findIndex((d) => d.id === salva.id)
-            if (index >= 0) {
-              const copia = [...prev]
-              copia[index] = salva
-              return copia
-            }
-            return [salva, ...prev]
-          })
-        }}
+        aoSalvar={salvarDemandaLocal}
       />
     </div>
   )

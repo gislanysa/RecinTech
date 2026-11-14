@@ -2,6 +2,7 @@ import BotaoVoltar from '@/components/BotaoVoltar.tsx'
 import Footer from '@/components/layout/Footer.tsx'
 import Header from '@/components/layout/Header.tsx'
 import type { Startup } from '@/lib/api.ts'
+import { calcularTempoAtuacao } from '@/lib/formatadores.ts'
 import { buscarStartupPorId, carregarTagsDaStartup, iniciais } from '@/lib/startups.ts'
 import axios from 'axios'
 import { useEffect, useState } from 'react'
@@ -138,7 +139,7 @@ function Conteudo({ startup, tags }: { startup: Startup; tags: Tags | null }) {
               <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">{startup.name}</h1>
               <p className="mt-2 text-ink-500">
                 {area && <span>{area} · </span>}
-                {startup.city}, {startup.state}
+                {startup.city}, {startup.state} • {calcularTempoAtuacao(startup.created_at)}
               </p>
               {startup.website && (
                 <a

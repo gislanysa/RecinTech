@@ -17,6 +17,7 @@ vi.mock('@/lib/api.ts', () => ({
     get: vi.fn(),
     post: vi.fn(),
     put: vi.fn(),
+    patch: vi.fn(),
     delete: vi.fn(),
   },
 }))
@@ -28,32 +29,35 @@ describe('demandas.ts - Integração HTTP com a API', () => {
     vi.clearAllMocks()
   })
 
-  it('deve listar demandas da empresa através de GET /company/:id/demand', async () => {
-    const mockDemandas: Demanda[] = [
+  it('deve listar demandas da empresa através de GET /company/:id/demand consumindo o contrato real do backend', async () => {
+    // Resposta real conforme rota Gleam GET /api/company/:id/demand
+    const backendRealResponse = [
       {
-        id: 'dem-1',
+        id: '01a173cb-9533-7ebd-87a0-590965ef3653',
         company_id: companyId,
-        titulo: 'Coleta de baterias',
-        descricao: 'Necessitamos de startup para logística reversa de baterias',
-        segmento: 'Cleantech / Sustentabilidade',
-        servicos: ['Consultoria'],
-        tecnologias: ['Python'],
-        status: 'aberta',
-        created_at: '2026-01-01T00:00:00Z',
+        title: 'Need more gleam projects',
+        description: 'A lot more of them',
+        status: 'open',
+        created_at: '2025-09-14T20:08:02.000Z',
+        updated_at: '2025-09-14T20:08:02.000Z',
       },
     ]
 
-    vi.mocked(api.get).mockResolvedValueOnce({ data: mockDemandas })
+    vi.mocked(api.get).mockResolvedValueOnce({ data: backendRealResponse })
 
     const resultado = await listarDemandas(companyId, 10, 20)
 
     expect(api.get).toHaveBeenCalledWith(`/company/${companyId}/demand`, {
       params: { limit: 10, offset: 20 },
     })
-    expect(resultado).toEqual(mockDemandas)
+    expect(resultado).toHaveLength(1)
+    expect(resultado[0].id).toBe('01a173cb-9533-7ebd-87a0-590965ef3653')
+    expect(resultado[0].titulo).toBe('Need more gleam projects')
+    expect(resultado[0].descricao).toBe('A lot more of them')
+    expect(resultado[0].status).toBe('aberta')
   })
 
-  it('deve criar uma nova demanda via POST /company/:id/demand com campos aparados', async () => {
+  it('deve criar uma nova demanda via POST /company/:id/demand com payload e resposta reais do backend', async () => {
     const dados = {
       titulo: '  Desenvolvimento de painel solar inteligente  ',
       descricao: '  Software de rastreamento de eficiência energética  ',
@@ -62,33 +66,42 @@ describe('demandas.ts - Integração HTTP com a API', () => {
       tecnologias: ['React', 'Node.js'],
     }
 
-    const mockResposta: Demanda = {
-      id: 'dem-gerada-123',
-      company_id: companyId,
-      titulo: 'Desenvolvimento de painel solar inteligente',
-      descricao: 'Software de rastreamento de eficiência energética',
-      segmento: dados.segmento,
-      servicos: dados.servicos,
-      tecnologias: dados.tecnologias,
-      status: 'aberta',
-      created_at: '2026-01-01T00:00:00Z',
+    // Resposta real conforme register_demand em web.gleam
+    const mockRespostaBackend = {
+      demand: {
+        id: '01a173cb-9533-7ebd-87a0-590965ef3653',
+        company_id: companyId,
+        title: 'Desenvolvimento de painel solar inteligente',
+        description: 'Software de rastreamento de eficiência energética',
+        status: 'open',
+        created_at: '2025-09-14T20:08:02.000Z',
+        updated_at: '2025-09-14T20:08:02.000Z',
+      },
+      expertises: [],
+      segments: [],
+      services: [],
+      technologies: [],
     }
 
-    vi.mocked(api.post).mockResolvedValueOnce({ data: mockResposta })
+    vi.mocked(api.post).mockResolvedValueOnce({ data: mockRespostaBackend })
 
     const resultado = await criarDemanda(companyId, dados)
 
-    expect(api.post).toHaveBeenCalledWith(`/company/${companyId}/demand`, {
-      titulo: 'Desenvolvimento de painel solar inteligente',
-      descricao: 'Software de rastreamento de eficiência energética',
-      segmento: dados.segmento,
-      servicos: dados.servicos,
-      tecnologias: dados.tecnologias,
-    })
-    expect(resultado).toEqual(mockResposta)
+    expect(api.post).toHaveBeenCalledWith(
+      `/company/${companyId}/demand`,
+      expect.objectContaining({
+        title: 'Desenvolvimento de painel solar inteligente',
+        description: 'Software de rastreamento de eficiência energética',
+        status: 'open',
+      }),
+    )
+    expect(resultado.id).toBe('01a173cb-9533-7ebd-87a0-590965ef3653')
+    expect(resultado.titulo).toBe('Desenvolvimento de painel solar inteligente')
+    expect(resultado.descricao).toBe('Software de rastreamento de eficiência energética')
+    expect(resultado.status).toBe('aberta')
   })
 
-  it('deve atualizar demanda existente via PUT /company/:id/demand/:demandaId', async () => {
+  it('deve atualizar demanda existente via PATCH /company/demand/:demandaId', async () => {
     const demandaId = 'dem-123'
     const dadosAtualizados = {
       titulo: 'Demanda Atualizada',
@@ -99,54 +112,61 @@ describe('demandas.ts - Integração HTTP com a API', () => {
       status: 'em_andamento' as const,
     }
 
-    const mockResposta: Demanda = {
+    const mockResposta = {
       id: demandaId,
       company_id: companyId,
-      ...dadosAtualizados,
+      title: dadosAtualizados.titulo,
+      description: dadosAtualizados.descricao,
+      status: 'open',
       created_at: '2026-01-01T00:00:00Z',
     }
 
-    vi.mocked(api.put).mockResolvedValueOnce({ data: mockResposta })
+    vi.mocked(api.patch).mockResolvedValueOnce({ data: mockResposta })
 
     const resultado = await atualizarDemanda(companyId, demandaId, dadosAtualizados)
 
-    expect(api.put).toHaveBeenCalledWith(
-      `/company/${companyId}/demand/${demandaId}`,
-      dadosAtualizados,
+    expect(api.patch).toHaveBeenCalledWith(
+      `/company/demand/${demandaId}`,
+      expect.objectContaining({
+        title: 'Demanda Atualizada',
+        description: 'Nova descrição',
+      }),
     )
-    expect(resultado).toEqual(mockResposta)
+    expect(resultado.id).toBe(demandaId)
+    expect(resultado.titulo).toBe('Demanda Atualizada')
   })
 
-  it('deve excluir uma demanda via DELETE /company/:id/demand/:demandaId', async () => {
+  it('deve excluir uma demanda via DELETE /company/demand/:demandaId', async () => {
     const demandaId = 'dem-para-remover'
     vi.mocked(api.delete).mockResolvedValueOnce({ data: null })
 
     await excluirDemanda(companyId, demandaId)
 
-    expect(api.delete).toHaveBeenCalledWith(`/company/${companyId}/demand/${demandaId}`)
+    expect(api.delete).toHaveBeenCalledWith(`/company/demand/${demandaId}`)
   })
 
-  it('deve listar convites de reunião via GET /company/:id/meetings', async () => {
-    const mockConvites = [
+  it('deve listar conexões da empresa via GET /company/:id/connection', async () => {
+    const mockConexoes = [
       {
-        id: 'conv-1',
-        company_id: companyId,
-        startup_id: 'start-1',
-        startup_nome: 'Recicla Fácil',
-        status: 'pendente' as const,
+        company: companyId,
+        startup: 'start-1',
+        status: 'pending',
         created_at: '2026-01-01T00:00:00Z',
+        updated_at: '2026-01-01T00:00:00Z',
       },
     ]
 
-    vi.mocked(api.get).mockResolvedValueOnce({ data: mockConvites })
+    vi.mocked(api.get).mockResolvedValueOnce({ data: mockConexoes })
 
     const resultado = await listarConvites(companyId)
 
-    expect(api.get).toHaveBeenCalledWith(`/company/${companyId}/meetings`)
-    expect(resultado).toEqual(mockConvites)
+    expect(api.get).toHaveBeenCalledWith(`/company/${companyId}/connection`)
+    expect(resultado[0].company_id).toBe(companyId)
+    expect(resultado[0].startup_id).toBe('start-1')
+    expect(resultado[0].status).toBe('pendente')
   })
 
-  it('deve enviar convite de reunião via POST /company/:id/meetings', async () => {
+  it('deve enviar solicitação de conexão via POST /company/:id/connection', async () => {
     const dadosConvite = {
       startupId: 'start-2',
       startupNome: 'Inovação Verde',
@@ -156,29 +176,22 @@ describe('demandas.ts - Integração HTTP com a API', () => {
     }
 
     const mockResposta = {
-      id: 'conv-2',
-      company_id: companyId,
-      startup_id: dadosConvite.startupId,
-      startup_nome: dadosConvite.startupNome,
-      demanda_id: dadosConvite.demandaId,
-      demanda_titulo: dadosConvite.demandaTitulo,
-      mensagem: dadosConvite.mensagem,
-      status: 'pendente' as const,
+      company: companyId,
+      startup: dadosConvite.startupId,
+      status: 'pending',
       created_at: '2026-01-01T00:00:00Z',
+      updated_at: '2026-01-01T00:00:00Z',
     }
 
     vi.mocked(api.post).mockResolvedValueOnce({ data: mockResposta })
 
     const resultado = await enviarConviteReuniao(companyId, dadosConvite)
 
-    expect(api.post).toHaveBeenCalledWith(`/company/${companyId}/meetings`, {
-      startup_id: dadosConvite.startupId,
-      startup_nome: dadosConvite.startupNome,
-      demanda_id: dadosConvite.demandaId,
-      demanda_titulo: dadosConvite.demandaTitulo,
-      mensagem: dadosConvite.mensagem,
+    expect(api.post).toHaveBeenCalledWith(`/company/${companyId}/connection`, {
+      startup: dadosConvite.startupId,
     })
-    expect(resultado).toEqual(mockResposta)
+    expect(resultado.startup_id).toBe(dadosConvite.startupId)
+    expect(resultado.status).toBe('pendente')
   })
 })
 

@@ -9,6 +9,8 @@ vi.mock('@/lib/api.ts', () => ({
   login: vi.fn(),
   logout: vi.fn(),
   tipoDaConta: vi.fn(),
+  renovarSessao: vi.fn(),
+  aoExpirarSessao: vi.fn(),
 }))
 
 describe('AuthContext', () => {
@@ -90,6 +92,29 @@ describe('AuthContext', () => {
 
     expect(await screen.findByText('deslogado')).toBeInTheDocument()
     expect(screen.getByTestId('estado')).toHaveTextContent('nao-autenticado')
+  })
+
+  it('não deve deslogar e deve marcar estado como erro-temporario em caso de erro de rede ou 500', async () => {
+    vi.mocked(api.restaurarSessao).mockRejectedValueOnce(new Error('Network Error'))
+
+    function ComponenteConsumidor() {
+      const { estado, erroTemporario } = useAuth()
+      return (
+        <div>
+          <span data-testid="estado">{estado}</span>
+          <span data-testid="erro">{erroTemporario}</span>
+        </div>
+      )
+    }
+
+    render(
+      <AuthProvider>
+        <ComponenteConsumidor />
+      </AuthProvider>,
+    )
+
+    expect(await screen.findByTestId('estado')).toHaveTextContent('erro-temporario')
+    expect(screen.getByTestId('erro')).not.toBeEmptyDOMElement()
   })
 
   it('deve atualizar o estado ao realizar login e logout com sucesso', async () => {

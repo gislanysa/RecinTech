@@ -27,11 +27,6 @@ export default function LayoutDashboardEmpresa() {
   return (
     <LayoutDashboardBase
       nomeUsuario={empresa.name}
-      subtituloConta="Conta empresarial"
-      badgePerfil={{
-        rotulo: 'Empresa',
-        classe: 'bg-accent-50 text-accent-700 ring-1 ring-accent-200',
-      }}
       itensNavegacao={ITENS_EMPRESA}
       idPrefixo="empresa"
       redirecionarAposLogout="/entrar"

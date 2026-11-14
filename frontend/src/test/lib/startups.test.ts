@@ -100,18 +100,26 @@ describe('startups.ts - Paginação e integração com a API', () => {
     expect(startups).toEqual(STARTUPS_MOCK)
   })
 
-  it('deve enriquecer tags via carregarTagsDaStartup', async () => {
+  it('deve enriquecer tags via carregarTagsDaStartup com o formato ItemNomeado real da API Gleam', async () => {
     vi.mocked(api.get)
-      .mockResolvedValueOnce({ data: [{ id: '1', name: 'Reciclagem' }] }) // segments
-      .mockResolvedValueOnce({ data: [{ id: '2', name: 'Coleta' }] }) // services
-      .mockResolvedValueOnce({ data: [{ id: '3', name: 'Sustentabilidade' }] }) // expertises
-      .mockResolvedValueOnce({ data: [{ id: '4', name: 'React' }] }) // technologies
+      .mockResolvedValueOnce({
+        data: [{ id: '01a058ae-057f-73e8-b2a0-50986559767b', name: 'Reciclagem', description: 'Coleta e triagem' }],
+      }) // segments
+      .mockResolvedValueOnce({
+        data: [{ id: '01a0dbb3-153a-7b84-8c3d-631788972d4a', name: 'Logística Reversa', description: 'Transporte de resíduos' }],
+      }) // services
+      .mockResolvedValueOnce({
+        data: [{ id: '01a173cb-9533-7ebd-87a0-590965ef3653', name: 'Sustentabilidade', description: 'Soluções sustentáveis' }],
+      }) // expertises
+      .mockResolvedValueOnce({
+        data: [{ id: '01a173cb-9533-7eb5-9522-9686fef4f2a4', name: 'TypeScript', description: 'Tipagem estática' }],
+      }) // technologies
 
-    const tags = await carregarTagsDaStartup('startup-123')
+    const tags = await carregarTagsDaStartup('019313cb-79b8-7440-b8c7-e62a04bb49b4')
 
     expect(tags.area).toBe('Sustentabilidade')
     expect(tags.segments).toEqual(['Reciclagem'])
-    expect(tags.services).toEqual(['Coleta'])
-    expect(tags.technologies).toEqual(['React'])
+    expect(tags.services).toEqual(['Logística Reversa'])
+    expect(tags.technologies).toEqual(['TypeScript'])
   })
 })

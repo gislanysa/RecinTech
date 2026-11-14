@@ -3,12 +3,9 @@ import ModalPerfilStartup from '@/components/dashboard-empresa/ModalPerfilStartu
 import PainelDemandas from '@/components/dashboard-empresa/PainelDemandas.tsx'
 import PainelRecomendacoes from '@/components/dashboard-empresa/PainelRecomendacoes.tsx'
 import type { ContextoSessao } from '@/components/RotaProtegida.tsx'
+import { useDemandas } from '@/hooks/useDemandas.ts'
 import type { Company } from '@/lib/api.ts'
-import {
-  calcularRecomendacoes,
-  listarDemandas,
-  type Demanda,
-} from '@/lib/demandas.ts'
+import { calcularRecomendacoes, type Demanda } from '@/lib/demandas.ts'
 import { listarStartups, type StartupCatalogo } from '@/lib/startups.ts'
 import { useEffect, useMemo, useState } from 'react'
 import { useOutletContext } from 'react-router-dom'
@@ -23,9 +20,13 @@ export default function DashboardEmpresa() {
   const { conta } = useOutletContext<ContextoSessao>()
   const empresa = conta as Company
 
-  const [demandas, setDemandas] = useState<Demanda[]>([])
-  const [carregandoDemandas, setCarregandoDemandas] = useState(true)
-  const [erroDemandas, setErroDemandas] = useState<string | null>(null)
+  const {
+    demandas,
+    carregando: carregandoDemandas,
+    erro: erroDemandas,
+    recarregar: handleRecarregar,
+    salvarDemandaLocal,
+  } = useDemandas({ companyId: empresa?.id })
 
   const [startups, setStartups] = useState<StartupCatalogo[]>([])
   const [carregandoStartups, setCarregandoStartups] = useState(true)
@@ -38,18 +39,16 @@ export default function DashboardEmpresa() {
 
   useEffect(() => {
     let ativo = true
-    listarDemandas(empresa.id)
-      .then((lista) => {
-        if (ativo) setDemandas(lista)
-      })
-      .catch(() => {
-        if (ativo) setErroDemandas('Não foi possível carregar as demandas da empresa.')
-      })
-      .finally(() => {
-        if (ativo) setCarregandoDemandas(false)
-      })
-
-    listarStartups({ limit: 50, offset: 0 }).then((dados) => {
+    listarStartups({
+      limit: 50,
+      offset: 0,
+      aoAtualizar: (atualizada) => {
+        if (!ativo) return
+        setStartups((prev) =>
+          prev.map((s) => (s.id === atualizada.id ? atualizada : s)),
+        )
+      },
+    }).then((dados) => {
       if (ativo) {
         setStartups(dados)
         setCarregandoStartups(false)
@@ -59,20 +58,7 @@ export default function DashboardEmpresa() {
     return () => {
       ativo = false
     }
-  }, [empresa.id])
-
-  async function handleRecarregar() {
-    setCarregandoDemandas(true)
-    setErroDemandas(null)
-    try {
-      const lista = await listarDemandas(empresa.id)
-      setDemandas(lista)
-    } catch {
-      setErroDemandas('Não foi possível carregar as demandas da empresa.')
-    } finally {
-      setCarregandoDemandas(false)
-    }
-  }
+  }, [])
 
   // Contagem de recomendações para cada demanda da empresa
   const contagemPorDemanda = useMemo(() => {
@@ -145,17 +131,7 @@ export default function DashboardEmpresa() {
           setModalNovaDemanda(false)
           setDemandaEmEdicao(null)
         }}
-        aoSalvar={(salva) => {
-          setDemandas((prev) => {
-            const index = prev.findIndex((d) => d.id === salva.id)
-            if (index >= 0) {
-              const copia = [...prev]
-              copia[index] = salva
-              return copia
-            }
-            return [salva, ...prev]
-          })
-        }}
+        aoSalvar={salvarDemandaLocal}
       />
 
       {/* 5. Modal / Card ampliado com perfil detalhado da startup */}

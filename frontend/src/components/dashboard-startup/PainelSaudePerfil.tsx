@@ -1,5 +1,5 @@
 import Botao from '@/components/Botao.tsx'
-import { AlertIcon, CheckIcon } from '@/components/icons.tsx'
+import { AlertIcon, CheckIcon, ChevronDownIcon } from '@/components/icons.tsx'
 import type { Startup } from '@/lib/api.ts'
 import {
   DIAS_PARA_PERFIL_DESATUALIZADO,
@@ -8,6 +8,7 @@ import {
   type ItemSaude,
   type Tags,
 } from '@/lib/perfil.ts'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 
 const ROTA_EDITAR_PERFIL = '/dashboard/startup/perfil'
@@ -31,6 +32,7 @@ export default function PainelSaudePerfil({ startup, tags }: { startup: Startup;
   const dias = diasSemAtualizar(startup)
   const desatualizado = dias !== null && dias > DIAS_PARA_PERFIL_DESATUALIZADO
   const completo = !carregando && saude.faltando.length === 0
+  const [mostrarPassos, setMostrarPassos] = useState(false)
 
   return (
     <section
@@ -108,13 +110,41 @@ export default function PainelSaudePerfil({ startup, tags }: { startup: Startup;
         </div>
 
         {!carregando && !completo && (
-          <div className="min-w-0">
-            <h3 className="text-sm font-semibold text-ink-900">Próximos passos</h3>
-            <ul className="mt-3 flex flex-col gap-2">
-              {saude.faltando.map((item) => (
-                <ProximoPasso key={item.chave} item={item} />
-              ))}
-            </ul>
+          <div className="border-t border-brand-100 pt-4">
+            <button
+              type="button"
+              id="btn-toggle-proximos-passos"
+              onClick={() => setMostrarPassos((prev) => !prev)}
+              aria-expanded={mostrarPassos}
+              aria-controls="lista-proximos-passos"
+              className="group flex w-full items-center justify-between rounded-xl py-2 text-left transition-colors hover:bg-brand-50/70"
+            >
+              <div className="flex items-center gap-2.5">
+                <h3 className="text-sm font-semibold text-ink-900 group-hover:text-brand-700">
+                  Próximos passos
+                </h3>
+                <span className="rounded-full bg-brand-100 px-2 py-0.5 text-xs font-medium text-brand-700">
+                  {saude.faltando.length} {saude.faltando.length === 1 ? 'pendência' : 'pendências'}
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5 text-xs font-medium text-ink-500 group-hover:text-ink-700">
+                <span>{mostrarPassos ? 'Ocultar' : 'Ver o que falta'}</span>
+                <ChevronDownIcon
+                  className={[
+                    'size-4 transition-transform duration-200',
+                    mostrarPassos ? 'rotate-180' : '',
+                  ].join(' ')}
+                />
+              </div>
+            </button>
+
+            {mostrarPassos && (
+              <ul id="lista-proximos-passos" className="mt-3 flex flex-col gap-2">
+                {saude.faltando.map((item) => (
+                  <ProximoPasso key={item.chave} item={item} />
+                ))}
+              </ul>
+            )}
           </div>
         )}
       </div>

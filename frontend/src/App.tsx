@@ -4,7 +4,6 @@ import LayoutDashboardStartup from '@/components/dashboard-startup/LayoutDashboa
 import CriarConta from '@/pages/CriarConta.tsx'
 import DashboardEmpresa from '@/pages/DashboardEmpresa.tsx'
 import DashboardStartup from '@/pages/DashboardStartup.tsx'
-import EmConstrucao from '@/pages/EmConstrucao.tsx'
 import Entrar from '@/pages/Entrar.tsx'
 import ExplorarStartups from '@/pages/ExplorarStartups.tsx'
 import Home from '@/pages/Home.tsx'
@@ -12,6 +11,7 @@ import MeuPerfilStartup from '@/pages/MeuPerfilStartup.tsx'
 import PaginaConexoesEmpresa from '@/pages/PaginaConexoesEmpresa.tsx'
 import PaginaConexoesStartup from '@/pages/PaginaConexoesStartup.tsx'
 import PaginaDemandasEmpresa from '@/pages/PaginaDemandasEmpresa.tsx'
+import PaginaNaoEncontrada from '@/pages/PaginaNaoEncontrada.tsx'
 import PaginaOportunidadesStartup from '@/pages/PaginaOportunidadesStartup.tsx'
 import PaginaPlanoStartup from '@/pages/PaginaPlanoStartup.tsx'
 import PaginaRecomendacoesEmpresa from '@/pages/PaginaRecomendacoesEmpresa.tsx'
@@ -59,7 +59,7 @@ export default function App() {
             </Route>
           </Route>
 
-          <Route path="*" element={<EmConstrucao titulo="Página não encontrada" />} />
+          <Route path="*" element={<PaginaNaoEncontrada />} />
         </Routes>
       </AuthProvider>
     </BrowserRouter>
