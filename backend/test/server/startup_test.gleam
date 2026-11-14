@@ -340,6 +340,133 @@ pub fn update_missing_startup_test() -> Nil {
   Nil
 }
 
+pub fn get_canvas_empty_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+
+  // a startup that never saved a canvas has an empty one.
+  let assert Ok(returned) = startup.get_canvas(context.database, startup.id)
+  assert returned == startup.empty_canvas
+
+  Nil
+}
+
+pub fn get_canvas_missing_startup_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let missing_id = uuid.v7()
+
+  let assert Error(startup.NotFound(returned)) =
+    startup.get_canvas(context.database, missing_id)
+
+  assert returned == missing_id
+
+  Nil
+}
+
+pub fn upsert_canvas_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+  let canvas =
+    startup.Canvas(
+      customer_segments: "Pequenas e médias empresas",
+      value_proposition: "Reduzir custos operacionais com automação",
+      channels: "Site, vendas diretas e parceiros",
+      customer_relationships: "Suporte dedicado e onboarding",
+      revenue_streams: "Assinatura mensal e implantação",
+      key_resources: "Equipe de engenharia e infraestrutura em nuvem",
+      key_activities: "Desenvolvimento, suporte e vendas",
+      key_partnerships: "Provedores de nuvem e consultorias",
+      cost_structure: "Folha de pagamento, nuvem e marketing",
+    )
+
+  let assert Ok(returned) =
+    startup.upsert_canvas(context.database, startup.id, canvas)
+
+  assert returned == canvas
+
+  let assert Ok(returned) = startup.get_canvas(context.database, startup.id)
+  assert returned == canvas
+
+  Nil
+}
+
+pub fn upsert_canvas_replaces_all_blocks_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+
+  let assert Ok(_) =
+    startup.upsert_canvas(
+      context.database,
+      startup.id,
+      startup.Canvas(
+        customer_segments: "Pequenas e médias empresas",
+        value_proposition: "Reduzir custos operacionais com automação",
+        channels: "Site, vendas diretas e parceiros",
+        customer_relationships: "Suporte dedicado e onboarding",
+        revenue_streams: "Assinatura mensal e implantação",
+        key_resources: "Equipe de engenharia e infraestrutura em nuvem",
+        key_activities: "Desenvolvimento, suporte e vendas",
+        key_partnerships: "Provedores de nuvem e consultorias",
+        cost_structure: "Folha de pagamento, nuvem e marketing",
+      ),
+    )
+
+  // a second save is a full replacement: blocks sent as empty strings must be
+  // cleared, not kept from the previous save.
+  let updated =
+    startup.Canvas(
+      customer_segments: "Outro segmento",
+      value_proposition: "",
+      channels: "Marketplace",
+      customer_relationships: "",
+      revenue_streams: "Comissão por venda",
+      key_resources: "",
+      key_activities: "Curadoria de fornecedores",
+      key_partnerships: "",
+      cost_structure: "Marketing",
+    )
+
+  let assert Ok(returned) =
+    startup.upsert_canvas(context.database, startup.id, updated)
+
+  assert returned == updated
+
+  let assert Ok(returned) = startup.get_canvas(context.database, startup.id)
+  assert returned == updated
+
+  Nil
+}
+
+pub fn upsert_canvas_missing_startup_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let missing_id = uuid.v7()
+
+  let canvas =
+    startup.Canvas(
+      customer_segments: "Pequenas e médias empresas",
+      value_proposition: "Reduzir custos operacionais com automação",
+      channels: "Site, vendas diretas e parceiros",
+      customer_relationships: "Suporte dedicado e onboarding",
+      revenue_streams: "Assinatura mensal e implantação",
+      key_resources: "Equipe de engenharia e infraestrutura em nuvem",
+      key_activities: "Desenvolvimento, suporte e vendas",
+      key_partnerships: "Provedores de nuvem e consultorias",
+      cost_structure: "Folha de pagamento, nuvem e marketing",
+    )
+
+  let assert Error(startup.NotFound(returned)) =
+    startup.upsert_canvas(context.database, missing_id, canvas)
+
+  assert returned == missing_id
+
+  Nil
+}
+
 pub fn assign_segment_to_startup_test() -> Nil {
   use context <- server_test.with_context()
 
@@ -360,11 +487,11 @@ pub fn segment_assignment_conflict_test() -> Nil {
   let startup = dummy.new_startup(context.database)
   let segment = dummy.new_segment(context.database)
 
-  // Assigning once
+  // assigning once
   let assert Ok(_) =
     startup.assign_segment(context.database, startup.id, assign: segment.id)
 
-  // Assigning twice, this one must return an Error.
+  // assigning twice, this one must return an error.
   let assert Error(startup.AssignmentConflict(returned)) =
     startup.assign_segment(context.database, startup.id, assign: segment.id)
 

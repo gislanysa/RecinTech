@@ -1490,7 +1490,7 @@ pub fn canvas_decoder() -> decode.Decoder(Canvas) {
   ))
 }
 
-const empty_canvas =
+pub const empty_canvas =
   Canvas(
     customer_segments: "",
     value_proposition: "",
