@@ -345,6 +345,80 @@ RETURNING
   |> pog.execute(db)
 }
 
+/// A row you get from running the `delete_canvas` query
+/// defined in `./src/server/startup/sql/delete_canvas.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v4.7.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type DeleteCanvasRow {
+  DeleteCanvasRow(
+    customer_segments: String,
+    value_proposition: String,
+    channels: String,
+    customer_relationships: String,
+    revenue_streams: String,
+    key_resources: String,
+    key_activities: String,
+    key_partnerships: String,
+    cost_structure: String,
+  )
+}
+
+/// delete a startup's business model canvas
+///
+/// > 🐿️ This function was generated automatically using v4.7.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn delete_canvas(
+  db: pog.Connection,
+  arg_1: Uuid,
+) -> Result(pog.Returned(DeleteCanvasRow), pog.QueryError) {
+  let decoder = {
+    use customer_segments <- decode.field(0, decode.string)
+    use value_proposition <- decode.field(1, decode.string)
+    use channels <- decode.field(2, decode.string)
+    use customer_relationships <- decode.field(3, decode.string)
+    use revenue_streams <- decode.field(4, decode.string)
+    use key_resources <- decode.field(5, decode.string)
+    use key_activities <- decode.field(6, decode.string)
+    use key_partnerships <- decode.field(7, decode.string)
+    use cost_structure <- decode.field(8, decode.string)
+    decode.success(DeleteCanvasRow(
+      customer_segments:,
+      value_proposition:,
+      channels:,
+      customer_relationships:,
+      revenue_streams:,
+      key_resources:,
+      key_activities:,
+      key_partnerships:,
+      cost_structure:,
+    ))
+  }
+
+  "-- delete a startup's business model canvas
+DELETE FROM
+    public.startup_canvas AS canvas
+WHERE
+    canvas.startup_id = $1::uuid
+RETURNING
+    canvas.customer_segments,
+    canvas.value_proposition,
+    canvas.channels,
+    canvas.customer_relationships,
+    canvas.revenue_streams,
+    canvas.key_resources,
+    canvas.key_activities,
+    canvas.key_partnerships,
+    canvas.cost_structure;
+"
+  |> pog.query
+  |> pog.parameter(pog.text(uuid.to_string(arg_1)))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
 /// A row you get from running the `ensure_exists` query
 /// defined in `./src/server/startup/sql/ensure_exists.sql`.
 ///

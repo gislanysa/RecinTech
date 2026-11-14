@@ -1625,3 +1625,45 @@ pub fn upsert_canvas(
     cost_structure: row.cost_structure,
   )
 }
+
+/// Delete a Startup's [Canvas](#Canvas) and return the deleted canvas.
+///
+/// Returns `Error(NotFound(_))` if the Startup is not registered or has not
+/// saved a canvas yet. After deleting it, [get_canvas](#get_canvas) returns an
+/// [empty_canvas](#empty_canvas).
+///
+/// ## Examples
+///
+/// ```gleam
+/// case startup.delete_canvas(context.database, id) {
+///   Ok(canvas) -> wisp.ok()
+///   Error(startup.NotFound(_)) -> wisp.not_found()
+///   Error(_) -> wisp.internal_server_error()
+/// }
+/// ```
+pub fn delete_canvas(
+  database: pog.Connection,
+  id: uuid.Uuid,
+) -> Result(Canvas, StartupError) {
+  use returned <- result.try(
+    sql.delete_canvas(database, id)
+    |> result.map_error(DatabaseError),
+  )
+
+  use row <- result.map(
+    list.first(returned.rows)
+    |> result.replace_error(NotFound(id:)),
+  )
+
+  Canvas(
+    customer_segments: row.customer_segments,
+    value_proposition: row.value_proposition,
+    channels: row.channels,
+    customer_relationships: row.customer_relationships,
+    revenue_streams: row.revenue_streams,
+    key_resources: row.key_resources,
+    key_activities: row.key_activities,
+    key_partnerships: row.key_partnerships,
+    cost_structure: row.cost_structure,
+  )
+}

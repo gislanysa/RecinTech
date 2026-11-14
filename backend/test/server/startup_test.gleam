@@ -467,6 +467,61 @@ pub fn upsert_canvas_missing_startup_test() -> Nil {
   Nil
 }
 
+pub fn delete_canvas_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+  let canvas =
+    startup.Canvas(
+      customer_segments: "Pequenas e médias empresas",
+      value_proposition: "Reduzir custos operacionais com automação",
+      channels: "Site, vendas diretas e parceiros",
+      customer_relationships: "Suporte dedicado e onboarding",
+      revenue_streams: "Assinatura mensal e implantação",
+      key_resources: "Equipe de engenharia e infraestrutura em nuvem",
+      key_activities: "Desenvolvimento, suporte e vendas",
+      key_partnerships: "Provedores de nuvem e consultorias",
+      cost_structure: "Folha de pagamento, nuvem e marketing",
+    )
+
+  let assert Ok(_) = startup.upsert_canvas(context.database, startup.id, canvas)
+
+  let assert Ok(returned) = startup.delete_canvas(context.database, startup.id)
+  assert returned == canvas
+
+  // the startup is back to not having a saved canvas
+  let assert Ok(returned) = startup.get_canvas(context.database, startup.id)
+  assert returned == startup.empty_canvas
+
+  Nil
+}
+
+pub fn delete_canvas_without_saved_canvas_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+
+  let assert Error(startup.NotFound(returned)) =
+    startup.delete_canvas(context.database, startup.id)
+
+  assert returned == startup.id
+
+  Nil
+}
+
+pub fn delete_canvas_missing_startup_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let missing_id = uuid.v7()
+
+  let assert Error(startup.NotFound(returned)) =
+    startup.delete_canvas(context.database, missing_id)
+
+  assert returned == missing_id
+
+  Nil
+}
+
 pub fn assign_segment_to_startup_test() -> Nil {
   use context <- server_test.with_context()
 
