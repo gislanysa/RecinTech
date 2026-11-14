@@ -105,7 +105,7 @@ erDiagram
     timestamp occurred_at
   }
 
-  company {
+  COMPANY {
     uuid id PK
     text name
     text email UK
@@ -120,18 +120,18 @@ erDiagram
     text website
   }
 
-  company_LGPD_CONSENT }o..|| company : has
-  company_LGPD_CONSENT }o..|| LGPD_POLICY : accepts
-  company_LGPD_CONSENT {
+  COMPANY_LGPD_CONSENT }o..|| COMPANY : has
+  COMPANY_LGPD_CONSENT }o..|| LGPD_POLICY : accepts
+  COMPANY_LGPD_CONSENT {
     uuid company_id PK, FK
     lgpd_consent consent "granted | revoked"
     timestamp updated_at
     int policy_version PK, FK
   }
 
-  company_LGPD_CONSENT_EVENT }o..|| company : records
-  company_LGPD_CONSENT_EVENT }o..|| LGPD_POLICY : accepts
-  company_LGPD_CONSENT_EVENT {
+  COMPANY_LGPD_CONSENT_EVENT }o..|| COMPANY : records
+  COMPANY_LGPD_CONSENT_EVENT }o..|| LGPD_POLICY : accepts
+  COMPANY_LGPD_CONSENT_EVENT {
     uuid id PK
     uuid company_id FK
     lgpd_consent consent "granted | revoked"
@@ -139,7 +139,7 @@ erDiagram
     timestamp occurred_at
   }
 
-  COMPANY_STARTUP_CONNECTION }o..|| company : requested_by
+  COMPANY_STARTUP_CONNECTION }o..|| COMPANY : requested_by
   COMPANY_STARTUP_CONNECTION }o..|| STARTUP : connects_with
   COMPANY_STARTUP_CONNECTION {
     uuid company_id PK, FK
@@ -156,14 +156,14 @@ erDiagram
     uuid segment_id PK, FK
   }
 
-  company_SEGMENT }o..|| company : has
-  company_SEGMENT }o..|| SEGMENT : has
+  COMPANY_SEGMENT }o..|| COMPANY : has
+  COMPANY_SEGMENT }o..|| SEGMENT : has
   company_SEGMENT {
     uuid company_id PK, FK
     uuid segment_id PK, FK
   }
 
-  DEMAND }o..|| company : has
+  DEMAND }o..|| COMPANY : has
   DEMAND {
     uuid id PK
     uuid company_id FK
