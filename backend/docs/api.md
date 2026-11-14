@@ -663,6 +663,64 @@ A session is required.
 - 401: Not authenticated
 - 404: Startup not found
 
+## PUT /api/startup/:id/canvas
+
+Create or replace a startup's Business Model Canvas.
+
+Every block is written as given, so an empty string clears a block instead of
+keeping its previous value.
+
+A Startup session is required, and it must belong to the startup identified by
+`id`.
+
+### Path Parameters
+
+- `id` (UUID, required): the startup's ID.
+
+### Request Body
+
+```json
+{
+  "customer_segments": "Pequenas e médias empresas",
+  "value_proposition": "Reduzir custos operacionais com automação",
+  "channels": "Site, vendas diretas e parceiros",
+  "customer_relationships": "Suporte dedicado e onboarding",
+  "revenue_streams": "Assinatura mensal e implantação",
+  "key_resources": "Equipe de engenharia e infraestrutura em nuvem",
+  "key_activities": "Desenvolvimento, suporte e vendas",
+  "key_partnerships": "Provedores de nuvem e consultorias",
+  "cost_structure": "Folha de pagamento, nuvem e marketing"
+}
+```
+
+- All nine blocks are required.
+
+### Response Body
+
+The saved canvas, in the same shape as the request body:
+
+```json
+{
+  "customer_segments": "Pequenas e médias empresas",
+  "value_proposition": "Reduzir custos operacionais com automação",
+  "channels": "Site, vendas diretas e parceiros",
+  "customer_relationships": "Suporte dedicado e onboarding",
+  "revenue_streams": "Assinatura mensal e implantação",
+  "key_resources": "Equipe de engenharia e infraestrutura em nuvem",
+  "key_activities": "Desenvolvimento, suporte e vendas",
+  "key_partnerships": "Provedores de nuvem e consultorias",
+  "cost_structure": "Folha de pagamento, nuvem e marketing"
+}
+```
+
+### Status Codes
+
+- 200: Successful
+- 400: Invalid JSON, invalid UUID format or missing block
+- 401: Not authenticated
+- 403: Invalid session
+- 404: Startup not found
+
 ## GET /api/startup/:id/segment
 
 Fetch all segments that a startup is assigned to.

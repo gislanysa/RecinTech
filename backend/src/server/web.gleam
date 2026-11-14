@@ -187,6 +187,9 @@ pub fn handle_request(request: Request, context: Context) -> Response {
     http.Get, ["api", "startup", id, "canvas"] ->
       get_startup_canvas(request, context.database, id)
 
+    http.Put, ["api", "startup", id, "canvas"] ->
+      upsert_startup_canvas(request, context.database, id)
+
     // Fetching specific information about startups
     //
     // == segment ==============================================================
@@ -415,6 +418,76 @@ fn get_startup_canvas(
       |> wisp.json_response(200)
 
     Error(error) -> handle_startup_error(error)
+  }
+}
+
+/// ## `PUT /api/startup/:id/canvas`
+///
+/// Create or replace a Startup's Business Model Canvas.
+///
+/// Every block is written as given, so an empty string clears a block instead
+/// of keeping its previous value. Once saved, the canvas can be fetched with
+/// [`get_startup_canvas`](#get_startup_canvas).
+///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Startup's ID. It must match the Startup ID in
+///   the current session.
+///
+/// ## Request Body
+///
+/// ```json
+/// {
+///   "customer_segments": "Pequenas e médias empresas",
+///   "value_proposition": "Reduzir custos operacionais com automação",
+///   "channels": "Site, vendas diretas e parceiros",
+///   "customer_relationships": "Suporte dedicado e onboarding",
+///   "revenue_streams": "Assinatura mensal e implantação",
+///   "key_resources": "Equipe de engenharia e infraestrutura em nuvem",
+///   "key_activities": "Desenvolvimento, suporte e vendas",
+///   "key_partnerships": "Provedores de nuvem e consultorias",
+///   "cost_structure": "Folha de pagamento, nuvem e marketing"
+/// }
+/// ```
+///
+/// - All nine blocks are required.
+///
+/// ## Response Body
+///
+/// The saved canvas, in the same shape as the request body.
+///
+/// ## Status Codes
+///
+/// - **200** If successful.
+/// - **400** If the ID is not a valid UUID, or the request body is invalid JSON
+///   or missing a block.
+/// - **401** If not authenticated.
+/// - **403** If the session is not a Startup session, or it belongs to a
+///   different Startup.
+/// - **404** If the Startup is not found.
+///
+fn upsert_startup_canvas(
+  request: Request,
+  database: pog.Connection,
+  id: String,
+) -> Response {
+  use body <- wisp.require_json(request)
+  use id <- require_valid_uuid(id)
+  use session <- require_startup_session(request)
+
+  case decode.run(body, startup.canvas_decoder()) {
+    Ok(canvas) if session.id == id ->
+      case startup.upsert_canvas(database, id, canvas) {
+        Ok(canvas) ->
+          startup.canvas_to_json(canvas)
+          |> json.to_string
+          |> wisp.json_response(200)
+
+        Error(error) -> handle_startup_error(error)
+      }
+
+    Ok(_) -> wisp.response(403)
+    Error(_) -> wisp.bad_request("Invalid JSON")
   }
 }
 
