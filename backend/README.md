@@ -62,6 +62,22 @@ erDiagram
     text website
   }
 
+  STARTUP_CANVAS ||..|| STARTUP : has
+  STARTUP_CANVAS {
+    uuid startup_id PK, FK
+    text customer_segments
+    text value_proposition
+    text channels
+    text customer_relationships
+    text revenue_streams
+    text key_resources
+    text key_activities
+    text key_partnerships
+    text cost_structure
+    timestamp created_at
+    timestamp updated_at
+  }
+
   LGPD_POLICY {
     int version PK
     text document_url
