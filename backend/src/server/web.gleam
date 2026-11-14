@@ -366,6 +366,40 @@ pub fn handle_request(request: Request, context: Context) -> Response {
   }
 }
 
+/// ## `GET /api/startup/:id/canvas`
+///
+/// Fetch a Startup's Business Model Canvas.
+///
+/// Returns a canvas with every block set to an empty string if the Startup has
+/// not saved one yet.
+///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Startup's ID.
+///
+/// ## Response Body
+///
+/// ```json
+/// {
+///   "customer_segments": "Pequenas e médias empresas",
+///   "value_proposition": "Reduzir custos operacionais com automação",
+///   "channels": "Site, vendas diretas e parceiros",
+///   "customer_relationships": "Suporte dedicado e onboarding",
+///   "revenue_streams": "Assinatura mensal e implantação",
+///   "key_resources": "Equipe de engenharia e infraestrutura em nuvem",
+///   "key_activities": "Desenvolvimento, suporte e vendas",
+///   "key_partnerships": "Provedores de nuvem e consultorias",
+///   "cost_structure": "Folha de pagamento, nuvem e marketing"
+/// }
+/// ```
+///
+/// ## Status Codes
+///
+/// - **200** If successful.
+/// - **400** If the ID is not a valid UUID.
+/// - **401** If not authenticated.
+/// - **404** If the Startup is not found.
+///
 fn get_startup_canvas(
   request: Request,
   database: pog.Connection,

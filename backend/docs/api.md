@@ -627,6 +627,42 @@ Fetch information about a startup.
 - 400: Invalid UUID format
 - 404: Startup not found
 
+## GET /api/startup/:id/canvas
+
+Fetch a startup's Business Model Canvas.
+
+Returns a canvas with every block set to an empty string if the startup has not
+saved one yet.
+
+A session is required.
+
+### Path Parameters
+
+- `id` (UUID, required): the startup's ID.
+
+### Response Body
+
+```json
+{
+  "customer_segments": "Pequenas e médias empresas",
+  "value_proposition": "Reduzir custos operacionais com automação",
+  "channels": "Site, vendas diretas e parceiros",
+  "customer_relationships": "Suporte dedicado e onboarding",
+  "revenue_streams": "Assinatura mensal e implantação",
+  "key_resources": "Equipe de engenharia e infraestrutura em nuvem",
+  "key_activities": "Desenvolvimento, suporte e vendas",
+  "key_partnerships": "Provedores de nuvem e consultorias",
+  "cost_structure": "Folha de pagamento, nuvem e marketing"
+}
+```
+
+### Status Codes
+
+- 200: Successful
+- 400: Invalid UUID format
+- 401: Not authenticated
+- 404: Startup not found
+
 ## GET /api/startup/:id/segment
 
 Fetch all segments that a startup is assigned to.
