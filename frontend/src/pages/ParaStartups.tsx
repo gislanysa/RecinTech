@@ -1,4 +1,5 @@
 import { BuildingIcon, CheckIcon, ChevronRightIcon, HandshakeIcon, LinkIcon, RocketIcon, SearchIcon, TrendingUpIcon } from '@/components/icons.tsx'
+import TituloDigitando from '@/components/TituloDigitando.tsx'
 import Footer from '@/components/layout/Footer.tsx'
 import Header from '@/components/layout/Header.tsx'
 import { useState } from 'react'
@@ -71,9 +72,10 @@ export default function ParaStartups() {
       <main>
         <section className="border-b border-brand-100 bg-surface-2">
           <div className="mx-auto max-w-5xl px-4 py-16 text-center sm:px-6 lg:py-20">
-            <h1 className="mx-auto max-w-3xl text-4xl font-bold tracking-tight sm:text-5xl">
-              Sua startup encontrada por quem realmente precisa dela
-            </h1>
+            <TituloDigitando
+              texto="Sua startup encontrada por quem realmente precisa dela"
+              className="mx-auto max-w-3xl text-4xl font-bold tracking-tight sm:text-5xl"
+            />
             <p className="mx-auto mt-5 max-w-2xl text-lg leading-relaxed text-ink-500">
               Publique um perfil completo, apareça nas buscas por serviços e tecnologias e entre nas
               recomendações de matchmaking das empresas cadastradas.
