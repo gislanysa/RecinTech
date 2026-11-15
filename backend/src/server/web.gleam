@@ -190,6 +190,13 @@ pub fn handle_request(request: Request, context: Context) -> Response {
     http.Put, ["api", "startup", id, "canvas"] ->
       upsert_startup_canvas(request, context.database, id)
 
+    // == application ==========================================================
+    http.Post, ["api", "startup", id, "application"] ->
+      apply_to_demand(request, context.database, id)
+
+    http.Delete, ["api", "startup", id, "application", demand_id] ->
+      withdraw_demand_application(request, context.database, id, demand_id)
+
     // Fetching specific information about startups
     //
     // == segment ==============================================================
@@ -294,6 +301,10 @@ pub fn handle_request(request: Request, context: Context) -> Response {
 
     http.Delete, ["api", "company", "demand", id] ->
       delete_demand(context.database, id)
+
+    // == application ==========================================================
+    http.Patch, ["api", "company", "demand", id, "application", startup_id] ->
+      update_application(request, context.database, id, startup_id)
 
     // == segment ==============================================================
     http.Get, ["api", "company", "demand", id, "segment"] ->
@@ -488,6 +499,140 @@ fn upsert_startup_canvas(
 
     Ok(_) -> wisp.response(403)
     Error(_) -> wisp.bad_request("Invalid JSON")
+  }
+}
+
+/// ## `POST /api/startup/:id/application`
+///
+/// Apply to an open Demand. A Startup can have at most one application per
+/// Demand.
+///
+/// A Startup session is required, and it must belong to the Startup identified
+/// by `id`.
+///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Startup's ID.
+///
+/// ## Request Body
+///
+/// ```json
+/// {
+///   "demand": "01a173cb-9533-7ebd-87a0-590965ef3653"
+/// }
+/// ```
+///
+/// ## Response Body
+///
+/// ```json
+/// {
+///   "demand": "01a173cb-9533-7ebd-87a0-590965ef3653",
+///   "startup": "01a173cb-9533-7eb5-9522-9686fef4f2a4",
+///   "status": "pending",
+///   "created_at": "2026-09-14T20:08:02.000Z",
+///   "updated_at": "2026-09-14T20:08:02.000Z"
+/// }
+/// ```
+///
+/// ## Status Codes
+///
+/// - **201** If the application was created.
+/// - **400** If an ID is not a valid UUID, the request body is invalid JSON, or
+///   the Demand is not open.
+/// - **401** If not authenticated.
+/// - **403** If the session is not a Startup session, or it belongs to a
+///   different Startup.
+/// - **404** If the Demand is not found.
+/// - **409** If the Startup already applied to the Demand.
+///
+fn apply_to_demand(
+  request: Request,
+  database: pog.Connection,
+  id: String,
+) -> Response {
+  use body <- wisp.require_json(request)
+  use id <- require_valid_uuid(id)
+  use session <- require_startup_session(request)
+
+  let decoder = {
+    use id <- decode.field("demand", internal.uuid_decoder())
+    decode.success(id)
+  }
+
+  case decode.run(body, decoder) {
+    Ok(demand_id) if session.id == id ->
+      case startup.apply_to_demand(database, id, apply_to: demand_id) {
+        Ok(application) ->
+          demand.application_to_json(application)
+          |> json.to_string
+          |> wisp.json_response(201)
+
+        Error(error) -> handle_startup_error(error)
+      }
+
+    Ok(_) -> wisp.response(403)
+    Error(_) -> wisp.bad_request("Invalid JSON")
+  }
+}
+
+/// ## `DELETE /api/startup/:id/application/:demand_id`
+///
+/// Withdraw a pending application from a Demand. The application is deleted,
+/// so the Startup can apply to the same Demand again later.
+///
+/// A Startup session is required, and it must belong to the Startup identified
+/// by `id`.
+///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Startup's ID.
+/// - `demand_id` (UUID, required): the Demand's ID.
+///
+/// ## Response Body
+///
+/// The withdrawn application:
+///
+/// ```json
+/// {
+///   "demand": "01a173cb-9533-7ebd-87a0-590965ef3653",
+///   "startup": "01a173cb-9533-7eb5-9522-9686fef4f2a4",
+///   "status": "pending",
+///   "created_at": "2026-09-14T20:08:02.000Z",
+///   "updated_at": "2026-09-14T20:08:02.000Z"
+/// }
+/// ```
+///
+/// ## Status Codes
+///
+/// - **200** If the application was withdrawn.
+/// - **400** If an ID is not a valid UUID.
+/// - **401** If not authenticated.
+/// - **403** If the session is not a Startup session, or it belongs to a
+///   different Startup.
+/// - **404** If no pending application exists for the Demand.
+///
+fn withdraw_demand_application(
+  request: Request,
+  database: pog.Connection,
+  id: String,
+  demand_id: String,
+) -> Response {
+  use id <- require_valid_uuid(id)
+  use demand_id <- require_valid_uuid(demand_id)
+  use session <- require_startup_session(request)
+
+  case session.id == id {
+    False -> wisp.response(403)
+
+    True ->
+      case startup.withdraw_demand_application(database, id, from: demand_id) {
+        Ok(application) ->
+          demand.application_to_json(application)
+          |> json.to_string
+          |> wisp.json_response(200)
+
+        Error(error) -> handle_startup_error(error)
+      }
   }
 }
 
@@ -1169,6 +1314,126 @@ fn delete_demand(database: pog.Connection, id: String) -> Response {
       |> wisp.json_response(200)
 
     Error(error) -> handle_demand_error(error)
+  }
+}
+
+/// ## `PATCH /api/company/demand/:id/application/:startup_id`
+///
+/// Accept or decline a Startup's application to a Demand.
+///
+/// A Company session is required, and the Demand must belong to that Company.
+/// The application is set to the requested status regardless of its previous
+/// one, so a decision can be reversed by sending the opposite status.
+///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Demand's ID.
+/// - `startup_id` (UUID, required): the Startup's ID.
+///
+/// ## Request Body
+///
+/// ```json
+/// {
+///   "status": "accepted"
+/// }
+/// ```
+///
+/// - `status`: either `"accepted"` or `"declined"`.
+///
+/// ## Response Body
+///
+/// ```json
+/// {
+///   "demand": "01a173cb-9533-7ebd-87a0-590965ef3653",
+///   "startup": "01a173cb-9533-7eb5-9522-9686fef4f2a4",
+///   "status": "accepted",
+///   "created_at": "2026-09-14T20:08:02.000Z",
+///   "updated_at": "2026-09-15T20:08:02.000Z"
+/// }
+/// ```
+///
+/// ## Status Codes
+///
+/// - **200** If the application was updated.
+/// - **400** If an ID is not a valid UUID, the request body is invalid JSON, or
+///   `status` is not `"accepted"` or `"declined"`.
+/// - **401** If not authenticated.
+/// - **403** If the session is not a Company session, or the Demand belongs to
+///   a different Company.
+/// - **404** If the Demand or the application is not found.
+///
+fn update_application(
+  request: Request,
+  database: pog.Connection,
+  company_id: String,
+  startup_id: String,
+) -> Response {
+  use body <- wisp.require_json(request)
+  use company_id <- require_valid_uuid(company_id)
+  use startup_id <- require_valid_uuid(startup_id)
+  use session <- require_company_session(request)
+
+  let decoder = {
+    use status <- decode.field("status", decode.string)
+    case status {
+      "accepted" -> decode.success(status)
+      "declined" -> decode.success(status)
+      _ -> decode.failure("", "application_status")
+    }
+  }
+
+  case decode.run(body, decoder) {
+    Ok("accepted") -> {
+      use <- require_demand_owner(database, company_id, session.id)
+
+      let result =
+        demand.accept_application(database, company_id, from: startup_id)
+
+      case result {
+        Ok(application) ->
+          demand.application_to_json(application)
+          |> json.to_string
+          |> wisp.json_response(200)
+
+        Error(error) -> handle_demand_error(error)
+      }
+    }
+
+    Ok("declined") -> {
+      use <- require_demand_owner(database, company_id, session.id)
+
+      let result =
+        demand.decline_application(database, company_id, from: startup_id)
+
+      case result {
+        Ok(application) ->
+          demand.application_to_json(application)
+          |> json.to_string
+          |> wisp.json_response(200)
+
+        Error(error) -> handle_demand_error(error)
+      }
+    }
+
+    Ok(status) -> wisp.bad_request("Invalid application status: " <> status)
+    Error(_) -> wisp.bad_request("Invalid JSON")
+  }
+}
+
+/// Require the given Demand to belong to the given Company.
+///
+/// Returns `404` if the Demand does not exist and `403` if it belongs to a
+/// different Company.
+fn require_demand_owner(
+  database: pog.Connection,
+  id: uuid.Uuid,
+  company_id: uuid.Uuid,
+  next: fn() -> Response,
+) -> Response {
+  case demand.get(database, id) {
+    Error(error) -> handle_demand_error(error)
+    Ok(found) if found.company_id == company_id -> next()
+    Ok(_) -> wisp.response(403)
   }
 }
 
@@ -3374,13 +3639,13 @@ fn request_connection(
   use session <- require_company_session(request)
 
   let decoder = {
-    use startup <- decode.field("startup", internal.uuid_decoder())
-    decode.success(payload.RequestConnection(startup:))
+    use id <- decode.field("startup", internal.uuid_decoder())
+    decode.success(id)
   }
 
   case decode.run(body, decoder) {
-    Ok(payload) if session.id == id ->
-      case company.request_connection(database, id, to: payload.startup) {
+    Ok(startup_id) if session.id == id ->
+      case company.request_connection(database, id, to: startup_id) {
         Ok(connection) ->
           connection.to_json(connection)
           |> json.to_string
@@ -3596,12 +3861,12 @@ fn update_connection(
 
   let decoder = {
     use status <- decode.field("status", connection.status_decoder())
-    decode.success(payload.UpdateConnectionStatus(status:))
+    decode.success(status)
   }
 
   case decode.run(body, decoder) {
-    Ok(payload) if session.id == id ->
-      case payload.status {
+    Ok(status) if session.id == id ->
+      case status {
         connection.Accepted ->
           case startup.accept_connection(database, id, from: company) {
             Ok(data) ->

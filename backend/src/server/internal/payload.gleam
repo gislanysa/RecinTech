@@ -5,7 +5,6 @@ import gleam/uri
 import server/cnpj
 import server/company
 import server/demand
-import server/connection
 import server/email
 import server/startup
 import youid/uuid
@@ -80,12 +79,4 @@ pub type UpdateCompany {
     state: String,
     website: uri.Uri,
   )
-}
-
-pub type RequestConnection {
-  RequestConnection(startup: uuid.Uuid)
-}
-
-pub type UpdateConnectionStatus {
-  UpdateConnectionStatus(status: connection.Status)
 }
