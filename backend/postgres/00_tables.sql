@@ -28,6 +28,21 @@ CREATE INDEX idx_startup_cnpj ON startup (cnpj);
 
 CREATE INDEX idx_startup_email ON startup (email);
 
+CREATE TABLE startup_canvas (
+    startup_id uuid PRIMARY KEY REFERENCES startup(id) ON DELETE CASCADE,
+    customer_segments text NOT NULL DEFAULT '',
+    value_proposition text NOT NULL DEFAULT '',
+    channels text NOT NULL DEFAULT '',
+    customer_relationships text NOT NULL DEFAULT '',
+    revenue_streams text NOT NULL DEFAULT '',
+    key_resources text NOT NULL DEFAULT '',
+    key_activities text NOT NULL DEFAULT '',
+    key_partnerships text NOT NULL DEFAULT '',
+    cost_structure text NOT NULL DEFAULT '',
+    created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TYPE lgpd_consent AS enum ('granted', 'revoked');
 
 CREATE TABLE lgpd_policy (

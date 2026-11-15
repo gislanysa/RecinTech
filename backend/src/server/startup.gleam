@@ -70,6 +70,8 @@ pub type StartupError {
 
   /// No pending connection requests found from the given company
   ConnectionNotFound(from: uuid.Uuid)
+  /// Something went wrong when saving a Startup's Business Model Canvas
+  FailedToSaveCanvas(id: uuid.Uuid)
 }
 
 pub type Startup {
@@ -1420,4 +1422,248 @@ pub fn get_connections(
       updated_at: row.updated_at,
     )
   })
+}
+
+/// A Startup's Business Model Canvas.
+///
+/// Every block is free narrative text, and an empty string means the block was
+/// left blank.
+pub type Canvas {
+  Canvas(
+    /// The customer segments the Startup serves
+    customer_segments: String,
+    /// The value the Startup delivers to its customer segments
+    value_proposition: String,
+    /// How the Startup reaches its customer segments
+    channels: String,
+    /// The relationship the Startup builds with its customer segments
+    customer_relationships: String,
+    /// How the Startup earns money from its customer segments
+    revenue_streams: String,
+    /// The assets required to make the business model work
+    key_resources: String,
+    /// The most important things the Startup must do to make the model work
+    key_activities: String,
+    /// The suppliers and partners that make the business model work
+    key_partnerships: String,
+    /// The costs incurred to operate the business model
+    cost_structure: String,
+  )
+}
+
+/// Encode a [Canvas](#Canvas) into JSON
+pub fn canvas_to_json(canvas: Canvas) -> json.Json {
+  let Canvas(
+    customer_segments:,
+    value_proposition:,
+    channels:,
+    customer_relationships:,
+    revenue_streams:,
+    key_resources:,
+    key_activities:,
+    key_partnerships:,
+    cost_structure:,
+  ) = canvas
+
+  json.object([
+    #("customer_segments", json.string(customer_segments)),
+    #("value_proposition", json.string(value_proposition)),
+    #("channels", json.string(channels)),
+    #("customer_relationships", json.string(customer_relationships)),
+    #("revenue_streams", json.string(revenue_streams)),
+    #("key_resources", json.string(key_resources)),
+    #("key_activities", json.string(key_activities)),
+    #("key_partnerships", json.string(key_partnerships)),
+    #("cost_structure", json.string(cost_structure)),
+  ])
+}
+
+/// A decoder that decodes `Canvas` values.
+pub fn canvas_decoder() -> decode.Decoder(Canvas) {
+  use customer_segments <- decode.field("customer_segments", decode.string)
+  use value_proposition <- decode.field("value_proposition", decode.string)
+  use channels <- decode.field("channels", decode.string)
+  use customer_relationships <- decode.field(
+    "customer_relationships",
+    decode.string,
+  )
+  use revenue_streams <- decode.field("revenue_streams", decode.string)
+  use key_resources <- decode.field("key_resources", decode.string)
+  use key_activities <- decode.field("key_activities", decode.string)
+  use key_partnerships <- decode.field("key_partnerships", decode.string)
+  use cost_structure <- decode.field("cost_structure", decode.string)
+
+  decode.success(Canvas(
+    customer_segments:,
+    value_proposition:,
+    channels:,
+    customer_relationships:,
+    revenue_streams:,
+    key_resources:,
+    key_activities:,
+    key_partnerships:,
+    cost_structure:,
+  ))
+}
+
+/// A [Canvas](#Canvas) with every block left blank.
+pub const empty_canvas =
+  Canvas(
+    customer_segments: "",
+    value_proposition: "",
+    channels: "",
+    customer_relationships: "",
+    revenue_streams: "",
+    key_resources: "",
+    key_activities: "",
+    key_partnerships: "",
+    cost_structure: "",
+  )
+
+/// Fetch a Startup's [Canvas](#Canvas) from the Database.
+///
+/// Returns [empty_canvas](#empty_canvas) if the Startup has not saved a canvas
+/// yet, and `Error(NotFound(_))` if the Startup is not registered.
+///
+/// ## Examples
+///
+/// ```gleam
+/// case startup.get_canvas(context.database, id) {
+///   Ok(canvas) -> wisp.ok()
+///   Error(startup.NotFound(_)) -> wisp.not_found()
+///   Error(_) -> wisp.internal_server_error()
+/// }
+/// ```
+pub fn get_canvas(
+  database: pog.Connection,
+  id: uuid.Uuid,
+) -> Result(Canvas, StartupError) {
+  use <- ensure_exists(database, id)
+
+  use returned <- result.map(
+    sql.get_canvas(database, id)
+    |> result.map_error(DatabaseError),
+  )
+
+  case list.first(returned.rows) {
+    Ok(row) ->
+      Canvas(
+        customer_segments: row.customer_segments,
+        value_proposition: row.value_proposition,
+        channels: row.channels,
+        customer_relationships: row.customer_relationships,
+        revenue_streams: row.revenue_streams,
+        key_resources: row.key_resources,
+        key_activities: row.key_activities,
+        key_partnerships: row.key_partnerships,
+        cost_structure: row.cost_structure,
+      )
+
+    Error(_) -> empty_canvas
+  }
+}
+
+/// Create or replace a Startup's [Canvas](#Canvas) and return the saved canvas.
+///
+/// This is a full replacement: every block is written as given, so an empty
+/// string clears a block instead of keeping its previous value.
+///
+/// ## Examples
+///
+/// ```gleam
+/// case startup.upsert_canvas(context.database, id, canvas) {
+///   Ok(canvas) -> wisp.ok()
+///   Error(startup.NotFound(_)) -> wisp.not_found()
+///   Error(_) -> wisp.internal_server_error()
+/// }
+/// ```
+pub fn upsert_canvas(
+  database: pog.Connection,
+  id: uuid.Uuid,
+  canvas: Canvas,
+) -> Result(Canvas, StartupError) {
+  let result =
+    sql.upsert_canvas(
+      database,
+      id,
+      canvas.customer_segments,
+      canvas.value_proposition,
+      canvas.channels,
+      canvas.customer_relationships,
+      canvas.revenue_streams,
+      canvas.key_resources,
+      canvas.key_activities,
+      canvas.key_partnerships,
+      canvas.cost_structure,
+    )
+
+  use returned <- result.try(case result {
+    // startup not registered
+    Error(pog.ConstraintViolated(
+      constraint: "startup_canvas_startup_id_fkey",
+      ..,
+    )) -> Error(NotFound(id:))
+
+    Ok(rows) -> Ok(rows)
+    Error(error) -> Error(DatabaseError(error))
+  })
+
+  use row <- result.map(
+    list.first(returned.rows)
+    |> result.replace_error(FailedToSaveCanvas(id:)),
+  )
+
+  Canvas(
+    customer_segments: row.customer_segments,
+    value_proposition: row.value_proposition,
+    channels: row.channels,
+    customer_relationships: row.customer_relationships,
+    revenue_streams: row.revenue_streams,
+    key_resources: row.key_resources,
+    key_activities: row.key_activities,
+    key_partnerships: row.key_partnerships,
+    cost_structure: row.cost_structure,
+  )
+}
+
+/// Delete a Startup's [Canvas](#Canvas) and return the deleted canvas.
+///
+/// Returns `Error(NotFound(_))` if the Startup is not registered or has not
+/// saved a canvas yet. After deleting it, [get_canvas](#get_canvas) returns an
+/// [empty_canvas](#empty_canvas).
+///
+/// ## Examples
+///
+/// ```gleam
+/// case startup.delete_canvas(context.database, id) {
+///   Ok(canvas) -> wisp.ok()
+///   Error(startup.NotFound(_)) -> wisp.not_found()
+///   Error(_) -> wisp.internal_server_error()
+/// }
+/// ```
+pub fn delete_canvas(
+  database: pog.Connection,
+  id: uuid.Uuid,
+) -> Result(Canvas, StartupError) {
+  use returned <- result.try(
+    sql.delete_canvas(database, id)
+    |> result.map_error(DatabaseError),
+  )
+
+  use row <- result.map(
+    list.first(returned.rows)
+    |> result.replace_error(NotFound(id:)),
+  )
+
+  Canvas(
+    customer_segments: row.customer_segments,
+    value_proposition: row.value_proposition,
+    channels: row.channels,
+    customer_relationships: row.customer_relationships,
+    revenue_streams: row.revenue_streams,
+    key_resources: row.key_resources,
+    key_activities: row.key_activities,
+    key_partnerships: row.key_partnerships,
+    cost_structure: row.cost_structure,
+  )
 }
