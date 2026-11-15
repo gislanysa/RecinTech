@@ -1776,7 +1776,8 @@ pub fn apply_to_demand(
 ///
 /// Only pending applications can be withdrawn. If there is no pending
 /// application for the given Demand — because it does not exist, or because it
-/// was already accepted or declined — `Error(DemandNotFound(_))` is returned.
+/// was already accepted or declined — `Error(ApplicationNotFound(_))` is
+/// returned.
 ///
 /// ## Examples
 ///

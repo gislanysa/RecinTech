@@ -2,6 +2,7 @@ import gleam/option.{None, Some}
 import server/company
 import server/demand
 import server/dummy
+import server/startup
 import server_test
 import youid/uuid
 
@@ -762,6 +763,215 @@ pub fn delete_missing_demand_test() -> Nil {
     demand.delete(context.database, demand_id)
 
   assert returned == demand_id
+
+  Nil
+}
+
+pub fn accept_application_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let startup = dummy.new_startup(context.database)
+  let demand = dummy.new_demand(context.database, from: company.id)
+
+  let assert Ok(applied) =
+    startup.apply_to_demand(context.database, startup.id, apply_to: demand.id)
+
+  let assert Ok(returned) =
+    demand.accept_application(context.database, demand.id, from: startup.id)
+
+  assert returned
+    == demand.Application(
+      demand: demand.id,
+      startup: startup.id,
+      status: demand.Accepted,
+      created_at: applied.created_at,
+      updated_at: returned.updated_at,
+    )
+
+  Nil
+}
+
+pub fn decline_application_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let startup = dummy.new_startup(context.database)
+  let demand = dummy.new_demand(context.database, from: company.id)
+
+  let assert Ok(applied) =
+    startup.apply_to_demand(context.database, startup.id, apply_to: demand.id)
+
+  let assert Ok(returned) =
+    demand.decline_application(context.database, demand.id, from: startup.id)
+
+  assert returned
+    == demand.Application(
+      demand: demand.id,
+      startup: startup.id,
+      status: demand.Declined,
+      created_at: applied.created_at,
+      updated_at: returned.updated_at,
+    )
+
+  Nil
+}
+
+pub fn accept_missing_application_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let startup = dummy.new_startup(context.database)
+  let demand = dummy.new_demand(context.database, from: company.id)
+
+  let assert Error(demand.ApplicationNotFound(
+    demand: returned_demand,
+    startup: returned_startup,
+  )) = demand.accept_application(context.database, demand.id, from: startup.id)
+
+  assert returned_demand == demand.id
+  assert returned_startup == startup.id
+
+  Nil
+}
+
+pub fn decline_missing_application_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let startup = dummy.new_startup(context.database)
+  let demand = dummy.new_demand(context.database, from: company.id)
+
+  let assert Error(demand.ApplicationNotFound(
+    demand: returned_demand,
+    startup: returned_startup,
+  )) = demand.decline_application(context.database, demand.id, from: startup.id)
+
+  assert returned_demand == demand.id
+  assert returned_startup == startup.id
+
+  Nil
+}
+
+pub fn accept_missing_startup_application_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let demand = dummy.new_demand(context.database, from: company.id)
+  let missing_id = uuid.v7()
+
+  let assert Error(demand.ApplicationNotFound(
+    demand: returned_demand,
+    startup: returned_startup,
+  )) = demand.accept_application(context.database, demand.id, from: missing_id)
+
+  assert returned_demand == demand.id
+  assert returned_startup == missing_id
+
+  Nil
+}
+
+pub fn accept_missing_demand_application_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+  let missing_id = uuid.v7()
+
+  let assert Error(demand.ApplicationNotFound(
+    demand: returned_demand,
+    startup: returned_startup,
+  )) = demand.accept_application(context.database, missing_id, from: startup.id)
+
+  assert returned_demand == missing_id
+  assert returned_startup == startup.id
+
+  Nil
+}
+
+/// Accepting an application that is already accepted is allowed.
+pub fn accept_application_twice_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let startup = dummy.new_startup(context.database)
+  let demand = dummy.new_demand(context.database, from: company.id)
+
+  let assert Ok(_) =
+    startup.apply_to_demand(context.database, startup.id, apply_to: demand.id)
+
+  let assert Ok(_) =
+    demand.accept_application(context.database, demand.id, from: startup.id)
+
+  let assert Ok(returned) =
+    demand.accept_application(context.database, demand.id, from: startup.id)
+
+  assert returned.status == demand.Accepted
+
+  Nil
+}
+
+/// Accepting a declined application reverses the previous decision.
+pub fn accept_after_decline_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let startup = dummy.new_startup(context.database)
+  let demand = dummy.new_demand(context.database, from: company.id)
+
+  let assert Ok(_) =
+    startup.apply_to_demand(context.database, startup.id, apply_to: demand.id)
+
+  let assert Ok(_) =
+    demand.decline_application(context.database, demand.id, from: startup.id)
+
+  let assert Ok(returned) =
+    demand.accept_application(context.database, demand.id, from: startup.id)
+
+  assert returned.status == demand.Accepted
+
+  Nil
+}
+
+/// Declining an accepted application reverses the previous decision.
+pub fn decline_after_accept_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let startup = dummy.new_startup(context.database)
+  let demand = dummy.new_demand(context.database, from: company.id)
+
+  let assert Ok(_) =
+    startup.apply_to_demand(context.database, startup.id, apply_to: demand.id)
+
+  let assert Ok(_) =
+    demand.accept_application(context.database, demand.id, from: startup.id)
+
+  let assert Ok(returned) =
+    demand.decline_application(context.database, demand.id, from: startup.id)
+
+  assert returned.status == demand.Declined
+
+  Nil
+}
+
+/// A declined application still blocks the Startup from applying again.
+pub fn decline_application_blocks_reapply_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let startup = dummy.new_startup(context.database)
+  let demand = dummy.new_demand(context.database, from: company.id)
+
+  let assert Ok(_) =
+    startup.apply_to_demand(context.database, startup.id, apply_to: demand.id)
+
+  let assert Ok(_) =
+    demand.decline_application(context.database, demand.id, from: startup.id)
+
+  let assert Error(startup.ApplicationConflict(returned)) =
+    startup.apply_to_demand(context.database, startup.id, apply_to: demand.id)
+
+  assert returned == demand.id
 
   Nil
 }
