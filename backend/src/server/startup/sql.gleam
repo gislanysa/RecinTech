@@ -1779,7 +1779,9 @@ pub type DemandApplicationStatus {
   PendingApplication
 }
 
-fn demand_application_status_decoder() -> decode.Decoder(DemandApplicationStatus) {
+fn demand_application_status_decoder() -> decode.Decoder(
+  DemandApplicationStatus,
+) {
   use demand_application_status <- decode.then(decode.string)
   case demand_application_status {
     "declined_application" -> decode.success(DeclinedApplication)
