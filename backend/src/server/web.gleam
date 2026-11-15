@@ -57,8 +57,8 @@ import lustre/element/html
 import pog
 import server/cnpj
 import server/company
-import server/demand
 import server/connection
+import server/demand
 import server/email
 import server/expertise
 import server/internal
@@ -4330,6 +4330,28 @@ fn handle_startup_error(error: startup.StartupError) -> Response {
     startup.FailedToSaveCanvas(id:) ->
       { "Failed to save BMC for: " <> uuid.to_string(id) }
       |> wisp.string_body(wisp.internal_server_error(), _)
+
+    startup.DemandNotFound(demand) ->
+      { "Demand not found: " <> uuid.to_string(demand) }
+      |> wisp.string_body(wisp.not_found(), _)
+
+    startup.ApplicationConflict(demand) ->
+      { "Already applied to: " <> uuid.to_string(demand) }
+      |> wisp.string_body(wisp.response(409), _)
+
+    startup.DemandError(error) -> handle_demand_error(error)
+
+    startup.DemandNotOpen(id) ->
+      { "Demand " <> uuid.to_string(id) <> " is not open" }
+      |> wisp.string_body(wisp.response(400), _)
+
+    startup.FailedToApplyToDemand(demand_id) ->
+      { "Failed to apply to: " <> uuid.to_string(demand_id) }
+      |> wisp.string_body(wisp.internal_server_error(), _)
+
+    startup.ApplicationNotFound(id) ->
+      { "Application to: " <> uuid.to_string(id) <> " not found" }
+      |> wisp.string_body(wisp.not_found(), _)
   }
 }
 

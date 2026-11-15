@@ -53,7 +53,6 @@ pub type ApplicationStatus {
   Pending
   Accepted
   Declined
-  Withdrawn
 }
 
 pub type Application {

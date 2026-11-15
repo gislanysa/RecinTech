@@ -1,9 +1,6 @@
 -- withdraw a startup's application to a demand
-UPDATE
+DELETE FROM
     public.demand_application
-SET
-    application_status = 'withdrawn_application',
-    updated_at = CURRENT_TIMESTAMP
 WHERE
     demand_application.startup_id = $1::uuid
     AND demand_application.demand_id = $2::uuid

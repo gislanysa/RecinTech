@@ -122,13 +122,7 @@ pub fn apply_to_demand(
 INSERT INTO
     public.demand_application (startup_id, demand_id)
 VALUES
-    ($1::uuid, $2::uuid) ON CONFLICT (demand_id, startup_id) DO
-UPDATE
-SET
-    application_status = 'pending_application',
-    updated_at = CURRENT_TIMESTAMP
-WHERE
-    demand_application.application_status = 'withdrawn_application'
+    ($1::uuid, $2::uuid)
 RETURNING
     demand_id,
     startup_id,
@@ -1731,11 +1725,8 @@ pub fn withdraw_demand_application(
   }
 
   "-- withdraw a startup's application to a demand
-UPDATE
+DELETE FROM
     public.demand_application
-SET
-    application_status = 'withdrawn_application',
-    updated_at = CURRENT_TIMESTAMP
 WHERE
     demand_application.startup_id = $1::uuid
     AND demand_application.demand_id = $2::uuid
@@ -1783,7 +1774,6 @@ fn connection_status_enum_decoder() -> decode.Decoder(ConnectionStatusEnum) {
 /// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
 ///
 pub type DemandApplicationStatus {
-  WithdrawnApplication
   DeclinedApplication
   AcceptedApplication
   PendingApplication
@@ -1792,11 +1782,10 @@ pub type DemandApplicationStatus {
 fn demand_application_status_decoder() -> decode.Decoder(DemandApplicationStatus) {
   use demand_application_status <- decode.then(decode.string)
   case demand_application_status {
-    "withdrawn_application" -> decode.success(WithdrawnApplication)
     "declined_application" -> decode.success(DeclinedApplication)
     "accepted_application" -> decode.success(AcceptedApplication)
     "pending_application" -> decode.success(PendingApplication)
-    _ -> decode.failure(WithdrawnApplication, "DemandApplicationStatus")
+    _ -> decode.failure(DeclinedApplication, "DemandApplicationStatus")
   }
 }
 

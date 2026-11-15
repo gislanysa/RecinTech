@@ -227,8 +227,7 @@ CREATE INDEX idx_demand_status ON demand (demand_status);
 CREATE TYPE demand_application_status AS ENUM (
     'pending_application',
     'accepted_application',
-    'declined_application',
-    'withdrawn_application'
+    'declined_application'
 );
 
 CREATE TABLE demand_application (

@@ -1146,7 +1146,6 @@ RETURNING
 /// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
 ///
 pub type DemandApplicationStatus {
-  WithdrawnApplication
   DeclinedApplication
   AcceptedApplication
   PendingApplication
@@ -1155,11 +1154,10 @@ pub type DemandApplicationStatus {
 fn demand_application_status_decoder() -> decode.Decoder(DemandApplicationStatus) {
   use demand_application_status <- decode.then(decode.string)
   case demand_application_status {
-    "withdrawn_application" -> decode.success(WithdrawnApplication)
     "declined_application" -> decode.success(DeclinedApplication)
     "accepted_application" -> decode.success(AcceptedApplication)
     "pending_application" -> decode.success(PendingApplication)
-    _ -> decode.failure(WithdrawnApplication, "DemandApplicationStatus")
+    _ -> decode.failure(DeclinedApplication, "DemandApplicationStatus")
   }
 }
 
