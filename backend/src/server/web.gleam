@@ -303,6 +303,9 @@ pub fn handle_request(request: Request, context: Context) -> Response {
       delete_demand(context.database, id)
 
     // == application ==========================================================
+    http.Get, ["api", "company", "demand", id, "application"] ->
+      get_demand_applications(request, context.database, id)
+
     http.Patch, ["api", "company", "demand", id, "application", startup_id] ->
       update_application(request, context.database, id, startup_id)
 
@@ -1310,6 +1313,63 @@ fn delete_demand(database: pog.Connection, id: String) -> Response {
   case demand.delete(database, id) {
     Ok(data) ->
       demand.to_json(data)
+      |> json.to_string
+      |> wisp.json_response(200)
+
+    Error(error) -> handle_demand_error(error)
+  }
+}
+
+/// ## `GET /api/company/demand/:id/application`
+///
+/// Fetch all applications to a Demand.
+///
+/// A Company session is required, and the Demand must belong to that Company.
+/// Applications are returned in every status (`pending`, `accepted` and
+/// `declined`) and are not ordered, so callers should not rely on a particular
+/// order.
+///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Demand's ID.
+///
+/// ## Response Body
+///
+/// ```json
+/// [
+///   {
+///     "demand": "01a173cb-9533-7ebd-87a0-590965ef3653",
+///     "startup": "01a173cb-9533-7eb5-9522-9686fef4f2a4",
+///     "status": "pending",
+///     "created_at": "2026-09-14T20:08:02.000Z",
+///     "updated_at": "2026-09-14T20:08:02.000Z"
+///   }
+/// ]
+/// ```
+///
+/// An empty list is returned when the Demand has no applications.
+///
+/// ## Status Codes
+///
+/// - **200** If successful.
+/// - **400** If the ID is not a valid UUID.
+/// - **401** If not authenticated.
+/// - **403** If the session is not a Company session, or the Demand belongs to
+///   a different Company.
+/// - **404** If the Demand is not found.
+///
+fn get_demand_applications(
+  request: Request,
+  database: pog.Connection,
+  id: String,
+) -> Response {
+  use id <- require_valid_uuid(id)
+  use session <- require_company_session(request)
+  use <- require_demand_owner(database, id, session.id)
+
+  case demand.get_applications(database, id) {
+    Ok(applications) ->
+      json.array(applications, demand.application_to_json)
       |> json.to_string
       |> wisp.json_response(200)
 

@@ -1,3 +1,4 @@
+import gleam/list
 import gleam/option.{None, Some}
 import server/company
 import server/demand
@@ -972,6 +973,82 @@ pub fn decline_application_blocks_reapply_test() -> Nil {
     startup.apply_to_demand(context.database, startup.id, apply_to: demand.id)
 
   assert returned == demand.id
+
+  Nil
+}
+
+pub fn get_applications_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let startup_a = dummy.new_startup(context.database)
+  let startup_b = dummy.new_startup(context.database)
+  let demand = dummy.new_demand(context.database, from: company.id)
+
+  let assert Ok(_) =
+    startup.apply_to_demand(context.database, startup_a.id, apply_to: demand.id)
+
+  let assert Ok(_) =
+    startup.apply_to_demand(context.database, startup_b.id, apply_to: demand.id)
+
+  let assert Ok(_) =
+    demand.accept_application(context.database, demand.id, from: startup_b.id)
+
+  let assert Ok(returned) = demand.get_applications(context.database, demand.id)
+
+  assert list.length(returned) == 2
+
+  assert list.any(returned, fn(application) {
+    application.startup == startup_a.id && application.status == demand.Pending
+  })
+
+  assert list.any(returned, fn(application) {
+    application.startup == startup_b.id && application.status == demand.Accepted
+  })
+
+  Nil
+}
+
+pub fn get_empty_applications_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let demand = dummy.new_demand(context.database, from: company.id)
+
+  let assert Ok([]) = demand.get_applications(context.database, demand.id)
+
+  Nil
+}
+
+/// A Demand that does not exist has no applications, so this is not an error.
+pub fn get_applications_from_missing_demand_test() -> Nil {
+  use context <- server_test.with_context()
+  let missing_id = uuid.v7()
+
+  let assert Ok([]) = demand.get_applications(context.database, missing_id)
+
+  Nil
+}
+
+/// Withdrawing deletes the application, so it is no longer returned.
+pub fn get_applications_after_withdraw_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let startup = dummy.new_startup(context.database)
+  let demand = dummy.new_demand(context.database, from: company.id)
+
+  let assert Ok(_) =
+    startup.apply_to_demand(context.database, startup.id, apply_to: demand.id)
+
+  let assert Ok(_) =
+    startup.withdraw_demand_application(
+      context.database,
+      startup.id,
+      from: demand.id,
+    )
+
+  let assert Ok([]) = demand.get_applications(context.database, demand.id)
 
   Nil
 }
