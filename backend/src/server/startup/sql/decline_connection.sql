@@ -2,12 +2,12 @@
 UPDATE
     public.company_startup_connection AS connection
 SET
-    connection_status = 'declined',
+    connection_status = 'declined_connection',
     updated_at = CURRENT_TIMESTAMP
 WHERE
     connection.company_id = $1::uuid
     AND connection.startup_id = $2::uuid
-    AND connection.connection_status = 'pending'
+    AND connection.connection_status = 'pending_connection'
 RETURNING
     company_id,
     startup_id,

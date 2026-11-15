@@ -774,9 +774,9 @@ pub fn request_connection(
   )
 
   let status = case row.connection_status {
-    sql.Accepted -> connection.Accepted
-    sql.Declined -> connection.Declined
-    sql.Pending -> connection.Pending
+    sql.AcceptedConnection -> connection.Accepted
+    sql.DeclinedConnection -> connection.Declined
+    sql.PendingConnection -> connection.Pending
   }
 
   connection.Connection(
@@ -823,9 +823,9 @@ pub fn get_connections(
 
   list.map(returned.rows, fn(row) {
     let status = case row.connection_status {
-      sql.Accepted -> connection.Accepted
-      sql.Declined -> connection.Declined
-      sql.Pending -> connection.Pending
+      sql.AcceptedConnection -> connection.Accepted
+      sql.DeclinedConnection -> connection.Declined
+      sql.PendingConnection -> connection.Pending
     }
 
     connection.Connection(
