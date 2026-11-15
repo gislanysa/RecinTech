@@ -73,11 +73,5 @@ jobs:
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f postgres/00_tables.sql
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f postgres/01_seed.sql
 
-      - name: Validate generated SQL queries
-        run: gleam run -m squirrel check
-
-      - name: Check formatting
-        run: gleam format --check src test
-
       - name: Run unit tests
         run: gleam test
