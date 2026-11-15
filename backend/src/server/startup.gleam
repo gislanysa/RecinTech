@@ -1767,3 +1767,58 @@ pub fn apply_to_demand(
     updated_at: row.updated_at,
   )
 }
+
+/// Withdraw the Startup's pending [Application](demand.html#Application) to a
+/// [Demand](demand.html#Demand) and return the withdrawn application.
+///
+/// Withdrawing deletes the application from the Database, so the Startup can
+/// apply to the same Demand again through [apply_to_demand](#apply_to_demand).
+///
+/// Only pending applications can be withdrawn. If there is no pending
+/// application for the given Demand — because it does not exist, or because it
+/// was already accepted or declined — `Error(DemandNotFound(_))` is returned.
+///
+/// ## Examples
+///
+/// ```gleam
+/// let result = startup.withdraw_demand_application(
+///   context.database,
+///   startup.id,
+///   from: demand.id,
+/// )
+///
+/// case result {
+///   Ok(application) -> wisp.ok()
+///   Error(startup.ApplicationNotFound(_)) -> wisp.not_found()
+///   Error(_) -> wisp.internal_server_error()
+/// }
+/// ```
+pub fn withdraw_demand_application(
+  database: pog.Connection,
+  id: uuid.Uuid,
+  from demand_id: uuid.Uuid,
+) -> Result(demand.Application, StartupError) {
+  use returned <- result.try(
+    sql.withdraw_demand_application(database, id, demand_id)
+    |> result.map_error(DatabaseError),
+  )
+
+  use row <- result.map(
+    list.first(returned.rows)
+    |> result.replace_error(ApplicationNotFound(demand_id)),
+  )
+
+  let status = case row.application_status {
+    sql.AcceptedApplication -> demand.Accepted
+    sql.PendingApplication -> demand.Pending
+    sql.DeclinedApplication -> demand.Declined
+  }
+
+  demand.Application(
+    demand: row.demand_id,
+    startup: row.startup_id,
+    status: status,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  )
+}
