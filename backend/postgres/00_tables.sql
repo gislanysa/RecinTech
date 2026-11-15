@@ -220,6 +220,26 @@ CREATE INDEX idx_demand_company ON demand (company_id);
 
 CREATE INDEX idx_demand_status ON demand (demand_status);
 
+CREATE TYPE demand_application_status AS ENUM (
+    'pending',
+    'accepted',
+    'declined',
+    'withdrawn'
+);
+
+CREATE TABLE demand_startup_application (
+    startup_id uuid NOT NULL REFERENCES startup (id) ON DELETE CASCADE,
+    demand_id uuid NOT NULL REFERENCES demand (id) ON DELETE CASCADE,
+    application_status demand_application_status NOT NULL DEFAULT 'pending',
+    created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (startup_id, demand_id)
+);
+
+CREATE INDEX idx_demand_startup_application_demand ON demand_startup_application (demand_id);
+
+CREATE INDEX idx_demand_startup_application_startup ON demand_startup_application (startup_id);
+
 CREATE TABLE demand_segment (
     demand_id uuid NOT NULL REFERENCES demand (id) ON DELETE CASCADE,
     segment_id uuid NOT NULL REFERENCES segment (id) ON DELETE CASCADE,

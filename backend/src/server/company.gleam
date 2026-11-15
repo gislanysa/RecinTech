@@ -12,9 +12,9 @@ import gleam/time/timestamp
 import gleam/uri
 import pog
 import server/cnpj
-import server/company/demand
 import server/company/sql
 import server/connection
+import server/demand
 import server/email
 import server/internal
 import server/lgpd

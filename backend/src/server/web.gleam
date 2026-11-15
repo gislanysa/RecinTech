@@ -57,7 +57,7 @@ import lustre/element/html
 import pog
 import server/cnpj
 import server/company
-import server/company/demand
+import server/demand
 import server/connection
 import server/email
 import server/expertise

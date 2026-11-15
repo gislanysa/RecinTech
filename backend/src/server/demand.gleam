@@ -8,7 +8,7 @@ import gleam/option.{type Option}
 import gleam/result
 import gleam/time/timestamp
 import pog
-import server/company/demand/sql
+import server/demand/sql
 import server/expertise
 import server/internal
 import server/segment
@@ -47,6 +47,23 @@ pub type Status {
   Closed
   /// The Company withdrew the demand before it was fulfilled.
   Canceled
+}
+
+pub type ApplicationStatus {
+  Pending
+  Accepted
+  Declined
+  Withdrawn
+}
+
+pub type Application {
+  Application(
+    demand: uuid.Uuid,
+    startup: uuid.Uuid,
+    status: ApplicationStatus,
+    created_at: timestamp.Timestamp,
+    updated_at: timestamp.Timestamp,
+  )
 }
 
 @internal

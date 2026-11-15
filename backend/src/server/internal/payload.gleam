@@ -4,7 +4,7 @@ import gleam/option.{type Option}
 import gleam/uri
 import server/cnpj
 import server/company
-import server/company/demand
+import server/demand
 import server/connection
 import server/email
 import server/startup

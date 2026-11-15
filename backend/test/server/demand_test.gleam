@@ -1,6 +1,6 @@
 import gleam/option.{None, Some}
 import server/company
-import server/company/demand
+import server/demand
 import server/dummy
 import server_test
 import youid/uuid
