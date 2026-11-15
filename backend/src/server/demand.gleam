@@ -57,6 +57,28 @@ pub type ApplicationStatus {
   Declined
 }
 
+/// Encode a `ApplicationStatus` into JSON
+fn application_status_to_json(
+  application_status: ApplicationStatus,
+) -> json.Json {
+  case application_status {
+    Pending -> json.string("pending")
+    Accepted -> json.string("accepted")
+    Declined -> json.string("declined")
+  }
+}
+
+/// A decoder that decodes `ApplicationStatus` values.
+fn application_status_decoder() -> decode.Decoder(ApplicationStatus) {
+  use variant <- decode.then(decode.string)
+  case variant {
+    "pending" -> decode.success(Pending)
+    "accepted" -> decode.success(Accepted)
+    "declined" -> decode.success(Declined)
+    _ -> decode.failure(Pending, "ApplicationStatus")
+  }
+}
+
 pub type Application {
   Application(
     demand: uuid.Uuid,
@@ -65,6 +87,36 @@ pub type Application {
     created_at: timestamp.Timestamp,
     updated_at: timestamp.Timestamp,
   )
+}
+
+pub fn application_to_json(application: Application) -> json.Json {
+  let Application(demand:, startup:, status:, created_at:, updated_at:) =
+    application
+
+  json.object([
+    #("demand", internal.uuid_to_json(demand)),
+    #("startup", internal.uuid_to_json(startup)),
+    #("status", application_status_to_json(status)),
+    #("created_at", internal.timestamp_to_json(created_at)),
+    #("updated_at", internal.timestamp_to_json(updated_at)),
+  ])
+}
+
+/// A decoder that decodes `Application` values.
+pub fn application_decoder() -> decode.Decoder(Application) {
+  use demand <- decode.field("demand", internal.uuid_decoder())
+  use startup <- decode.field("startup", internal.uuid_decoder())
+  use status <- decode.field("status", application_status_decoder())
+  use created_at <- decode.field("created_at", internal.timestamp_decoder())
+  use updated_at <- decode.field("updated_at", internal.timestamp_decoder())
+
+  decode.success(Application(
+    demand:,
+    startup:,
+    status:,
+    created_at:,
+    updated_at:,
+  ))
 }
 
 @internal
