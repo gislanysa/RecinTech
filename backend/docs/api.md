@@ -721,6 +721,83 @@ The saved canvas, in the same shape as the request body:
 - 403: Invalid session
 - 404: Startup not found
 
+## POST /api/startup/:id/application
+
+Apply to an open demand. A startup can have at most one application per demand.
+
+A Startup session is required, and it must belong to the startup identified by
+`id`.
+
+### Path Parameters
+
+- `id` (UUID, required): the startup's ID.
+
+### Request Body
+
+```json
+{
+  "demand": "01a173cb-9533-7ebd-87a0-590965ef3653"
+}
+```
+
+### Response Body
+
+```json
+{
+  "demand": "01a173cb-9533-7ebd-87a0-590965ef3653",
+  "startup": "01a173cb-9533-7eb5-9522-9686fef4f2a4",
+  "status": "pending",
+  "created_at": "2026-09-14T20:08:02.000Z",
+  "updated_at": "2026-09-14T20:08:02.000Z"
+}
+```
+
+- `status`: one of `"pending"`, `"accepted"` or `"declined"`.
+
+### Status Codes
+
+- 201: Successful
+- 400: Invalid JSON, invalid UUID format, or demand is not open
+- 401: Not authenticated
+- 403: Invalid session
+- 404: Demand not found
+- 409: The startup already applied to the demand
+
+## DELETE /api/startup/:id/application/:demand_id
+
+Withdraw a pending application from a demand. The application is deleted, so
+the startup can apply to the same demand again later.
+
+A Startup session is required, and it must belong to the startup identified by
+`id`.
+
+### Path Parameters
+
+- `id` (UUID, required): the startup's ID.
+- `demand_id` (UUID, required): the demand's ID.
+
+### Response Body
+
+The withdrawn application:
+
+```json
+{
+  "demand": "01a173cb-9533-7ebd-87a0-590965ef3653",
+  "startup": "01a173cb-9533-7eb5-9522-9686fef4f2a4",
+  "status": "pending",
+  "created_at": "2026-09-14T20:08:02.000Z",
+  "updated_at": "2026-09-14T20:08:02.000Z"
+}
+```
+
+### Status Codes
+
+- 200: Successful
+- 400: Invalid UUID format
+- 401: Not authenticated
+- 403: Invalid session
+- 404: No pending application exists for the demand
+
 ## GET /api/startup/:id/segment
 
 Fetch all segments that a startup is assigned to.
@@ -1529,6 +1606,89 @@ Delete a registered demand.
 - 200: Successful
 - 400: Invalid UUID format
 - 404: Demand not found
+
+## GET /api/company/demand/:id/application
+
+Fetch all applications to a demand.
+
+A Company session is required, and the demand must belong to the company
+identified by the session.
+
+Applications are returned in every status and are not ordered, so clients
+should not rely on a particular order.
+
+### Path Parameters
+
+- `id` (UUID, required): the demand's ID.
+
+### Response Body
+
+```json
+[
+  {
+    "demand": "01a173cb-9533-7ebd-87a0-590965ef3653",
+    "startup": "01a173cb-9533-7eb5-9522-9686fef4f2a4",
+    "status": "pending",
+    "created_at": "2026-09-14T20:08:02.000Z",
+    "updated_at": "2026-09-14T20:08:02.000Z"
+  }
+]
+```
+
+- `status`: one of `"pending"`, `"accepted"` or `"declined"`.
+- An empty array is returned when the demand has no applications.
+
+### Status Codes
+
+- 200: Successful
+- 400: Invalid UUID format
+- 401: Not authenticated
+- 403: Invalid session, or the demand belongs to another company
+- 404: Demand not found
+
+## PATCH /api/company/demand/:id/application/:startup_id
+
+Accept or decline a startup's application to a demand.
+
+A Company session is required, and the demand must belong to the company
+identified by the session. The application is set to the requested status
+regardless of its previous status, so a decision can be reversed by sending the
+opposite status.
+
+### Path Parameters
+
+- `id` (UUID, required): the demand's ID.
+- `startup_id` (UUID, required): the startup's ID.
+
+### Request Body
+
+```json
+{
+  "status": "accepted"
+}
+```
+
+- `status`: either `"accepted"` or `"declined"`.
+
+### Response Body
+
+```json
+{
+  "demand": "01a173cb-9533-7ebd-87a0-590965ef3653",
+  "startup": "01a173cb-9533-7eb5-9522-9686fef4f2a4",
+  "status": "accepted",
+  "created_at": "2026-09-14T20:08:02.000Z",
+  "updated_at": "2026-09-15T20:08:02.000Z"
+}
+```
+
+### Status Codes
+
+- 200: Successful
+- 400: Invalid JSON, invalid UUID format, or invalid status
+- 401: Not authenticated
+- 403: Invalid session, or the demand belongs to another company
+- 404: Demand or application not found
 
 ## GET /api/company/demand/:id/segment
 
