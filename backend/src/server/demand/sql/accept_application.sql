@@ -7,7 +7,6 @@ SET
 WHERE
     demand_application.demand_id = $1::uuid
     AND demand_application.startup_id = $2::uuid
-    AND demand_application.application_status = 'pending_application'
 RETURNING
     demand_id,
     startup_id,

@@ -36,6 +36,8 @@ pub type DemandError {
   AssignmentFailure(uuid.Uuid)
   /// Failed to unassign entity from a demand for unknown reasons
   AssignmentNotFound(uuid.Uuid)
+  /// No application found from the given startup
+  ApplicationNotFound(demand: uuid.Uuid, startup: uuid.Uuid)
 }
 
 /// The lifecycle state of a Company's [Demand](#Demand).
@@ -728,6 +730,127 @@ pub fn delete(
     title: row.title,
     description: row.description,
     status: status_from_enum(row.demand_status),
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  )
+}
+
+/// Accept a Startup's [Application](#Application) to a Demand and return the
+/// updated application.
+///
+/// The application is set to `accepted` regardless of its previous status, so
+/// accepting an already accepted application only refreshes `updated_at`, while
+/// accepting a declined application reverses the previous decision. Declining
+/// it later reverses it again.
+///
+/// `Error(ApplicationNotFound(..))` is returned only when no application exists
+/// for the given Demand and Startup.
+///
+/// The Demand's status is not checked, so accepting an application on a
+/// `closed` or `canceled` Demand is allowed. Callers that only want to accept
+/// applications while the Demand is `open` should check its status first.
+///
+/// ## Examples
+///
+/// ```gleam
+/// let result = demand.accept_application(
+///   context.database,
+///   demand.id,
+///   from: startup.id,
+/// )
+///
+/// case result {
+///   Ok(application) -> wisp.ok()
+///   Error(demand.ApplicationNotFound(..)) -> wisp.not_found()
+///   Error(_) -> wisp.internal_server_error()
+/// }
+/// ```
+pub fn accept_application(
+  database: pog.Connection,
+  id: uuid.Uuid,
+  from startup: uuid.Uuid,
+) -> Result(Application, DemandError) {
+  use returned <- result.try(
+    sql.accept_application(database, id, startup)
+    |> result.map_error(DatabaseError),
+  )
+
+  use row <- result.map(
+    list.first(returned.rows)
+    |> result.replace_error(ApplicationNotFound(demand: id, startup:)),
+  )
+
+  let status = case row.application_status {
+    sql.AcceptedApplication -> Accepted
+    sql.PendingApplication -> Pending
+    sql.DeclinedApplication -> Declined
+  }
+
+  Application(
+    demand: row.demand_id,
+    startup: row.startup_id,
+    status:,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  )
+}
+
+/// Decline a Startup's [Application](#Application) to a Demand and return the
+/// updated application.
+///
+/// The application is set to `declined` regardless of its previous status, so
+/// declining an already declined application only refreshes `updated_at`, while
+/// declining an accepted application reverses the previous decision. Accepting
+/// it later reverses it again.
+///
+/// `Error(ApplicationNotFound(..))` is returned only when no application exists
+/// for the given Demand and Startup.
+///
+/// A declined application is kept in the Database, so the Startup cannot apply
+/// to the same Demand again while the row exists. The Demand's status is not
+/// checked, so declining an application on a `closed` or `canceled` Demand is
+/// allowed.
+///
+/// ## Examples
+///
+/// ```gleam
+/// let result = demand.decline_application(
+///   context.database,
+///   demand.id,
+///   from: startup.id,
+/// )
+///
+/// case result {
+///   Ok(application) -> wisp.ok()
+///   Error(demand.ApplicationNotFound(..)) -> wisp.not_found()
+///   Error(_) -> wisp.internal_server_error()
+/// }
+/// ```
+pub fn decline_application(
+  database: pog.Connection,
+  id: uuid.Uuid,
+  from startup: uuid.Uuid,
+) -> Result(Application, DemandError) {
+  use returned <- result.try(
+    sql.decline_application(database, id, startup)
+    |> result.map_error(DatabaseError),
+  )
+
+  use row <- result.map(
+    list.first(returned.rows)
+    |> result.replace_error(ApplicationNotFound(demand: id, startup:)),
+  )
+
+  let status = case row.application_status {
+    sql.AcceptedApplication -> Accepted
+    sql.PendingApplication -> Pending
+    sql.DeclinedApplication -> Declined
+  }
+
+  Application(
+    demand: row.demand_id,
+    startup: row.startup_id,
+    status:,
     created_at: row.created_at,
     updated_at: row.updated_at,
   )

@@ -4744,6 +4744,16 @@ fn handle_demand_error(error: demand.DemandError) -> Response {
     demand.AssignedMissingEntity(id) ->
       { "Entity " <> uuid.to_string(id) <> " was not found" }
       |> wisp.string_body(wisp.not_found(), _)
+
+    demand.ApplicationNotFound(demand: demand_id, startup: startup_id) ->
+      {
+        "Application from startup "
+        <> uuid.to_string(startup_id)
+        <> " to demand "
+        <> uuid.to_string(demand_id)
+        <> " not found"
+      }
+      |> wisp.string_body(wisp.not_found(), _)
   }
 }
 
