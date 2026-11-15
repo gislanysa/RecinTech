@@ -521,6 +521,67 @@ WHERE
   |> pog.execute(db)
 }
 
+/// A row you get from running the `get_applications` query
+/// defined in `./src/server/demand/sql/get_applications.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v4.7.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type GetApplicationsRow {
+  GetApplicationsRow(
+    demand_id: Uuid,
+    startup_id: Uuid,
+    application_status: DemandApplicationStatus,
+    created_at: Timestamp,
+    updated_at: Timestamp,
+  )
+}
+
+/// get all applications to a demand
+///
+/// > 🐿️ This function was generated automatically using v4.7.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn get_applications(
+  db: pog.Connection,
+  arg_1: Uuid,
+) -> Result(pog.Returned(GetApplicationsRow), pog.QueryError) {
+  let decoder = {
+    use demand_id <- decode.field(0, uuid_decoder())
+    use startup_id <- decode.field(1, uuid_decoder())
+    use application_status <- decode.field(
+      2,
+      demand_application_status_decoder(),
+    )
+    use created_at <- decode.field(3, pog.timestamp_decoder())
+    use updated_at <- decode.field(4, pog.timestamp_decoder())
+    decode.success(GetApplicationsRow(
+      demand_id:,
+      startup_id:,
+      application_status:,
+      created_at:,
+      updated_at:,
+    ))
+  }
+
+  "-- get all applications to a demand
+SELECT
+    application.demand_id,
+    application.startup_id,
+    application.application_status,
+    application.created_at,
+    application.updated_at
+FROM
+    demand_application AS application
+WHERE
+    demand_id = $1;
+"
+  |> pog.query
+  |> pog.parameter(pog.text(uuid.to_string(arg_1)))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
 /// A row you get from running the `get_expertises` query
 /// defined in `./src/server/demand/sql/get_expertises.sql`.
 ///

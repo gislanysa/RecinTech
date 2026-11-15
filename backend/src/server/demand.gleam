@@ -893,17 +893,55 @@ pub fn decline_application(
     |> result.replace_error(ApplicationNotFound(demand: id, startup:)),
   )
 
-  let status = case row.application_status {
+  Application(
+    demand: row.demand_id,
+    startup: row.startup_id,
+    status: application_from_enum(row.application_status),
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  )
+}
+
+fn application_from_enum(
+  enum: sql.DemandApplicationStatus,
+) -> ApplicationStatus {
+  case enum {
     sql.AcceptedApplication -> Accepted
     sql.PendingApplication -> Pending
     sql.DeclinedApplication -> Declined
   }
+}
 
-  Application(
-    demand: row.demand_id,
-    startup: row.startup_id,
-    status:,
-    created_at: row.created_at,
-    updated_at: row.updated_at,
+/// Get all [Application](#Application)s to a Demand.
+///
+/// Applications are returned in every status: `pending`, `accepted`, and
+/// `declined`. An empty list is returned when the Demand has no applications or
+/// does not exist.
+///
+/// ## Examples
+///
+/// ```gleam
+/// case demand.get_applications(context.database, demand.id) {
+///   Ok(data) -> wisp.ok()
+///   Error(_) -> wisp.internal_server_error()
+/// }
+/// ```
+pub fn get_applications(
+  database: pog.Connection,
+  from id: uuid.Uuid,
+) -> Result(List(Application), DemandError) {
+  use returned <- result.map(
+    sql.get_applications(database, id)
+    |> result.map_error(DatabaseError),
   )
+
+  list.map(returned.rows, fn(row) {
+    Application(
+      demand: row.demand_id,
+      startup: row.startup_id,
+      status: application_from_enum(row.application_status),
+      created_at: row.created_at,
+      updated_at: row.updated_at,
+    )
+  })
 }
