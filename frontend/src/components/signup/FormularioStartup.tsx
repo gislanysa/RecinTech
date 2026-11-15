@@ -1,5 +1,8 @@
 import Botao from '@/components/Botao.tsx'
 import BotaoVoltar from '@/components/BotaoVoltar.tsx'
+import AceiteDaPolitica from '@/components/signup/AceiteDaPolitica.tsx'
+import { useAuth } from '@/contexts/useAuth.ts'
+import { registrarConsentimentoDoCadastro } from '@/lib/consentimentoNoCadastro.ts'
 import { Campo, CampoSelect } from '@/components/forms/Campo.tsx'
 import { registrarStartup } from '@/lib/api.ts'
 import { UFS } from '@/lib/ufs.ts'
@@ -89,6 +92,11 @@ export default function FormularioStartup({ onVoltar }: FormularioStartupProps) 
   const [campos, setCampos] = useState<Campos>(VAZIO)
   const [errors, setErrors] = useState<Partial<Campos>>({})
   const [enviando, setEnviando] = useState(false)
+  // A caixa de aceite fica fora de `campos` porque nao e dado do cadastro:
+  // e o ato de consentir, registrado no backend por rota propria.
+  const [aceitou, setAceitou] = useState(false)
+  const [erroAceite, setErroAceite] = useState('')
+  const { login: entrar } = useAuth()
 
   function atualizar(campo: keyof Campos, valor: string) {
     setCampos((prev) => ({ ...prev, [campo]: valor }))
@@ -103,7 +111,10 @@ export default function FormularioStartup({ onVoltar }: FormularioStartupProps) 
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!validar()) return
+    const formularioOk = validar()
+    const aceiteOk = aceitou
+    setErroAceite(aceiteOk ? '' : 'Para criar a conta, e preciso aceitar a politica e os termos.')
+    if (!formularioOk || !aceiteOk) return
     setEnviando(true)
 
     try {
@@ -125,6 +136,20 @@ export default function FormularioStartup({ onVoltar }: FormularioStartupProps) 
         if (!axios.isAxiosError(err) || err.response?.status !== 404) {
           throw err
         }
+      }
+
+      // Entra na conta recem-criada para registrar o consentimento, que exige
+      // sessao. Se nao der, segue para o login como antes.
+      const conta = await registrarConsentimentoDoCadastro({
+        entrar,
+        email: campos.email,
+        senha: campos.senha,
+        tipo: 'startup',
+      })
+
+      if (conta) {
+        navigate('/dashboard/startup')
+        return
       }
 
       navigate('/entrar', {
@@ -264,6 +289,16 @@ export default function FormularioStartup({ onVoltar }: FormularioStartupProps) 
             />
           </div>
         </fieldset>
+
+        <AceiteDaPolitica
+          id="aceite-startup"
+          marcado={aceitou}
+          onChange={(valor) => {
+            setAceitou(valor)
+            if (valor) setErroAceite('')
+          }}
+          erro={erroAceite}
+        />
 
         <div className="mt-2">
           <Botao id="btn-cadastrar-startup" type="submit" disabled={enviando} bloco>

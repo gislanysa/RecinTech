@@ -1,5 +1,6 @@
 import FormularioEmpresa from '@/components/signup/FormularioEmpresa.tsx'
 import FormularioStartup from '@/components/signup/FormularioStartup.tsx'
+import { AuthProvider } from '@/contexts/AuthContext.tsx'
 import * as api from '@/lib/api.ts'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
@@ -23,7 +24,9 @@ describe('Fluxo de Cadastro - Startup e Empresa', () => {
     it('deve validar campos obrigatórios ao submeter formulário em branco', async () => {
       render(
         <MemoryRouter>
+          <AuthProvider>
           <FormularioStartup onVoltar={vi.fn()} />
+        </AuthProvider>
         </MemoryRouter>,
       )
 
@@ -52,10 +55,12 @@ describe('Fluxo de Cadastro - Startup e Empresa', () => {
 
       render(
         <MemoryRouter initialEntries={['/cadastro/startup']}>
+          <AuthProvider>
           <Routes>
             <Route path="/cadastro/startup" element={<FormularioStartup onVoltar={vi.fn()} />} />
             <Route path="/entrar" element={<div>Tela de Login</div>} />
           </Routes>
+        </AuthProvider>
         </MemoryRouter>,
       )
 
@@ -68,7 +73,7 @@ describe('Fluxo de Cadastro - Startup e Empresa', () => {
       fireEvent.change(screen.getByLabelText(/estágio/i), {
         target: { value: 'traction' },
       })
-      fireEvent.change(screen.getByLabelText(/cidade/i), {
+      fireEvent.change(screen.getByLabelText(/^cidade/i), {
         target: { value: 'Recife' },
       })
       fireEvent.change(screen.getByLabelText(/^estado/i), {
@@ -83,6 +88,9 @@ describe('Fluxo de Cadastro - Startup e Empresa', () => {
       fireEvent.change(screen.getByLabelText(/confirmar senha/i), {
         target: { value: 'senhaForte123' },
       })
+
+      // O cadastro passou a exigir o aceite da politica de privacidade.
+      fireEvent.click(screen.getByLabelText(/li e concordo com a/i))
 
       fireEvent.submit(screen.getByRole('button', { name: /criar minha conta/i }).closest('form')!)
 
@@ -108,7 +116,9 @@ describe('Fluxo de Cadastro - Startup e Empresa', () => {
     it('deve validar campos obrigatórios ao submeter formulário em branco', async () => {
       render(
         <MemoryRouter>
+          <AuthProvider>
           <FormularioEmpresa onVoltar={vi.fn()} />
+        </AuthProvider>
         </MemoryRouter>,
       )
 
@@ -127,10 +137,12 @@ describe('Fluxo de Cadastro - Startup e Empresa', () => {
 
       render(
         <MemoryRouter initialEntries={['/cadastro/empresa']}>
+          <AuthProvider>
           <Routes>
             <Route path="/cadastro/empresa" element={<FormularioEmpresa onVoltar={vi.fn()} />} />
             <Route path="/entrar" element={<div>Tela de Login</div>} />
           </Routes>
+        </AuthProvider>
         </MemoryRouter>,
       )
 
@@ -143,7 +155,7 @@ describe('Fluxo de Cadastro - Startup e Empresa', () => {
       fireEvent.change(screen.getByLabelText(/tamanho/i), {
         target: { value: 'medium' },
       })
-      fireEvent.change(screen.getByLabelText(/cidade/i), {
+      fireEvent.change(screen.getByLabelText(/^cidade/i), {
         target: { value: 'Recife' },
       })
       fireEvent.change(screen.getByLabelText(/^estado/i), {
@@ -158,6 +170,9 @@ describe('Fluxo de Cadastro - Startup e Empresa', () => {
       fireEvent.change(screen.getByLabelText(/confirmar senha/i), {
         target: { value: 'senhaSegura123' },
       })
+
+      // O cadastro passou a exigir o aceite da politica de privacidade.
+      fireEvent.click(screen.getByLabelText(/li e concordo com a/i))
 
       fireEvent.submit(screen.getByRole('button', { name: /criar minha conta/i }).closest('form')!)
 
