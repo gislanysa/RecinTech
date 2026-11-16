@@ -1365,14 +1365,15 @@ fn get_demand_applications(
 ) -> Response {
   use id <- require_valid_uuid(id)
   use session <- require_company_session(request)
-  use <- require_demand_owner(database, id, session.id)
+  use owner <- require_demand_owner(database, id, session.id)
 
   case demand.get_applications(database, id) {
-    Ok(applications) ->
+    Ok(applications) if session.id == owner ->
       json.array(applications, demand.application_to_json)
       |> json.to_string
       |> wisp.json_response(200)
 
+    Ok(_) -> wisp.response(403)
     Error(error) -> handle_demand_error(error)
   }
 }
@@ -1425,13 +1426,14 @@ fn get_demand_applications(
 fn update_application(
   request: Request,
   database: pog.Connection,
-  company_id: String,
+  demand_id: String,
   startup_id: String,
 ) -> Response {
   use body <- wisp.require_json(request)
-  use company_id <- require_valid_uuid(company_id)
+  use demand_id <- require_valid_uuid(demand_id)
   use startup_id <- require_valid_uuid(startup_id)
   use session <- require_company_session(request)
+  use owner <- require_demand_owner(database, demand_id, session.id)
 
   let decoder = {
     use status <- decode.field("status", decode.string)
@@ -1443,13 +1445,8 @@ fn update_application(
   }
 
   case decode.run(body, decoder) {
-    Ok("accepted") -> {
-      use <- require_demand_owner(database, company_id, session.id)
-
-      let result =
-        demand.accept_application(database, company_id, from: startup_id)
-
-      case result {
+    Ok("accepted") if session.id == owner ->
+      case demand.accept_application(database, demand_id, from: startup_id) {
         Ok(application) ->
           demand.application_to_json(application)
           |> json.to_string
@@ -1457,15 +1454,9 @@ fn update_application(
 
         Error(error) -> handle_demand_error(error)
       }
-    }
 
-    Ok("declined") -> {
-      use <- require_demand_owner(database, company_id, session.id)
-
-      let result =
-        demand.decline_application(database, company_id, from: startup_id)
-
-      case result {
+    Ok("declined") if session.id == owner ->
+      case demand.decline_application(database, demand_id, from: startup_id) {
         Ok(application) ->
           demand.application_to_json(application)
           |> json.to_string
@@ -1473,7 +1464,9 @@ fn update_application(
 
         Error(error) -> handle_demand_error(error)
       }
-    }
+
+    // valid but not authorized
+    Ok("accepted") | Ok("declined") -> wisp.response(403)
 
     Ok(status) -> wisp.bad_request("Invalid application status: " <> status)
     Error(_) -> wisp.bad_request("Invalid JSON")
@@ -1488,11 +1481,11 @@ fn require_demand_owner(
   database: pog.Connection,
   demand id: uuid.Uuid,
   company company: uuid.Uuid,
-  next next: fn() -> Response,
+  next next: fn(uuid.Uuid) -> Response,
 ) -> Response {
   case demand.get(database, id) {
     Error(error) -> handle_demand_error(error)
-    Ok(found) if found.company_id == company -> next()
+    Ok(found) if found.company_id == company -> next(found.company_id)
     Ok(_) -> wisp.response(403)
   }
 }
@@ -1740,15 +1733,20 @@ fn register_demand(
 ///
 /// - **200** If the Demand was updated.
 /// - **400** If the ID is not a valid UUID or the request body is invalid JSON.
+/// - **401** If not authenticated.
+/// - **403** If the session is not a Company session, or it belongs to a
+///   different Company.
 /// - **404** If the Demand is not found.
 ///
 fn update_demand(
   request: Request,
   database: pog.Connection,
-  id: String,
+  demand_id: String,
 ) -> Response {
   use body <- wisp.require_json(request)
-  use id <- require_valid_uuid(id)
+  use demand_id <- require_valid_uuid(demand_id)
+  use session <- require_company_session(request)
+  use owner <- require_demand_owner(database, demand_id, session.id)
 
   let decoder = {
     use title <- decode.optional_field("title", "", decode.string)
@@ -1757,12 +1755,11 @@ fn update_demand(
   }
 
   case decode.run(body, decoder) {
-    Error(_) -> wisp.bad_request("Invalid JSON")
-    Ok(payload) -> {
+    Ok(payload) if session.id == owner -> {
       let new_title = string.to_option(payload.title)
       let new_description = string.to_option(payload.description)
 
-      case demand.update(database, id, new_title:, new_description:) {
+      case demand.update(database, demand_id, new_title:, new_description:) {
         Error(error) -> handle_demand_error(error)
 
         Ok(demand) ->
@@ -1771,6 +1768,9 @@ fn update_demand(
           |> wisp.json_response(200)
       }
     }
+
+    Ok(_) -> wisp.response(403)
+    Error(_) -> wisp.bad_request("Invalid JSON")
   }
 }
 
@@ -2126,7 +2126,7 @@ fn assign_segment_to_demand(
   use id <- require_valid_uuid(id)
   use body <- wisp.require_json(request)
   use session <- require_company_session(request)
-  use <- require_demand_owner(database, demand: id, company: session.id)
+  use owner <- require_demand_owner(database, demand: id, company: session.id)
 
   let decoder = {
     use segment <- decode.field("segment", internal.uuid_decoder())
@@ -2134,8 +2134,7 @@ fn assign_segment_to_demand(
   }
 
   case decode.run(body, decoder) {
-    Error(_) -> wisp.bad_request("Invalid JSON")
-    Ok(segment) ->
+    Ok(segment) if session.id == owner ->
       case demand.assign_segment(database, id, assign: segment) {
         Ok(data) ->
           segment.to_json(data)
@@ -2144,6 +2143,9 @@ fn assign_segment_to_demand(
 
         Error(error) -> handle_demand_error(error)
       }
+
+    Ok(_) -> wisp.response(403)
+    Error(_) -> wisp.bad_request("Invalid JSON")
   }
 }
 
@@ -2184,14 +2186,15 @@ fn unassign_segment_from_demand(
   use id <- require_valid_uuid(id)
   use segment <- require_valid_uuid(segment_id)
   use session <- require_company_session(request)
-  use <- require_demand_owner(database, demand: id, company: session.id)
+  use owner <- require_demand_owner(database, demand: id, company: session.id)
 
   case demand.unassign_segment(database, id, unassign: segment) {
-    Ok(data) ->
+    Ok(data) if session.id == owner ->
       segment.to_json(data)
       |> json.to_string()
       |> wisp.json_response(200)
 
+    Ok(_) -> wisp.response(403)
     Error(error) -> handle_demand_error(error)
   }
 }
@@ -2240,7 +2243,7 @@ fn assign_service_to_demand(
   use id <- require_valid_uuid(id)
   use body <- wisp.require_json(request)
   use session <- require_company_session(request)
-  use <- require_demand_owner(database, demand: id, company: session.id)
+  use owner <- require_demand_owner(database, demand: id, company: session.id)
 
   let decoder = {
     use service <- decode.field("service", internal.uuid_decoder())
@@ -2248,8 +2251,7 @@ fn assign_service_to_demand(
   }
 
   case decode.run(body, decoder) {
-    Error(_) -> wisp.bad_request("Invalid JSON")
-    Ok(service) ->
+    Ok(service) if session.id == owner ->
       case demand.assign_service(database, id, assign: service) {
         Ok(data) ->
           service.to_json(data)
@@ -2258,6 +2260,9 @@ fn assign_service_to_demand(
 
         Error(error) -> handle_demand_error(error)
       }
+
+    Ok(_) -> wisp.response(403)
+    Error(_) -> wisp.bad_request("Invalid JSON")
   }
 }
 
@@ -2298,14 +2303,15 @@ fn unassign_service_from_demand(
   use id <- require_valid_uuid(id)
   use service <- require_valid_uuid(service_id)
   use session <- require_company_session(request)
-  use <- require_demand_owner(database, demand: id, company: session.id)
+  use owner <- require_demand_owner(database, demand: id, company: session.id)
 
   case demand.unassign_service(database, id, unassign: service) {
-    Ok(data) ->
+    Ok(data) if session.id == owner ->
       service.to_json(data)
       |> json.to_string()
       |> wisp.json_response(200)
 
+    Ok(_) -> wisp.response(403)
     Error(error) -> handle_demand_error(error)
   }
 }
@@ -2354,7 +2360,7 @@ fn assign_technology_to_demand(
   use id <- require_valid_uuid(id)
   use body <- wisp.require_json(request)
   use session <- require_company_session(request)
-  use <- require_demand_owner(database, demand: id, company: session.id)
+  use owner <- require_demand_owner(database, demand: id, company: session.id)
 
   let decoder = {
     use technology <- decode.field("technology", internal.uuid_decoder())
@@ -2362,8 +2368,7 @@ fn assign_technology_to_demand(
   }
 
   case decode.run(body, decoder) {
-    Error(_) -> wisp.bad_request("Invalid JSON")
-    Ok(technology) ->
+    Ok(technology) if session.id == owner ->
       case demand.assign_technology(database, id, assign: technology) {
         Ok(data) ->
           technology.to_json(data)
@@ -2372,6 +2377,9 @@ fn assign_technology_to_demand(
 
         Error(error) -> handle_demand_error(error)
       }
+
+    Ok(_) -> wisp.response(403)
+    Error(_) -> wisp.bad_request("Invalid JSON")
   }
 }
 
@@ -2412,14 +2420,15 @@ fn unassign_technology_from_demand(
   use id <- require_valid_uuid(id)
   use technology <- require_valid_uuid(technology_id)
   use session <- require_company_session(request)
-  use <- require_demand_owner(database, demand: id, company: session.id)
+  use owner <- require_demand_owner(database, demand: id, company: session.id)
 
   case demand.unassign_technology(database, id, unassign: technology) {
-    Ok(data) ->
+    Ok(data) if session.id == owner ->
       technology.to_json(data)
       |> json.to_string()
       |> wisp.json_response(200)
 
+    Ok(_) -> wisp.response(403)
     Error(error) -> handle_demand_error(error)
   }
 }
@@ -2468,7 +2477,7 @@ fn assign_expertise_to_demand(
   use id <- require_valid_uuid(id)
   use body <- wisp.require_json(request)
   use session <- require_company_session(request)
-  use <- require_demand_owner(database, demand: id, company: session.id)
+  use owner <- require_demand_owner(database, demand: id, company: session.id)
 
   let decoder = {
     use expertise <- decode.field("expertise", internal.uuid_decoder())
@@ -2476,8 +2485,7 @@ fn assign_expertise_to_demand(
   }
 
   case decode.run(body, decoder) {
-    Error(_) -> wisp.bad_request("Invalid JSON")
-    Ok(expertise) ->
+    Ok(expertise) if session.id == owner ->
       case demand.assign_expertise(database, id, assign: expertise) {
         Ok(data) ->
           expertise.to_json(data)
@@ -2486,6 +2494,9 @@ fn assign_expertise_to_demand(
 
         Error(error) -> handle_demand_error(error)
       }
+
+    Ok(_) -> wisp.response(403)
+    Error(_) -> wisp.bad_request("Invalid JSON")
   }
 }
 
@@ -2526,14 +2537,15 @@ fn unassign_expertise_from_demand(
   use id <- require_valid_uuid(id)
   use expertise <- require_valid_uuid(expertise_id)
   use session <- require_company_session(request)
-  use <- require_demand_owner(database, demand: id, company: session.id)
+  use owner <- require_demand_owner(database, demand: id, company: session.id)
 
   case demand.unassign_expertise(database, id, unassign: expertise) {
-    Ok(data) ->
+    Ok(data) if session.id == owner ->
       expertise.to_json(data)
       |> json.to_string()
       |> wisp.json_response(200)
 
+    Ok(_) -> wisp.response(403)
     Error(error) -> handle_demand_error(error)
   }
 }

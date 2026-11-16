@@ -1506,6 +1506,8 @@ technologies can be assigned to the demand in the same request.
 
 - 201: Successful
 - 400: Invalid JSON or invalid UUID
+- 401: Not authenticated
+- 403: Invalid session
 - 404: Company or assigned entity not found
 - 409: An entity is already assigned to the demand
 
@@ -1750,6 +1752,8 @@ Assign a segment to a company's demand.
 
 - 201: Successful
 - 400: Invalid JSON or invalid UUID
+- 401: Not authenticated
+- 403: Invalid session, or the demand belongs to another company
 - 404: Demand or Segment not found
 - 409: Already assigned
 
@@ -1776,6 +1780,8 @@ Unassign a segment from a company's demand.
 
 - 200: Successful
 - 400: Invalid UUID format
+- 401: Not authenticated
+- 403: Invalid session, or the demand belongs to another company
 - 404: Segment is not assigned to the demand
 
 ## GET /api/company/demand/:id/service
@@ -1838,6 +1844,8 @@ Assign a service to a company's demand.
 
 - 201: Successful
 - 400: Invalid JSON or invalid UUID
+- 401: Not authenticated
+- 403: Invalid session, or the demand belongs to another company
 - 404: Demand or Service not found
 - 409: Already assigned
 
@@ -1864,6 +1872,8 @@ Unassign a service from a company's demand.
 
 - 200: Successful
 - 400: Invalid UUID format
+- 401: Not authenticated
+- 403: Invalid session, or the demand belongs to another company
 - 404: Service is not assigned to the demand
 
 ## GET /api/company/demand/:id/technology
@@ -1926,6 +1936,8 @@ Assign a technology to a company's demand.
 
 - 201: Successful
 - 400: Invalid JSON or invalid UUID
+- 401: Not authenticated
+- 403: Invalid session, or the demand belongs to another company
 - 404: Demand or Technology not found
 - 409: Already assigned
 
@@ -1952,6 +1964,8 @@ Unassign a technology from a company's demand.
 
 - 200: Successful
 - 400: Invalid UUID format
+- 401: Not authenticated
+- 403: Invalid session, or the demand belongs to another company
 - 404: Technology is not assigned to the demand
 
 ## GET /api/company/demand/:id/expertise
@@ -2014,6 +2028,8 @@ Assign an expertise to a company's demand.
 
 - 201: Successful
 - 400: Invalid JSON or invalid UUID
+- 401: Not authenticated
+- 403: Invalid session, or the demand belongs to another company
 - 404: Demand or Expertise not found
 - 409: Already assigned
 
@@ -2040,6 +2056,8 @@ Unassign an expertise from a company's demand.
 
 - 200: Successful
 - 400: Invalid UUID format
+- 401: Not authenticated
+- 403: Invalid session, or the demand belongs to another company
 - 404: Expertise is not assigned to the demand
 
 ## POST /api/company/:id/connection
