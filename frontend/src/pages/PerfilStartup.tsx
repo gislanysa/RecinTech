@@ -3,9 +3,10 @@ import Footer from '@/components/layout/Footer.tsx'
 import CanvasPublico from '@/components/perfil/CanvasPublico.tsx'
 import Header from '@/components/layout/Header.tsx'
 import type { Startup } from '@/lib/api.ts'
-import { carregarCanvas } from '@/lib/canvas.ts'
+import { canvasVazio, carregarCanvas, type CanvasStartup } from '@/lib/canvas.ts'
 import { calcularTempoAtuacao } from '@/lib/formatadores.ts'
 import { buscarStartupPorId, carregarTagsDaStartup, iniciais } from '@/lib/startups.ts'
+import { useAuth } from '@/contexts/useAuth.ts'
 import axios from 'axios'
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
@@ -70,9 +71,16 @@ export default function PerfilStartup() {
 
 function CarregaPerfil({ id }: { id: string }) {
   const [estado, setEstado] = useState<Estado>({ situacao: 'carregando' })
+  const [canvas, setCanvas] = useState<CanvasStartup>(() => canvasVazio())
 
   useEffect(() => {
     let ativo = true
+
+    carregarCanvas(id)
+      .then((c) => {
+        if (ativo) setCanvas(c)
+      })
+      .catch(() => {})
 
     buscarStartupPorId(id)
       .then((startup) => {
@@ -115,17 +123,42 @@ function CarregaPerfil({ id }: { id: string }) {
     )
   }
 
-  return <Conteudo startup={estado.startup} tags={estado.tags} />
+  return <Conteudo startup={estado.startup} tags={estado.tags} canvas={canvas} />
 }
 
-function Conteudo({ startup, tags }: { startup: Startup; tags: Tags | null }) {
+function Conteudo({
+  startup,
+  tags,
+  canvas,
+}: {
+  startup: Startup
+  tags: Tags | null
+  canvas: CanvasStartup
+}) {
+  const { conta, tipoConta } = useAuth()
+  const ehPropriaStartup = tipoConta === 'startup' && conta?.id === startup.id
+
+  let rotaVoltar = '/startups'
+  let textoVoltar = 'Voltar para a busca'
+
+  if (tipoConta === 'company') {
+    rotaVoltar = '/dashboard/empresa/catalogo'
+    textoVoltar = 'Voltar para o catálogo'
+  } else if (ehPropriaStartup) {
+    rotaVoltar = '/dashboard/startup/perfil'
+    textoVoltar = 'Voltar para meu perfil'
+  } else if (tipoConta === 'startup') {
+    rotaVoltar = '/dashboard/startup/catalogo'
+    textoVoltar = 'Voltar para o catálogo'
+  }
+
   const area = tags?.area ?? ''
 
   return (
     <>
       <section className="border-b border-brand-100 bg-surface-2">
         <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
-          <BotaoVoltar to="/startups">Voltar para a busca</BotaoVoltar>
+          <BotaoVoltar to={rotaVoltar}>{textoVoltar}</BotaoVoltar>
 
           <div className="mt-6 flex flex-col gap-5 sm:flex-row sm:items-center">
             <span
@@ -182,19 +215,32 @@ function Conteudo({ startup, tags }: { startup: Startup; tags: Tags | null }) {
           </div>
         )}
 
-        <CanvasPublico canvas={carregarCanvas(startup.id)} />
+        <CanvasPublico canvas={canvas} exibirSeVazio />
       </section>
     </>
   )
 }
 
 function Aviso({ titulo, texto }: { titulo: string; texto: string }) {
+  const { tipoConta } = useAuth()
+
+  let rotaVoltar = '/startups'
+  let textoVoltar = 'Voltar para a busca'
+
+  if (tipoConta === 'company') {
+    rotaVoltar = '/dashboard/empresa/catalogo'
+    textoVoltar = 'Voltar para o catálogo'
+  } else if (tipoConta === 'startup') {
+    rotaVoltar = '/dashboard/startup/perfil'
+    textoVoltar = 'Voltar para meu perfil'
+  }
+
   return (
     <div className="mx-auto max-w-2xl px-4 py-24 text-center">
       <h1 className="font-display text-2xl font-bold text-ink-900">{titulo}</h1>
       <p className="mt-3 text-ink-500">{texto}</p>
       <div className="mt-8 flex justify-center">
-        <BotaoVoltar to="/startups">Voltar para a busca</BotaoVoltar>
+        <BotaoVoltar to={rotaVoltar}>{textoVoltar}</BotaoVoltar>
       </div>
     </div>
   )

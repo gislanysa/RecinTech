@@ -1,5 +1,5 @@
 import type { Startup } from '@/lib/api.ts'
-import { carregarCanvas, temConteudo, type CanvasStartup } from '@/lib/canvas.ts'
+import { temConteudo, type CanvasStartup } from '@/lib/canvas.ts'
 import { carregarTagsDaStartup } from '@/lib/startups.ts'
 
 /** Dias sem atualizar o perfil a partir dos quais o alerta aparece. */
@@ -93,7 +93,7 @@ export function calcularSaudeDoPerfil(
   canvas?: CanvasStartup | null,
 ): SaudeDoPerfil {
   const preenchido = (valor: string | undefined) => !!valor && valor.trim().length > 0
-  const dadosCanvas = canvas !== undefined ? canvas : startup.id ? carregarCanvas(startup.id) : null
+  const dadosCanvas = canvas ?? null
 
   const base: { chave: string; rotulo: string; preenchido: boolean }[] = [
     { chave: 'description', rotulo: 'Descrição', preenchido: preenchido(startup.description) },

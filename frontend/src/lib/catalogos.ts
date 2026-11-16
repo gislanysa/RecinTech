@@ -20,6 +20,47 @@ export type ItemCatalogo = {
 export const LIMITE_PADRAO_CATALOGO = 100
 
 /**
+ * Valida se uma string é um UUID válido no formato 8-4-4-4-12.
+ */
+export function ehUuidValido(valor: unknown): valor is string {
+  if (typeof valor !== 'string') return false
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(valor)
+}
+
+/**
+ * Gera um UUID válido determinístico para itens de fallback (evitando formatos inválidos como seg-default-1
+ * que quebram o decodificador de UUID do backend Gleam).
+ */
+export function gerarUuidFallback(tipo: 'seg' | 'serv' | 'tec' | 'exp', indice: number): string {
+  const tipoHexMap = { seg: '0001', serv: '0002', tec: '0003', exp: '0004' }
+  const prefixo = tipoHexMap[tipo]
+  const sufixo = String(indice).padStart(12, '0')
+  return `01930000-0000-7000-${prefixo}-${sufixo}`
+}
+
+/**
+ * Verifica se um UUID é um identificador de fallback gerado no cliente
+ * (portanto, inexistente no banco de dados relacional e não utilizável como chave estrangeira).
+ */
+export function ehUuidFallback(valor: unknown): boolean {
+  if (typeof valor !== 'string') return false
+  return (
+    valor.startsWith('01930000-0000-7000-') ||
+    valor.startsWith('seg-default') ||
+    valor.startsWith('serv-default') ||
+    valor.startsWith('tec-default') ||
+    valor.startsWith('exp-default')
+  )
+}
+
+/**
+ * Valida se é um UUID válido e não é um fallback sintético gerado no cliente.
+ */
+export function ehUuidReal(valor: unknown): valor is string {
+  return ehUuidValido(valor) && !ehUuidFallback(valor)
+}
+
+/**
  * GET /api/segment?limit=&offset=
  */
 export async function buscarSegmentos(): Promise<ItemCatalogo[]> {
@@ -34,9 +75,9 @@ export async function buscarSegmentos(): Promise<ItemCatalogo[]> {
     // Falha silenciosa para fallback
   }
 
-  // Fallback para os segmentos padrão conhecidos
+  // Fallback para os segmentos padrão conhecidos com UUIDs válidos
   return SEGMENTS.map((nome, index) => ({
-    id: `seg-default-${index + 1}`,
+    id: gerarUuidFallback('seg', index + 1),
     name: nome,
     description: `Segmento de ${nome}`,
   }))
@@ -58,7 +99,7 @@ export async function buscarServicos(): Promise<ItemCatalogo[]> {
   }
 
   return SERVICES.map((nome, index) => ({
-    id: `serv-default-${index + 1}`,
+    id: gerarUuidFallback('serv', index + 1),
     name: nome,
     description: `Serviço de ${nome}`,
   }))
@@ -80,7 +121,7 @@ export async function buscarTecnologias(): Promise<ItemCatalogo[]> {
   }
 
   return TECHNOLOGIES.map((nome, index) => ({
-    id: `tec-default-${index + 1}`,
+    id: gerarUuidFallback('tec', index + 1),
     name: nome,
     description: `Tecnologia ${nome}`,
   }))
@@ -102,7 +143,7 @@ export async function buscarExpertises(): Promise<ItemCatalogo[]> {
   }
 
   return AREAS.map((nome, index) => ({
-    id: `exp-default-${index + 1}`,
+    id: gerarUuidFallback('exp', index + 1),
     name: nome,
     description: `Área de atuação: ${nome}`,
   }))
@@ -156,51 +197,79 @@ export async function salvarTagsStartup(
 ): Promise<void> {
   const operacoes: Promise<unknown>[] = []
 
+  const tratarIdempotencia = (p: unknown) => {
+    if (!p || typeof (p as Promise<unknown>).catch !== 'function') {
+      return Promise.resolve(p)
+    }
+    return (p as Promise<unknown>).catch((err: unknown) => {
+      // 409 (já associado) ou 404 (já removido) não devem quebrar o salvamento
+      if (typeof err === 'object' && err !== null && 'response' in err) {
+        const status = (err as { response?: { status?: number } }).response?.status
+        if (status === 409 || status === 404) {
+          return null
+        }
+      }
+      throw err
+    })
+  }
+
+  const novosExps = Array.from(new Set(novosIds.expertises.filter(Boolean)))
+  const atuaisExps = Array.from(new Set(atuaisIds.expertises.filter(Boolean)))
+
+  const novosServs = Array.from(new Set(novosIds.services.filter(Boolean)))
+  const atuaisServs = Array.from(new Set(atuaisIds.services.filter(Boolean)))
+
+  const novosTecs = Array.from(new Set(novosIds.technologies.filter(Boolean)))
+  const atuaisTecs = Array.from(new Set(atuaisIds.technologies.filter(Boolean)))
+
+  const novosSegs = Array.from(new Set(novosIds.segments.filter(Boolean)))
+  const atuaisSegs = Array.from(new Set(atuaisIds.segments.filter(Boolean)))
+
   // Expertises
-  for (const id of novosIds.expertises) {
-    if (!atuaisIds.expertises.includes(id)) {
-      operacoes.push(associarExpertiseStartup(startupId, id))
+  for (const id of novosExps) {
+    if (!atuaisExps.includes(id)) {
+      operacoes.push(tratarIdempotencia(associarExpertiseStartup(startupId, id)))
     }
   }
-  for (const id of atuaisIds.expertises) {
-    if (!novosIds.expertises.includes(id)) {
-      operacoes.push(desassociarExpertiseStartup(startupId, id))
+  for (const id of atuaisExps) {
+    if (!novosExps.includes(id)) {
+      operacoes.push(tratarIdempotencia(desassociarExpertiseStartup(startupId, id)))
     }
   }
 
   // Serviços
-  for (const id of novosIds.services) {
-    if (!atuaisIds.services.includes(id)) {
-      operacoes.push(associarServicoStartup(startupId, id))
+  for (const id of novosServs) {
+    if (!atuaisServs.includes(id)) {
+      operacoes.push(tratarIdempotencia(associarServicoStartup(startupId, id)))
     }
   }
-  for (const id of atuaisIds.services) {
-    if (!novosIds.services.includes(id)) {
-      operacoes.push(desassociarServicoStartup(startupId, id))
+  for (const id of atuaisServs) {
+    if (!novosServs.includes(id)) {
+      operacoes.push(tratarIdempotencia(desassociarServicoStartup(startupId, id)))
     }
   }
 
   // Tecnologias
-  for (const id of novosIds.technologies) {
-    if (!atuaisIds.technologies.includes(id)) {
-      operacoes.push(associarTecnologiaStartup(startupId, id))
+  for (const id of novosTecs) {
+    if (!atuaisTecs.includes(id)) {
+      operacoes.push(tratarIdempotencia(associarTecnologiaStartup(startupId, id)))
     }
   }
-  for (const id of atuaisIds.technologies) {
-    if (!novosIds.technologies.includes(id)) {
-      operacoes.push(desassociarTecnologiaStartup(startupId, id))
+  for (const id of atuaisTecs) {
+    if (!novosTecs.includes(id)) {
+      operacoes.push(tratarIdempotencia(desassociarTecnologiaStartup(startupId, id)))
     }
   }
 
   // Segmentos
-  for (const id of novosIds.segments) {
-    if (!atuaisIds.segments.includes(id)) {
-      operacoes.push(associarSegmentoStartup(startupId, id))
+  for (const id of novosSegs) {
+    if (!atuaisSegs.includes(id)) {
+      operacoes.push(tratarIdempotencia(associarSegmentoStartup(startupId, id)))
     }
   }
-  for (const id of atuaisIds.segments) {
-    if (!novosIds.segments.includes(id)) {
-      operacoes.push(desassociarSegmentoStartup(startupId, id))
+  for (const id of atuaisSegs) {
+    if (!novosSegs.includes(id)) {
+      operacoes.push(tratarIdempotencia(desassociarSegmentoStartup(startupId, id)))
     }
   }
 

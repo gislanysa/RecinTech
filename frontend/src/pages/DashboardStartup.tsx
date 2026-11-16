@@ -36,7 +36,7 @@ export default function DashboardStartup() {
 
   useEffect(() => {
     let ativo = true
-    listarConexoes()
+    listarConexoes(startup?.id)
       .then(({ conexoes }) => {
         if (ativo) setConexoes(conexoes)
       })
@@ -46,7 +46,7 @@ export default function DashboardStartup() {
     return () => {
       ativo = false
     }
-  }, [])
+  }, [startup?.id])
 
   return (
     <div className="flex flex-col gap-8">
@@ -64,7 +64,7 @@ export default function DashboardStartup() {
         <div className="flex min-w-0 flex-col gap-6">
           <PainelSaudePerfil startup={startup} tags={tags} />
           {/* Duas no dashboard; o resto fica na página de Oportunidades. */}
-          <PainelOportunidades limite={2} />
+          <PainelOportunidades limite={2} startupId={startup.id} tags={tags} />
           <PainelConexoesResumo conexoes={conexoes} />
           {/* Visibilidade é benefício do plano premium ("Relatório de
               visualizações"), então só aparece para quem assina. */}

@@ -122,7 +122,7 @@ export default function PaginaDemandasEmpresa() {
 
       <ModalNovaDemanda
         aberto={modalNovaDemanda}
-        companyId={empresa.id}
+        companyId={empresa?.id}
         demandaParaEditar={demandaEmEdicao}
         aoFechar={() => {
           setModalNovaDemanda(false)

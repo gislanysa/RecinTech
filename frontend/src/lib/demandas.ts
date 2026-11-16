@@ -1,7 +1,16 @@
 import { api } from '@/lib/api.ts'
+import { ehUuidReal } from '@/lib/catalogos.ts'
 import type { StartupCatalogo } from '@/lib/startups.ts'
+import axios from 'axios'
 
-export type StatusDemanda = 'aberta' | 'em_andamento' | 'encerrada'
+export type StatusDemanda =
+  | 'open'
+  | 'closed'
+  | 'canceled'
+  | 'aberta'
+  | 'encerrada'
+  | 'cancelada'
+  | 'em_andamento'
 
 export type Demanda = {
   id: string
@@ -21,14 +30,23 @@ export type CriarDemandaPayload = {
   segmento: string
   servicos: string[]
   tecnologias: string[]
+  segmentIds?: string[]
+  serviceIds?: string[]
+  technologyIds?: string[]
+  expertiseIds?: string[]
+  status?: StatusDemanda
 }
 
 export type AtualizarDemandaPayload = {
-  titulo: string
-  descricao: string
-  segmento: string
-  servicos: string[]
-  tecnologias: string[]
+  titulo?: string
+  descricao?: string
+  segmento?: string
+  servicos?: string[]
+  tecnologias?: string[]
+  segmentIds?: string[]
+  serviceIds?: string[]
+  technologyIds?: string[]
+  expertiseIds?: string[]
   status?: StatusDemanda
 }
 
@@ -60,6 +78,83 @@ export type Recomendacao = {
 
 export const LIMITE_PADRAO_DEMANDAS = 100
 
+export const CHAVE_DEMANDAS_PUBLICAS = 'recintech:demandas_publicas'
+
+export type DemandaPublica = Demanda & {
+  empresa_nome?: string
+}
+
+export function obterDemandasPublicas(): DemandaPublica[] {
+  try {
+    const raw = typeof window !== 'undefined' ? localStorage.getItem(CHAVE_DEMANDAS_PUBLICAS) : null
+    if (!raw) return []
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
+}
+
+export function salvarDemandaPublica(demanda: Demanda, empresaNome?: string): void {
+  try {
+    if (typeof window === 'undefined') return
+    const lista = obterDemandasPublicas().filter((d) => d.id !== demanda.id)
+    if (demanda.status === 'aberta' || demanda.status === 'open') {
+      const empresaExistente = obterDemandasPublicas().find((d) => d.id === demanda.id)?.empresa_nome
+      lista.unshift({
+        ...demanda,
+        empresa_nome: empresaNome || empresaExistente || 'Empresa Parceira',
+      })
+    }
+    localStorage.setItem(CHAVE_DEMANDAS_PUBLICAS, JSON.stringify(lista))
+  } catch {
+    // Falha silenciosa em localStorage
+  }
+}
+
+export function removerDemandaPublica(demandaId: string): void {
+  try {
+    if (typeof window === 'undefined') return
+    const lista = obterDemandasPublicas().filter((d) => d.id !== demandaId)
+    localStorage.setItem(CHAVE_DEMANDAS_PUBLICAS, JSON.stringify(lista))
+  } catch {
+    // Falha silenciosa
+  }
+}
+
+export async function buscarDemandasDisponiveis(): Promise<DemandaPublica[]> {
+  try {
+    // Tenta endpoint geral de demandas caso o backend venha a expor
+    const { data } = await api.get<any[]>('/demand')
+    if (Array.isArray(data) && data.length > 0) {
+      return data.map((item) => ({
+        id: item.id,
+        company_id: item.company_id || '',
+        titulo: item.titulo ?? item.title ?? '',
+        descricao: item.descricao ?? item.description ?? '',
+        segmento: item.segmento ?? '',
+        servicos: Array.isArray(item.servicos)
+          ? item.servicos
+          : Array.isArray(item.services)
+            ? item.services.map((s: any) => (typeof s === 'string' ? s : s.name ?? ''))
+            : [],
+        tecnologias: Array.isArray(item.tecnologias)
+          ? item.tecnologias
+          : Array.isArray(item.technologies)
+            ? item.technologies.map((t: any) => (typeof t === 'string' ? t : t.name ?? ''))
+            : [],
+        status: item.status ?? item.demand_status ?? 'aberta',
+        created_at: item.created_at ?? new Date().toISOString(),
+        empresa_nome: item.empresa_nome ?? item.company_name ?? 'Empresa Parceira',
+      }))
+    }
+  } catch {
+    // Backend ainda não tem /api/demand público exposto
+  }
+
+  return obterDemandasPublicas()
+}
+
 /**
  * GET /api/company/:companyId/demand?limit=&offset=
  *
@@ -81,7 +176,7 @@ export async function listarDemandas(
     return []
   }
 
-  return data.map((item) => {
+  const resultado = data.map((item) => {
     // Normaliza status do backend Gleam ('open' -> 'aberta', 'closed' -> 'encerrada', 'canceled' -> 'encerrada')
     let statusNormalizado: StatusDemanda = 'aberta'
     const statusBruto = item.status || item.demand_status
@@ -111,6 +206,12 @@ export async function listarDemandas(
       created_at: item.created_at ?? new Date().toISOString(),
     }
   })
+
+  for (const d of resultado) {
+    salvarDemandaPublica(d)
+  }
+
+  return resultado
 }
 
 /**
@@ -125,15 +226,38 @@ export async function criarDemanda(
   const tituloLimpo = dados.titulo.trim()
   const descricaoLimpa = dados.descricao.trim()
 
+  // Coleta apenas UUIDs reais do catálogo (filtrando UUIDs sintéticos de fallback do cliente,
+  // pois eles não existem no banco de dados e causariam violação de chave estrangeira 404)
+  const segmentosUuid = (dados.segmentIds ?? [])
+    .concat(ehUuidReal(dados.segmento) ? [dados.segmento] : [])
+    .filter(ehUuidReal)
+
+  const servicosUuid = (dados.serviceIds ?? [])
+    .concat(dados.servicos.filter(ehUuidReal))
+    .filter(ehUuidReal)
+
+  const tecnologiasUuid = (dados.technologyIds ?? [])
+    .concat(dados.tecnologias.filter(ehUuidReal))
+    .filter(ehUuidReal)
+
+  const expertisesUuid = (dados.expertiseIds ?? []).filter(ehUuidReal)
+
+  let statusBackend = 'open'
+  if (dados.status === 'closed' || dados.status === 'encerrada') {
+    statusBackend = 'closed'
+  } else if (dados.status === 'canceled' || dados.status === 'cancelada') {
+    statusBackend = 'canceled'
+  }
+
   const payload: Record<string, unknown> = {
     // Campos esperados pelo backend Gleam
     title: tituloLimpo,
     description: descricaoLimpa,
-    status: 'open',
-    segments: [],
-    services: [],
-    expertises: [],
-    technologies: [],
+    status: statusBackend,
+    segments: Array.from(new Set(segmentosUuid)),
+    services: Array.from(new Set(servicosUuid)),
+    expertises: Array.from(new Set(expertisesUuid)),
+    technologies: Array.from(new Set(tecnologiasUuid)),
     // Campos legados para compatibilidade
     titulo: tituloLimpo,
     descricao: descricaoLimpa,
@@ -142,10 +266,41 @@ export async function criarDemanda(
     tecnologias: dados.tecnologias,
   }
 
-  const { data } = await api.post<any>(`/company/${companyId}/demand`, payload)
-  const item = data.demand ?? data
+  let item: any
+  try {
+    const { data } = await api.post<any>(`/company/${companyId}/demand`, payload)
+    item = data.demand ?? data
+  } catch (err: unknown) {
+    const isMissingEntity =
+      axios.isAxiosError(err) &&
+      err.response?.status === 404 &&
+      (typeof err.response?.data === 'string'
+        ? err.response.data.includes('was not found')
+        : Boolean(err.response?.data?.message?.includes('was not found')))
 
-  return {
+    const temAssociacoes =
+      (payload.segments as string[]).length > 0 ||
+      (payload.services as string[]).length > 0 ||
+      (payload.technologies as string[]).length > 0 ||
+      (payload.expertises as string[]).length > 0
+
+    if (isMissingEntity && temAssociacoes) {
+      // Se alguma entidade do catálogo não existe no banco de dados, cria a demanda sem as associações que falharam
+      const payloadLimpo = {
+        ...payload,
+        segments: [],
+        services: [],
+        technologies: [],
+        expertises: [],
+      }
+      const { data } = await api.post<any>(`/company/${companyId}/demand`, payloadLimpo)
+      item = data.demand ?? data
+    } else {
+      throw err
+    }
+  }
+
+  const novaDemanda: Demanda = {
     id: item.id,
     company_id: item.company_id || companyId,
     titulo: item.titulo ?? item.title ?? tituloLimpo,
@@ -153,9 +308,18 @@ export async function criarDemanda(
     segmento: dados.segmento,
     servicos: dados.servicos,
     tecnologias: dados.tecnologias,
-    status: 'aberta',
+    status:
+      item.status === 'closed' || item.demand_status === 'closed' || dados.status === 'closed' || dados.status === 'encerrada'
+        ? 'encerrada'
+        : item.status === 'canceled' || item.demand_status === 'canceled' || dados.status === 'canceled' || dados.status === 'cancelada'
+          ? 'cancelada'
+          : 'aberta',
     created_at: item.created_at ?? new Date().toISOString(),
   }
+
+  salvarDemandaPublica(novaDemanda, (dados as any).empresa_nome)
+
+  return novaDemanda
 }
 
 /**
@@ -167,12 +331,21 @@ export async function atualizarDemanda(
   companyIdOrDemandaId: string,
   demandaIdOrDados: string | AtualizarDemandaPayload,
   talvezDados?: AtualizarDemandaPayload,
+  nomeEmpresa?: string,
 ): Promise<Demanda> {
   const demandaId = typeof demandaIdOrDados === 'string' ? demandaIdOrDados : companyIdOrDemandaId
   const dados = (typeof demandaIdOrDados === 'string' ? talvezDados : demandaIdOrDados) as AtualizarDemandaPayload
 
   const tituloLimpo = dados.titulo?.trim()
   const descricaoLimpa = dados.descricao?.trim()
+
+  let statusBackend: string | undefined = undefined
+  if (dados.status) {
+    if (dados.status === 'aberta') statusBackend = 'open'
+    else if (dados.status === 'encerrada') statusBackend = 'closed'
+    else if (dados.status === 'cancelada') statusBackend = 'canceled'
+    else statusBackend = dados.status
+  }
 
   const payload: Record<string, unknown> = {
     title: tituloLimpo,
@@ -182,13 +355,13 @@ export async function atualizarDemanda(
     segmento: dados.segmento,
     servicos: dados.servicos,
     tecnologias: dados.tecnologias,
-    ...(dados.status ? { status: dados.status } : {}),
+    ...(statusBackend ? { status: statusBackend } : {}),
   }
 
   const { data } = await api.patch<any>(`/company/demand/${demandaId}`, payload)
   const item = data?.demand ?? data ?? {}
 
-  return {
+  const atualizada: Demanda = {
     id: item.id ?? demandaId,
     company_id: item.company_id ?? '',
     titulo: item.titulo ?? item.title ?? tituloLimpo ?? '',
@@ -196,9 +369,13 @@ export async function atualizarDemanda(
     segmento: dados.segmento ?? '',
     servicos: dados.servicos ?? [],
     tecnologias: dados.tecnologias ?? [],
-    status: (dados.status as StatusDemanda) ?? 'aberta',
+    status: (item.status || item.demand_status || dados.status || 'aberta') as StatusDemanda,
     created_at: item.created_at ?? new Date().toISOString(),
   }
+
+  salvarDemandaPublica(atualizada, nomeEmpresa || (dados as any)?.empresa_nome)
+
+  return atualizada
 }
 
 /**
@@ -212,6 +389,7 @@ export async function excluirDemanda(
 ): Promise<void> {
   const demandaId = talvezDemandaId ?? companyIdOrDemandaId
   await api.delete(`/company/demand/${demandaId}`)
+  removerDemandaPublica(demandaId)
 }
 
 /**
@@ -221,7 +399,9 @@ export async function excluirDemanda(
  */
 export async function listarConvites(companyId: string): Promise<ConviteReuniao[]> {
   try {
-    const { data } = await api.get<any[]>(`/company/${companyId}/connection`)
+    const { data } = await api.get<any[]>(`/company/${companyId}/connection`, {
+      params: { limit: 50, offset: 0 },
+    })
     if (Array.isArray(data)) {
       return data.map((c) => ({
         id: `${c.company}-${c.startup}`,
@@ -342,4 +522,83 @@ export function calcularRecomendacoes(
   }
 
   return recomendacoes
+}
+
+// ---------------------------------------------------------------------------
+// Candidaturas a Demandas (demand_application)
+// ---------------------------------------------------------------------------
+
+export type StatusCandidatura = 'pending' | 'accepted' | 'declined'
+
+export type CandidaturaDemanda = {
+  demand: string
+  startup: string
+  status: StatusCandidatura
+  created_at: string
+  updated_at: string
+  startup_nome?: string
+  startup_descricao?: string
+  startup_cidade?: string
+  startup_estado?: string
+}
+
+/**
+ * POST /api/startup/:id/application
+ *
+ * Startup se candidata a uma demanda aberta.
+ */
+export async function candidatarADemanda(
+  startupId: string,
+  demandId: string,
+): Promise<CandidaturaDemanda> {
+  const { data } = await api.post<CandidaturaDemanda>(`/startup/${startupId}/application`, {
+    demand: demandId,
+  })
+  return data
+}
+
+/**
+ * DELETE /api/startup/:id/application/:demand_id
+ *
+ * Startup cancela / desiste de sua candidatura a uma demanda.
+ */
+export async function desistirCandidaturaDemanda(
+  startupId: string,
+  demandId: string,
+): Promise<CandidaturaDemanda> {
+  const { data } = await api.delete<CandidaturaDemanda>(
+    `/startup/${startupId}/application/${demandId}`,
+  )
+  return data
+}
+
+/**
+ * GET /api/company/demand/:id/application
+ *
+ * Lista todas as candidaturas de startups recebidas para uma demanda da empresa.
+ */
+export async function listarCandidaturasDemanda(
+  demandId: string,
+): Promise<CandidaturaDemanda[]> {
+  const { data } = await api.get<CandidaturaDemanda[]>(
+    `/company/demand/${demandId}/application`,
+  )
+  return Array.isArray(data) ? data : []
+}
+
+/**
+ * PATCH /api/company/demand/:id/application/:startup_id
+ *
+ * Empresa aceita ou recusa a candidatura da startup à demanda.
+ */
+export async function responderCandidaturaDemanda(
+  demandId: string,
+  startupId: string,
+  status: 'accepted' | 'declined',
+): Promise<CandidaturaDemanda> {
+  const { data } = await api.patch<CandidaturaDemanda>(
+    `/company/demand/${demandId}/application/${startupId}`,
+    { status },
+  )
+  return data
 }

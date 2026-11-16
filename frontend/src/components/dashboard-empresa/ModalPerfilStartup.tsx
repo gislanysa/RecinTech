@@ -1,5 +1,6 @@
 import Botao from '@/components/Botao.tsx'
 import { CheckIcon, CloseIcon } from '@/components/icons.tsx'
+import { BLOCOS_CANVAS, carregarCanvas, canvasVazio, temConteudo, type CanvasStartup } from '@/lib/canvas.ts'
 import { enviarConviteReuniao, type Demanda } from '@/lib/demandas.ts'
 import { calcularTempoAtuacao } from '@/lib/formatadores.ts'
 import type { StartupCatalogo } from '@/lib/startups.ts'
@@ -35,6 +36,26 @@ function ConteudoModalPerfilStartup({
   const [conviteSucesso, setConviteSucesso] = useState(false)
   const [mostrarFormReuniao, setMostrarFormReuniao] = useState(false)
   const [erroEnvio, setErroEnvio] = useState('')
+  const [canvas, setCanvas] = useState<CanvasStartup>(() => canvasVazio())
+  const [carregandoCanvas, setCarregandoCanvas] = useState(true)
+
+  useEffect(() => {
+    let ativo = true
+    carregarCanvas(startup.id)
+      .then((c) => {
+        if (ativo) setCanvas(c)
+      })
+      .catch(() => {
+        if (ativo) setCanvas(canvasVazio())
+      })
+      .finally(() => {
+        if (ativo) setCarregandoCanvas(false)
+      })
+
+    return () => {
+      ativo = false
+    }
+  }, [startup.id])
 
   useEffect(() => {
     const aoTeclar = (e: KeyboardEvent) => {
@@ -248,6 +269,60 @@ function ConteudoModalPerfilStartup({
                   )}
                 </div>
               </div>
+            </div>
+
+            {/* Modelo de Negócio (Business Model Canvas) */}
+            <div className="border-t border-brand-100 pt-5">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-ink-500">
+                  Modelo de negócio (Business Model Canvas)
+                </h3>
+                <a
+                  href={`/startups/${startup.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs font-medium text-brand-600 hover:underline"
+                >
+                  Ver página completa ↗
+                </a>
+              </div>
+
+              {carregandoCanvas ? (
+                <div className="mt-3 animate-pulse rounded-xl bg-surface-2 p-6 text-center text-xs text-ink-400">
+                  Carregando Business Model Canvas…
+                </div>
+              ) : temConteudo(canvas) ? (
+                <dl className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {BLOCOS_CANVAS.map(({ chave, titulo }) => {
+                    const texto = canvas[chave].trim()
+                    return (
+                      <div
+                        key={chave}
+                        className="flex min-h-[90px] flex-col rounded-xl border border-brand-100 bg-surface-2/60 p-3 shadow-xs"
+                      >
+                        <dt className="text-[11px] font-semibold uppercase tracking-wide text-ink-500">
+                          {titulo}
+                        </dt>
+                        <dd
+                          className={
+                            texto
+                              ? 'mt-1 flex-1 whitespace-pre-line text-xs leading-relaxed text-ink-800'
+                              : 'mt-1 flex-1 text-xs italic text-ink-400'
+                          }
+                        >
+                          {texto || 'Não informado'}
+                        </dd>
+                      </div>
+                    )
+                  })}
+                </dl>
+              ) : (
+                <div className="mt-3 rounded-xl border border-dashed border-brand-200 bg-surface-2/60 p-4 text-center">
+                  <p className="text-xs text-ink-500">
+                    Esta startup ainda não preencheu os blocos do Business Model Canvas.
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* 5.2 Avaliações de outras empresas (respeitando a ausência de dados no backend) */}
