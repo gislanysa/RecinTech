@@ -9,8 +9,8 @@ import gleam/set
 import gleam/uri
 import server/cnpj
 import server/company
-import server/company/demand
 import server/connection
+import server/demand
 import server/dummy
 import server/email
 import server/expertise
@@ -4749,6 +4749,565 @@ pub fn upsert_startup_canvas_invalid_id_test() -> Nil {
     |> dummy.with_session(context, web.Startup(startup.id), startup.email)
     |> web.handle_request(context)
 
+  assert response.status == 400
+
+  Nil
+}
+
+pub fn apply_to_demand_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let startup = dummy.new_startup(context.database)
+  let record = dummy.new_demand(context.database, from: company.id)
+
+  let body =
+    json.object([
+      #("demand", json.string(uuid.to_string(record.id))),
+    ])
+
+  let endpoint = "/api/startup/" <> uuid.to_string(startup.id) <> "/application"
+
+  let response =
+    simulate.browser_request(http.Post, endpoint)
+    |> simulate.json_body(body)
+    |> dummy.with_session(context, web.Startup(startup.id), startup.email)
+    |> web.handle_request(context)
+
+  assert response.status == 201
+  expect_json(response)
+
+  let body = simulate.read_body(response)
+  let assert Ok(returned) = json.parse(body, demand.application_decoder())
+
+  assert returned.demand == record.id
+  assert returned.startup == startup.id
+  assert returned.status == demand.Pending
+
+  Nil
+}
+
+pub fn apply_to_closed_demand_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let startup = dummy.new_startup(context.database)
+  let record = dummy.new_demand(context.database, from: company.id)
+
+  let assert Ok(_) = demand.close(context.database, record.id)
+
+  let body =
+    json.object([
+      #("demand", json.string(uuid.to_string(record.id))),
+    ])
+
+  let endpoint = "/api/startup/" <> uuid.to_string(startup.id) <> "/application"
+
+  let response =
+    simulate.browser_request(http.Post, endpoint)
+    |> simulate.json_body(body)
+    |> dummy.with_session(context, web.Startup(startup.id), startup.email)
+    |> web.handle_request(context)
+
+  assert response.status == 400
+
+  Nil
+}
+
+pub fn apply_to_demand_duplicate_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let startup = dummy.new_startup(context.database)
+  let record = dummy.new_demand(context.database, from: company.id)
+
+  let assert Ok(_) =
+    startup.apply_to_demand(context.database, startup.id, apply_to: record.id)
+
+  let body =
+    json.object([
+      #("demand", json.string(uuid.to_string(record.id))),
+    ])
+
+  let endpoint = "/api/startup/" <> uuid.to_string(startup.id) <> "/application"
+
+  let response =
+    simulate.browser_request(http.Post, endpoint)
+    |> simulate.json_body(body)
+    |> dummy.with_session(context, web.Startup(startup.id), startup.email)
+    |> web.handle_request(context)
+
+  assert response.status == 409
+
+  Nil
+}
+
+pub fn apply_to_demand_invalid_body_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+
+  let body =
+    json.object([
+      #("demand", json.string("wibble")),
+    ])
+
+  let endpoint = "/api/startup/" <> uuid.to_string(startup.id) <> "/application"
+
+  let response =
+    simulate.browser_request(http.Post, endpoint)
+    |> simulate.json_body(body)
+    |> dummy.with_session(context, web.Startup(startup.id), startup.email)
+    |> web.handle_request(context)
+
+  assert response.status == 400
+
+  Nil
+}
+
+pub fn apply_to_demand_requires_matching_session_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let startup_a = dummy.new_startup(context.database)
+  let startup_b = dummy.new_startup(context.database)
+  let record = dummy.new_demand(context.database, from: company.id)
+
+  let body =
+    json.object([
+      #("demand", json.string(uuid.to_string(record.id))),
+    ])
+
+  let endpoint =
+    "/api/startup/" <> uuid.to_string(startup_a.id) <> "/application"
+
+  // no session
+  let response =
+    simulate.browser_request(http.Post, endpoint)
+    |> simulate.json_body(body)
+    |> web.handle_request(context)
+  assert response.status == 401
+
+  // company session
+  let response =
+    simulate.browser_request(http.Post, endpoint)
+    |> simulate.json_body(body)
+    |> dummy.with_session(context, web.Company(company.id), company.email)
+    |> web.handle_request(context)
+  assert response.status == 403
+
+  // a different startup session
+  let response =
+    simulate.browser_request(http.Post, endpoint)
+    |> simulate.json_body(body)
+    |> dummy.with_session(context, web.Startup(startup_b.id), startup_b.email)
+    |> web.handle_request(context)
+  assert response.status == 403
+
+  Nil
+}
+
+pub fn withdraw_application_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let startup = dummy.new_startup(context.database)
+  let record = dummy.new_demand(context.database, from: company.id)
+
+  let assert Ok(applied) =
+    startup.apply_to_demand(context.database, startup.id, apply_to: record.id)
+
+  let endpoint =
+    "/api/startup/"
+    <> uuid.to_string(startup.id)
+    <> "/application/"
+    <> uuid.to_string(record.id)
+
+  let response =
+    simulate.browser_request(http.Delete, endpoint)
+    |> dummy.with_session(context, web.Startup(startup.id), startup.email)
+    |> web.handle_request(context)
+
+  assert response.status == 200
+  expect_json(response)
+
+  let body = simulate.read_body(response)
+  let assert Ok(returned) = json.parse(body, demand.application_decoder())
+
+  assert returned.demand == record.id
+  assert returned.startup == startup.id
+  assert returned.status == demand.Pending
+  assert returned.created_at == applied.created_at
+
+  Nil
+}
+
+pub fn withdraw_missing_application_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+  let demand_id = uuid.v7()
+
+  let endpoint =
+    "/api/startup/"
+    <> uuid.to_string(startup.id)
+    <> "/application/"
+    <> uuid.to_string(demand_id)
+
+  let response =
+    simulate.browser_request(http.Delete, endpoint)
+    |> dummy.with_session(context, web.Startup(startup.id), startup.email)
+    |> web.handle_request(context)
+
+  assert response.status == 404
+
+  Nil
+}
+
+pub fn withdraw_application_requires_matching_session_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let startup_a = dummy.new_startup(context.database)
+  let startup_b = dummy.new_startup(context.database)
+  let record = dummy.new_demand(context.database, from: company.id)
+
+  let assert Ok(_) =
+    startup.apply_to_demand(context.database, startup_a.id, apply_to: record.id)
+
+  let endpoint =
+    "/api/startup/"
+    <> uuid.to_string(startup_a.id)
+    <> "/application/"
+    <> uuid.to_string(record.id)
+
+  // no session
+  let response =
+    simulate.browser_request(http.Delete, endpoint)
+    |> web.handle_request(context)
+  assert response.status == 401
+
+  // company session
+  let response =
+    simulate.browser_request(http.Delete, endpoint)
+    |> dummy.with_session(context, web.Company(company.id), company.email)
+    |> web.handle_request(context)
+  assert response.status == 403
+
+  // a different startup session
+  let response =
+    simulate.browser_request(http.Delete, endpoint)
+    |> dummy.with_session(context, web.Startup(startup_b.id), startup_b.email)
+    |> web.handle_request(context)
+  assert response.status == 403
+
+  Nil
+}
+
+pub fn accept_application_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let startup = dummy.new_startup(context.database)
+  let record = dummy.new_demand(context.database, from: company.id)
+
+  let assert Ok(applied) =
+    startup.apply_to_demand(context.database, startup.id, apply_to: record.id)
+
+  let body =
+    json.object([
+      #("status", json.string("accepted")),
+    ])
+
+  let endpoint =
+    "/api/company/demand/"
+    <> uuid.to_string(record.id)
+    <> "/application/"
+    <> uuid.to_string(startup.id)
+
+  let response =
+    simulate.browser_request(http.Patch, endpoint)
+    |> simulate.json_body(body)
+    |> dummy.with_session(context, web.Company(company.id), company.email)
+    |> web.handle_request(context)
+
+  assert response.status == 200
+  expect_json(response)
+
+  let body = simulate.read_body(response)
+  let assert Ok(returned) = json.parse(body, demand.application_decoder())
+
+  assert returned.demand == record.id
+  assert returned.startup == startup.id
+  assert returned.status == demand.Accepted
+  assert returned.created_at == applied.created_at
+
+  Nil
+}
+
+pub fn decline_application_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let startup = dummy.new_startup(context.database)
+  let record = dummy.new_demand(context.database, from: company.id)
+
+  let assert Ok(_) =
+    startup.apply_to_demand(context.database, startup.id, apply_to: record.id)
+
+  let body =
+    json.object([
+      #("status", json.string("declined")),
+    ])
+
+  let endpoint =
+    "/api/company/demand/"
+    <> uuid.to_string(record.id)
+    <> "/application/"
+    <> uuid.to_string(startup.id)
+
+  let response =
+    simulate.browser_request(http.Patch, endpoint)
+    |> simulate.json_body(body)
+    |> dummy.with_session(context, web.Company(company.id), company.email)
+    |> web.handle_request(context)
+
+  assert response.status == 200
+  expect_json(response)
+
+  let body = simulate.read_body(response)
+  let assert Ok(returned) = json.parse(body, demand.application_decoder())
+
+  assert returned.status == demand.Declined
+
+  Nil
+}
+
+pub fn update_application_invalid_status_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let startup = dummy.new_startup(context.database)
+  let record = dummy.new_demand(context.database, from: company.id)
+
+  let assert Ok(_) =
+    startup.apply_to_demand(context.database, startup.id, apply_to: record.id)
+
+  let body =
+    json.object([
+      #("status", json.string("pending")),
+    ])
+
+  let endpoint =
+    "/api/company/demand/"
+    <> uuid.to_string(record.id)
+    <> "/application/"
+    <> uuid.to_string(startup.id)
+
+  let response =
+    simulate.browser_request(http.Patch, endpoint)
+    |> simulate.json_body(body)
+    |> dummy.with_session(context, web.Company(company.id), company.email)
+    |> web.handle_request(context)
+
+  assert response.status == 400
+
+  Nil
+}
+
+pub fn update_application_requires_demand_owner_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let owner = dummy.new_company(context.database)
+  let other = dummy.new_company(context.database)
+  let startup = dummy.new_startup(context.database)
+  let record = dummy.new_demand(context.database, from: owner.id)
+
+  let assert Ok(_) =
+    startup.apply_to_demand(context.database, startup.id, apply_to: record.id)
+
+  let body =
+    json.object([
+      #("status", json.string("accepted")),
+    ])
+
+  let endpoint =
+    "/api/company/demand/"
+    <> uuid.to_string(record.id)
+    <> "/application/"
+    <> uuid.to_string(startup.id)
+
+  // no session
+  let response =
+    simulate.browser_request(http.Patch, endpoint)
+    |> simulate.json_body(body)
+    |> web.handle_request(context)
+  assert response.status == 401
+
+  // startup session
+  let response =
+    simulate.browser_request(http.Patch, endpoint)
+    |> simulate.json_body(body)
+    |> dummy.with_session(context, web.Startup(startup.id), startup.email)
+    |> web.handle_request(context)
+  assert response.status == 403
+
+  // a different company's session
+  let response =
+    simulate.browser_request(http.Patch, endpoint)
+    |> simulate.json_body(body)
+    |> dummy.with_session(context, web.Company(other.id), other.email)
+    |> web.handle_request(context)
+  assert response.status == 403
+
+  Nil
+}
+
+pub fn update_missing_application_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let startup = dummy.new_startup(context.database)
+  let record = dummy.new_demand(context.database, from: company.id)
+
+  let body =
+    json.object([
+      #("status", json.string("accepted")),
+    ])
+
+  let endpoint =
+    "/api/company/demand/"
+    <> uuid.to_string(record.id)
+    <> "/application/"
+    <> uuid.to_string(startup.id)
+
+  let response =
+    simulate.browser_request(http.Patch, endpoint)
+    |> simulate.json_body(body)
+    |> dummy.with_session(context, web.Company(company.id), company.email)
+    |> web.handle_request(context)
+
+  assert response.status == 404
+
+  Nil
+}
+
+pub fn get_demand_applications_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let startup_a = dummy.new_startup(context.database)
+  let startup_b = dummy.new_startup(context.database)
+  let demand = dummy.new_demand(context.database, from: company.id)
+
+  let assert Ok(_) =
+    startup.apply_to_demand(context.database, startup_a.id, apply_to: demand.id)
+
+  let assert Ok(_) =
+    startup.apply_to_demand(context.database, startup_b.id, apply_to: demand.id)
+
+  let assert Ok(_) =
+    demand.accept_application(context.database, demand.id, from: startup_b.id)
+
+  let endpoint =
+    "/api/company/demand/" <> uuid.to_string(demand.id) <> "/application"
+
+  let response =
+    simulate.browser_request(http.Get, endpoint)
+    |> dummy.with_session(context, web.Company(company.id), company.email)
+    |> web.handle_request(context)
+
+  assert response.status == 200
+  expect_json(response)
+
+  let body = simulate.read_body(response)
+  let assert Ok(returned) =
+    json.parse(body, decode.list(demand.application_decoder()))
+
+  assert list.length(returned) == 2
+
+  assert list.any(returned, fn(application) {
+    application.startup == startup_a.id && application.status == demand.Pending
+  })
+
+  assert list.any(returned, fn(application) {
+    application.startup == startup_b.id && application.status == demand.Accepted
+  })
+
+  Nil
+}
+
+pub fn get_demand_applications_empty_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let record = dummy.new_demand(context.database, from: company.id)
+
+  let endpoint =
+    "/api/company/demand/" <> uuid.to_string(record.id) <> "/application"
+
+  let response =
+    simulate.browser_request(http.Get, endpoint)
+    |> dummy.with_session(context, web.Company(company.id), company.email)
+    |> web.handle_request(context)
+
+  assert response.status == 200
+  expect_json(response)
+
+  let body = simulate.read_body(response)
+  let assert Ok([]) =
+    json.parse(body, decode.list(demand.application_decoder()))
+
+  Nil
+}
+
+pub fn get_demand_applications_requires_demand_owner_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let owner = dummy.new_company(context.database)
+  let other = dummy.new_company(context.database)
+  let startup = dummy.new_startup(context.database)
+  let record = dummy.new_demand(context.database, from: owner.id)
+  let missing_id = uuid.v7()
+
+  let endpoint =
+    "/api/company/demand/" <> uuid.to_string(record.id) <> "/application"
+
+  // no session
+  let response =
+    simulate.browser_request(http.Get, endpoint)
+    |> web.handle_request(context)
+  assert response.status == 401
+
+  // startup session
+  let response =
+    simulate.browser_request(http.Get, endpoint)
+    |> dummy.with_session(context, web.Startup(startup.id), startup.email)
+    |> web.handle_request(context)
+  assert response.status == 403
+
+  // a different company's session
+  let response =
+    simulate.browser_request(http.Get, endpoint)
+    |> dummy.with_session(context, web.Company(other.id), other.email)
+    |> web.handle_request(context)
+  assert response.status == 403
+
+  // missing demand
+  let missing_endpoint =
+    "/api/company/demand/" <> uuid.to_string(missing_id) <> "/application"
+
+  let response =
+    simulate.browser_request(http.Get, missing_endpoint)
+    |> dummy.with_session(context, web.Company(owner.id), owner.email)
+    |> web.handle_request(context)
+  assert response.status == 404
+
+  // invalid UUID
+  let response =
+    simulate.browser_request(http.Get, "/api/company/demand/wibble/application")
+    |> dummy.with_session(context, web.Company(owner.id), owner.email)
+    |> web.handle_request(context)
   assert response.status == 400
 
   Nil

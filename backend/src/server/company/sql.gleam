@@ -685,18 +685,18 @@ fn company_size_encoder(company_size) -> pog.Value {
 /// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
 ///
 pub type ConnectionStatusEnum {
-  Declined
-  Accepted
-  Pending
+  DeclinedConnection
+  AcceptedConnection
+  PendingConnection
 }
 
 fn connection_status_enum_decoder() -> decode.Decoder(ConnectionStatusEnum) {
   use connection_status_enum <- decode.then(decode.string)
   case connection_status_enum {
-    "declined" -> decode.success(Declined)
-    "accepted" -> decode.success(Accepted)
-    "pending" -> decode.success(Pending)
-    _ -> decode.failure(Declined, "ConnectionStatusEnum")
+    "declined_connection" -> decode.success(DeclinedConnection)
+    "accepted_connection" -> decode.success(AcceptedConnection)
+    "pending_connection" -> decode.success(PendingConnection)
+    _ -> decode.failure(DeclinedConnection, "ConnectionStatusEnum")
   }
 }
 

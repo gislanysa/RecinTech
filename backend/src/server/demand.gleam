@@ -8,7 +8,7 @@ import gleam/option.{type Option}
 import gleam/result
 import gleam/time/timestamp
 import pog
-import server/company/demand/sql
+import server/demand/sql
 import server/expertise
 import server/internal
 import server/segment
@@ -36,6 +36,8 @@ pub type DemandError {
   AssignmentFailure(uuid.Uuid)
   /// Failed to unassign entity from a demand for unknown reasons
   AssignmentNotFound(uuid.Uuid)
+  /// No application found from the given startup
+  ApplicationNotFound(demand: uuid.Uuid, startup: uuid.Uuid)
 }
 
 /// The lifecycle state of a Company's [Demand](#Demand).
@@ -47,6 +49,74 @@ pub type Status {
   Closed
   /// The Company withdrew the demand before it was fulfilled.
   Canceled
+}
+
+pub type ApplicationStatus {
+  Pending
+  Accepted
+  Declined
+}
+
+/// Encode a `ApplicationStatus` into JSON
+fn application_status_to_json(
+  application_status: ApplicationStatus,
+) -> json.Json {
+  case application_status {
+    Pending -> json.string("pending")
+    Accepted -> json.string("accepted")
+    Declined -> json.string("declined")
+  }
+}
+
+/// A decoder that decodes `ApplicationStatus` values.
+fn application_status_decoder() -> decode.Decoder(ApplicationStatus) {
+  use variant <- decode.then(decode.string)
+  case variant {
+    "pending" -> decode.success(Pending)
+    "accepted" -> decode.success(Accepted)
+    "declined" -> decode.success(Declined)
+    _ -> decode.failure(Pending, "ApplicationStatus")
+  }
+}
+
+pub type Application {
+  Application(
+    demand: uuid.Uuid,
+    startup: uuid.Uuid,
+    status: ApplicationStatus,
+    created_at: timestamp.Timestamp,
+    updated_at: timestamp.Timestamp,
+  )
+}
+
+pub fn application_to_json(application: Application) -> json.Json {
+  let Application(demand:, startup:, status:, created_at:, updated_at:) =
+    application
+
+  json.object([
+    #("demand", internal.uuid_to_json(demand)),
+    #("startup", internal.uuid_to_json(startup)),
+    #("status", application_status_to_json(status)),
+    #("created_at", internal.timestamp_to_json(created_at)),
+    #("updated_at", internal.timestamp_to_json(updated_at)),
+  ])
+}
+
+/// A decoder that decodes `Application` values.
+pub fn application_decoder() -> decode.Decoder(Application) {
+  use demand <- decode.field("demand", internal.uuid_decoder())
+  use startup <- decode.field("startup", internal.uuid_decoder())
+  use status <- decode.field("status", application_status_decoder())
+  use created_at <- decode.field("created_at", internal.timestamp_decoder())
+  use updated_at <- decode.field("updated_at", internal.timestamp_decoder())
+
+  decode.success(Application(
+    demand:,
+    startup:,
+    status:,
+    created_at:,
+    updated_at:,
+  ))
 }
 
 @internal
@@ -715,4 +785,163 @@ pub fn delete(
     created_at: row.created_at,
     updated_at: row.updated_at,
   )
+}
+
+/// Accept a Startup's [Application](#Application) to a Demand and return the
+/// updated application.
+///
+/// The application is set to `accepted` regardless of its previous status, so
+/// accepting an already accepted application only refreshes `updated_at`, while
+/// accepting a declined application reverses the previous decision. Declining
+/// it later reverses it again.
+///
+/// `Error(ApplicationNotFound(..))` is returned only when no application exists
+/// for the given Demand and Startup.
+///
+/// The Demand's status is not checked, so accepting an application on a
+/// `closed` or `canceled` Demand is allowed. Callers that only want to accept
+/// applications while the Demand is `open` should check its status first.
+///
+/// ## Examples
+///
+/// ```gleam
+/// let result = demand.accept_application(
+///   context.database,
+///   demand.id,
+///   from: startup.id,
+/// )
+///
+/// case result {
+///   Ok(application) -> wisp.ok()
+///   Error(demand.ApplicationNotFound(..)) -> wisp.not_found()
+///   Error(_) -> wisp.internal_server_error()
+/// }
+/// ```
+pub fn accept_application(
+  database: pog.Connection,
+  id: uuid.Uuid,
+  from startup: uuid.Uuid,
+) -> Result(Application, DemandError) {
+  use returned <- result.try(
+    sql.accept_application(database, id, startup)
+    |> result.map_error(DatabaseError),
+  )
+
+  use row <- result.map(
+    list.first(returned.rows)
+    |> result.replace_error(ApplicationNotFound(demand: id, startup:)),
+  )
+
+  let status = case row.application_status {
+    sql.AcceptedApplication -> Accepted
+    sql.PendingApplication -> Pending
+    sql.DeclinedApplication -> Declined
+  }
+
+  Application(
+    demand: row.demand_id,
+    startup: row.startup_id,
+    status:,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  )
+}
+
+/// Decline a Startup's [Application](#Application) to a Demand and return the
+/// updated application.
+///
+/// The application is set to `declined` regardless of its previous status, so
+/// declining an already declined application only refreshes `updated_at`, while
+/// declining an accepted application reverses the previous decision. Accepting
+/// it later reverses it again.
+///
+/// `Error(ApplicationNotFound(..))` is returned only when no application exists
+/// for the given Demand and Startup.
+///
+/// A declined application is kept in the Database, so the Startup cannot apply
+/// to the same Demand again while the row exists. The Demand's status is not
+/// checked, so declining an application on a `closed` or `canceled` Demand is
+/// allowed.
+///
+/// ## Examples
+///
+/// ```gleam
+/// let result = demand.decline_application(
+///   context.database,
+///   demand.id,
+///   from: startup.id,
+/// )
+///
+/// case result {
+///   Ok(application) -> wisp.ok()
+///   Error(demand.ApplicationNotFound(..)) -> wisp.not_found()
+///   Error(_) -> wisp.internal_server_error()
+/// }
+/// ```
+pub fn decline_application(
+  database: pog.Connection,
+  id: uuid.Uuid,
+  from startup: uuid.Uuid,
+) -> Result(Application, DemandError) {
+  use returned <- result.try(
+    sql.decline_application(database, id, startup)
+    |> result.map_error(DatabaseError),
+  )
+
+  use row <- result.map(
+    list.first(returned.rows)
+    |> result.replace_error(ApplicationNotFound(demand: id, startup:)),
+  )
+
+  Application(
+    demand: row.demand_id,
+    startup: row.startup_id,
+    status: application_from_enum(row.application_status),
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  )
+}
+
+fn application_from_enum(
+  enum: sql.DemandApplicationStatus,
+) -> ApplicationStatus {
+  case enum {
+    sql.AcceptedApplication -> Accepted
+    sql.PendingApplication -> Pending
+    sql.DeclinedApplication -> Declined
+  }
+}
+
+/// Get all [Application](#Application)s to a Demand.
+///
+/// Applications are returned in every status: `pending`, `accepted`, and
+/// `declined`. An empty list is returned when the Demand has no applications or
+/// does not exist.
+///
+/// ## Examples
+///
+/// ```gleam
+/// case demand.get_applications(context.database, demand.id) {
+///   Ok(data) -> wisp.ok()
+///   Error(_) -> wisp.internal_server_error()
+/// }
+/// ```
+pub fn get_applications(
+  database: pog.Connection,
+  from id: uuid.Uuid,
+) -> Result(List(Application), DemandError) {
+  use returned <- result.map(
+    sql.get_applications(database, id)
+    |> result.map_error(DatabaseError),
+  )
+
+  list.map(returned.rows, fn(row) {
+    Application(
+      demand: row.demand_id,
+      startup: row.startup_id,
+      status: application_from_enum(row.application_status),
+      created_at: row.created_at,
+      updated_at: row.updated_at,
+    )
+  })
 }

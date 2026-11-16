@@ -144,7 +144,7 @@ erDiagram
   COMPANY_STARTUP_CONNECTION {
     uuid company_id PK, FK
     uuid startup_id PK, FK
-    connection_status_enum connection_status "pending | accepted | declined"
+    connection_status_enum connection_status "pending_connection | accepted_connection | declined_connection"
     timestamp created_at
     timestamp updated_at
   }
@@ -158,7 +158,7 @@ erDiagram
 
   COMPANY_SEGMENT }o..|| COMPANY : has
   COMPANY_SEGMENT }o..|| SEGMENT : has
-  company_SEGMENT {
+  COMPANY_SEGMENT {
     uuid company_id PK, FK
     uuid segment_id PK, FK
   }
@@ -170,6 +170,16 @@ erDiagram
     text title
     text description
     demand_status demand_status "open | closed | canceled"
+    timestamp created_at
+    timestamp updated_at
+  }
+
+  DEMAND_APPLICATION }o..|| STARTUP : applies_to
+  DEMAND_APPLICATION }o..|| DEMAND : receives
+  DEMAND_APPLICATION {
+    uuid startup_id PK, FK
+    uuid demand_id PK, FK
+    demand_application_status application_status "pending_application | accepted_application | declined_application"
     timestamp created_at
     timestamp updated_at
   }

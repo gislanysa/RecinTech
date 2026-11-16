@@ -54,16 +54,79 @@ pub fn accept_connection(
 UPDATE
     public.company_startup_connection AS connection
 SET
-    connection_status = 'accepted',
+    connection_status = 'accepted_connection',
     updated_at = CURRENT_TIMESTAMP
 WHERE
     connection.company_id = $1::uuid
     AND connection.startup_id = $2::uuid
-    AND connection.connection_status = 'pending'
+    AND connection.connection_status = 'pending_connection'
 RETURNING
     company_id,
     startup_id,
     connection_status,
+    created_at,
+    updated_at;
+"
+  |> pog.query
+  |> pog.parameter(pog.text(uuid.to_string(arg_1)))
+  |> pog.parameter(pog.text(uuid.to_string(arg_2)))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
+/// A row you get from running the `apply_to_demand` query
+/// defined in `./src/server/startup/sql/apply_to_demand.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v4.7.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type ApplyToDemandRow {
+  ApplyToDemandRow(
+    demand_id: Uuid,
+    startup_id: Uuid,
+    application_status: DemandApplicationStatus,
+    created_at: Timestamp,
+    updated_at: Timestamp,
+  )
+}
+
+/// apply to a demand as a startup
+///
+/// > 🐿️ This function was generated automatically using v4.7.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn apply_to_demand(
+  db: pog.Connection,
+  arg_1: Uuid,
+  arg_2: Uuid,
+) -> Result(pog.Returned(ApplyToDemandRow), pog.QueryError) {
+  let decoder = {
+    use demand_id <- decode.field(0, uuid_decoder())
+    use startup_id <- decode.field(1, uuid_decoder())
+    use application_status <- decode.field(
+      2,
+      demand_application_status_decoder(),
+    )
+    use created_at <- decode.field(3, pog.timestamp_decoder())
+    use updated_at <- decode.field(4, pog.timestamp_decoder())
+    decode.success(ApplyToDemandRow(
+      demand_id:,
+      startup_id:,
+      application_status:,
+      created_at:,
+      updated_at:,
+    ))
+  }
+
+  "-- apply to a demand as a startup
+INSERT INTO
+    public.demand_application (startup_id, demand_id)
+VALUES
+    ($1::uuid, $2::uuid)
+RETURNING
+    demand_id,
+    startup_id,
+    application_status,
     created_at,
     updated_at;
 "
@@ -325,12 +388,12 @@ pub fn decline_connection(
 UPDATE
     public.company_startup_connection AS connection
 SET
-    connection_status = 'declined',
+    connection_status = 'declined_connection',
     updated_at = CURRENT_TIMESTAMP
 WHERE
     connection.company_id = $1::uuid
     AND connection.startup_id = $2::uuid
-    AND connection.connection_status = 'pending'
+    AND connection.connection_status = 'pending_connection'
 RETURNING
     company_id,
     startup_id,
@@ -1617,6 +1680,71 @@ RETURNING
   |> pog.execute(db)
 }
 
+/// A row you get from running the `withdraw_demand_application` query
+/// defined in `./src/server/startup/sql/withdraw_demand_application.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v4.7.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type WithdrawDemandApplicationRow {
+  WithdrawDemandApplicationRow(
+    demand_id: Uuid,
+    startup_id: Uuid,
+    application_status: DemandApplicationStatus,
+    created_at: Timestamp,
+    updated_at: Timestamp,
+  )
+}
+
+/// withdraw a startup's application to a demand
+///
+/// > 🐿️ This function was generated automatically using v4.7.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn withdraw_demand_application(
+  db: pog.Connection,
+  arg_1: Uuid,
+  arg_2: Uuid,
+) -> Result(pog.Returned(WithdrawDemandApplicationRow), pog.QueryError) {
+  let decoder = {
+    use demand_id <- decode.field(0, uuid_decoder())
+    use startup_id <- decode.field(1, uuid_decoder())
+    use application_status <- decode.field(
+      2,
+      demand_application_status_decoder(),
+    )
+    use created_at <- decode.field(3, pog.timestamp_decoder())
+    use updated_at <- decode.field(4, pog.timestamp_decoder())
+    decode.success(WithdrawDemandApplicationRow(
+      demand_id:,
+      startup_id:,
+      application_status:,
+      created_at:,
+      updated_at:,
+    ))
+  }
+
+  "-- withdraw a startup's application to a demand
+DELETE FROM
+    public.demand_application
+WHERE
+    demand_application.startup_id = $1::uuid
+    AND demand_application.demand_id = $2::uuid
+    AND demand_application.application_status = 'pending_application'
+RETURNING
+    demand_id,
+    startup_id,
+    application_status,
+    created_at,
+    updated_at;
+"
+  |> pog.query
+  |> pog.parameter(pog.text(uuid.to_string(arg_1)))
+  |> pog.parameter(pog.text(uuid.to_string(arg_2)))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
 // --- Enums -------------------------------------------------------------------
 
 /// Corresponds to the Postgres `connection_status_enum` enum.
@@ -1625,18 +1753,41 @@ RETURNING
 /// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
 ///
 pub type ConnectionStatusEnum {
-  Declined
-  Accepted
-  Pending
+  DeclinedConnection
+  AcceptedConnection
+  PendingConnection
 }
 
 fn connection_status_enum_decoder() -> decode.Decoder(ConnectionStatusEnum) {
   use connection_status_enum <- decode.then(decode.string)
   case connection_status_enum {
-    "declined" -> decode.success(Declined)
-    "accepted" -> decode.success(Accepted)
-    "pending" -> decode.success(Pending)
-    _ -> decode.failure(Declined, "ConnectionStatusEnum")
+    "declined_connection" -> decode.success(DeclinedConnection)
+    "accepted_connection" -> decode.success(AcceptedConnection)
+    "pending_connection" -> decode.success(PendingConnection)
+    _ -> decode.failure(DeclinedConnection, "ConnectionStatusEnum")
+  }
+}
+
+/// Corresponds to the Postgres `demand_application_status` enum.
+///
+/// > 🐿️ This type definition was generated automatically using v4.7.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type DemandApplicationStatus {
+  DeclinedApplication
+  AcceptedApplication
+  PendingApplication
+}
+
+fn demand_application_status_decoder() -> decode.Decoder(
+  DemandApplicationStatus,
+) {
+  use demand_application_status <- decode.then(decode.string)
+  case demand_application_status {
+    "declined_application" -> decode.success(DeclinedApplication)
+    "accepted_application" -> decode.success(AcceptedApplication)
+    "pending_application" -> decode.success(PendingApplication)
+    _ -> decode.failure(DeclinedApplication, "DemandApplicationStatus")
   }
 }
 

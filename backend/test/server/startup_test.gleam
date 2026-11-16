@@ -3,6 +3,7 @@ import gleam/set
 import gleam/uri
 import server/company
 import server/connection
+import server/demand
 import server/dummy
 import server/lgpd
 import server/startup
@@ -1324,6 +1325,209 @@ pub fn get_missing_startup_connections_test() -> Nil {
 
   let assert Ok([]) =
     startup.get_connections(context.database, startup_id, limit: 100, offset: 0)
+
+  Nil
+}
+
+pub fn apply_to_demand_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let startup = dummy.new_startup(context.database)
+  let demand = dummy.new_demand(context.database, from: company.id)
+
+  let assert Ok(returned) =
+    startup.apply_to_demand(context.database, startup.id, apply_to: demand.id)
+
+  assert returned
+    == demand.Application(
+      demand: demand.id,
+      startup: startup.id,
+      status: demand.Pending,
+      created_at: returned.created_at,
+      updated_at: returned.updated_at,
+    )
+
+  Nil
+}
+
+pub fn apply_to_missing_startup_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let demand = dummy.new_demand(context.database, from: company.id)
+  let missing_id = uuid.v7()
+
+  let assert Error(startup.NotFound(returned)) =
+    startup.apply_to_demand(context.database, missing_id, apply_to: demand.id)
+
+  assert returned == missing_id
+
+  Nil
+}
+
+pub fn apply_to_missing_demand_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+  let missing_id = uuid.v7()
+
+  let assert Error(startup.DemandError(demand.NotFound(returned))) =
+    startup.apply_to_demand(context.database, startup.id, apply_to: missing_id)
+
+  assert returned == missing_id
+
+  Nil
+}
+
+pub fn apply_to_closed_demand_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let startup = dummy.new_startup(context.database)
+  let demand = dummy.new_demand(context.database, from: company.id)
+
+  let assert Ok(_) = demand.close(context.database, demand.id)
+
+  let assert Error(startup.DemandNotOpen(returned)) =
+    startup.apply_to_demand(context.database, startup.id, apply_to: demand.id)
+
+  assert returned == demand.id
+
+  Nil
+}
+
+pub fn apply_to_canceled_demand_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let startup = dummy.new_startup(context.database)
+  let record = dummy.new_demand(context.database, from: company.id)
+
+  let assert Ok(_) = demand.cancel(context.database, record.id)
+
+  let assert Error(startup.DemandNotOpen(returned)) =
+    startup.apply_to_demand(context.database, startup.id, apply_to: record.id)
+
+  assert returned == record.id
+
+  Nil
+}
+
+pub fn apply_to_demand_twice_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let startup = dummy.new_startup(context.database)
+  let demand = dummy.new_demand(context.database, from: company.id)
+
+  let assert Ok(_) =
+    startup.apply_to_demand(context.database, startup.id, apply_to: demand.id)
+
+  let assert Error(startup.ApplicationConflict(returned)) =
+    startup.apply_to_demand(context.database, startup.id, apply_to: demand.id)
+
+  assert returned == demand.id
+
+  Nil
+}
+
+pub fn withdraw_demand_application_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let startup = dummy.new_startup(context.database)
+  let demand = dummy.new_demand(context.database, from: company.id)
+
+  let assert Ok(applied) =
+    startup.apply_to_demand(context.database, startup.id, apply_to: demand.id)
+
+  let assert Ok(returned) =
+    startup.withdraw_demand_application(
+      context.database,
+      startup.id,
+      from: demand.id,
+    )
+
+  assert returned
+    == demand.Application(
+      demand: demand.id,
+      startup: startup.id,
+      status: demand.Pending,
+      created_at: applied.created_at,
+      updated_at: returned.updated_at,
+    )
+
+  Nil
+}
+
+pub fn withdraw_missing_application_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let startup = dummy.new_startup(context.database)
+  let demand = dummy.new_demand(context.database, from: company.id)
+
+  let assert Error(startup.ApplicationNotFound(returned)) =
+    startup.withdraw_demand_application(
+      context.database,
+      startup.id,
+      from: demand.id,
+    )
+
+  assert returned == demand.id
+
+  Nil
+}
+
+/// Withdrawing deletes the application, so the Startup can apply again.
+pub fn reapply_after_withdraw_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let startup = dummy.new_startup(context.database)
+  let demand = dummy.new_demand(context.database, from: company.id)
+
+  let assert Ok(_) =
+    startup.apply_to_demand(context.database, startup.id, apply_to: demand.id)
+
+  let assert Ok(_) =
+    startup.withdraw_demand_application(
+      context.database,
+      startup.id,
+      from: demand.id,
+    )
+
+  let assert Ok(returned) =
+    startup.apply_to_demand(context.database, startup.id, apply_to: demand.id)
+
+  assert returned.status == demand.Pending
+
+  Nil
+}
+
+/// Only pending applications can be withdrawn.
+pub fn withdraw_accepted_application_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let startup = dummy.new_startup(context.database)
+  let demand = dummy.new_demand(context.database, from: company.id)
+
+  let assert Ok(_) =
+    startup.apply_to_demand(context.database, startup.id, apply_to: demand.id)
+
+  let assert Ok(_) =
+    demand.accept_application(context.database, demand.id, from: startup.id)
+
+  let assert Error(startup.ApplicationNotFound(returned)) =
+    startup.withdraw_demand_application(
+      context.database,
+      startup.id,
+      from: demand.id,
+    )
+
+  assert returned == demand.id
 
   Nil
 }

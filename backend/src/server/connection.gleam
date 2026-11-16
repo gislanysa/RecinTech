@@ -144,9 +144,9 @@ pub fn delete(
   )
 
   let status = case row.connection_status {
-    sql.Accepted -> Accepted
-    sql.Declined -> Declined
-    sql.Pending -> Pending
+    sql.AcceptedConnection -> Accepted
+    sql.DeclinedConnection -> Declined
+    sql.PendingConnection -> Pending
   }
 
   Connection(

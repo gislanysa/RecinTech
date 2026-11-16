@@ -95,12 +95,16 @@ CREATE TABLE company (
 
 CREATE INDEX idx_company_email ON company (email);
 
-CREATE TYPE connection_status_enum AS enum ('pending', 'accepted', 'declined');
+CREATE TYPE connection_status_enum AS enum (
+    'pending_connection',
+    'accepted_connection',
+    'declined_connection'
+);
 
 CREATE TABLE company_startup_connection (
     company_id uuid NOT NULL REFERENCES company (id) ON DELETE CASCADE,
     startup_id uuid NOT NULL REFERENCES startup (id) ON DELETE CASCADE,
-    connection_status connection_status_enum NOT NULL DEFAULT 'pending',
+    connection_status connection_status_enum NOT NULL DEFAULT 'pending_connection',
     created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (company_id, startup_id)
@@ -219,6 +223,25 @@ CREATE TABLE demand (
 CREATE INDEX idx_demand_company ON demand (company_id);
 
 CREATE INDEX idx_demand_status ON demand (demand_status);
+
+CREATE TYPE demand_application_status AS ENUM (
+    'pending_application',
+    'accepted_application',
+    'declined_application'
+);
+
+CREATE TABLE demand_application (
+    startup_id uuid NOT NULL REFERENCES startup (id) ON DELETE CASCADE,
+    demand_id uuid NOT NULL REFERENCES demand (id) ON DELETE CASCADE,
+    application_status demand_application_status NOT NULL DEFAULT 'pending_application',
+    created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (startup_id, demand_id)
+);
+
+CREATE INDEX idx_demand_application_demand ON demand_application (demand_id);
+
+CREATE INDEX idx_demand_application_startup ON demand_application (startup_id);
 
 CREATE TABLE demand_segment (
     demand_id uuid NOT NULL REFERENCES demand (id) ON DELETE CASCADE,

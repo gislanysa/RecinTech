@@ -1,5 +1,5 @@
 //// This module contains the code to run the sql queries defined in
-//// `./src/server/company/demand/sql`.
+//// `./src/server/demand/sql`.
 //// > 🐿️ This module was generated automatically using v4.7.0 of
 //// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
 ////
@@ -9,8 +9,75 @@ import gleam/time/timestamp.{type Timestamp}
 import pog
 import youid/uuid.{type Uuid}
 
+/// A row you get from running the `accept_application` query
+/// defined in `./src/server/demand/sql/accept_application.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v4.7.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type AcceptApplicationRow {
+  AcceptApplicationRow(
+    demand_id: Uuid,
+    startup_id: Uuid,
+    application_status: DemandApplicationStatus,
+    created_at: Timestamp,
+    updated_at: Timestamp,
+  )
+}
+
+/// accept a startup's application to a demand
+///
+/// > 🐿️ This function was generated automatically using v4.7.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn accept_application(
+  db: pog.Connection,
+  arg_1: Uuid,
+  arg_2: Uuid,
+) -> Result(pog.Returned(AcceptApplicationRow), pog.QueryError) {
+  let decoder = {
+    use demand_id <- decode.field(0, uuid_decoder())
+    use startup_id <- decode.field(1, uuid_decoder())
+    use application_status <- decode.field(
+      2,
+      demand_application_status_decoder(),
+    )
+    use created_at <- decode.field(3, pog.timestamp_decoder())
+    use updated_at <- decode.field(4, pog.timestamp_decoder())
+    decode.success(AcceptApplicationRow(
+      demand_id:,
+      startup_id:,
+      application_status:,
+      created_at:,
+      updated_at:,
+    ))
+  }
+
+  "-- accept a startup's application to a demand
+UPDATE
+    public.demand_application
+SET
+    application_status = 'accepted_application',
+    updated_at = CURRENT_TIMESTAMP
+WHERE
+    demand_application.demand_id = $1::uuid
+    AND demand_application.startup_id = $2::uuid
+RETURNING
+    demand_id,
+    startup_id,
+    application_status,
+    created_at,
+    updated_at;
+"
+  |> pog.query
+  |> pog.parameter(pog.text(uuid.to_string(arg_1)))
+  |> pog.parameter(pog.text(uuid.to_string(arg_2)))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
 /// A row you get from running the `assign_expertise` query
-/// defined in `./src/server/company/demand/sql/assign_expertise.sql`.
+/// defined in `./src/server/demand/sql/assign_expertise.sql`.
 ///
 /// > 🐿️ This type definition was generated automatically using v4.7.0 of the
 /// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
@@ -62,7 +129,7 @@ FROM
 }
 
 /// A row you get from running the `assign_segment` query
-/// defined in `./src/server/company/demand/sql/assign_segment.sql`.
+/// defined in `./src/server/demand/sql/assign_segment.sql`.
 ///
 /// > 🐿️ This type definition was generated automatically using v4.7.0 of the
 /// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
@@ -114,7 +181,7 @@ FROM
 }
 
 /// A row you get from running the `assign_service` query
-/// defined in `./src/server/company/demand/sql/assign_service.sql`.
+/// defined in `./src/server/demand/sql/assign_service.sql`.
 ///
 /// > 🐿️ This type definition was generated automatically using v4.7.0 of the
 /// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
@@ -166,7 +233,7 @@ FROM
 }
 
 /// A row you get from running the `assign_technology` query
-/// defined in `./src/server/company/demand/sql/assign_technology.sql`.
+/// defined in `./src/server/demand/sql/assign_technology.sql`.
 ///
 /// > 🐿️ This type definition was generated automatically using v4.7.0 of the
 /// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
@@ -217,8 +284,75 @@ FROM
   |> pog.execute(db)
 }
 
+/// A row you get from running the `decline_application` query
+/// defined in `./src/server/demand/sql/decline_application.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v4.7.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type DeclineApplicationRow {
+  DeclineApplicationRow(
+    demand_id: Uuid,
+    startup_id: Uuid,
+    application_status: DemandApplicationStatus,
+    created_at: Timestamp,
+    updated_at: Timestamp,
+  )
+}
+
+/// decline a startup's application to a demand
+///
+/// > 🐿️ This function was generated automatically using v4.7.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn decline_application(
+  db: pog.Connection,
+  arg_1: Uuid,
+  arg_2: Uuid,
+) -> Result(pog.Returned(DeclineApplicationRow), pog.QueryError) {
+  let decoder = {
+    use demand_id <- decode.field(0, uuid_decoder())
+    use startup_id <- decode.field(1, uuid_decoder())
+    use application_status <- decode.field(
+      2,
+      demand_application_status_decoder(),
+    )
+    use created_at <- decode.field(3, pog.timestamp_decoder())
+    use updated_at <- decode.field(4, pog.timestamp_decoder())
+    decode.success(DeclineApplicationRow(
+      demand_id:,
+      startup_id:,
+      application_status:,
+      created_at:,
+      updated_at:,
+    ))
+  }
+
+  "-- decline a startup's application to a demand
+UPDATE
+    public.demand_application
+SET
+    application_status = 'declined_application',
+    updated_at = CURRENT_TIMESTAMP
+WHERE
+    demand_application.demand_id = $1::uuid
+    AND demand_application.startup_id = $2::uuid
+RETURNING
+    demand_id,
+    startup_id,
+    application_status,
+    created_at,
+    updated_at;
+"
+  |> pog.query
+  |> pog.parameter(pog.text(uuid.to_string(arg_1)))
+  |> pog.parameter(pog.text(uuid.to_string(arg_2)))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
 /// A row you get from running the `delete` query
-/// defined in `./src/server/company/demand/sql/delete.sql`.
+/// defined in `./src/server/demand/sql/delete.sql`.
 ///
 /// > 🐿️ This type definition was generated automatically using v4.7.0 of the
 /// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
@@ -284,7 +418,7 @@ RETURNING
 }
 
 /// A row you get from running the `ensure_exists` query
-/// defined in `./src/server/company/demand/sql/ensure_exists.sql`.
+/// defined in `./src/server/demand/sql/ensure_exists.sql`.
 ///
 /// > 🐿️ This type definition was generated automatically using v4.7.0 of the
 /// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
@@ -322,7 +456,7 @@ WHERE
 }
 
 /// A row you get from running the `get` query
-/// defined in `./src/server/company/demand/sql/get.sql`.
+/// defined in `./src/server/demand/sql/get.sql`.
 ///
 /// > 🐿️ This type definition was generated automatically using v4.7.0 of the
 /// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
@@ -387,8 +521,69 @@ WHERE
   |> pog.execute(db)
 }
 
+/// A row you get from running the `get_applications` query
+/// defined in `./src/server/demand/sql/get_applications.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v4.7.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type GetApplicationsRow {
+  GetApplicationsRow(
+    demand_id: Uuid,
+    startup_id: Uuid,
+    application_status: DemandApplicationStatus,
+    created_at: Timestamp,
+    updated_at: Timestamp,
+  )
+}
+
+/// get all applications to a demand
+///
+/// > 🐿️ This function was generated automatically using v4.7.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn get_applications(
+  db: pog.Connection,
+  arg_1: Uuid,
+) -> Result(pog.Returned(GetApplicationsRow), pog.QueryError) {
+  let decoder = {
+    use demand_id <- decode.field(0, uuid_decoder())
+    use startup_id <- decode.field(1, uuid_decoder())
+    use application_status <- decode.field(
+      2,
+      demand_application_status_decoder(),
+    )
+    use created_at <- decode.field(3, pog.timestamp_decoder())
+    use updated_at <- decode.field(4, pog.timestamp_decoder())
+    decode.success(GetApplicationsRow(
+      demand_id:,
+      startup_id:,
+      application_status:,
+      created_at:,
+      updated_at:,
+    ))
+  }
+
+  "-- get all applications to a demand
+SELECT
+    application.demand_id,
+    application.startup_id,
+    application.application_status,
+    application.created_at,
+    application.updated_at
+FROM
+    demand_application AS application
+WHERE
+    demand_id = $1;
+"
+  |> pog.query
+  |> pog.parameter(pog.text(uuid.to_string(arg_1)))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
 /// A row you get from running the `get_expertises` query
-/// defined in `./src/server/company/demand/sql/get_expertises.sql`.
+/// defined in `./src/server/demand/sql/get_expertises.sql`.
 ///
 /// > 🐿️ This type definition was generated automatically using v4.7.0 of the
 /// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
@@ -433,7 +628,7 @@ ORDER BY
 }
 
 /// A row you get from running the `get_segments` query
-/// defined in `./src/server/company/demand/sql/get_segments.sql`.
+/// defined in `./src/server/demand/sql/get_segments.sql`.
 ///
 /// > 🐿️ This type definition was generated automatically using v4.7.0 of the
 /// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
@@ -478,7 +673,7 @@ ORDER BY
 }
 
 /// A row you get from running the `get_services` query
-/// defined in `./src/server/company/demand/sql/get_services.sql`.
+/// defined in `./src/server/demand/sql/get_services.sql`.
 ///
 /// > 🐿️ This type definition was generated automatically using v4.7.0 of the
 /// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
@@ -523,7 +718,7 @@ ORDER BY
 }
 
 /// A row you get from running the `get_technologies` query
-/// defined in `./src/server/company/demand/sql/get_technologies.sql`.
+/// defined in `./src/server/demand/sql/get_technologies.sql`.
 ///
 /// > 🐿️ This type definition was generated automatically using v4.7.0 of the
 /// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
@@ -568,7 +763,7 @@ ORDER BY
 }
 
 /// A row you get from running the `register` query
-/// defined in `./src/server/company/demand/sql/register.sql`.
+/// defined in `./src/server/demand/sql/register.sql`.
 ///
 /// > 🐿️ This type definition was generated automatically using v4.7.0 of the
 /// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
@@ -650,7 +845,7 @@ RETURNING
 }
 
 /// A row you get from running the `unassign_expertise` query
-/// defined in `./src/server/company/demand/sql/unassign_expertise.sql`.
+/// defined in `./src/server/demand/sql/unassign_expertise.sql`.
 ///
 /// > 🐿️ This type definition was generated automatically using v4.7.0 of the
 /// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
@@ -702,7 +897,7 @@ FROM
 }
 
 /// A row you get from running the `unassign_segment` query
-/// defined in `./src/server/company/demand/sql/unassign_segment.sql`.
+/// defined in `./src/server/demand/sql/unassign_segment.sql`.
 ///
 /// > 🐿️ This type definition was generated automatically using v4.7.0 of the
 /// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
@@ -754,7 +949,7 @@ FROM
 }
 
 /// A row you get from running the `unassign_service` query
-/// defined in `./src/server/company/demand/sql/unassign_service.sql`.
+/// defined in `./src/server/demand/sql/unassign_service.sql`.
 ///
 /// > 🐿️ This type definition was generated automatically using v4.7.0 of the
 /// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
@@ -806,7 +1001,7 @@ FROM
 }
 
 /// A row you get from running the `unassign_technology` query
-/// defined in `./src/server/company/demand/sql/unassign_technology.sql`.
+/// defined in `./src/server/demand/sql/unassign_technology.sql`.
 ///
 /// > 🐿️ This type definition was generated automatically using v4.7.0 of the
 /// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
@@ -858,7 +1053,7 @@ FROM
 }
 
 /// A row you get from running the `update` query
-/// defined in `./src/server/company/demand/sql/update.sql`.
+/// defined in `./src/server/demand/sql/update.sql`.
 ///
 /// > 🐿️ This type definition was generated automatically using v4.7.0 of the
 /// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
@@ -932,7 +1127,7 @@ RETURNING
 }
 
 /// A row you get from running the `update_status` query
-/// defined in `./src/server/company/demand/sql/update_status.sql`.
+/// defined in `./src/server/demand/sql/update_status.sql`.
 ///
 /// > 🐿️ This type definition was generated automatically using v4.7.0 of the
 /// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
@@ -1003,6 +1198,29 @@ RETURNING
 }
 
 // --- Enums -------------------------------------------------------------------
+
+/// Corresponds to the Postgres `demand_application_status` enum.
+///
+/// > 🐿️ This type definition was generated automatically using v4.7.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type DemandApplicationStatus {
+  DeclinedApplication
+  AcceptedApplication
+  PendingApplication
+}
+
+fn demand_application_status_decoder() -> decode.Decoder(
+  DemandApplicationStatus,
+) {
+  use demand_application_status <- decode.then(decode.string)
+  case demand_application_status {
+    "declined_application" -> decode.success(DeclinedApplication)
+    "accepted_application" -> decode.success(AcceptedApplication)
+    "pending_application" -> decode.success(PendingApplication)
+    _ -> decode.failure(DeclinedApplication, "DemandApplicationStatus")
+  }
+}
 
 /// Corresponds to the Postgres `demand_status` enum.
 ///

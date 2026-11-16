@@ -12,6 +12,7 @@ import gleam/uri
 import pog
 import server/cnpj
 import server/connection
+import server/demand
 import server/email
 import server/expertise
 import server/internal
@@ -46,6 +47,10 @@ pub type StartupError {
   CnpjConflict(value: cnpj.Cnpj)
   /// Failed to parse a String into a [Stage](#Stage) type
   InvalidStage(value: String)
+  /// Demand related errors
+  DemandError(demand.DemandError)
+  /// Applied to a demand that is not registered
+  DemandNotFound(demand_id: uuid.Uuid)
 
   // Email related errors -----------------------------------------------------
   //
@@ -72,6 +77,14 @@ pub type StartupError {
   ConnectionNotFound(from: uuid.Uuid)
   /// Something went wrong when saving a Startup's Business Model Canvas
   FailedToSaveCanvas(id: uuid.Uuid)
+  /// Applied to a demand twice
+  ApplicationConflict(demand_id: uuid.Uuid)
+  /// Demand is not open
+  DemandNotOpen(uuid.Uuid)
+  /// Failed to apply to a demand
+  FailedToApplyToDemand(uuid.Uuid)
+  /// No applications found to the given Demand
+  ApplicationNotFound(uuid.Uuid)
 }
 
 pub type Startup {
@@ -1305,9 +1318,9 @@ pub fn accept_connection(
   )
 
   let status = case row.connection_status {
-    sql.Accepted -> connection.Accepted
-    sql.Declined -> connection.Declined
-    sql.Pending -> connection.Pending
+    sql.AcceptedConnection -> connection.Accepted
+    sql.DeclinedConnection -> connection.Declined
+    sql.PendingConnection -> connection.Pending
   }
 
   connection.Connection(
@@ -1358,9 +1371,9 @@ pub fn decline_connection(
   )
 
   let status = case row.connection_status {
-    sql.Accepted -> connection.Accepted
-    sql.Declined -> connection.Declined
-    sql.Pending -> connection.Pending
+    sql.AcceptedConnection -> connection.Accepted
+    sql.DeclinedConnection -> connection.Declined
+    sql.PendingConnection -> connection.Pending
   }
 
   connection.Connection(
@@ -1409,9 +1422,9 @@ pub fn get_connections(
 
   list.map(returned.rows, fn(row) {
     let status = case row.connection_status {
-      sql.Accepted -> connection.Accepted
-      sql.Declined -> connection.Declined
-      sql.Pending -> connection.Pending
+      sql.AcceptedConnection -> connection.Accepted
+      sql.DeclinedConnection -> connection.Declined
+      sql.PendingConnection -> connection.Pending
     }
 
     connection.Connection(
@@ -1665,5 +1678,148 @@ pub fn delete_canvas(
     key_activities: row.key_activities,
     key_partnerships: row.key_partnerships,
     cost_structure: row.cost_structure,
+  )
+}
+
+/// Apply the Startup to a [Demand](demand.html#Demand) and return the created
+/// [Application](demand.html#Application).
+///
+/// Only demands with `open` status accept applications; applying to a `closed`
+/// or `canceled` demand returns `Error(DemandNotOpen(_))`. A Startup can have at
+/// most one application per Demand, so applying again while the application
+/// exists returns `Error(ApplicationConflict(_))`.
+///
+/// Withdrawing an application deletes it, so a Startup can apply to the same
+/// Demand again after
+/// [withdraw_demand_application](#withdraw_demand_application).
+///
+/// ## Examples
+///
+/// ```gleam
+/// let result = startup.apply_to_demand(
+///   context.database,
+///   startup.id,
+///   apply_to: demand.id,
+/// )
+///
+/// case result {
+///   Ok(application) -> wisp.response(201)
+///   Error(startup.NotFound(_))
+///   | Error(startup.DemandError(demand.NotFound(_))) -> wisp.not_found()
+///   Error(startup.DemandNotOpen(_))
+///   | Error(startup.ApplicationConflict(_)) -> wisp.response(409)
+///   Error(_) -> wisp.internal_server_error()
+/// }
+/// ```
+pub fn apply_to_demand(
+  database: pog.Connection,
+  id: uuid.Uuid,
+  apply_to demand_id: uuid.Uuid,
+) -> Result(demand.Application, StartupError) {
+  use target_demand <- result.try(
+    demand.get(database, demand_id)
+    |> result.map_error(DemandError),
+  )
+
+  // we can only apply to open demands
+  use _ <- result.try(case target_demand.status {
+    demand.Open -> Ok(Nil)
+    demand.Closed | demand.Canceled -> Error(DemandNotOpen(target_demand.id))
+  })
+
+  use returned <- result.try(case sql.apply_to_demand(database, id, demand_id) {
+    // startup is not registered
+    Error(pog.ConstraintViolated(
+      constraint: "demand_application_startup_id_fkey",
+      ..,
+    )) -> Error(NotFound(id))
+
+    // demand is not registered
+    Error(pog.ConstraintViolated(
+      constraint: "demand_application_demand_id_fkey",
+      ..,
+    )) -> Error(DemandNotFound(demand_id))
+
+    // already applied
+    Error(pog.ConstraintViolated(constraint: "demand_application_pkey", ..)) ->
+      Error(ApplicationConflict(demand_id))
+
+    Ok(data) -> Ok(data)
+    Error(error) -> Error(DatabaseError(error))
+  })
+
+  use row <- result.map(
+    list.first(returned.rows)
+    |> result.replace_error(FailedToApplyToDemand(demand_id)),
+  )
+
+  let status = case row.application_status {
+    sql.AcceptedApplication -> demand.Accepted
+    sql.PendingApplication -> demand.Pending
+    sql.DeclinedApplication -> demand.Declined
+  }
+
+  demand.Application(
+    demand: row.demand_id,
+    startup: row.startup_id,
+    status: status,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  )
+}
+
+/// Withdraw the Startup's pending [Application](demand.html#Application) to a
+/// [Demand](demand.html#Demand) and return the withdrawn application.
+///
+/// Withdrawing deletes the application from the Database, so the Startup can
+/// apply to the same Demand again through [apply_to_demand](#apply_to_demand).
+///
+/// Only pending applications can be withdrawn. If there is no pending
+/// application for the given Demand — because it does not exist, or because it
+/// was already accepted or declined — `Error(ApplicationNotFound(_))` is
+/// returned.
+///
+/// ## Examples
+///
+/// ```gleam
+/// let result = startup.withdraw_demand_application(
+///   context.database,
+///   startup.id,
+///   from: demand.id,
+/// )
+///
+/// case result {
+///   Ok(application) -> wisp.ok()
+///   Error(startup.ApplicationNotFound(_)) -> wisp.not_found()
+///   Error(_) -> wisp.internal_server_error()
+/// }
+/// ```
+pub fn withdraw_demand_application(
+  database: pog.Connection,
+  id: uuid.Uuid,
+  from demand_id: uuid.Uuid,
+) -> Result(demand.Application, StartupError) {
+  use returned <- result.try(
+    sql.withdraw_demand_application(database, id, demand_id)
+    |> result.map_error(DatabaseError),
+  )
+
+  use row <- result.map(
+    list.first(returned.rows)
+    |> result.replace_error(ApplicationNotFound(demand_id)),
+  )
+
+  let status = case row.application_status {
+    sql.AcceptedApplication -> demand.Accepted
+    sql.PendingApplication -> demand.Pending
+    sql.DeclinedApplication -> demand.Declined
+  }
+
+  demand.Application(
+    demand: row.demand_id,
+    startup: row.startup_id,
+    status: status,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
   )
 }

@@ -8,7 +8,7 @@ import gleam/uri
 import pog
 import server/cnpj
 import server/company
-import server/company/demand
+import server/demand
 import server/email
 import server/expertise
 import server/segment
