@@ -316,7 +316,7 @@ npm run build && npm run test && npm run lint
 | Nome | Responsabilidade |
 | --- | --- |
 | [Bianca Guimarães](https://github.com/BiancagscCabral) | Desenvolvedora Front-end · Pesquisa e Melhoria Contínua |
-| [Eduardo Soares](https://github.com/edudxs) | Documentação Técnica · Gestão de Projeto (Trello, Docs e Apresentações) |
+| [Eduardo Pereira](https://github.com/edudxs) | Documentação Técnica · Gestão de Projeto (Trello, Docs e Apresentações) |
 | [Gislany Araujo](https://github.com/gislanysa) | Desenvolvedora Front-end · Owner do Repositório |
 | [João Marcos](https://github.com/jmtmds) | Desenvolvedor Front-end · Documentação Técnica |
 | [Pedro Ayres](https://tangled.org/kacaii.dev) | Desenvolvedor Back-end |
@@ -337,7 +337,7 @@ npm run build && npm run test && npm run lint
 
 **Documentação e gestão**
 
-- **Eduardo Soares:** documentação técnica, gestão do projeto no Trello, apresentações
+- **Eduardo Pereira:** documentação técnica, gestão do projeto no Trello, apresentações
 
 ---
 
