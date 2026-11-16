@@ -2478,6 +2478,7 @@ pub fn assign_segment_to_demand_test() -> Nil {
   let response =
     simulate.browser_request(http.Post, endpoint)
     |> simulate.json_body(body)
+    |> dummy.with_session(context, web.Company(company.id), company.email)
     |> web.handle_request(context)
 
   assert response.status == 201
@@ -2510,6 +2511,7 @@ pub fn assign_segment_to_demand_conflict_test() -> Nil {
   let response =
     simulate.browser_request(http.Post, endpoint)
     |> simulate.json_body(body)
+    |> dummy.with_session(context, web.Company(company.id), company.email)
     |> web.handle_request(context)
 
   assert response.status == 409
@@ -2535,6 +2537,7 @@ pub fn unassign_segment_from_demand_test() -> Nil {
 
   let response =
     simulate.browser_request(http.Delete, endpoint)
+    |> dummy.with_session(context, web.Company(company.id), company.email)
     |> web.handle_request(context)
 
   assert response.status == 200
@@ -2564,6 +2567,7 @@ pub fn unassign_missing_segment_from_demand_test() -> Nil {
 
   let response =
     simulate.browser_request(http.Delete, endpoint)
+    |> dummy.with_session(context, web.Company(company.id), company.email)
     |> web.handle_request(context)
 
   assert response.status == 404
@@ -2586,6 +2590,7 @@ pub fn assign_service_to_demand_test() -> Nil {
   let response =
     simulate.browser_request(http.Post, endpoint)
     |> simulate.json_body(body)
+    |> dummy.with_session(context, web.Company(company.id), company.email)
     |> web.handle_request(context)
 
   assert response.status == 201
@@ -2616,6 +2621,7 @@ pub fn assign_service_to_demand_conflict_test() -> Nil {
   let response =
     simulate.browser_request(http.Post, endpoint)
     |> simulate.json_body(body)
+    |> dummy.with_session(context, web.Company(company.id), company.email)
     |> web.handle_request(context)
 
   assert response.status == 409
@@ -2641,6 +2647,7 @@ pub fn unassign_demand_from_service_test() -> Nil {
 
   let response =
     simulate.browser_request(http.Delete, endpoint)
+    |> dummy.with_session(context, web.Company(company.id), company.email)
     |> web.handle_request(context)
 
   assert response.status == 200
@@ -2670,6 +2677,7 @@ pub fn unassign_missing_service_from_demand_test() -> Nil {
 
   let response =
     simulate.browser_request(http.Delete, endpoint)
+    |> dummy.with_session(context, web.Company(company.id), company.email)
     |> web.handle_request(context)
 
   assert response.status == 404
@@ -2692,6 +2700,7 @@ pub fn assign_technology_to_demand_test() -> Nil {
   let response =
     simulate.browser_request(http.Post, endpoint)
     |> simulate.json_body(body)
+    |> dummy.with_session(context, web.Company(company.id), company.email)
     |> web.handle_request(context)
 
   assert response.status == 201
@@ -2722,6 +2731,7 @@ pub fn assign_technology_to_demand_conflict_test() -> Nil {
   let response =
     simulate.browser_request(http.Post, endpoint)
     |> simulate.json_body(body)
+    |> dummy.with_session(context, web.Company(company.id), company.email)
     |> web.handle_request(context)
 
   assert response.status == 409
@@ -2747,6 +2757,7 @@ pub fn unassign_demand_from_technology_test() -> Nil {
 
   let response =
     simulate.browser_request(http.Delete, endpoint)
+    |> dummy.with_session(context, web.Company(company.id), company.email)
     |> web.handle_request(context)
 
   assert response.status == 200
@@ -2776,6 +2787,7 @@ pub fn unassign_missing_technology_from_demand_test() -> Nil {
 
   let response =
     simulate.browser_request(http.Delete, endpoint)
+    |> dummy.with_session(context, web.Company(company.id), company.email)
     |> web.handle_request(context)
 
   assert response.status == 404
@@ -2795,9 +2807,11 @@ pub fn assign_expertise_to_demand_test() -> Nil {
 
   let endpoint =
     "/api/company/demand/" <> uuid.to_string(demand.id) <> "/expertise"
+
   let response =
     simulate.browser_request(http.Post, endpoint)
     |> simulate.json_body(body)
+    |> dummy.with_session(context, web.Company(company.id), company.email)
     |> web.handle_request(context)
 
   assert response.status == 201
@@ -2825,9 +2839,11 @@ pub fn assign_expertise_to_demand_conflict_test() -> Nil {
 
   let endpoint =
     "/api/company/demand/" <> uuid.to_string(demand.id) <> "/expertise"
+
   let response =
     simulate.browser_request(http.Post, endpoint)
     |> simulate.json_body(body)
+    |> dummy.with_session(context, web.Company(company.id), company.email)
     |> web.handle_request(context)
 
   assert response.status == 409
@@ -2853,6 +2869,7 @@ pub fn unassign_demand_from_expertise_test() -> Nil {
 
   let response =
     simulate.browser_request(http.Delete, endpoint)
+    |> dummy.with_session(context, web.Company(company.id), company.email)
     |> web.handle_request(context)
 
   assert response.status == 200
@@ -2882,6 +2899,7 @@ pub fn unassign_missing_expertise_from_demand_test() -> Nil {
 
   let response =
     simulate.browser_request(http.Delete, endpoint)
+    |> dummy.with_session(context, web.Company(company.id), company.email)
     |> web.handle_request(context)
 
   assert response.status == 404
@@ -2892,6 +2910,7 @@ pub fn unassign_missing_expertise_from_demand_test() -> Nil {
 pub fn assign_segment_to_missing_demand_test() -> Nil {
   use context <- server_test.with_context()
 
+  let company = dummy.new_company(context.database)
   let segment = dummy.new_segment(context.database)
   let body =
     json.object([#("segment", json.string(uuid.to_string(segment.id)))])
@@ -2900,6 +2919,7 @@ pub fn assign_segment_to_missing_demand_test() -> Nil {
   let response =
     simulate.browser_request(http.Post, endpoint)
     |> simulate.json_body(body)
+    |> dummy.with_session(context, web.Company(company.id), company.email)
     |> web.handle_request(context)
 
   assert response.status == 404
@@ -2920,6 +2940,7 @@ pub fn assign_missing_segment_to_demand_test() -> Nil {
   let response =
     simulate.browser_request(http.Post, endpoint)
     |> simulate.json_body(body)
+    |> dummy.with_session(context, web.Company(company.id), company.email)
     |> web.handle_request(context)
 
   assert response.status == 404
@@ -2930,6 +2951,7 @@ pub fn assign_missing_segment_to_demand_test() -> Nil {
 pub fn assign_segment_to_demand_invalid_demand_id_test() -> Nil {
   use context <- server_test.with_context()
 
+  let company = dummy.new_company(context.database)
   let segment = dummy.new_segment(context.database)
   let body =
     json.object([#("segment", json.string(uuid.to_string(segment.id)))])
@@ -2937,6 +2959,7 @@ pub fn assign_segment_to_demand_invalid_demand_id_test() -> Nil {
   let response =
     simulate.browser_request(http.Post, "/api/company/demand/wibble/segment")
     |> simulate.json_body(body)
+    |> dummy.with_session(context, web.Company(company.id), company.email)
     |> web.handle_request(context)
 
   assert response.status == 400
@@ -2953,6 +2976,7 @@ pub fn delete_demand_test() -> Nil {
   let endpoint = "/api/company/demand/" <> uuid.to_string(demand.id)
   let response =
     simulate.browser_request(http.Delete, endpoint)
+    |> dummy.with_session(context, web.Company(company.id), company.email)
     |> web.handle_request(context)
 
   assert response.status == 200
@@ -2969,9 +2993,12 @@ pub fn delete_demand_test() -> Nil {
 pub fn delete_missing_demand_test() -> Nil {
   use context <- server_test.with_context()
 
+  let company = dummy.new_company(context.database)
+
   let endpoint = "/api/company/demand/" <> uuid.v7_string()
   let response =
     simulate.browser_request(http.Delete, endpoint)
+    |> dummy.with_session(context, web.Company(company.id), company.email)
     |> web.handle_request(context)
 
   assert response.status == 404

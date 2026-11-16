@@ -256,12 +256,12 @@ pub fn handle_request(request: Request, context: Context) -> Response {
     http.Post, ["api", "startup", id, "technology"] ->
       assign_technology_to_startup(request, context.database, id)
 
-    http.Delete, ["api", "startup", id, "technology", technology_id] ->
+    http.Delete, ["api", "startup", id, "technology", technology] ->
       unassign_technology_from_startup(
         request,
         context.database,
         id,
-        technology_id,
+        technology,
       )
 
     // +-----------------------------------------------------------------------+
@@ -317,7 +317,7 @@ pub fn handle_request(request: Request, context: Context) -> Response {
       assign_segment_to_demand(request, context.database, id)
 
     http.Delete, ["api", "company", "demand", id, "segment", segment_id] ->
-      unassign_segment_from_demand(context.database, id, segment_id)
+      unassign_segment_from_demand(request, context.database, id, segment_id)
 
     // == service ==============================================================
     http.Get, ["api", "company", "demand", id, "service"] ->
@@ -327,7 +327,7 @@ pub fn handle_request(request: Request, context: Context) -> Response {
       assign_service_to_demand(request, context.database, id)
 
     http.Delete, ["api", "company", "demand", id, "service", service_id] ->
-      unassign_service_from_demand(context.database, id, service_id)
+      unassign_service_from_demand(request, context.database, id, service_id)
 
     // == technology ===========================================================
     http.Get, ["api", "company", "demand", id, "technology"] ->
@@ -336,8 +336,8 @@ pub fn handle_request(request: Request, context: Context) -> Response {
     http.Post, ["api", "company", "demand", id, "technology"] ->
       assign_technology_to_demand(request, context.database, id)
 
-    http.Delete, ["api", "company", "demand", id, "technology", technology_id]
-    -> unassign_technology_from_demand(context.database, id, technology_id)
+    http.Delete, ["api", "company", "demand", id, "technology", technology] ->
+      unassign_technology_from_demand(request, context.database, id, technology)
 
     // == expertise ============================================================
     http.Get, ["api", "company", "demand", id, "expertise"] ->
@@ -346,8 +346,8 @@ pub fn handle_request(request: Request, context: Context) -> Response {
     http.Post, ["api", "company", "demand", id, "expertise"] ->
       assign_expertise_to_demand(request, context.database, id)
 
-    http.Delete, ["api", "company", "demand", id, "expertise", expertise_id] ->
-      unassign_expertise_from_demand(context.database, id, expertise_id)
+    http.Delete, ["api", "company", "demand", id, "expertise", expertise] ->
+      unassign_expertise_from_demand(request, context.database, id, expertise)
 
     // +-----------------------------------------------------------------------+
     // | CONNECTION                                                            |
@@ -1486,13 +1486,13 @@ fn update_application(
 /// different Company.
 fn require_demand_owner(
   database: pog.Connection,
-  id: uuid.Uuid,
-  company_id: uuid.Uuid,
-  next: fn() -> Response,
+  demand id: uuid.Uuid,
+  company company: uuid.Uuid,
+  next next: fn() -> Response,
 ) -> Response {
   case demand.get(database, id) {
     Error(error) -> handle_demand_error(error)
-    Ok(found) if found.company_id == company_id -> next()
+    Ok(found) if found.company_id == company -> next()
     Ok(_) -> wisp.response(403)
   }
 }
@@ -2102,6 +2102,9 @@ fn get_demand_expertises(database: pog.Connection, id: String) -> Response {
 ///
 /// - **201** If successful.
 /// - **400** If the ID or the segment ID is not a valid UUID.
+/// - **401** If not authenticated.
+/// - **403** If the session is not a Company session, or it belongs to a
+///   different Company.
 /// - **404** If Demand or Segment is not found.
 /// - **409** If Segment is already assigned to the Demand.
 ///
@@ -2112,6 +2115,8 @@ fn assign_segment_to_demand(
 ) -> Response {
   use id <- require_valid_uuid(id)
   use body <- wisp.require_json(request)
+  use session <- require_company_session(request)
+  use <- require_demand_owner(database, demand: id, company: session.id)
 
   let decoder = {
     use segment <- decode.field("segment", internal.uuid_decoder())
@@ -2155,15 +2160,21 @@ fn assign_segment_to_demand(
 ///
 /// - **200** If successful.
 /// - **400** If the ID or the segment ID is not a valid UUID.
+/// - **401** If not authenticated.
+/// - **403** If the session is not a Company session, or it belongs to a
+///   different Company.
 /// - **404** If the Segment is not assigned to the Demand.
 ///
 fn unassign_segment_from_demand(
+  request: Request,
   database: pog.Connection,
   id: String,
   segment_id: String,
 ) -> Response {
   use id <- require_valid_uuid(id)
   use segment <- require_valid_uuid(segment_id)
+  use session <- require_company_session(request)
+  use <- require_demand_owner(database, demand: id, company: session.id)
 
   case demand.unassign_segment(database, id, unassign: segment) {
     Ok(data) ->
@@ -2205,6 +2216,9 @@ fn unassign_segment_from_demand(
 ///
 /// - **201** If successful.
 /// - **400** If the ID or the service ID is not a valid UUID.
+/// - **401** If not authenticated.
+/// - **403** If the session is not a Company session, or it belongs to a
+///   different Company.
 /// - **404** If Demand or Service is not found.
 /// - **409** If Service is already assigned to the Demand.
 ///
@@ -2215,6 +2229,8 @@ fn assign_service_to_demand(
 ) -> Response {
   use id <- require_valid_uuid(id)
   use body <- wisp.require_json(request)
+  use session <- require_company_session(request)
+  use <- require_demand_owner(database, demand: id, company: session.id)
 
   let decoder = {
     use service <- decode.field("service", internal.uuid_decoder())
@@ -2258,15 +2274,21 @@ fn assign_service_to_demand(
 ///
 /// - **200** If successful.
 /// - **400** If the ID or the service ID is not a valid UUID.
+/// - **401** If not authenticated.
+/// - **403** If the session is not a Company session, or it belongs to a
+///   different Company.
 /// - **404** If the Service is not assigned to the Demand.
 ///
 fn unassign_service_from_demand(
+  request: Request,
   database: pog.Connection,
   id: String,
   service_id: String,
 ) -> Response {
   use id <- require_valid_uuid(id)
   use service <- require_valid_uuid(service_id)
+  use session <- require_company_session(request)
+  use <- require_demand_owner(database, demand: id, company: session.id)
 
   case demand.unassign_service(database, id, unassign: service) {
     Ok(data) ->
@@ -2308,6 +2330,9 @@ fn unassign_service_from_demand(
 ///
 /// - **201** If successful.
 /// - **400** If the ID or the technology ID is not a valid UUID.
+/// - **401** If not authenticated.
+/// - **403** If the session is not a Company session, or it belongs to a
+///   different Company.
 /// - **404** If Demand or Technology is not found.
 /// - **409** If Technology is already assigned to the Demand.
 ///
@@ -2318,6 +2343,8 @@ fn assign_technology_to_demand(
 ) -> Response {
   use id <- require_valid_uuid(id)
   use body <- wisp.require_json(request)
+  use session <- require_company_session(request)
+  use <- require_demand_owner(database, demand: id, company: session.id)
 
   let decoder = {
     use technology <- decode.field("technology", internal.uuid_decoder())
@@ -2361,15 +2388,21 @@ fn assign_technology_to_demand(
 ///
 /// - **200** If successful.
 /// - **400** If the ID or the technology ID is not a valid UUID.
+/// - **401** If not authenticated.
+/// - **403** If the session is not a Company session, or it belongs to a
+///   different Company.
 /// - **404** If the Technology is not assigned to the Demand.
 ///
 fn unassign_technology_from_demand(
+  request: Request,
   database: pog.Connection,
   id: String,
   technology_id: String,
 ) -> Response {
   use id <- require_valid_uuid(id)
   use technology <- require_valid_uuid(technology_id)
+  use session <- require_company_session(request)
+  use <- require_demand_owner(database, demand: id, company: session.id)
 
   case demand.unassign_technology(database, id, unassign: technology) {
     Ok(data) ->
@@ -2411,6 +2444,9 @@ fn unassign_technology_from_demand(
 ///
 /// - **201** If successful.
 /// - **400** If the ID or the expertise ID is not a valid UUID.
+/// - **401** If not authenticated.
+/// - **403** If the session is not a Company session, or it belongs to a
+///   different Company.
 /// - **404** If Demand or Expertise is not found.
 /// - **409** If Expertise is already assigned to the Demand.
 ///
@@ -2421,6 +2457,8 @@ fn assign_expertise_to_demand(
 ) -> Response {
   use id <- require_valid_uuid(id)
   use body <- wisp.require_json(request)
+  use session <- require_company_session(request)
+  use <- require_demand_owner(database, demand: id, company: session.id)
 
   let decoder = {
     use expertise <- decode.field("expertise", internal.uuid_decoder())
@@ -2464,15 +2502,21 @@ fn assign_expertise_to_demand(
 ///
 /// - **200** If successful.
 /// - **400** If the ID or the expertise ID is not a valid UUID.
+/// - **401** If not authenticated.
+/// - **403** If the session is not a Company session, or it belongs to a
+///   different Company.
 /// - **404** If the Expertise is not assigned to the Demand.
 ///
 fn unassign_expertise_from_demand(
+  request: Request,
   database: pog.Connection,
   id: String,
   expertise_id: String,
 ) -> Response {
   use id <- require_valid_uuid(id)
   use expertise <- require_valid_uuid(expertise_id)
+  use session <- require_company_session(request)
+  use <- require_demand_owner(database, demand: id, company: session.id)
 
   case demand.unassign_expertise(database, id, unassign: expertise) {
     Ok(data) ->
