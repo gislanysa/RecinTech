@@ -1579,6 +1579,8 @@ ignored.
 
 - 200: Successful
 - 400: Invalid JSON or invalid UUID format
+- 401: Not authenticated
+- 403: Invalid session, or the demand belongs to another company
 - 404: Demand not found
 
 ## DELETE /api/company/demand/:id

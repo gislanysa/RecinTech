@@ -3017,6 +3017,217 @@ pub fn delete_missing_demand_test() -> Nil {
   Nil
 }
 
+pub fn update_demand_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let demand = dummy.new_demand(context.database, from: company.id)
+
+  let body =
+    json.object([
+      #("title", json.string("updated title")),
+      #("description", json.string("updated description")),
+    ])
+
+  let endpoint = "/api/company/demand/" <> uuid.to_string(demand.id)
+  let response =
+    simulate.browser_request(http.Patch, endpoint)
+    |> simulate.json_body(body)
+    |> dummy.with_session(context, web.Company(company.id), company.email)
+    |> web.handle_request(context)
+
+  assert response.status == 200
+  expect_json(response)
+
+  let body = simulate.read_body(response)
+  let assert Ok(returned) = json.parse(body, demand.decoder())
+
+  assert returned.id == demand.id
+  assert returned.title == "updated title"
+  assert returned.description == "updated description"
+
+  let assert Ok(persisted) = demand.get(context.database, demand.id)
+  assert persisted.title == "updated title"
+  assert persisted.description == "updated description"
+
+  Nil
+}
+
+pub fn update_demand_partial_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let demand = dummy.new_demand(context.database, from: company.id)
+
+  let body =
+    json.object([
+      #("title", json.string("updated title")),
+    ])
+
+  let endpoint = "/api/company/demand/" <> uuid.to_string(demand.id)
+  let response =
+    simulate.browser_request(http.Patch, endpoint)
+    |> simulate.json_body(body)
+    |> dummy.with_session(context, web.Company(company.id), company.email)
+    |> web.handle_request(context)
+
+  assert response.status == 200
+  expect_json(response)
+
+  let body = simulate.read_body(response)
+  let assert Ok(returned) = json.parse(body, demand.decoder())
+
+  assert returned.title == "updated title"
+  assert returned.description == demand.description
+
+  let assert Ok(persisted) = demand.get(context.database, demand.id)
+  assert persisted.title == "updated title"
+  assert persisted.description == demand.description
+
+  Nil
+}
+
+pub fn update_demand_ignores_empty_fields_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let demand = dummy.new_demand(context.database, from: company.id)
+
+  let body =
+    json.object([
+      #("title", json.string("")),
+      #("description", json.string("")),
+    ])
+
+  let endpoint = "/api/company/demand/" <> uuid.to_string(demand.id)
+  let response =
+    simulate.browser_request(http.Patch, endpoint)
+    |> simulate.json_body(body)
+    |> dummy.with_session(context, web.Company(company.id), company.email)
+    |> web.handle_request(context)
+
+  assert response.status == 200
+  expect_json(response)
+
+  let body = simulate.read_body(response)
+  let assert Ok(returned) = json.parse(body, demand.decoder())
+
+  assert returned.title == demand.title
+  assert returned.description == demand.description
+
+  let assert Ok(persisted) = demand.get(context.database, demand.id)
+  assert persisted.title == demand.title
+  assert persisted.description == demand.description
+
+  Nil
+}
+
+pub fn update_demand_invalid_json_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let record = dummy.new_demand(context.database, from: company.id)
+
+  let endpoint = "/api/company/demand/" <> uuid.to_string(record.id)
+  let response =
+    simulate.browser_request(http.Patch, endpoint)
+    |> simulate.string_body("{not valid json")
+    |> request.set_header("content-type", "application/json")
+    |> dummy.with_session(context, web.Company(company.id), company.email)
+    |> web.handle_request(context)
+
+  assert response.status == 400
+
+  Nil
+}
+
+pub fn update_demand_invalid_id_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+
+  let body =
+    json.object([
+      #("title", json.string("updated title")),
+    ])
+
+  let response =
+    simulate.browser_request(http.Patch, "/api/company/demand/wibble")
+    |> simulate.json_body(body)
+    |> dummy.with_session(context, web.Company(company.id), company.email)
+    |> web.handle_request(context)
+
+  assert response.status == 400
+
+  Nil
+}
+
+pub fn update_missing_demand_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+
+  let body =
+    json.object([
+      #("title", json.string("updated title")),
+    ])
+
+  let endpoint = "/api/company/demand/" <> uuid.v7_string()
+  let response =
+    simulate.browser_request(http.Patch, endpoint)
+    |> simulate.json_body(body)
+    |> dummy.with_session(context, web.Company(company.id), company.email)
+    |> web.handle_request(context)
+
+  assert response.status == 404
+
+  Nil
+}
+
+pub fn update_demand_requires_demand_owner_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let owner = dummy.new_company(context.database)
+  let other = dummy.new_company(context.database)
+  let startup = dummy.new_startup(context.database)
+  let record = dummy.new_demand(context.database, from: owner.id)
+
+  let body =
+    json.object([
+      #("title", json.string("updated title")),
+    ])
+
+  let endpoint = "/api/company/demand/" <> uuid.to_string(record.id)
+
+  // no session
+  let response =
+    simulate.browser_request(http.Patch, endpoint)
+    |> simulate.json_body(body)
+    |> web.handle_request(context)
+  assert response.status == 401
+
+  // startup session
+  let response =
+    simulate.browser_request(http.Patch, endpoint)
+    |> simulate.json_body(body)
+    |> dummy.with_session(context, web.Startup(startup.id), startup.email)
+    |> web.handle_request(context)
+  assert response.status == 403
+
+  // a different company's session
+  let response =
+    simulate.browser_request(http.Patch, endpoint)
+    |> simulate.json_body(body)
+    |> dummy.with_session(context, web.Company(other.id), other.email)
+    |> web.handle_request(context)
+  assert response.status == 403
+
+  let assert Ok(persisted) = demand.get(context.database, record.id)
+  assert persisted.title == record.title
+
+  Nil
+}
+
 pub fn get_startup_lgpd_consent_test() -> Nil {
   use context <- server_test.with_context()
 
