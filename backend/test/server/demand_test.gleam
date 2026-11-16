@@ -1052,3 +1052,83 @@ pub fn get_applications_after_withdraw_test() -> Nil {
 
   Nil
 }
+
+pub fn browse_open_demands_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let demand_a = dummy.new_demand(context.database, from: company.id)
+  let demand_b = dummy.new_demand(context.database, from: company.id)
+
+  let assert Ok(returned) =
+    demand.browse_open_demands(context.database, limit: 100, offset: 0)
+
+  assert returned == [demand_b, demand_a]
+
+  Nil
+}
+
+/// Only demands with an `open` status are listed.
+pub fn browse_open_demands_excludes_closed_and_canceled_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let open = dummy.new_demand(context.database, from: company.id)
+
+  let closed = dummy.new_demand(context.database, from: company.id)
+  let assert Ok(_) = demand.close(context.database, closed.id)
+
+  let canceled = dummy.new_demand(context.database, from: company.id)
+  let assert Ok(_) = demand.cancel(context.database, canceled.id)
+
+  let assert Ok(returned) =
+    demand.browse_open_demands(context.database, limit: 100, offset: 0)
+
+  assert returned == [open]
+
+  Nil
+}
+
+pub fn browse_open_demands_pagination_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let demand_a = dummy.new_demand(context.database, from: company.id)
+  let demand_b = dummy.new_demand(context.database, from: company.id)
+  let demand_c = dummy.new_demand(context.database, from: company.id)
+
+  // only two demands fit in the first page
+  let assert Ok(first_page) =
+    demand.browse_open_demands(context.database, limit: 2, offset: 0)
+
+  assert list.length(first_page) == 2
+
+  // the last page holds the remaining demand
+  let assert Ok(second_page) =
+    demand.browse_open_demands(context.database, limit: 2, offset: 2)
+
+  assert list.length(second_page) == 1
+
+  // the two pages contain every demand exactly once
+  let pages = list.append(first_page, second_page)
+  assert list.length(pages) == 3
+
+  assert list.any(pages, fn(record) { record.id == demand_a.id })
+  assert list.any(pages, fn(record) { record.id == demand_b.id })
+  assert list.any(pages, fn(record) { record.id == demand_c.id })
+
+  // offsetting past every demand returns an empty list
+  let assert Ok([]) =
+    demand.browse_open_demands(context.database, limit: 2, offset: 10)
+
+  Nil
+}
+
+pub fn browse_open_demands_empty_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let assert Ok([]) =
+    demand.browse_open_demands(context.database, limit: 100, offset: 0)
+
+  Nil
+}

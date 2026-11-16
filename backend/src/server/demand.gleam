@@ -945,3 +945,38 @@ pub fn get_applications(
     )
   })
 }
+
+/// Get all available open [Demand](#Demand)s.
+///
+/// ## Examples
+///
+/// ```gleam
+/// let result = demand.browse_open_demands(context.database, limit: 200, offset: 0)
+///
+/// case result {
+///   Ok(data) -> wisp.ok()
+///   Error(_) -> wisp.internal_server_error()
+/// }
+/// ```
+pub fn browse_open_demands(
+  database: pog.Connection,
+  limit limit: Int,
+  offset offset: Int,
+) -> Result(List(Demand), DemandError) {
+  use returned <- result.map(
+    sql.browse_open_demands(database, limit, offset)
+    |> result.map_error(DatabaseError),
+  )
+
+  list.map(returned.rows, fn(row) {
+    Demand(
+      id: row.id,
+      company_id: row.company_id,
+      title: row.title,
+      description: row.description,
+      status: status_from_enum(row.demand_status),
+      created_at: row.created_at,
+      updated_at: row.updated_at,
+    )
+  })
+}

@@ -98,6 +98,7 @@ down:
 generate-sql: require-database
     echo {{ GREEN }}"  Generating SQL queries"{{ NORMAL }}
     gleam run -m squirrel
+    gleam format
 
 # Start the database container
 [group("database")]
