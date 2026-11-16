@@ -290,6 +290,9 @@ pub fn handle_request(request: Request, context: Context) -> Response {
     // +-----------------------------------------------------------------------+
     // | DEMAND                                                                |
     // +-----------------------------------------------------------------------+
+    http.Get, ["api", "company", "demand", "browse"] ->
+      browse_open_demands(request, context.database)
+
     http.Get, ["api", "company", "demand", id] ->
       get_demand_by_id(context.database, id)
 
@@ -380,6 +383,82 @@ pub fn handle_request(request: Request, context: Context) -> Response {
 
     // Page not found in the frontend
     _, _ -> get_root_document()
+  }
+}
+
+/// ## `GET /api/company/demand/browse`
+///
+/// Browse all open Demands. Only Demands whose status is `open` are returned,
+/// newest first. Closed and canceled Demands are never included.
+///
+/// This route does not require authentication.
+///
+/// ## Query Parameters
+///
+/// - `limit` (Int, required): the maximum number of Demands to return.
+/// - `offset` (Int, required): the number of Demands to skip.
+/// - `status` (String, required): must be `"open"`.
+///
+/// ## Response Body
+///
+/// ```json
+/// [
+///   {
+///     "id": "01a173cb-9533-7ebd-87a0-590965ef3653",
+///     "company_id": "01a173cb-9533-7eb5-9522-9686fef4f2a4",
+///     "title": "Need more gleam projects",
+///     "description": "A lot more of them",
+///     "status": "open",
+///     "created_at": "2025-09-14T20:08:02.000Z",
+///     "updated_at": "2025-09-14T20:08:02.000Z"
+///   }
+/// ]
+/// ```
+///
+/// An empty list is returned when there are no open Demands.
+///
+/// ## Status Codes
+///
+/// - **200** If successful.
+/// - **400** If the query is missing, invalid or incomplete, or `status` is not
+///   `"open"`.
+///
+fn browse_open_demands(request: Request, database: pog.Connection) -> Response {
+  let result = {
+    use query <- result.try(
+      request.get_query(request)
+      |> result.replace_error(MissingQuery),
+    )
+
+    use limit <- result.try(
+      list.key_find(query, "limit")
+      |> result.try(int.parse)
+      |> result.replace_error(InvalidQueryParameter("limit")),
+    )
+
+    use offset <- result.try(
+      list.key_find(query, "offset")
+      |> result.try(int.parse)
+      |> result.replace_error(InvalidQueryParameter("offset")),
+    )
+
+    // currently only open demands are allowed
+    use _ <- result.try(case list.key_find(query, "status") {
+      Ok("open") -> Ok(Nil)
+      Ok(_) | Error(_) -> Error(InvalidQueryParameter("status"))
+    })
+
+    demand.browse_open_demands(database, limit:, offset:)
+    |> result.map_error(DemandError)
+  }
+
+  case result {
+    Ok(data) ->
+      json.array(data, demand.to_json)
+      |> json.to_string
+      |> wisp.json_response(200)
+
+    Error(error) -> handle_error(error)
   }
 }
 

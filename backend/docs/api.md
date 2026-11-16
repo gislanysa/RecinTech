@@ -1511,6 +1511,43 @@ technologies can be assigned to the demand in the same request.
 - 404: Company or assigned entity not found
 - 409: An entity is already assigned to the demand
 
+## GET /api/company/demand/browse
+
+Browse all open demands. Only demands whose status is `open` are returned,
+newest first. Closed and canceled demands are never included.
+
+This route does not require authentication.
+
+### Query Parameters
+
+- `limit` (int, required): the maximum number of demands to return.
+- `offset` (int, required): the number of demands to skip.
+- `status` (string, required): must be `"open"`.
+
+### Response Body
+
+```json
+[
+  {
+    "id": "01a173cb-9533-7ebd-87a0-590965ef3653",
+    "company_id": "01a173cb-9533-7eb5-9522-9686fef4f2a4",
+    "title": "Need more gleam projects",
+    "description": "A lot more of them",
+    "status": "open",
+    "created_at": "2025-09-14T20:08:02.000Z",
+    "updated_at": "2025-09-14T20:08:02.000Z"
+  }
+]
+```
+
+An empty array is returned when there are no open demands.
+
+### Status Codes
+
+- 200: Successful
+- 400: Missing, invalid or incomplete query parameters, or `status` is not
+  `"open"`
+
 ## GET /api/company/demand/:id
 
 Fetch information about a demand.

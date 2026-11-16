@@ -5561,3 +5561,212 @@ pub fn get_demand_applications_requires_demand_owner_test() -> Nil {
 
   Nil
 }
+
+pub fn browse_open_demands_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let demand_a = dummy.new_demand(context.database, from: company.id)
+  let demand_b = dummy.new_demand(context.database, from: company.id)
+
+  let query = [
+    #("limit", "100"),
+    #("offset", "0"),
+    #("status", "open"),
+  ]
+
+  let response =
+    simulate.browser_request(http.Get, "/api/company/demand/browse")
+    |> request.set_query(query)
+    |> web.handle_request(context)
+
+  assert response.status == 200
+  expect_json(response)
+
+  let body = simulate.read_body(response)
+  let assert Ok(returned) = json.parse(body, decode.list(demand.decoder()))
+
+  // newest demands come first
+  assert returned == [demand_b, demand_a]
+
+  Nil
+}
+
+pub fn browse_open_demands_excludes_closed_and_canceled_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let open = dummy.new_demand(context.database, from: company.id)
+
+  let closed = dummy.new_demand(context.database, from: company.id)
+  let assert Ok(_) = demand.close(context.database, closed.id)
+
+  let canceled = dummy.new_demand(context.database, from: company.id)
+  let assert Ok(_) = demand.cancel(context.database, canceled.id)
+
+  let query = [
+    #("limit", "100"),
+    #("offset", "0"),
+    #("status", "open"),
+  ]
+
+  let response =
+    simulate.browser_request(http.Get, "/api/company/demand/browse")
+    |> request.set_query(query)
+    |> web.handle_request(context)
+
+  assert response.status == 200
+  expect_json(response)
+
+  let body = simulate.read_body(response)
+  let assert Ok(returned) = json.parse(body, decode.list(demand.decoder()))
+
+  assert returned == [open]
+
+  Nil
+}
+
+pub fn browse_open_demands_pagination_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let demand_a = dummy.new_demand(context.database, from: company.id)
+  let demand_b = dummy.new_demand(context.database, from: company.id)
+  let demand_c = dummy.new_demand(context.database, from: company.id)
+
+  // first page
+  let query = [
+    #("limit", "2"),
+    #("offset", "0"),
+    #("status", "open"),
+  ]
+
+  let response =
+    simulate.browser_request(http.Get, "/api/company/demand/browse")
+    |> request.set_query(query)
+    |> web.handle_request(context)
+
+  assert response.status == 200
+  let body = simulate.read_body(response)
+  let assert Ok(first_page) = json.parse(body, decode.list(demand.decoder()))
+  assert first_page == [demand_c, demand_b]
+
+  // last page
+  let query = [
+    #("limit", "2"),
+    #("offset", "2"),
+    #("status", "open"),
+  ]
+
+  let response =
+    simulate.browser_request(http.Get, "/api/company/demand/browse")
+    |> request.set_query(query)
+    |> web.handle_request(context)
+
+  assert response.status == 200
+  let body = simulate.read_body(response)
+  let assert Ok(second_page) = json.parse(body, decode.list(demand.decoder()))
+  assert second_page == [demand_a]
+
+  // past the end
+  let query = [
+    #("limit", "2"),
+    #("offset", "10"),
+    #("status", "open"),
+  ]
+
+  let response =
+    simulate.browser_request(http.Get, "/api/company/demand/browse")
+    |> request.set_query(query)
+    |> web.handle_request(context)
+
+  assert response.status == 200
+  let body = simulate.read_body(response)
+  let assert Ok([]) = json.parse(body, decode.list(demand.decoder()))
+
+  Nil
+}
+
+pub fn browse_open_demands_empty_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let query = [
+    #("limit", "100"),
+    #("offset", "0"),
+    #("status", "open"),
+  ]
+
+  let response =
+    simulate.browser_request(http.Get, "/api/company/demand/browse")
+    |> request.set_query(query)
+    |> web.handle_request(context)
+
+  assert response.status == 200
+  expect_json(response)
+
+  let body = simulate.read_body(response)
+  let assert Ok([]) = json.parse(body, decode.list(demand.decoder()))
+
+  Nil
+}
+
+pub fn browse_open_demands_missing_query_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let response =
+    simulate.browser_request(http.Get, "/api/company/demand/browse")
+    |> web.handle_request(context)
+
+  assert response.status == 400
+
+  Nil
+}
+
+pub fn browse_open_demands_invalid_query_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let query = [
+    #("limit", "wibble"),
+    //          ^^^^^^
+    #("offset", "0"),
+    #("status", "open"),
+  ]
+
+  let response =
+    simulate.browser_request(http.Get, "/api/company/demand/browse")
+    |> request.set_query(query)
+    |> web.handle_request(context)
+
+  assert response.status == 400
+
+  Nil
+}
+
+pub fn browse_open_demands_invalid_status_test() -> Nil {
+  use context <- server_test.with_context()
+
+  // missing status
+  let response =
+    simulate.browser_request(http.Get, "/api/company/demand/browse")
+    |> request.set_query([#("limit", "10"), #("offset", "0")])
+    |> web.handle_request(context)
+
+  assert response.status == 400
+
+  // a status other than "open"
+  let query = [
+    #("limit", "10"),
+    #("offset", "0"),
+    #("status", "closed"),
+    //           ^^^^^^
+  ]
+
+  let response =
+    simulate.browser_request(http.Get, "/api/company/demand/browse")
+    |> request.set_query(query)
+    |> web.handle_request(context)
+
+  assert response.status == 400
+
+  Nil
+}
