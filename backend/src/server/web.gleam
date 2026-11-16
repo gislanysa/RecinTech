@@ -1573,6 +1573,9 @@ fn require_demand_owner(
 /// - **201** If successful.
 /// - **400** If the Company ID or any provided entity ID is not a valid UUID,
 ///   or the request body is invalid JSON.
+/// - **401** If not authenticated.
+/// - **403** If the session is not a Company session, or the Demand belongs to
+///   a different Company.
 /// - **404** If the Company, or any assigned entity, is not found.
 /// - **409** If an entity is already assigned to the Demand.
 ///
@@ -1583,6 +1586,7 @@ fn register_demand(
 ) -> Response {
   use body <- wisp.require_json(request)
   use id <- require_valid_uuid(id)
+  use session <- require_company_session(request)
 
   let decoder = {
     use title <- decode.field("title", decode.string)
@@ -1621,9 +1625,9 @@ fn register_demand(
   }
 
   case decode.run(body, decoder) {
-    Error(_) -> wisp.bad_request("Invalid JSON")
-    Ok(payload) -> {
+    Ok(payload) if session.id == id -> {
       let result = {
+        // registering the demand
         use demand <- result.try(
           demand.register(
             database,
@@ -1635,6 +1639,7 @@ fn register_demand(
           |> result.map_error(DemandError),
         )
 
+        // assigning expertises
         use expertises <- result.try(
           list.try_map(payload.expertises, demand.assign_expertise(
             database,
@@ -1644,6 +1649,7 @@ fn register_demand(
           |> result.map_error(DemandError),
         )
 
+        // assigning segments
         use segments <- result.try(
           list.try_map(payload.segments, demand.assign_segment(
             database,
@@ -1653,6 +1659,7 @@ fn register_demand(
           |> result.map_error(DemandError),
         )
 
+        // assigning services
         use services <- result.try(
           list.try_map(payload.services, demand.assign_service(
             database,
@@ -1662,6 +1669,7 @@ fn register_demand(
           |> result.map_error(DemandError),
         )
 
+        // assigning technologies
         use technologies <- result.map(
           list.try_map(payload.technologies, demand.assign_technology(
             database,
@@ -1671,6 +1679,7 @@ fn register_demand(
           |> result.map_error(DemandError),
         )
 
+        // json body
         json.object([
           #("demand", demand.to_json(demand)),
           #("expertises", json.array(expertises, expertise.to_json)),
@@ -1678,16 +1687,17 @@ fn register_demand(
           #("services", json.array(services, service.to_json)),
           #("technologies", json.array(technologies, technology.to_json)),
         ])
+        |> json.to_string
       }
 
       case result {
+        Ok(body) -> wisp.json_response(body, 201)
         Error(error) -> handle_error(error)
-
-        Ok(body) ->
-          json.to_string(body)
-          |> wisp.json_response(201)
       }
     }
+
+    Ok(_) -> wisp.response(403)
+    Error(_) -> wisp.bad_request("Invalid JSON")
   }
 }
 
