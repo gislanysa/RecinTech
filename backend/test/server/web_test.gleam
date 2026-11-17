@@ -2163,6 +2163,7 @@ pub fn register_demand_test() -> Nil {
   let response =
     simulate.browser_request(http.Post, endpoint)
     |> simulate.json_body(body)
+    |> dummy.with_session(context, web.Company(company.id), company.email)
     |> web.handle_request(context)
 
   assert response.status == 201
@@ -2215,6 +2216,7 @@ pub fn register_demand_without_assignments_test() -> Nil {
   let response =
     simulate.browser_request(http.Post, endpoint)
     |> simulate.json_body(body)
+    |> dummy.with_session(context, web.Company(company.id), company.email)
     |> web.handle_request(context)
 
   assert response.status == 201
@@ -2232,6 +2234,8 @@ pub fn register_demand_without_assignments_test() -> Nil {
 pub fn register_demand_invalid_company_id_test() -> Nil {
   use context <- server_test.with_context()
 
+  let company = dummy.new_company(context.database)
+
   let body =
     json.object([
       #("title", json.string("wibble")),
@@ -2246,6 +2250,7 @@ pub fn register_demand_invalid_company_id_test() -> Nil {
   let response =
     simulate.browser_request(http.Post, "/api/company/wibble/demand")
     |> simulate.json_body(body)
+    |> dummy.with_session(context, web.Company(company.id), company.email)
     |> web.handle_request(context)
 
   assert response.status == 400
@@ -2263,6 +2268,7 @@ pub fn register_demand_invalid_json_test() -> Nil {
     simulate.browser_request(http.Post, endpoint)
     |> simulate.string_body("{not valid json")
     |> request.set_header("content-type", "application/json")
+    |> dummy.with_session(context, web.Company(company.id), company.email)
     |> web.handle_request(context)
 
   assert response.status == 400
@@ -2272,6 +2278,8 @@ pub fn register_demand_invalid_json_test() -> Nil {
 
 pub fn register_demand_missing_company_test() -> Nil {
   use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
 
   let body =
     json.object([
@@ -2288,9 +2296,10 @@ pub fn register_demand_missing_company_test() -> Nil {
   let response =
     simulate.browser_request(http.Post, endpoint)
     |> simulate.json_body(body)
+    |> dummy.with_session(context, web.Company(company.id), company.email)
     |> web.handle_request(context)
 
-  assert response.status == 404
+  assert response.status == 403
 
   Nil
 }
@@ -2316,6 +2325,7 @@ pub fn register_demand_duplicate_assignment_test() -> Nil {
   let response =
     simulate.browser_request(http.Post, endpoint)
     |> simulate.json_body(body)
+    |> dummy.with_session(context, web.Company(company.id), company.email)
     |> web.handle_request(context)
 
   assert response.status == 409
@@ -2339,6 +2349,7 @@ pub fn get_demand_segments_test() -> Nil {
 
   let endpoint =
     "/api/company/demand/" <> uuid.to_string(demand.id) <> "/segment"
+
   let response =
     simulate.browser_request(http.Get, endpoint)
     |> web.handle_request(context)
@@ -2478,6 +2489,7 @@ pub fn assign_segment_to_demand_test() -> Nil {
   let response =
     simulate.browser_request(http.Post, endpoint)
     |> simulate.json_body(body)
+    |> dummy.with_session(context, web.Company(company.id), company.email)
     |> web.handle_request(context)
 
   assert response.status == 201
@@ -2510,6 +2522,7 @@ pub fn assign_segment_to_demand_conflict_test() -> Nil {
   let response =
     simulate.browser_request(http.Post, endpoint)
     |> simulate.json_body(body)
+    |> dummy.with_session(context, web.Company(company.id), company.email)
     |> web.handle_request(context)
 
   assert response.status == 409
@@ -2535,6 +2548,7 @@ pub fn unassign_segment_from_demand_test() -> Nil {
 
   let response =
     simulate.browser_request(http.Delete, endpoint)
+    |> dummy.with_session(context, web.Company(company.id), company.email)
     |> web.handle_request(context)
 
   assert response.status == 200
@@ -2564,6 +2578,7 @@ pub fn unassign_missing_segment_from_demand_test() -> Nil {
 
   let response =
     simulate.browser_request(http.Delete, endpoint)
+    |> dummy.with_session(context, web.Company(company.id), company.email)
     |> web.handle_request(context)
 
   assert response.status == 404
@@ -2586,6 +2601,7 @@ pub fn assign_service_to_demand_test() -> Nil {
   let response =
     simulate.browser_request(http.Post, endpoint)
     |> simulate.json_body(body)
+    |> dummy.with_session(context, web.Company(company.id), company.email)
     |> web.handle_request(context)
 
   assert response.status == 201
@@ -2616,6 +2632,7 @@ pub fn assign_service_to_demand_conflict_test() -> Nil {
   let response =
     simulate.browser_request(http.Post, endpoint)
     |> simulate.json_body(body)
+    |> dummy.with_session(context, web.Company(company.id), company.email)
     |> web.handle_request(context)
 
   assert response.status == 409
@@ -2641,6 +2658,7 @@ pub fn unassign_demand_from_service_test() -> Nil {
 
   let response =
     simulate.browser_request(http.Delete, endpoint)
+    |> dummy.with_session(context, web.Company(company.id), company.email)
     |> web.handle_request(context)
 
   assert response.status == 200
@@ -2670,6 +2688,7 @@ pub fn unassign_missing_service_from_demand_test() -> Nil {
 
   let response =
     simulate.browser_request(http.Delete, endpoint)
+    |> dummy.with_session(context, web.Company(company.id), company.email)
     |> web.handle_request(context)
 
   assert response.status == 404
@@ -2692,6 +2711,7 @@ pub fn assign_technology_to_demand_test() -> Nil {
   let response =
     simulate.browser_request(http.Post, endpoint)
     |> simulate.json_body(body)
+    |> dummy.with_session(context, web.Company(company.id), company.email)
     |> web.handle_request(context)
 
   assert response.status == 201
@@ -2722,6 +2742,7 @@ pub fn assign_technology_to_demand_conflict_test() -> Nil {
   let response =
     simulate.browser_request(http.Post, endpoint)
     |> simulate.json_body(body)
+    |> dummy.with_session(context, web.Company(company.id), company.email)
     |> web.handle_request(context)
 
   assert response.status == 409
@@ -2747,6 +2768,7 @@ pub fn unassign_demand_from_technology_test() -> Nil {
 
   let response =
     simulate.browser_request(http.Delete, endpoint)
+    |> dummy.with_session(context, web.Company(company.id), company.email)
     |> web.handle_request(context)
 
   assert response.status == 200
@@ -2776,6 +2798,7 @@ pub fn unassign_missing_technology_from_demand_test() -> Nil {
 
   let response =
     simulate.browser_request(http.Delete, endpoint)
+    |> dummy.with_session(context, web.Company(company.id), company.email)
     |> web.handle_request(context)
 
   assert response.status == 404
@@ -2795,9 +2818,11 @@ pub fn assign_expertise_to_demand_test() -> Nil {
 
   let endpoint =
     "/api/company/demand/" <> uuid.to_string(demand.id) <> "/expertise"
+
   let response =
     simulate.browser_request(http.Post, endpoint)
     |> simulate.json_body(body)
+    |> dummy.with_session(context, web.Company(company.id), company.email)
     |> web.handle_request(context)
 
   assert response.status == 201
@@ -2825,9 +2850,11 @@ pub fn assign_expertise_to_demand_conflict_test() -> Nil {
 
   let endpoint =
     "/api/company/demand/" <> uuid.to_string(demand.id) <> "/expertise"
+
   let response =
     simulate.browser_request(http.Post, endpoint)
     |> simulate.json_body(body)
+    |> dummy.with_session(context, web.Company(company.id), company.email)
     |> web.handle_request(context)
 
   assert response.status == 409
@@ -2853,6 +2880,7 @@ pub fn unassign_demand_from_expertise_test() -> Nil {
 
   let response =
     simulate.browser_request(http.Delete, endpoint)
+    |> dummy.with_session(context, web.Company(company.id), company.email)
     |> web.handle_request(context)
 
   assert response.status == 200
@@ -2882,6 +2910,7 @@ pub fn unassign_missing_expertise_from_demand_test() -> Nil {
 
   let response =
     simulate.browser_request(http.Delete, endpoint)
+    |> dummy.with_session(context, web.Company(company.id), company.email)
     |> web.handle_request(context)
 
   assert response.status == 404
@@ -2892,6 +2921,7 @@ pub fn unassign_missing_expertise_from_demand_test() -> Nil {
 pub fn assign_segment_to_missing_demand_test() -> Nil {
   use context <- server_test.with_context()
 
+  let company = dummy.new_company(context.database)
   let segment = dummy.new_segment(context.database)
   let body =
     json.object([#("segment", json.string(uuid.to_string(segment.id)))])
@@ -2900,6 +2930,7 @@ pub fn assign_segment_to_missing_demand_test() -> Nil {
   let response =
     simulate.browser_request(http.Post, endpoint)
     |> simulate.json_body(body)
+    |> dummy.with_session(context, web.Company(company.id), company.email)
     |> web.handle_request(context)
 
   assert response.status == 404
@@ -2920,6 +2951,7 @@ pub fn assign_missing_segment_to_demand_test() -> Nil {
   let response =
     simulate.browser_request(http.Post, endpoint)
     |> simulate.json_body(body)
+    |> dummy.with_session(context, web.Company(company.id), company.email)
     |> web.handle_request(context)
 
   assert response.status == 404
@@ -2930,6 +2962,7 @@ pub fn assign_missing_segment_to_demand_test() -> Nil {
 pub fn assign_segment_to_demand_invalid_demand_id_test() -> Nil {
   use context <- server_test.with_context()
 
+  let company = dummy.new_company(context.database)
   let segment = dummy.new_segment(context.database)
   let body =
     json.object([#("segment", json.string(uuid.to_string(segment.id)))])
@@ -2937,6 +2970,7 @@ pub fn assign_segment_to_demand_invalid_demand_id_test() -> Nil {
   let response =
     simulate.browser_request(http.Post, "/api/company/demand/wibble/segment")
     |> simulate.json_body(body)
+    |> dummy.with_session(context, web.Company(company.id), company.email)
     |> web.handle_request(context)
 
   assert response.status == 400
@@ -2953,6 +2987,7 @@ pub fn delete_demand_test() -> Nil {
   let endpoint = "/api/company/demand/" <> uuid.to_string(demand.id)
   let response =
     simulate.browser_request(http.Delete, endpoint)
+    |> dummy.with_session(context, web.Company(company.id), company.email)
     |> web.handle_request(context)
 
   assert response.status == 200
@@ -2969,12 +3004,226 @@ pub fn delete_demand_test() -> Nil {
 pub fn delete_missing_demand_test() -> Nil {
   use context <- server_test.with_context()
 
+  let company = dummy.new_company(context.database)
+
   let endpoint = "/api/company/demand/" <> uuid.v7_string()
   let response =
     simulate.browser_request(http.Delete, endpoint)
+    |> dummy.with_session(context, web.Company(company.id), company.email)
     |> web.handle_request(context)
 
   assert response.status == 404
+
+  Nil
+}
+
+pub fn update_demand_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let demand = dummy.new_demand(context.database, from: company.id)
+
+  let body =
+    json.object([
+      #("title", json.string("updated title")),
+      #("description", json.string("updated description")),
+    ])
+
+  let endpoint = "/api/company/demand/" <> uuid.to_string(demand.id)
+  let response =
+    simulate.browser_request(http.Patch, endpoint)
+    |> simulate.json_body(body)
+    |> dummy.with_session(context, web.Company(company.id), company.email)
+    |> web.handle_request(context)
+
+  assert response.status == 200
+  expect_json(response)
+
+  let body = simulate.read_body(response)
+  let assert Ok(returned) = json.parse(body, demand.decoder())
+
+  assert returned.id == demand.id
+  assert returned.title == "updated title"
+  assert returned.description == "updated description"
+
+  let assert Ok(persisted) = demand.get(context.database, demand.id)
+  assert persisted.title == "updated title"
+  assert persisted.description == "updated description"
+
+  Nil
+}
+
+pub fn update_demand_partial_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let demand = dummy.new_demand(context.database, from: company.id)
+
+  let body =
+    json.object([
+      #("title", json.string("updated title")),
+    ])
+
+  let endpoint = "/api/company/demand/" <> uuid.to_string(demand.id)
+  let response =
+    simulate.browser_request(http.Patch, endpoint)
+    |> simulate.json_body(body)
+    |> dummy.with_session(context, web.Company(company.id), company.email)
+    |> web.handle_request(context)
+
+  assert response.status == 200
+  expect_json(response)
+
+  let body = simulate.read_body(response)
+  let assert Ok(returned) = json.parse(body, demand.decoder())
+
+  assert returned.title == "updated title"
+  assert returned.description == demand.description
+
+  let assert Ok(persisted) = demand.get(context.database, demand.id)
+  assert persisted.title == "updated title"
+  assert persisted.description == demand.description
+
+  Nil
+}
+
+pub fn update_demand_ignores_empty_fields_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let demand = dummy.new_demand(context.database, from: company.id)
+
+  let body =
+    json.object([
+      #("title", json.string("")),
+      #("description", json.string("")),
+    ])
+
+  let endpoint = "/api/company/demand/" <> uuid.to_string(demand.id)
+  let response =
+    simulate.browser_request(http.Patch, endpoint)
+    |> simulate.json_body(body)
+    |> dummy.with_session(context, web.Company(company.id), company.email)
+    |> web.handle_request(context)
+
+  assert response.status == 200
+  expect_json(response)
+
+  let body = simulate.read_body(response)
+  let assert Ok(returned) = json.parse(body, demand.decoder())
+
+  assert returned.title == demand.title
+  assert returned.description == demand.description
+
+  let assert Ok(persisted) = demand.get(context.database, demand.id)
+  assert persisted.title == demand.title
+  assert persisted.description == demand.description
+
+  Nil
+}
+
+pub fn update_demand_invalid_json_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let record = dummy.new_demand(context.database, from: company.id)
+
+  let endpoint = "/api/company/demand/" <> uuid.to_string(record.id)
+  let response =
+    simulate.browser_request(http.Patch, endpoint)
+    |> simulate.string_body("{not valid json")
+    |> request.set_header("content-type", "application/json")
+    |> dummy.with_session(context, web.Company(company.id), company.email)
+    |> web.handle_request(context)
+
+  assert response.status == 400
+
+  Nil
+}
+
+pub fn update_demand_invalid_id_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+
+  let body =
+    json.object([
+      #("title", json.string("updated title")),
+    ])
+
+  let response =
+    simulate.browser_request(http.Patch, "/api/company/demand/wibble")
+    |> simulate.json_body(body)
+    |> dummy.with_session(context, web.Company(company.id), company.email)
+    |> web.handle_request(context)
+
+  assert response.status == 400
+
+  Nil
+}
+
+pub fn update_missing_demand_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+
+  let body =
+    json.object([
+      #("title", json.string("updated title")),
+    ])
+
+  let endpoint = "/api/company/demand/" <> uuid.v7_string()
+  let response =
+    simulate.browser_request(http.Patch, endpoint)
+    |> simulate.json_body(body)
+    |> dummy.with_session(context, web.Company(company.id), company.email)
+    |> web.handle_request(context)
+
+  assert response.status == 404
+
+  Nil
+}
+
+pub fn update_demand_requires_demand_owner_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let owner = dummy.new_company(context.database)
+  let other = dummy.new_company(context.database)
+  let startup = dummy.new_startup(context.database)
+  let record = dummy.new_demand(context.database, from: owner.id)
+
+  let body =
+    json.object([
+      #("title", json.string("updated title")),
+    ])
+
+  let endpoint = "/api/company/demand/" <> uuid.to_string(record.id)
+
+  // no session
+  let response =
+    simulate.browser_request(http.Patch, endpoint)
+    |> simulate.json_body(body)
+    |> web.handle_request(context)
+  assert response.status == 401
+
+  // startup session
+  let response =
+    simulate.browser_request(http.Patch, endpoint)
+    |> simulate.json_body(body)
+    |> dummy.with_session(context, web.Startup(startup.id), startup.email)
+    |> web.handle_request(context)
+  assert response.status == 403
+
+  // a different company's session
+  let response =
+    simulate.browser_request(http.Patch, endpoint)
+    |> simulate.json_body(body)
+    |> dummy.with_session(context, web.Company(other.id), other.email)
+    |> web.handle_request(context)
+  assert response.status == 403
+
+  let assert Ok(persisted) = demand.get(context.database, record.id)
+  assert persisted.title == record.title
 
   Nil
 }
