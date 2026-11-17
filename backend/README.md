@@ -31,7 +31,7 @@ Static files (compiled CSS and JS) are served at `/static` from `priv/static`.
 
 ## Database
 
-The schema lives in [`postgres/00_tables.sql`](postgres/00_tables.sql) and is applied
+The schema lives in [`database/schema/00_tables.sql`](database/schema/00_tables.sql) and is applied
 the first time the PostgreSQL container starts.
 
 ```mermaid
