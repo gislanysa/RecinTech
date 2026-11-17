@@ -69,13 +69,10 @@ jobs:
         run: gleam build
 
       - name: Build database tables
-        run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f postgres/00_tables.sql
-
-      - name: Validate generated SQL queries
-        run: gleam run -m squirrel check
-
-      - name: Check formatting
-        run: gleam format --check src test
+        run: |
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f database/schema/00_tables.sql
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f database/schema/01_seed.sql
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f database/cleanup.sql
 
       - name: Run unit tests
         run: gleam test

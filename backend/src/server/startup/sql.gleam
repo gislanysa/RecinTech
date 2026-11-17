@@ -9,6 +9,134 @@ import gleam/time/timestamp.{type Timestamp}
 import pog
 import youid/uuid.{type Uuid}
 
+/// A row you get from running the `accept_connection` query
+/// defined in `./src/server/startup/sql/accept_connection.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v4.7.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type AcceptConnectionRow {
+  AcceptConnectionRow(
+    company_id: Uuid,
+    startup_id: Uuid,
+    connection_status: ConnectionStatusEnum,
+    created_at: Timestamp,
+    updated_at: Timestamp,
+  )
+}
+
+/// accept a company's request to connect
+///
+/// > 🐿️ This function was generated automatically using v4.7.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn accept_connection(
+  db: pog.Connection,
+  arg_1: Uuid,
+  arg_2: Uuid,
+) -> Result(pog.Returned(AcceptConnectionRow), pog.QueryError) {
+  let decoder = {
+    use company_id <- decode.field(0, uuid_decoder())
+    use startup_id <- decode.field(1, uuid_decoder())
+    use connection_status <- decode.field(2, connection_status_enum_decoder())
+    use created_at <- decode.field(3, pog.timestamp_decoder())
+    use updated_at <- decode.field(4, pog.timestamp_decoder())
+    decode.success(AcceptConnectionRow(
+      company_id:,
+      startup_id:,
+      connection_status:,
+      created_at:,
+      updated_at:,
+    ))
+  }
+
+  "-- accept a company's request to connect
+UPDATE
+    public.company_startup_connection AS connection
+SET
+    connection_status = 'accepted_connection',
+    updated_at = CURRENT_TIMESTAMP
+WHERE
+    connection.company_id = $1::uuid
+    AND connection.startup_id = $2::uuid
+    AND connection.connection_status = 'pending_connection'
+RETURNING
+    company_id,
+    startup_id,
+    connection_status,
+    created_at,
+    updated_at;
+"
+  |> pog.query
+  |> pog.parameter(pog.text(uuid.to_string(arg_1)))
+  |> pog.parameter(pog.text(uuid.to_string(arg_2)))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
+/// A row you get from running the `apply_to_demand` query
+/// defined in `./src/server/startup/sql/apply_to_demand.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v4.7.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type ApplyToDemandRow {
+  ApplyToDemandRow(
+    demand_id: Uuid,
+    startup_id: Uuid,
+    application_status: DemandApplicationStatus,
+    created_at: Timestamp,
+    updated_at: Timestamp,
+  )
+}
+
+/// apply to a demand as a startup
+///
+/// > 🐿️ This function was generated automatically using v4.7.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn apply_to_demand(
+  db: pog.Connection,
+  arg_1: Uuid,
+  arg_2: Uuid,
+) -> Result(pog.Returned(ApplyToDemandRow), pog.QueryError) {
+  let decoder = {
+    use demand_id <- decode.field(0, uuid_decoder())
+    use startup_id <- decode.field(1, uuid_decoder())
+    use application_status <- decode.field(
+      2,
+      demand_application_status_decoder(),
+    )
+    use created_at <- decode.field(3, pog.timestamp_decoder())
+    use updated_at <- decode.field(4, pog.timestamp_decoder())
+    decode.success(ApplyToDemandRow(
+      demand_id:,
+      startup_id:,
+      application_status:,
+      created_at:,
+      updated_at:,
+    ))
+  }
+
+  "-- apply to a demand as a startup
+INSERT INTO
+    public.demand_application (startup_id, demand_id)
+VALUES
+    ($1::uuid, $2::uuid)
+RETURNING
+    demand_id,
+    startup_id,
+    application_status,
+    created_at,
+    updated_at;
+"
+  |> pog.query
+  |> pog.parameter(pog.text(uuid.to_string(arg_1)))
+  |> pog.parameter(pog.text(uuid.to_string(arg_2)))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
 /// A row you get from running the `assign_expertise` query
 /// defined in `./src/server/startup/sql/assign_expertise.sql`.
 ///
@@ -215,6 +343,145 @@ FROM
   |> pog.execute(db)
 }
 
+/// A row you get from running the `decline_connection` query
+/// defined in `./src/server/startup/sql/decline_connection.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v4.7.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type DeclineConnectionRow {
+  DeclineConnectionRow(
+    company_id: Uuid,
+    startup_id: Uuid,
+    connection_status: ConnectionStatusEnum,
+    created_at: Timestamp,
+    updated_at: Timestamp,
+  )
+}
+
+/// decline a company's request to connect
+///
+/// > 🐿️ This function was generated automatically using v4.7.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn decline_connection(
+  db: pog.Connection,
+  arg_1: Uuid,
+  arg_2: Uuid,
+) -> Result(pog.Returned(DeclineConnectionRow), pog.QueryError) {
+  let decoder = {
+    use company_id <- decode.field(0, uuid_decoder())
+    use startup_id <- decode.field(1, uuid_decoder())
+    use connection_status <- decode.field(2, connection_status_enum_decoder())
+    use created_at <- decode.field(3, pog.timestamp_decoder())
+    use updated_at <- decode.field(4, pog.timestamp_decoder())
+    decode.success(DeclineConnectionRow(
+      company_id:,
+      startup_id:,
+      connection_status:,
+      created_at:,
+      updated_at:,
+    ))
+  }
+
+  "-- decline a company's request to connect
+UPDATE
+    public.company_startup_connection AS connection
+SET
+    connection_status = 'declined_connection',
+    updated_at = CURRENT_TIMESTAMP
+WHERE
+    connection.company_id = $1::uuid
+    AND connection.startup_id = $2::uuid
+    AND connection.connection_status = 'pending_connection'
+RETURNING
+    company_id,
+    startup_id,
+    connection_status,
+    created_at,
+    updated_at;
+"
+  |> pog.query
+  |> pog.parameter(pog.text(uuid.to_string(arg_1)))
+  |> pog.parameter(pog.text(uuid.to_string(arg_2)))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
+/// A row you get from running the `delete_canvas` query
+/// defined in `./src/server/startup/sql/delete_canvas.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v4.7.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type DeleteCanvasRow {
+  DeleteCanvasRow(
+    customer_segments: String,
+    value_proposition: String,
+    channels: String,
+    customer_relationships: String,
+    revenue_streams: String,
+    key_resources: String,
+    key_activities: String,
+    key_partnerships: String,
+    cost_structure: String,
+  )
+}
+
+/// delete a startup's business model canvas
+///
+/// > 🐿️ This function was generated automatically using v4.7.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn delete_canvas(
+  db: pog.Connection,
+  arg_1: Uuid,
+) -> Result(pog.Returned(DeleteCanvasRow), pog.QueryError) {
+  let decoder = {
+    use customer_segments <- decode.field(0, decode.string)
+    use value_proposition <- decode.field(1, decode.string)
+    use channels <- decode.field(2, decode.string)
+    use customer_relationships <- decode.field(3, decode.string)
+    use revenue_streams <- decode.field(4, decode.string)
+    use key_resources <- decode.field(5, decode.string)
+    use key_activities <- decode.field(6, decode.string)
+    use key_partnerships <- decode.field(7, decode.string)
+    use cost_structure <- decode.field(8, decode.string)
+    decode.success(DeleteCanvasRow(
+      customer_segments:,
+      value_proposition:,
+      channels:,
+      customer_relationships:,
+      revenue_streams:,
+      key_resources:,
+      key_activities:,
+      key_partnerships:,
+      cost_structure:,
+    ))
+  }
+
+  "-- delete a startup's business model canvas
+DELETE FROM
+    public.startup_canvas AS canvas
+WHERE
+    canvas.startup_id = $1::uuid
+RETURNING
+    canvas.customer_segments,
+    canvas.value_proposition,
+    canvas.channels,
+    canvas.customer_relationships,
+    canvas.revenue_streams,
+    canvas.key_resources,
+    canvas.key_activities,
+    canvas.key_partnerships,
+    canvas.cost_structure;
+"
+  |> pog.query
+  |> pog.parameter(pog.text(uuid.to_string(arg_1)))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
 /// A row you get from running the `ensure_exists` query
 /// defined in `./src/server/startup/sql/ensure_exists.sql`.
 ///
@@ -335,6 +602,146 @@ WHERE
 "
   |> pog.query
   |> pog.parameter(pog.text(uuid.to_string(arg_1)))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
+/// A row you get from running the `get_canvas` query
+/// defined in `./src/server/startup/sql/get_canvas.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v4.7.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type GetCanvasRow {
+  GetCanvasRow(
+    customer_segments: String,
+    value_proposition: String,
+    channels: String,
+    customer_relationships: String,
+    revenue_streams: String,
+    key_resources: String,
+    key_activities: String,
+    key_partnerships: String,
+    cost_structure: String,
+  )
+}
+
+/// get a startup's business model canvas
+///
+/// > 🐿️ This function was generated automatically using v4.7.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn get_canvas(
+  db: pog.Connection,
+  arg_1: Uuid,
+) -> Result(pog.Returned(GetCanvasRow), pog.QueryError) {
+  let decoder = {
+    use customer_segments <- decode.field(0, decode.string)
+    use value_proposition <- decode.field(1, decode.string)
+    use channels <- decode.field(2, decode.string)
+    use customer_relationships <- decode.field(3, decode.string)
+    use revenue_streams <- decode.field(4, decode.string)
+    use key_resources <- decode.field(5, decode.string)
+    use key_activities <- decode.field(6, decode.string)
+    use key_partnerships <- decode.field(7, decode.string)
+    use cost_structure <- decode.field(8, decode.string)
+    decode.success(GetCanvasRow(
+      customer_segments:,
+      value_proposition:,
+      channels:,
+      customer_relationships:,
+      revenue_streams:,
+      key_resources:,
+      key_activities:,
+      key_partnerships:,
+      cost_structure:,
+    ))
+  }
+
+  "-- get a startup's business model canvas
+SELECT
+    canvas.customer_segments,
+    canvas.value_proposition,
+    canvas.channels,
+    canvas.customer_relationships,
+    canvas.revenue_streams,
+    canvas.key_resources,
+    canvas.key_activities,
+    canvas.key_partnerships,
+    canvas.cost_structure
+FROM
+    public.startup_canvas AS canvas
+WHERE
+    canvas.startup_id = $1::uuid;
+"
+  |> pog.query
+  |> pog.parameter(pog.text(uuid.to_string(arg_1)))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
+/// A row you get from running the `get_connections` query
+/// defined in `./src/server/startup/sql/get_connections.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v4.7.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type GetConnectionsRow {
+  GetConnectionsRow(
+    company_id: Uuid,
+    startup_id: Uuid,
+    connection_status: ConnectionStatusEnum,
+    created_at: Timestamp,
+    updated_at: Timestamp,
+  )
+}
+
+/// get all connections from a startup
+///
+/// > 🐿️ This function was generated automatically using v4.7.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn get_connections(
+  db: pog.Connection,
+  arg_1: Uuid,
+  arg_2: Int,
+  arg_3: Int,
+) -> Result(pog.Returned(GetConnectionsRow), pog.QueryError) {
+  let decoder = {
+    use company_id <- decode.field(0, uuid_decoder())
+    use startup_id <- decode.field(1, uuid_decoder())
+    use connection_status <- decode.field(2, connection_status_enum_decoder())
+    use created_at <- decode.field(3, pog.timestamp_decoder())
+    use updated_at <- decode.field(4, pog.timestamp_decoder())
+    decode.success(GetConnectionsRow(
+      company_id:,
+      startup_id:,
+      connection_status:,
+      created_at:,
+      updated_at:,
+    ))
+  }
+
+  "-- get all connections from a startup
+SELECT
+    company_id,
+    startup_id,
+    connection.connection_status,
+    created_at,
+    updated_at
+FROM
+    public.company_startup_connection AS connection
+WHERE
+    connection.startup_id = $1::uuid
+ORDER BY
+    connection.created_at DESC
+LIMIT
+    $2::int OFFSET $3::int;
+"
+  |> pog.query
+  |> pog.parameter(pog.text(uuid.to_string(arg_1)))
+  |> pog.parameter(pog.int(arg_2))
+  |> pog.parameter(pog.int(arg_3))
   |> pog.returning(decoder)
   |> pog.execute(db)
 }
@@ -1147,7 +1554,242 @@ RETURNING
   |> pog.execute(db)
 }
 
+/// A row you get from running the `upsert_canvas` query
+/// defined in `./src/server/startup/sql/upsert_canvas.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v4.7.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type UpsertCanvasRow {
+  UpsertCanvasRow(
+    customer_segments: String,
+    value_proposition: String,
+    channels: String,
+    customer_relationships: String,
+    revenue_streams: String,
+    key_resources: String,
+    key_activities: String,
+    key_partnerships: String,
+    cost_structure: String,
+  )
+}
+
+/// create or update a startup's business model canvas
+///
+/// > 🐿️ This function was generated automatically using v4.7.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn upsert_canvas(
+  db: pog.Connection,
+  arg_1: Uuid,
+  arg_2: String,
+  arg_3: String,
+  arg_4: String,
+  arg_5: String,
+  arg_6: String,
+  arg_7: String,
+  arg_8: String,
+  arg_9: String,
+  arg_10: String,
+) -> Result(pog.Returned(UpsertCanvasRow), pog.QueryError) {
+  let decoder = {
+    use customer_segments <- decode.field(0, decode.string)
+    use value_proposition <- decode.field(1, decode.string)
+    use channels <- decode.field(2, decode.string)
+    use customer_relationships <- decode.field(3, decode.string)
+    use revenue_streams <- decode.field(4, decode.string)
+    use key_resources <- decode.field(5, decode.string)
+    use key_activities <- decode.field(6, decode.string)
+    use key_partnerships <- decode.field(7, decode.string)
+    use cost_structure <- decode.field(8, decode.string)
+    decode.success(UpsertCanvasRow(
+      customer_segments:,
+      value_proposition:,
+      channels:,
+      customer_relationships:,
+      revenue_streams:,
+      key_resources:,
+      key_activities:,
+      key_partnerships:,
+      cost_structure:,
+    ))
+  }
+
+  "-- create or update a startup's business model canvas
+INSERT INTO
+    public.startup_canvas (
+        startup_id,
+        customer_segments,
+        value_proposition,
+        channels,
+        customer_relationships,
+        revenue_streams,
+        key_resources,
+        key_activities,
+        key_partnerships,
+        cost_structure
+    )
+VALUES
+    (
+        $1::uuid,
+        $2::text,
+        $3::text,
+        $4::text,
+        $5::text,
+        $6::text,
+        $7::text,
+        $8::text,
+        $9::text,
+        $10::text
+    ) ON CONFLICT (startup_id) DO
+UPDATE
+SET
+    customer_segments = excluded.customer_segments,
+    value_proposition = excluded.value_proposition,
+    channels = excluded.channels,
+    customer_relationships = excluded.customer_relationships,
+    revenue_streams = excluded.revenue_streams,
+    key_resources = excluded.key_resources,
+    key_activities = excluded.key_activities,
+    key_partnerships = excluded.key_partnerships,
+    cost_structure = excluded.cost_structure,
+    updated_at = CURRENT_TIMESTAMP
+RETURNING
+    customer_segments,
+    value_proposition,
+    channels,
+    customer_relationships,
+    revenue_streams,
+    key_resources,
+    key_activities,
+    key_partnerships,
+    cost_structure;
+"
+  |> pog.query
+  |> pog.parameter(pog.text(uuid.to_string(arg_1)))
+  |> pog.parameter(pog.text(arg_2))
+  |> pog.parameter(pog.text(arg_3))
+  |> pog.parameter(pog.text(arg_4))
+  |> pog.parameter(pog.text(arg_5))
+  |> pog.parameter(pog.text(arg_6))
+  |> pog.parameter(pog.text(arg_7))
+  |> pog.parameter(pog.text(arg_8))
+  |> pog.parameter(pog.text(arg_9))
+  |> pog.parameter(pog.text(arg_10))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
+/// A row you get from running the `withdraw_demand_application` query
+/// defined in `./src/server/startup/sql/withdraw_demand_application.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v4.7.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type WithdrawDemandApplicationRow {
+  WithdrawDemandApplicationRow(
+    demand_id: Uuid,
+    startup_id: Uuid,
+    application_status: DemandApplicationStatus,
+    created_at: Timestamp,
+    updated_at: Timestamp,
+  )
+}
+
+/// withdraw a startup's application to a demand
+///
+/// > 🐿️ This function was generated automatically using v4.7.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn withdraw_demand_application(
+  db: pog.Connection,
+  arg_1: Uuid,
+  arg_2: Uuid,
+) -> Result(pog.Returned(WithdrawDemandApplicationRow), pog.QueryError) {
+  let decoder = {
+    use demand_id <- decode.field(0, uuid_decoder())
+    use startup_id <- decode.field(1, uuid_decoder())
+    use application_status <- decode.field(
+      2,
+      demand_application_status_decoder(),
+    )
+    use created_at <- decode.field(3, pog.timestamp_decoder())
+    use updated_at <- decode.field(4, pog.timestamp_decoder())
+    decode.success(WithdrawDemandApplicationRow(
+      demand_id:,
+      startup_id:,
+      application_status:,
+      created_at:,
+      updated_at:,
+    ))
+  }
+
+  "-- withdraw a startup's application to a demand
+DELETE FROM
+    public.demand_application
+WHERE
+    demand_application.startup_id = $1::uuid
+    AND demand_application.demand_id = $2::uuid
+    AND demand_application.application_status = 'pending_application'
+RETURNING
+    demand_id,
+    startup_id,
+    application_status,
+    created_at,
+    updated_at;
+"
+  |> pog.query
+  |> pog.parameter(pog.text(uuid.to_string(arg_1)))
+  |> pog.parameter(pog.text(uuid.to_string(arg_2)))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
 // --- Enums -------------------------------------------------------------------
+
+/// Corresponds to the Postgres `connection_status_enum` enum.
+///
+/// > 🐿️ This type definition was generated automatically using v4.7.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type ConnectionStatusEnum {
+  DeclinedConnection
+  AcceptedConnection
+  PendingConnection
+}
+
+fn connection_status_enum_decoder() -> decode.Decoder(ConnectionStatusEnum) {
+  use connection_status_enum <- decode.then(decode.string)
+  case connection_status_enum {
+    "declined_connection" -> decode.success(DeclinedConnection)
+    "accepted_connection" -> decode.success(AcceptedConnection)
+    "pending_connection" -> decode.success(PendingConnection)
+    _ -> decode.failure(DeclinedConnection, "ConnectionStatusEnum")
+  }
+}
+
+/// Corresponds to the Postgres `demand_application_status` enum.
+///
+/// > 🐿️ This type definition was generated automatically using v4.7.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type DemandApplicationStatus {
+  DeclinedApplication
+  AcceptedApplication
+  PendingApplication
+}
+
+fn demand_application_status_decoder() -> decode.Decoder(
+  DemandApplicationStatus,
+) {
+  use demand_application_status <- decode.then(decode.string)
+  case demand_application_status {
+    "declined_application" -> decode.success(DeclinedApplication)
+    "accepted_application" -> decode.success(AcceptedApplication)
+    "pending_application" -> decode.success(PendingApplication)
+    _ -> decode.failure(DeclinedApplication, "DemandApplicationStatus")
+  }
+}
 
 /// Corresponds to the Postgres `lgpd_consent` enum.
 ///

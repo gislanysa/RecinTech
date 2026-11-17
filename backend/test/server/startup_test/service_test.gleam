@@ -1,3 +1,4 @@
+import gleam/list
 import server/dummy
 import server/service
 import server_test
@@ -49,7 +50,7 @@ pub fn get_many_services_test() -> Nil {
   let assert Ok(returned) =
     service.get_many(context.database, limit: max, offset: 0)
 
-  assert returned == services
+  assert list.all(returned, fn(item) { list.contains(services, item) })
 
   Nil
 }

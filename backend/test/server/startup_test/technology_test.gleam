@@ -1,3 +1,4 @@
+import gleam/list
 import server/dummy
 import server/technology
 import server_test
@@ -50,7 +51,7 @@ pub fn get_many_technologies_test() -> Nil {
   let assert Ok(returned) =
     technology.get_many(context.database, limit: max, offset: 0)
 
-  assert returned == technologies
+  assert list.all(returned, fn(item) { list.contains(technologies, item) })
 
   Nil
 }

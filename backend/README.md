@@ -31,7 +31,7 @@ Static files (compiled CSS and JS) are served at `/static` from `priv/static`.
 
 ## Database
 
-The schema lives in [`postgres/00_tables.sql`](postgres/00_tables.sql) and is applied
+The schema lives in [`database/schema/00_tables.sql`](database/schema/00_tables.sql) and is applied
 the first time the PostgreSQL container starts.
 
 ```mermaid
@@ -57,46 +57,96 @@ erDiagram
     text city
     text state
     timestamp created_at
+    timestamp updated_at
     bool is_active
     text website
   }
 
+  STARTUP_CANVAS ||..|| STARTUP : has
+  STARTUP_CANVAS {
+    uuid startup_id PK, FK
+    text customer_segments
+    text value_proposition
+    text channels
+    text customer_relationships
+    text revenue_streams
+    text key_resources
+    text key_activities
+    text key_partnerships
+    text cost_structure
+    timestamp created_at
+    timestamp updated_at
+  }
+
+  LGPD_POLICY {
+    int version PK
+    text document_url
+    text document_hash
+    timestamp published_at
+    bool is_current
+  }
+
   STARTUP_LGPD_CONSENT }o..|| STARTUP : has
+  STARTUP_LGPD_CONSENT }o..|| LGPD_POLICY : accepts
   STARTUP_LGPD_CONSENT {
     uuid startup_id PK, FK
     lgpd_consent consent "granted | revoked"
     timestamp updated_at
-    int policy_version PK
+    int policy_version PK, FK
   }
 
-  company {
+  STARTUP_LGPD_CONSENT_EVENT }o..|| STARTUP : records
+  STARTUP_LGPD_CONSENT_EVENT }o..|| LGPD_POLICY : accepts
+  STARTUP_LGPD_CONSENT_EVENT {
+    uuid id PK
+    uuid startup_id FK
+    lgpd_consent consent "granted | revoked"
+    int policy_version FK
+    timestamp occurred_at
+  }
+
+  COMPANY {
     uuid id PK
     text name
     text email UK
     company_size size "micro | small | medium | big"
     text password_hash
-    text cnpj
+    text cnpj UK
     text city
     text state
     timestamp created_at
+    timestamp updated_at
     bool is_active
     text website
   }
 
-  company_LGPD_CONSENT }o..|| company : has
-  company_LGPD_CONSENT {
+  COMPANY_LGPD_CONSENT }o..|| COMPANY : has
+  COMPANY_LGPD_CONSENT }o..|| LGPD_POLICY : accepts
+  COMPANY_LGPD_CONSENT {
     uuid company_id PK, FK
     lgpd_consent consent "granted | revoked"
     timestamp updated_at
-    int policy_version PK
+    int policy_version PK, FK
   }
 
-  COMPANY_STARTUP_BOOKMARK }o..|| company : has
-  COMPANY_STARTUP_BOOKMARK }o..|| STARTUP : has
-  COMPANY_STARTUP_BOOKMARK {
+  COMPANY_LGPD_CONSENT_EVENT }o..|| COMPANY : records
+  COMPANY_LGPD_CONSENT_EVENT }o..|| LGPD_POLICY : accepts
+  COMPANY_LGPD_CONSENT_EVENT {
+    uuid id PK
+    uuid company_id FK
+    lgpd_consent consent "granted | revoked"
+    int policy_version FK
+    timestamp occurred_at
+  }
+
+  COMPANY_STARTUP_CONNECTION }o..|| COMPANY : requested_by
+  COMPANY_STARTUP_CONNECTION }o..|| STARTUP : connects_with
+  COMPANY_STARTUP_CONNECTION {
     uuid company_id PK, FK
     uuid startup_id PK, FK
+    connection_status_enum connection_status "pending_connection | accepted_connection | declined_connection"
     timestamp created_at
+    timestamp updated_at
   }
 
   STARTUP_SEGMENT }o..|| STARTUP : has
@@ -106,20 +156,30 @@ erDiagram
     uuid segment_id PK, FK
   }
 
-  company_SEGMENT }o..|| company : has
-  company_SEGMENT }o..|| SEGMENT : has
-  company_SEGMENT {
+  COMPANY_SEGMENT }o..|| COMPANY : has
+  COMPANY_SEGMENT }o..|| SEGMENT : has
+  COMPANY_SEGMENT {
     uuid company_id PK, FK
     uuid segment_id PK, FK
   }
 
-  DEMAND }o..|| company : has
+  DEMAND }o..|| COMPANY : has
   DEMAND {
     uuid id PK
     uuid company_id FK
     text title
     text description
     demand_status demand_status "open | closed | canceled"
+    timestamp created_at
+    timestamp updated_at
+  }
+
+  DEMAND_APPLICATION }o..|| STARTUP : applies_to
+  DEMAND_APPLICATION }o..|| DEMAND : receives
+  DEMAND_APPLICATION {
+    uuid startup_id PK, FK
+    uuid demand_id PK, FK
+    demand_application_status application_status "pending_application | accepted_application | declined_application"
     timestamp created_at
     timestamp updated_at
   }

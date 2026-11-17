@@ -14,10 +14,11 @@ export default function PaginaConexoesEmpresa() {
   const [carregando, setCarregando] = useState(true)
 
   useEffect(() => {
+    if (!empresa?.id) return
     listarConvites(empresa.id)
       .then(setConvites)
       .finally(() => setCarregando(false))
-  }, [empresa.id])
+  }, [empresa?.id])
 
   return (
     <div className="flex flex-col gap-8">

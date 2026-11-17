@@ -1,4 +1,43 @@
-//// Http handlers and middlewares
+//// HTTP routing, handlers, sessions and error mapping for the RecInTech API.
+////
+//// This module is the boundary between the HTTP server and the rest of the
+//// application.
+////
+//// Unknown paths under `/api` return `404 Not Found`. Any other unknown path
+//// returns the single-page client document, which lets the frontend router
+//// handle its own routes.
+////
+//// ## Authentication
+////
+//// Authentication is cookie-based. A successful `POST /api/auth/login` stores a
+//// signed `SESSION` cookie containing a JSON value such as:
+////
+//// ```json
+//// { "type": "startup", "id": "01a058ae-057f-73e8-b2a0-50986559767b" }
+//// ```
+////
+//// The `type` field is either `"startup"` or `"company"`. Use
+//// [`require_session`](#require_session),
+//// [`require_startup_session`](#require_startup_session) and
+//// [`require_company_session`](#require_company_session) to guard handlers.
+////
+//// ## Example
+////
+//// ```gleam
+//// import server/web
+////
+//// pub fn main() {
+////   let assert Ok(static_directory) = server.static_directory()
+////
+////   let context = web.Context(
+////     database: database,
+////     static_directory: static_directory
+////   )
+////
+////   let response = web.handle_request(request, context)
+////   assert response.status == 200
+//// }
+//// ```
 
 import gleam/dynamic/decode
 import gleam/float
@@ -18,7 +57,8 @@ import lustre/element/html
 import pog
 import server/cnpj
 import server/company
-import server/company/demand
+import server/connection
+import server/demand
 import server/email
 import server/expertise
 import server/internal
@@ -31,37 +71,62 @@ import server/technology
 import wisp.{type Request, type Response}
 import youid/uuid
 
+/// Runtime dependencies shared by every request handler.
+///
+/// A single `Context` value is created at application startup and passed to
+/// [`handle_request`](#handle_request) for each incoming request.
 pub type Context {
   Context(
-    /// PostgreSQL connection pool
+    /// PostgreSQL connection pool used by the service layer.
+    ///
+    /// The pool is shared by all handlers and is safe to reuse between
+    /// requests.
     database: pog.Connection,
-    /// Path to the application's priv directory
+    /// Absolute path to the directory containing the application's static
+    /// assets.
+    ///
+    /// Files below this directory are served under the `/static` URL prefix by
+    /// the request middleware.
     static_directory: String,
   )
 }
 
+/// Errors that can occur while handling a request.
+///
+/// `WebError` unifies the errors raised by the different domains and by the
+/// request parsing helpers. It is converted into an HTTP response by
+/// [`handle_error`](#handle_error).
 type WebError {
-  /// Startup related errors
+  /// An error returned by the startup domain.
   StartupError(error: startup.StartupError)
-  /// Segment related errors
+  /// An error returned by the segment domain.
   SegmentError(error: segment.SegmentError)
-  /// Company related errors
+  /// An error returned by the company domain.
   CompanyError(error: company.CompanyError)
-  /// Technology related errors
+  /// An error returned by the technology domain.
   TechnologyError(error: technology.TechnologyError)
-  /// Expertise related errors
+  /// An error returned by the expertise domain.
   ExpertiseError(error: expertise.ExpertiseError)
-  /// Service related errors
+  /// An error returned by the service domain.
   ServiceError(error: service.ServiceError)
-  /// Demand related errors
+  /// An error returned by the demand domain.
   DemandError(error: demand.DemandError)
-  /// Missing request query
+  /// The request has no query string.
   MissingQuery
-  /// Invalid query parameter
+  /// A required query parameter is missing or has an invalid value.
   InvalidQueryParameter(key: String)
+  /// The requested LGPD policy version is not the current policy version.
+  PolicyVersionMismatch(expected: Int, got: Int)
 }
 
-/// Handle incoming HTTP requests
+/// Route an HTTP request to its handler.
+///
+/// Requests to unknown `/api/...` paths return `404 Not Found`. Requests to any
+/// other unknown path return the client-side application document, allowing the
+/// frontend router to render its own 404 page.
+///
+/// The route handlers are documented individually below each handler function,
+/// including their parameters, response bodies and status codes.
 ///
 /// ## Examples
 ///
@@ -114,10 +179,23 @@ pub fn handle_request(request: Request, context: Context) -> Response {
       get_startup_lgpd_consent(context.database, id)
 
     http.Post, ["api", "startup", id, "lgpd", version] ->
-      grant_startup_lgpd_consent(context.database, id, version)
+      grant_startup_lgpd_consent(request, context.database, id, version)
 
     http.Delete, ["api", "startup", id, "lgpd", version] ->
-      revoke_startup_lgpd_consent(context.database, id, version)
+      revoke_startup_lgpd_consent(request, context.database, id, version)
+
+    http.Get, ["api", "startup", id, "canvas"] ->
+      get_startup_canvas(request, context.database, id)
+
+    http.Put, ["api", "startup", id, "canvas"] ->
+      upsert_startup_canvas(request, context.database, id)
+
+    // == application ==========================================================
+    http.Post, ["api", "startup", id, "application"] ->
+      apply_to_demand(request, context.database, id)
+
+    http.Delete, ["api", "startup", id, "application", demand_id] ->
+      withdraw_demand_application(request, context.database, id, demand_id)
 
     // Fetching specific information about startups
     //
@@ -130,10 +208,10 @@ pub fn handle_request(request: Request, context: Context) -> Response {
       get_startup_segments(context.database, id)
 
     http.Post, ["api", "startup", id, "segment"] ->
-      assign_startup_to_segment(request, context.database, id)
+      assign_segment_to_startup(request, context.database, id)
 
     http.Delete, ["api", "startup", id, "segment", segment_id] ->
-      unassign_startup_from_segment(context.database, id, segment_id)
+      unassign_segment_from_startup(request, context.database, id, segment_id)
 
     // == service ==============================================================
     http.Get, ["api", "service", id] -> get_service_by_id(context.database, id)
@@ -144,10 +222,10 @@ pub fn handle_request(request: Request, context: Context) -> Response {
       get_startup_services(context.database, id)
 
     http.Post, ["api", "startup", id, "service"] ->
-      assign_startup_to_service(request, context.database, id)
+      assign_service_to_startup(request, context.database, id)
 
     http.Delete, ["api", "startup", id, "service", service_id] ->
-      unassign_startup_from_service(context.database, id, service_id)
+      unassign_service_from_startup(request, context.database, id, service_id)
 
     // == expertise ============================================================
     http.Get, ["api", "expertise", id] ->
@@ -160,10 +238,10 @@ pub fn handle_request(request: Request, context: Context) -> Response {
       get_startup_expertises(context.database, id)
 
     http.Post, ["api", "startup", id, "expertise"] ->
-      assign_startup_to_expertise(request, context.database, id)
+      assign_expertise_to_startup(request, context.database, id)
 
     http.Delete, ["api", "startup", id, "expertise", expertise_id] ->
-      unassign_startup_from_expertise(context.database, id, expertise_id)
+      unassign_expertise_from_expertise(context.database, id, expertise_id)
 
     // == technology ===========================================================
     http.Get, ["api", "technology", id] ->
@@ -176,10 +254,15 @@ pub fn handle_request(request: Request, context: Context) -> Response {
       get_startup_technologies(context.database, id)
 
     http.Post, ["api", "startup", id, "technology"] ->
-      assign_startup_to_technology(request, context.database, id)
+      assign_technology_to_startup(request, context.database, id)
 
-    http.Delete, ["api", "startup", id, "technology", technology_id] ->
-      unassign_startup_from_technology(context.database, id, technology_id)
+    http.Delete, ["api", "startup", id, "technology", technology] ->
+      unassign_technology_from_startup(
+        request,
+        context.database,
+        id,
+        technology,
+      )
 
     // +-----------------------------------------------------------------------+
     // | COMPANY                                                               |
@@ -199,24 +282,17 @@ pub fn handle_request(request: Request, context: Context) -> Response {
       get_company_lgpd_consent(context.database, id)
 
     http.Post, ["api", "company", id, "lgpd", version] ->
-      grant_company_lgpd_consent(context.database, id, version)
+      grant_company_lgpd_consent(request, context.database, id, version)
 
     http.Delete, ["api", "company", id, "lgpd", version] ->
-      revoke_company_lgpd_consent(context.database, id, version)
-
-    // == bookmarks ============================================================
-    http.Get, ["api", "company", id, "bookmark"] ->
-      get_company_bookmarks(request, context.database, id)
-
-    http.Post, ["api", "company", id, "bookmark"] ->
-      company_bookmark_startup(request, context.database, id)
-
-    http.Delete, ["api", "company", id, "bookmark", startup] ->
-      company_unbookmark_startup(context.database, id, startup)
+      revoke_company_lgpd_consent(request, context.database, id, version)
 
     // +-----------------------------------------------------------------------+
     // | DEMAND                                                                |
     // +-----------------------------------------------------------------------+
+    http.Get, ["api", "company", "demand", "browse"] ->
+      browse_open_demands(request, context.database)
+
     http.Get, ["api", "company", "demand", id] ->
       get_demand_by_id(context.database, id)
 
@@ -229,45 +305,74 @@ pub fn handle_request(request: Request, context: Context) -> Response {
     http.Delete, ["api", "company", "demand", id] ->
       delete_demand(context.database, id)
 
+    // == application ==========================================================
+    http.Get, ["api", "company", "demand", id, "application"] ->
+      get_demand_applications(request, context.database, id)
+
+    http.Patch, ["api", "company", "demand", id, "application", startup_id] ->
+      update_application(request, context.database, id, startup_id)
+
     // == segment ==============================================================
     http.Get, ["api", "company", "demand", id, "segment"] ->
       get_demand_segments(context.database, id)
 
     http.Post, ["api", "company", "demand", id, "segment"] ->
-      assign_demand_to_segment(request, context.database, id)
+      assign_segment_to_demand(request, context.database, id)
 
     http.Delete, ["api", "company", "demand", id, "segment", segment_id] ->
-      unassign_demand_from_segment(context.database, id, segment_id)
+      unassign_segment_from_demand(request, context.database, id, segment_id)
 
     // == service ==============================================================
     http.Get, ["api", "company", "demand", id, "service"] ->
       get_demand_services(context.database, id)
 
     http.Post, ["api", "company", "demand", id, "service"] ->
-      assign_demand_to_service(request, context.database, id)
+      assign_service_to_demand(request, context.database, id)
 
     http.Delete, ["api", "company", "demand", id, "service", service_id] ->
-      unassign_demand_from_service(context.database, id, service_id)
+      unassign_service_from_demand(request, context.database, id, service_id)
 
     // == technology ===========================================================
     http.Get, ["api", "company", "demand", id, "technology"] ->
       get_demand_technologies(context.database, id)
 
     http.Post, ["api", "company", "demand", id, "technology"] ->
-      assign_demand_to_technology(request, context.database, id)
+      assign_technology_to_demand(request, context.database, id)
 
-    http.Delete, ["api", "company", "demand", id, "technology", technology_id]
-    -> unassign_demand_from_technology(context.database, id, technology_id)
+    http.Delete, ["api", "company", "demand", id, "technology", technology] ->
+      unassign_technology_from_demand(request, context.database, id, technology)
 
     // == expertise ============================================================
     http.Get, ["api", "company", "demand", id, "expertise"] ->
       get_demand_expertises(context.database, id)
 
     http.Post, ["api", "company", "demand", id, "expertise"] ->
-      assign_demand_to_expertise(request, context.database, id)
+      assign_expertise_to_demand(request, context.database, id)
 
-    http.Delete, ["api", "company", "demand", id, "expertise", expertise_id] ->
-      unassign_demand_from_expertise(context.database, id, expertise_id)
+    http.Delete, ["api", "company", "demand", id, "expertise", expertise] ->
+      unassign_expertise_from_demand(request, context.database, id, expertise)
+
+    // +-----------------------------------------------------------------------+
+    // | CONNECTION                                                            |
+    // +-----------------------------------------------------------------------+
+    //
+    http.Post, ["api", "company", id, "connection"] ->
+      request_connection(request, context.database, id)
+
+    http.Get, ["api", "company", id, "connection"] ->
+      get_company_connections(request, context.database, id)
+
+    http.Get, ["api", "startup", id, "connection"] ->
+      get_startup_connections(request, context.database, id)
+
+    http.Patch, ["api", "startup", id, "connection", company_id] ->
+      update_connection(request, context.database, id, company_id)
+
+    http.Delete, ["api", "company", id, "connection", startup_id] ->
+      delete_company_connection(request, context.database, id, startup_id)
+
+    http.Delete, ["api", "startup", id, "connection", company_id] ->
+      delete_startup_connection(request, context.database, id, company_id)
 
     // +-----------------------------------------------------------------------+
     // | NOT FOUND                                                             |
@@ -281,54 +386,44 @@ pub fn handle_request(request: Request, context: Context) -> Response {
   }
 }
 
-/// ## `GET /api/company/:id/bookmark`
+/// ## `GET /api/company/demand/browse`
 ///
-/// Fetch all Startups bookmarked by a Company, ordered by bookmark date.
-/// Pagination is available.
+/// Browse all open Demands. Only Demands whose status is `open` are returned,
+/// newest first. Closed and canceled Demands are never included.
 ///
-/// ## Path Parameters
-///
-/// - `id` (UUID, required): the Company's ID.
+/// This route does not require authentication.
 ///
 /// ## Query Parameters
 ///
-/// - `limit` (Int, required): the maximum number of Startups to return.
-/// - `offset` (Int, required): the number of Startups to skip.
+/// - `limit` (Int, required): the maximum number of Demands to return.
+/// - `offset` (Int, required): the number of Demands to skip.
+/// - `status` (String, required): must be `"open"`.
 ///
 /// ## Response Body
 ///
 /// ```json
 /// [
 ///   {
-///    "id": "01a058ae-057f-73e8-b2a0-50986559767b",
-///    "name": "Critic Level",
-///    "email": "critic@email.dev",
-///    "stage": "traction",
-///    "cnpj": "12345678901234",
-///    "description": "startup muito maneira",
-///    "city": "Recife",
-///    "state": "Pernambuco",
-///    "created_at": "2026-09-14T20:08:02.000Z",
-///    "updated_at": "2026-09-14T20:08:02.000Z",
-///    "is_active": true,
-///    "website": "criticlevel.dev"
+///     "id": "01a173cb-9533-7ebd-87a0-590965ef3653",
+///     "company_id": "01a173cb-9533-7eb5-9522-9686fef4f2a4",
+///     "title": "Need more gleam projects",
+///     "description": "A lot more of them",
+///     "status": "open",
+///     "created_at": "2025-09-14T20:08:02.000Z",
+///     "updated_at": "2025-09-14T20:08:02.000Z"
 ///   }
 /// ]
 /// ```
 ///
+/// An empty list is returned when there are no open Demands.
+///
 /// ## Status Codes
 ///
 /// - **200** If successful.
-/// - **400** if ID is not a valid UUID, or if the query is missing, invalid or
-///   incomplete.
+/// - **400** If the query is missing, invalid or incomplete, or `status` is not
+///   `"open"`.
 ///
-fn get_company_bookmarks(
-  request: Request,
-  database: pog.Connection,
-  id: String,
-) -> Response {
-  use id <- require_valid_uuid(id)
-
+fn browse_open_demands(request: Request, database: pog.Connection) -> Response {
   let result = {
     use query <- result.try(
       request.get_query(request)
@@ -347,13 +442,19 @@ fn get_company_bookmarks(
       |> result.replace_error(InvalidQueryParameter("offset")),
     )
 
-    company.get_bookmarked_startups(database, id, limit:, offset:)
-    |> result.map_error(CompanyError)
+    // currently only open demands are allowed
+    use _ <- result.try(case list.key_find(query, "status") {
+      Ok("open") -> Ok(Nil)
+      Ok(_) | Error(_) -> Error(InvalidQueryParameter("status"))
+    })
+
+    demand.browse_open_demands(database, limit:, offset:)
+    |> result.map_error(DemandError)
   }
 
   case result {
-    Ok(startups) ->
-      json.array(startups, startup.to_json)
+    Ok(data) ->
+      json.array(data, demand.to_json)
       |> json.to_string
       |> wisp.json_response(200)
 
@@ -361,110 +462,333 @@ fn get_company_bookmarks(
   }
 }
 
-/// ## `POST /api/company/:id/bookmark`
+/// ## `GET /api/startup/:id/canvas`
 ///
-/// Add a Startup to a company's bookmarks
+/// Fetch a Startup's Business Model Canvas.
 ///
-/// ## Request
+/// Returns a canvas with every block set to an empty string if the Startup has
+/// not saved one yet.
 ///
-/// ```json
-/// {
-///  "startup": "01a058ae-057f-73e8-b2a0-50986559767b"
-/// }
-/// ```
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Startup's ID.
 ///
 /// ## Response Body
 ///
 /// ```json
 /// {
-///  "id": "01a058ae-057f-73e8-b2a0-50986559767b",
-///  "name": "Critic Level",
-///  "email": "critic@email.dev",
-///  "stage": "traction",
-///  "cnpj": "12345678901234",
-///  "description": "startup muito maneira",
-///  "city": "Recife",
-///  "state": "Pernambuco",
-///  "created_at": "2026-09-14T20:08:02.000Z",
-///  "is_active": true,
-///  "website": "criticlevel.dev"
+///   "customer_segments": "Pequenas e médias empresas",
+///   "value_proposition": "Reduzir custos operacionais com automação",
+///   "channels": "Site, vendas diretas e parceiros",
+///   "customer_relationships": "Suporte dedicado e onboarding",
+///   "revenue_streams": "Assinatura mensal e implantação",
+///   "key_resources": "Equipe de engenharia e infraestrutura em nuvem",
+///   "key_activities": "Desenvolvimento, suporte e vendas",
+///   "key_partnerships": "Provedores de nuvem e consultorias",
+///   "cost_structure": "Folha de pagamento, nuvem e marketing"
 /// }
 /// ```
 ///
 /// ## Status Codes
 ///
-/// - 201 If successful.
-/// - 404 If Company or Startup is not found.
-/// - 409 If Startup is already bookmarked
+/// - **200** If successful.
+/// - **400** If the ID is not a valid UUID.
+/// - **401** If not authenticated.
+/// - **404** If the Startup is not found.
 ///
-fn company_bookmark_startup(
+fn get_startup_canvas(
+  request: Request,
+  database: pog.Connection,
+  id: String,
+) -> Response {
+  use id <- require_valid_uuid(id)
+  use _ <- require_session(request)
+
+  case startup.get_canvas(database, id) {
+    Ok(canvas) ->
+      startup.canvas_to_json(canvas)
+      |> json.to_string
+      |> wisp.json_response(200)
+
+    Error(error) -> handle_startup_error(error)
+  }
+}
+
+/// ## `PUT /api/startup/:id/canvas`
+///
+/// Create or replace a Startup's Business Model Canvas.
+///
+/// Every block is written as given, so an empty string clears a block instead
+/// of keeping its previous value. Once saved, the canvas can be fetched with
+/// [`get_startup_canvas`](#get_startup_canvas).
+///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Startup's ID. It must match the Startup ID in
+///   the current session.
+///
+/// ## Request Body
+///
+/// ```json
+/// {
+///   "customer_segments": "Pequenas e médias empresas",
+///   "value_proposition": "Reduzir custos operacionais com automação",
+///   "channels": "Site, vendas diretas e parceiros",
+///   "customer_relationships": "Suporte dedicado e onboarding",
+///   "revenue_streams": "Assinatura mensal e implantação",
+///   "key_resources": "Equipe de engenharia e infraestrutura em nuvem",
+///   "key_activities": "Desenvolvimento, suporte e vendas",
+///   "key_partnerships": "Provedores de nuvem e consultorias",
+///   "cost_structure": "Folha de pagamento, nuvem e marketing"
+/// }
+/// ```
+///
+/// - All nine blocks are required.
+///
+/// ## Response Body
+///
+/// The saved canvas, in the same shape as the request body.
+///
+/// ## Status Codes
+///
+/// - **200** If successful.
+/// - **400** If the ID is not a valid UUID, or the request body is invalid JSON
+///   or missing a block.
+/// - **401** If not authenticated.
+/// - **403** If the session is not a Startup session, or it belongs to a
+///   different Startup.
+/// - **404** If the Startup is not found.
+///
+fn upsert_startup_canvas(
   request: Request,
   database: pog.Connection,
   id: String,
 ) -> Response {
   use body <- wisp.require_json(request)
   use id <- require_valid_uuid(id)
+  use session <- require_startup_session(request)
 
-  let decoder = {
-    use id <- decode.field("startup", internal.uuid_decoder())
-    decode.success(id)
-  }
+  case decode.run(body, startup.canvas_decoder()) {
+    Ok(canvas) if session.id == id ->
+      case startup.upsert_canvas(database, id, canvas) {
+        Ok(canvas) ->
+          startup.canvas_to_json(canvas)
+          |> json.to_string
+          |> wisp.json_response(200)
 
-  case decode.run(body, decoder) {
-    Error(_) -> wisp.bad_request("Invalid JSON")
-    Ok(startup) ->
-      case company.bookmark_startup(database, id, bookmark: startup) {
-        Error(error) -> handle_company_error(error)
-        Ok(startup) ->
-          startup.to_json(startup)
-          |> json.to_string()
-          |> wisp.json_response(201)
+        Error(error) -> handle_startup_error(error)
       }
+
+    Ok(_) -> wisp.response(403)
+    Error(_) -> wisp.bad_request("Invalid JSON")
   }
 }
 
-/// ## `DELETE /api/company/:id/bookmark/:startup_id`
+/// ## `POST /api/startup/:id/application`
 ///
-/// Remove a Startup from a company's bookmarks
+/// Apply to an open Demand. A Startup can have at most one application per
+/// Demand.
+///
+/// A Startup session is required, and it must belong to the Startup identified
+/// by `id`.
+///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Startup's ID.
+///
+/// ## Request Body
+///
+/// ```json
+/// {
+///   "demand": "01a173cb-9533-7ebd-87a0-590965ef3653"
+/// }
+/// ```
 ///
 /// ## Response Body
 ///
 /// ```json
 /// {
-///  "id": "01a058ae-057f-73e8-b2a0-50986559767b",
-///  "name": "Critic Level",
-///  "email": "critic@email.dev",
-///  "stage": "traction",
-///  "cnpj": "12345678901234",
-///  "description": "startup muito maneira",
-///  "city": "Recife",
-///  "state": "Pernambuco",
-///  "created_at": "2026-09-14T20:08:02.000Z",
-///  "is_active": true,
-///  "website": "criticlevel.dev"
+///   "demand": "01a173cb-9533-7ebd-87a0-590965ef3653",
+///   "startup": "01a173cb-9533-7eb5-9522-9686fef4f2a4",
+///   "status": "pending",
+///   "created_at": "2026-09-14T20:08:02.000Z",
+///   "updated_at": "2026-09-14T20:08:02.000Z"
 /// }
 /// ```
 ///
 /// ## Status Codes
 ///
-/// - 200 If successful.
-/// - 404 If Company or Startup is not found.
-/// - 404 If the bookmark is not found.
+/// - **201** If the application was created.
+/// - **400** If an ID is not a valid UUID, the request body is invalid JSON, or
+///   the Demand is not open.
+/// - **401** If not authenticated.
+/// - **403** If the session is not a Startup session, or it belongs to a
+///   different Startup.
+/// - **404** If the Demand is not found.
+/// - **409** If the Startup already applied to the Demand.
 ///
-fn company_unbookmark_startup(
+fn apply_to_demand(
+  request: Request,
   database: pog.Connection,
   id: String,
-  startup: String,
+) -> Response {
+  use body <- wisp.require_json(request)
+  use id <- require_valid_uuid(id)
+  use session <- require_startup_session(request)
+
+  let decoder = {
+    use id <- decode.field("demand", internal.uuid_decoder())
+    decode.success(id)
+  }
+
+  case decode.run(body, decoder) {
+    Ok(demand_id) if session.id == id ->
+      case startup.apply_to_demand(database, id, apply_to: demand_id) {
+        Ok(application) ->
+          demand.application_to_json(application)
+          |> json.to_string
+          |> wisp.json_response(201)
+
+        Error(error) -> handle_startup_error(error)
+      }
+
+    Ok(_) -> wisp.response(403)
+    Error(_) -> wisp.bad_request("Invalid JSON")
+  }
+}
+
+/// ## `DELETE /api/startup/:id/application/:demand_id`
+///
+/// Withdraw a pending application from a Demand. The application is deleted,
+/// so the Startup can apply to the same Demand again later.
+///
+/// A Startup session is required, and it must belong to the Startup identified
+/// by `id`.
+///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Startup's ID.
+/// - `demand_id` (UUID, required): the Demand's ID.
+///
+/// ## Response Body
+///
+/// The withdrawn application:
+///
+/// ```json
+/// {
+///   "demand": "01a173cb-9533-7ebd-87a0-590965ef3653",
+///   "startup": "01a173cb-9533-7eb5-9522-9686fef4f2a4",
+///   "status": "pending",
+///   "created_at": "2026-09-14T20:08:02.000Z",
+///   "updated_at": "2026-09-14T20:08:02.000Z"
+/// }
+/// ```
+///
+/// ## Status Codes
+///
+/// - **200** If the application was withdrawn.
+/// - **400** If an ID is not a valid UUID.
+/// - **401** If not authenticated.
+/// - **403** If the session is not a Startup session, or it belongs to a
+///   different Startup.
+/// - **404** If no pending application exists for the Demand.
+///
+fn withdraw_demand_application(
+  request: Request,
+  database: pog.Connection,
+  id: String,
+  demand_id: String,
 ) -> Response {
   use id <- require_valid_uuid(id)
-  use startup <- require_valid_uuid(startup)
+  use demand_id <- require_valid_uuid(demand_id)
+  use session <- require_startup_session(request)
 
-  case company.unbookmark_startup(database, id, remove: startup) {
-    Error(error) -> handle_company_error(error)
-    Ok(startup) ->
-      startup.to_json(startup)
-      |> json.to_string()
-      |> wisp.json_response(200)
+  case session.id == id {
+    False -> wisp.response(403)
+
+    True ->
+      case startup.withdraw_demand_application(database, id, from: demand_id) {
+        Ok(application) ->
+          demand.application_to_json(application)
+          |> json.to_string
+          |> wisp.json_response(200)
+
+        Error(error) -> handle_startup_error(error)
+      }
+  }
+}
+
+/// Require an authenticated Startup session.
+///
+/// The `SESSION` cookie is decoded with [`require_session`](#require_session).
+/// If the session belongs to a Startup, `next` is called with it. If the
+/// session belongs to a Company, the request is rejected with `403 Forbidden`.
+///
+/// Handlers that operate on a specific Startup should also check that
+/// `session.id` matches the Startup ID in the path.
+///
+/// ## Status Codes
+///
+/// - **401** If the session cookie is missing or invalid.
+/// - **403** If the session belongs to a Company instead of a Startup.
+///
+/// ## Examples
+///
+/// ```gleam
+/// pub fn update_profile(request: Request) -> Response {
+///   use session <- require_startup_session(request)
+///
+///   // The session is now guaranteed to be a Startup session.
+///   update_startup_profile(session.id, request)
+/// }
+/// ```
+pub fn require_startup_session(
+  request: Request,
+  next: fn(Session) -> Response,
+) -> Response {
+  use session <- require_session(request)
+  case session {
+    Startup(_) -> next(session)
+    Company(_) ->
+      "Startup session is required"
+      |> wisp.string_body(wisp.response(403), _)
+  }
+}
+
+/// Require an authenticated Company session.
+///
+/// The `SESSION` cookie is decoded with [`require_session`](#require_session).
+/// If the session belongs to a Company, `next` is called with it. If the
+/// session belongs to a Startup, the request is rejected with `403 Forbidden`.
+///
+/// Handlers that operate on a specific Company should also check that
+/// `session.id` matches the Company ID in the path.
+///
+/// ## Status Codes
+///
+/// - **401** If the session cookie is missing or invalid.
+/// - **403** If the session belongs to a Startup instead of a Company.
+///
+/// ## Examples
+///
+/// ```gleam
+/// pub fn update_profile(request: Request) -> Response {
+///   use session <- require_company_session(request)
+///
+///   // The session is now guaranteed to be a Company session.
+///   update_company_profile(session.id, request)
+/// }
+/// ```
+pub fn require_company_session(
+  request: Request,
+  next: fn(Session) -> Response,
+) -> Response {
+  use session <- require_session(request)
+  case session {
+    Company(_) -> next(session)
+    Startup(_) ->
+      "Company session is required"
+      |> wisp.string_body(wisp.response(403), _)
   }
 }
 
@@ -506,7 +830,6 @@ fn company_unbookmark_startup(
 ///
 /// - **200** If successful.
 /// - **400** If the ID is not a valid UUID.
-/// - **404** If the Company is not found or has no consent records.
 /// - **500** If the consent records could not be fetched.
 ///
 fn get_company_lgpd_consent(database: pog.Connection, id: String) -> Response {
@@ -560,7 +883,6 @@ fn get_company_lgpd_consent(database: pog.Connection, id: String) -> Response {
 ///
 /// - **200** If successful.
 /// - **400** If the ID is not a valid UUID.
-/// - **404** If the Startup is not found or has no consent records.
 /// - **500** If the consent records could not be fetched.
 ///
 fn get_startup_lgpd_consent(database: pog.Connection, id: String) -> Response {
@@ -607,19 +929,25 @@ fn get_startup_lgpd_consent(database: pog.Connection, id: String) -> Response {
 /// - **200** If successful.
 /// - **400** If the ID is not a valid UUID, or the policy version is not a
 ///   valid integer greater than zero.
+/// - **401** If not authenticated.
+/// - **403** If the session is not a Startup session, or it belongs to a
+///   different Startup.
 /// - **404** If the Startup is not found.
 /// - **500** If the consent could not be updated.
 ///
 fn grant_startup_lgpd_consent(
+  request: Request,
   database: pog.Connection,
   id: String,
   version: String,
 ) -> Response {
   use id <- require_valid_uuid(id)
+  use session <- require_startup_session(request)
 
   case int.parse(version) {
-    Error(_) -> wisp.bad_request("Invalid policy version: " <> version)
-    Ok(version) ->
+    Ok(version) if session.id == id -> {
+      use <- require_latest_lgpd_policy(database, version)
+
       case lgpd.grant_consent(database, lgpd.Startup(id), version) {
         Ok(consent) ->
           lgpd.consent_to_json(consent)
@@ -628,6 +956,10 @@ fn grant_startup_lgpd_consent(
 
         Error(error) -> handle_lgpd_error(error)
       }
+    }
+
+    Error(_) -> wisp.bad_request("Invalid policy version: " <> version)
+    Ok(_) -> wisp.response(403)
   }
 }
 
@@ -662,19 +994,25 @@ fn grant_startup_lgpd_consent(
 /// - **200** If successful.
 /// - **400** If the ID is not a valid UUID, or the policy version is not a
 ///   valid integer greater than zero.
+/// - **401** If not authenticated
+/// - **403** If the session is not a Startup session, or it belongs to a
+///   different Startup.
 /// - **404** If the Startup is not found.
 /// - **500** If the consent could not be updated.
 ///
 fn revoke_startup_lgpd_consent(
+  request: Request,
   database: pog.Connection,
   id: String,
   version: String,
 ) -> Response {
   use id <- require_valid_uuid(id)
+  use session <- require_startup_session(request)
 
   case int.parse(version) {
-    Error(_) -> wisp.bad_request("Invalid policy version: " <> version)
-    Ok(version) ->
+    Ok(version) if session.id == id -> {
+      use <- require_latest_lgpd_policy(database, version)
+
       case lgpd.revoke_consent(database, lgpd.Startup(id), version) {
         Ok(consent) ->
           lgpd.consent_to_json(consent)
@@ -683,6 +1021,10 @@ fn revoke_startup_lgpd_consent(
 
         Error(error) -> handle_lgpd_error(error)
       }
+    }
+
+    Ok(_) -> wisp.response(403)
+    Error(_) -> wisp.bad_request("Invalid policy version: " <> version)
   }
 }
 
@@ -717,19 +1059,25 @@ fn revoke_startup_lgpd_consent(
 /// - **200** If successful.
 /// - **400** If the ID is not a valid UUID, or the policy version is not a
 ///   valid integer greater than zero.
+/// - **401** If not authenticated.
+/// - **403** If the session is not a Company session, or it belongs to a
+///   different Company.
 /// - **404** If the Company is not found.
 /// - **500** If the consent could not be updated.
 ///
 fn grant_company_lgpd_consent(
+  request: Request,
   database: pog.Connection,
   id: String,
   version: String,
 ) -> Response {
   use id <- require_valid_uuid(id)
+  use session <- require_company_session(request)
 
   case int.parse(version) {
-    Error(_) -> wisp.bad_request("Invalid policy version: " <> version)
-    Ok(version) ->
+    Ok(version) if session.id == id -> {
+      use <- require_latest_lgpd_policy(database, version)
+
       case lgpd.grant_consent(database, lgpd.Company(id), version) {
         Ok(consent) ->
           lgpd.consent_to_json(consent)
@@ -738,6 +1086,28 @@ fn grant_company_lgpd_consent(
 
         Error(error) -> handle_lgpd_error(error)
       }
+    }
+
+    Ok(_) -> wisp.response(403)
+    Error(_) -> wisp.bad_request("Invalid policy version: " <> version)
+  }
+}
+
+/// Require `version` to be the current LGPD policy version.
+///
+/// The current policy version is read from the database. If it matches, `next`
+/// is called; otherwise the request is rejected with `400 Bad Request`.
+fn require_latest_lgpd_policy(
+  database: pog.Connection,
+  version: Int,
+  next: fn() -> Response,
+) -> Response {
+  case lgpd.get_current_policy(database) {
+    Error(error) -> handle_lgpd_error(error)
+    Ok(policy) if policy.version == version -> next()
+
+    Ok(policy) ->
+      handle_error(PolicyVersionMismatch(expected: policy.version, got: version))
   }
 }
 
@@ -772,19 +1142,25 @@ fn grant_company_lgpd_consent(
 /// - **200** If successful.
 /// - **400** If the ID is not a valid UUID, or the policy version is not a
 ///   valid integer greater than zero.
+/// - **401** If not authenticated.
+/// - **403** If the session is not a Company session, or it belongs to a
+///   different Company.
 /// - **404** If the Company is not found.
 /// - **500** If the consent could not be updated.
 ///
 fn revoke_company_lgpd_consent(
+  request: Request,
   database: pog.Connection,
   id: String,
   version: String,
 ) -> Response {
   use id <- require_valid_uuid(id)
+  use session <- require_company_session(request)
 
   case int.parse(version) {
-    Error(_) -> wisp.bad_request("Invalid policy version: " <> version)
-    Ok(version) ->
+    Ok(version) if session.id == id -> {
+      use <- require_latest_lgpd_policy(database, version)
+
       case lgpd.revoke_consent(database, lgpd.Company(id), version) {
         Ok(consent) ->
           lgpd.consent_to_json(consent)
@@ -793,18 +1169,44 @@ fn revoke_company_lgpd_consent(
 
         Error(error) -> handle_lgpd_error(error)
       }
+    }
+
+    Ok(_) -> wisp.response(403)
+    Error(_) -> wisp.bad_request("Invalid policy version: " <> version)
   }
 }
 
+/// Convert an LGPD error into an HTTP response.
 fn handle_lgpd_error(error: lgpd.LgpdError) -> Response {
   case error {
-    lgpd.SubjectNotFound(_) -> wisp.not_found()
+    lgpd.DatabaseError(_) -> wisp.internal_server_error()
+
+    lgpd.SubjectNotFound(id) ->
+      { "ID not found:" <> uuid.to_string(id) }
+      |> wisp.string_body(wisp.not_found(), _)
 
     lgpd.InvalidPolicyVersion(version:) ->
       wisp.bad_request("Invalid policy version: " <> int.to_string(version))
 
-    lgpd.DatabaseError(_) | lgpd.FailedToUpdateConsent(_) ->
-      wisp.internal_server_error()
+    lgpd.FailedToUpdateConsent(_) ->
+      { "Failed to update consent" }
+      |> wisp.string_body(wisp.internal_server_error(), _)
+
+    lgpd.PolicyNotFound(version:) ->
+      { "Policy not found: Version " <> int.to_string(version) }
+      |> wisp.string_body(wisp.not_found(), _)
+
+    lgpd.CurrentPolicyNotFound ->
+      { "No current policy found" }
+      |> wisp.string_body(wisp.not_found(), _)
+
+    lgpd.PolicyVersionConflict(version) ->
+      { "Policy version already registered: " <> int.to_string(version) }
+      |> wisp.string_body(wisp.response(409), _)
+
+    lgpd.FailedToUpdatePolicy(version:) ->
+      { "Failed to update policy: " <> int.to_string(version) }
+      |> wisp.string_body(wisp.internal_server_error(), _)
   }
 }
 
@@ -815,7 +1217,8 @@ fn handle_lgpd_error(error: lgpd.LgpdError) -> Response {
 ///
 /// ## Path Parameters
 ///
-/// - `id` (UUID, required)
+/// - `id` (UUID, required): the Startup's ID. It must match the Startup ID in
+///   the current session.
 ///
 /// ## Request Body
 ///
@@ -859,6 +1262,9 @@ fn handle_lgpd_error(error: lgpd.LgpdError) -> Response {
 /// - **200** If successful.
 /// - **400** If the ID is not a valid UUID, the request body is invalid JSON,
 ///   or a field has an invalid value.
+/// - **401** If not authenticated.
+/// - **403** If the session is not a Startup session, or it belongs to a
+///   different Startup.
 /// - **404** If the Startup is not found.
 /// - **409** If the new email or CNPJ is already in use.
 ///
@@ -869,6 +1275,7 @@ fn update_startup(
 ) -> Response {
   use body <- wisp.require_json(request)
   use id <- require_valid_uuid(id)
+  use session <- require_startup_session(request)
 
   let decoder = {
     use name <- decode.optional_field("name", "", decode.string)
@@ -913,12 +1320,10 @@ fn update_startup(
   }
 
   case decode.run(body, decoder) {
-    Error(_) -> wisp.bad_request("Invalid JSON")
-
-    Ok(payload) -> {
-      let website = case uri.to_string(payload.website) {
-        "" -> None
-        _ -> Some(payload.website)
+    Ok(payload) if session.id == id -> {
+      let website = case payload.website == uri.empty {
+        True -> None
+        False -> Some(payload.website)
       }
 
       let result =
@@ -945,14 +1350,23 @@ fn update_startup(
         Error(error) -> handle_error(error)
       }
     }
+
+    Ok(_) -> wisp.response(403)
+    Error(_) -> wisp.bad_request("Invalid JSON")
   }
 }
 
-/// ## DELETE `/api/company/demand/{id}`
+/// ## `DELETE /api/company/demand/:id`
 ///
-/// Delete a registered Demand
+/// Delete a registered Demand.
 ///
-/// ## Response
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Demand's ID.
+///
+/// ## Response Body
+///
+/// The deleted Demand:
 ///
 /// ```json
 /// {
@@ -968,9 +1382,9 @@ fn update_startup(
 ///
 /// ## Status Codes
 ///
-/// - **200** If successful.
-/// - **400** if ID is not a valid UUID.
-/// - **404** if Demand is not found.
+/// - **200** If the Demand was deleted.
+/// - **400** If the ID is not a valid UUID.
+/// - **404** If the Demand is not found.
 ///
 fn delete_demand(database: pog.Connection, id: String) -> Response {
   use id <- require_valid_uuid(id)
@@ -985,12 +1399,184 @@ fn delete_demand(database: pog.Connection, id: String) -> Response {
   }
 }
 
+/// ## `GET /api/company/demand/:id/application`
+///
+/// Fetch all applications to a Demand.
+///
+/// A Company session is required, and the Demand must belong to that Company.
+/// Applications are returned in every status (`pending`, `accepted` and
+/// `declined`) and are not ordered, so callers should not rely on a particular
+/// order.
+///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Demand's ID.
+///
+/// ## Response Body
+///
+/// ```json
+/// [
+///   {
+///     "demand": "01a173cb-9533-7ebd-87a0-590965ef3653",
+///     "startup": "01a173cb-9533-7eb5-9522-9686fef4f2a4",
+///     "status": "pending",
+///     "created_at": "2026-09-14T20:08:02.000Z",
+///     "updated_at": "2026-09-14T20:08:02.000Z"
+///   }
+/// ]
+/// ```
+///
+/// An empty list is returned when the Demand has no applications.
+///
+/// ## Status Codes
+///
+/// - **200** If successful.
+/// - **400** If the ID is not a valid UUID.
+/// - **401** If not authenticated.
+/// - **403** If the session is not a Company session, or the Demand belongs to
+///   a different Company.
+/// - **404** If the Demand is not found.
+///
+fn get_demand_applications(
+  request: Request,
+  database: pog.Connection,
+  id: String,
+) -> Response {
+  use id <- require_valid_uuid(id)
+  use session <- require_company_session(request)
+  use owner <- require_demand_owner(database, id, session.id)
+
+  case demand.get_applications(database, id) {
+    Ok(applications) if session.id == owner ->
+      json.array(applications, demand.application_to_json)
+      |> json.to_string
+      |> wisp.json_response(200)
+
+    Ok(_) -> wisp.response(403)
+    Error(error) -> handle_demand_error(error)
+  }
+}
+
+/// ## `PATCH /api/company/demand/:id/application/:startup_id`
+///
+/// Accept or decline a Startup's application to a Demand.
+///
+/// A Company session is required, and the Demand must belong to that Company.
+/// The application is set to the requested status regardless of its previous
+/// one, so a decision can be reversed by sending the opposite status.
+///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Demand's ID.
+/// - `startup_id` (UUID, required): the Startup's ID.
+///
+/// ## Request Body
+///
+/// ```json
+/// {
+///   "status": "accepted"
+/// }
+/// ```
+///
+/// - `status`: either `"accepted"` or `"declined"`.
+///
+/// ## Response Body
+///
+/// ```json
+/// {
+///   "demand": "01a173cb-9533-7ebd-87a0-590965ef3653",
+///   "startup": "01a173cb-9533-7eb5-9522-9686fef4f2a4",
+///   "status": "accepted",
+///   "created_at": "2026-09-14T20:08:02.000Z",
+///   "updated_at": "2026-09-15T20:08:02.000Z"
+/// }
+/// ```
+///
+/// ## Status Codes
+///
+/// - **200** If the application was updated.
+/// - **400** If an ID is not a valid UUID, the request body is invalid JSON, or
+///   `status` is not `"accepted"` or `"declined"`.
+/// - **401** If not authenticated.
+/// - **403** If the session is not a Company session, or the Demand belongs to
+///   a different Company.
+/// - **404** If the Demand or the application is not found.
+///
+fn update_application(
+  request: Request,
+  database: pog.Connection,
+  demand_id: String,
+  startup_id: String,
+) -> Response {
+  use body <- wisp.require_json(request)
+  use demand_id <- require_valid_uuid(demand_id)
+  use startup_id <- require_valid_uuid(startup_id)
+  use session <- require_company_session(request)
+  use owner <- require_demand_owner(database, demand_id, session.id)
+
+  let decoder = {
+    use status <- decode.field("status", decode.string)
+    case status {
+      "accepted" -> decode.success(status)
+      "declined" -> decode.success(status)
+      _ -> decode.failure("", "application_status")
+    }
+  }
+
+  case decode.run(body, decoder) {
+    Ok("accepted") if session.id == owner ->
+      case demand.accept_application(database, demand_id, from: startup_id) {
+        Ok(application) ->
+          demand.application_to_json(application)
+          |> json.to_string
+          |> wisp.json_response(200)
+
+        Error(error) -> handle_demand_error(error)
+      }
+
+    Ok("declined") if session.id == owner ->
+      case demand.decline_application(database, demand_id, from: startup_id) {
+        Ok(application) ->
+          demand.application_to_json(application)
+          |> json.to_string
+          |> wisp.json_response(200)
+
+        Error(error) -> handle_demand_error(error)
+      }
+
+    // valid but not authorized
+    Ok("accepted") | Ok("declined") -> wisp.response(403)
+
+    Ok(status) -> wisp.bad_request("Invalid application status: " <> status)
+    Error(_) -> wisp.bad_request("Invalid JSON")
+  }
+}
+
+/// Require the given Demand to belong to the given Company.
+///
+/// Returns `404` if the Demand does not exist and `403` if it belongs to a
+/// different Company.
+fn require_demand_owner(
+  database: pog.Connection,
+  demand id: uuid.Uuid,
+  company company: uuid.Uuid,
+  next next: fn(uuid.Uuid) -> Response,
+) -> Response {
+  case demand.get(database, id) {
+    Error(error) -> handle_demand_error(error)
+    Ok(found) if found.company_id == company -> next(found.company_id)
+    Ok(_) -> wisp.response(403)
+  }
+}
+
 /// ## `POST /api/company/:id/demand`
 ///
 /// Register a new Demand for a Company. Segments, Services, Expertises and
 /// Technologies can be assigned to the Demand in the same request.
 ///
-/// `:id` is the Company's UUID.
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Company's ID.
 ///
 /// ## Request Body
 ///
@@ -1059,6 +1645,9 @@ fn delete_demand(database: pog.Connection, id: String) -> Response {
 /// - **201** If successful.
 /// - **400** If the Company ID or any provided entity ID is not a valid UUID,
 ///   or the request body is invalid JSON.
+/// - **401** If not authenticated.
+/// - **403** If the session is not a Company session, or the Demand belongs to
+///   a different Company.
 /// - **404** If the Company, or any assigned entity, is not found.
 /// - **409** If an entity is already assigned to the Demand.
 ///
@@ -1069,6 +1658,7 @@ fn register_demand(
 ) -> Response {
   use body <- wisp.require_json(request)
   use id <- require_valid_uuid(id)
+  use session <- require_company_session(request)
 
   let decoder = {
     use title <- decode.field("title", decode.string)
@@ -1107,9 +1697,9 @@ fn register_demand(
   }
 
   case decode.run(body, decoder) {
-    Error(_) -> wisp.bad_request("Invalid JSON")
-    Ok(payload) -> {
+    Ok(payload) if session.id == id -> {
       let result = {
+        // registering the demand
         use demand <- result.try(
           demand.register(
             database,
@@ -1121,6 +1711,7 @@ fn register_demand(
           |> result.map_error(DemandError),
         )
 
+        // assigning expertises
         use expertises <- result.try(
           list.try_map(payload.expertises, demand.assign_expertise(
             database,
@@ -1130,6 +1721,7 @@ fn register_demand(
           |> result.map_error(DemandError),
         )
 
+        // assigning segments
         use segments <- result.try(
           list.try_map(payload.segments, demand.assign_segment(
             database,
@@ -1139,6 +1731,7 @@ fn register_demand(
           |> result.map_error(DemandError),
         )
 
+        // assigning services
         use services <- result.try(
           list.try_map(payload.services, demand.assign_service(
             database,
@@ -1148,6 +1741,7 @@ fn register_demand(
           |> result.map_error(DemandError),
         )
 
+        // assigning technologies
         use technologies <- result.map(
           list.try_map(payload.technologies, demand.assign_technology(
             database,
@@ -1157,6 +1751,7 @@ fn register_demand(
           |> result.map_error(DemandError),
         )
 
+        // json body
         json.object([
           #("demand", demand.to_json(demand)),
           #("expertises", json.array(expertises, expertise.to_json)),
@@ -1164,23 +1759,28 @@ fn register_demand(
           #("services", json.array(services, service.to_json)),
           #("technologies", json.array(technologies, technology.to_json)),
         ])
+        |> json.to_string
       }
 
       case result {
+        Ok(body) -> wisp.json_response(body, 201)
         Error(error) -> handle_error(error)
-
-        Ok(body) ->
-          json.to_string(body)
-          |> wisp.json_response(201)
       }
     }
+
+    Ok(_) -> wisp.response(403)
+    Error(_) -> wisp.bad_request("Invalid JSON")
   }
 }
 
-/// PATCH `/api/company/demand/{id}/`
+/// ## `PATCH /api/company/demand/:id`
 ///
-/// Update information about a Demand. Missing fields and empty strings will be
+/// Update information about a Demand. Missing fields and empty strings are
 /// ignored.
+///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Demand's ID.
 ///
 /// ## Request Body
 ///
@@ -1191,7 +1791,10 @@ fn register_demand(
 /// }
 /// ```
 ///
-/// ## Response
+/// - Both fields are optional.
+/// - Empty strings are treated as missing fields.
+///
+/// ## Response Body
 ///
 /// ```json
 /// {
@@ -1207,16 +1810,22 @@ fn register_demand(
 ///
 /// ## Status Codes
 ///
-/// - **200** If successful.
-/// - **400** if ID is not a valid UUID.
+/// - **200** If the Demand was updated.
+/// - **400** If the ID is not a valid UUID or the request body is invalid JSON.
+/// - **401** If not authenticated.
+/// - **403** If the session is not a Company session, or it belongs to a
+///   different Company.
+/// - **404** If the Demand is not found.
 ///
 fn update_demand(
   request: Request,
   database: pog.Connection,
-  id: String,
+  demand_id: String,
 ) -> Response {
   use body <- wisp.require_json(request)
-  use id <- require_valid_uuid(id)
+  use demand_id <- require_valid_uuid(demand_id)
+  use session <- require_company_session(request)
+  use owner <- require_demand_owner(database, demand_id, session.id)
 
   let decoder = {
     use title <- decode.optional_field("title", "", decode.string)
@@ -1225,12 +1834,11 @@ fn update_demand(
   }
 
   case decode.run(body, decoder) {
-    Error(_) -> wisp.bad_request("Invalid JSON")
-    Ok(payload) -> {
+    Ok(payload) if session.id == owner -> {
       let new_title = string.to_option(payload.title)
       let new_description = string.to_option(payload.description)
 
-      case demand.update(database, id, new_title:, new_description:) {
+      case demand.update(database, demand_id, new_title:, new_description:) {
         Error(error) -> handle_demand_error(error)
 
         Ok(demand) ->
@@ -1239,14 +1847,21 @@ fn update_demand(
           |> wisp.json_response(200)
       }
     }
+
+    Ok(_) -> wisp.response(403)
+    Error(_) -> wisp.bad_request("Invalid JSON")
   }
 }
 
-/// ## GET `/api/company/demand/{id}`
+/// ## `GET /api/company/demand/:id`
 ///
-/// Get information about a Demand
+/// Fetch information about a Demand.
 ///
-/// ## Response
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Demand's ID.
+///
+/// ## Response Body
 ///
 /// ```json
 /// {
@@ -1263,7 +1878,8 @@ fn update_demand(
 /// ## Status Codes
 ///
 /// - **200** If successful.
-/// - **400** if ID is not a valid UUID.
+/// - **400** If the ID is not a valid UUID.
+/// - **404** If the Demand is not found.
 ///
 fn get_demand_by_id(database: pog.Connection, id: String) -> Response {
   use id <- require_valid_uuid(id)
@@ -1278,11 +1894,20 @@ fn get_demand_by_id(database: pog.Connection, id: String) -> Response {
   }
 }
 
-/// ## GET `/api/company/{id}/demand`
+/// ## `GET /api/company/:id/demand`
 ///
-/// Get all Demands assigned to a given Company.
+/// Fetch all Demands assigned to a Company.
 ///
-/// ## Response
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Company's ID.
+///
+/// ## Query Parameters
+///
+/// - `limit` (Int, required): the maximum number of Demands to return.
+/// - `offset` (Int, required): the number of Demands to skip.
+///
+/// ## Response Body
 ///
 /// ```json
 /// [
@@ -1310,7 +1935,8 @@ fn get_demand_by_id(database: pog.Connection, id: String) -> Response {
 /// ## Status Codes
 ///
 /// - **200** If successful.
-/// - **400** if ID is not a valid UUID.
+/// - **400** If the ID is not a valid UUID, or the query is missing, invalid
+///   or incomplete.
 ///
 fn get_company_demands(
   request: Request,
@@ -1353,7 +1979,14 @@ fn get_company_demands(
 
 /// ## `GET /api/company/demand/:id/segment`
 ///
-/// Fetch all Segments that a Demand is assigned to.
+/// Fetch all Segments assigned to a Demand.
+///
+/// Returns an empty list if the Demand does not exist or has no assigned
+/// segments.
+///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Demand's ID.
 ///
 /// ## Response Body
 ///
@@ -1375,7 +2008,7 @@ fn get_company_demands(
 /// ## Status Codes
 ///
 /// - **200** If successful.
-/// - **400** if ID is not a valid UUID.
+/// - **400** If the ID is not a valid UUID.
 ///
 fn get_demand_segments(database: pog.Connection, id: String) -> Response {
   use id <- require_valid_uuid(id)
@@ -1392,7 +2025,14 @@ fn get_demand_segments(database: pog.Connection, id: String) -> Response {
 
 /// ## `GET /api/company/demand/:id/service`
 ///
-/// Fetch all Services that a Demand is assigned to.
+/// Fetch all Services assigned to a Demand.
+///
+/// Returns an empty list if the Demand does not exist or has no assigned
+/// services.
+///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Demand's ID.
 ///
 /// ## Response Body
 ///
@@ -1414,7 +2054,7 @@ fn get_demand_segments(database: pog.Connection, id: String) -> Response {
 /// ## Status Codes
 ///
 /// - **200** If successful.
-/// - **400** if ID is not a valid UUID.
+/// - **400** If the ID is not a valid UUID.
 ///
 fn get_demand_services(database: pog.Connection, id: String) -> Response {
   use id <- require_valid_uuid(id)
@@ -1431,7 +2071,14 @@ fn get_demand_services(database: pog.Connection, id: String) -> Response {
 
 /// ## `GET /api/company/demand/:id/technology`
 ///
-/// Fetch all Technologies that a Demand is assigned to.
+/// Fetch all Technologies assigned to a Demand.
+///
+/// Returns an empty list if the Demand does not exist or has no assigned
+/// technologies.
+///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Demand's ID.
 ///
 /// ## Response Body
 ///
@@ -1453,7 +2100,7 @@ fn get_demand_services(database: pog.Connection, id: String) -> Response {
 /// ## Status Codes
 ///
 /// - **200** If successful.
-/// - **400** if ID is not a valid UUID.
+/// - **400** If the ID is not a valid UUID.
 ///
 fn get_demand_technologies(database: pog.Connection, id: String) -> Response {
   use id <- require_valid_uuid(id)
@@ -1470,7 +2117,14 @@ fn get_demand_technologies(database: pog.Connection, id: String) -> Response {
 
 /// ## `GET /api/company/demand/:id/expertise`
 ///
-/// Fetch all Expertises that a Demand is assigned to.
+/// Fetch all Expertises assigned to a Demand.
+///
+/// Returns an empty list if the Demand does not exist or has no assigned
+/// expertises.
+///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Demand's ID.
 ///
 /// ## Response Body
 ///
@@ -1492,7 +2146,7 @@ fn get_demand_technologies(database: pog.Connection, id: String) -> Response {
 /// ## Status Codes
 ///
 /// - **200** If successful.
-/// - **400** if ID is not a valid UUID.
+/// - **400** If the ID is not a valid UUID.
 ///
 fn get_demand_expertises(database: pog.Connection, id: String) -> Response {
   use id <- require_valid_uuid(id)
@@ -1510,6 +2164,10 @@ fn get_demand_expertises(database: pog.Connection, id: String) -> Response {
 /// ## `POST /api/company/demand/:id/segment`
 ///
 /// Assign a Segment to a Company's Demand.
+///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Demand's ID.
 ///
 /// ## Request Body
 ///
@@ -1532,17 +2190,22 @@ fn get_demand_expertises(database: pog.Connection, id: String) -> Response {
 /// ## Status Codes
 ///
 /// - **201** If successful.
-/// - **400** if :id or :segment is not a valid UUID.
+/// - **400** If the ID or the segment ID is not a valid UUID.
+/// - **401** If not authenticated.
+/// - **403** If the session is not a Company session, or it belongs to a
+///   different Company.
 /// - **404** If Demand or Segment is not found.
 /// - **409** If Segment is already assigned to the Demand.
 ///
-fn assign_demand_to_segment(
+fn assign_segment_to_demand(
   request: Request,
   database: pog.Connection,
   id: String,
 ) -> Response {
   use id <- require_valid_uuid(id)
   use body <- wisp.require_json(request)
+  use session <- require_company_session(request)
+  use owner <- require_demand_owner(database, demand: id, company: session.id)
 
   let decoder = {
     use segment <- decode.field("segment", internal.uuid_decoder())
@@ -1550,8 +2213,7 @@ fn assign_demand_to_segment(
   }
 
   case decode.run(body, decoder) {
-    Error(_) -> wisp.bad_request("Invalid JSON")
-    Ok(segment) ->
+    Ok(segment) if session.id == owner ->
       case demand.assign_segment(database, id, assign: segment) {
         Ok(data) ->
           segment.to_json(data)
@@ -1560,12 +2222,20 @@ fn assign_demand_to_segment(
 
         Error(error) -> handle_demand_error(error)
       }
+
+    Ok(_) -> wisp.response(403)
+    Error(_) -> wisp.bad_request("Invalid JSON")
   }
 }
 
 /// ## `DELETE /api/company/demand/:id/segment/:segment_id`
 ///
 /// Unassign a Segment from a Company's Demand.
+///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Demand's ID.
+/// - `segment_id` (UUID, required): the Segment's ID.
 ///
 /// ## Response Body
 ///
@@ -1580,23 +2250,30 @@ fn assign_demand_to_segment(
 /// ## Status Codes
 ///
 /// - **200** If successful.
-/// - **400** if :id or :segment_id is not a valid UUID.
+/// - **400** If the ID or the segment ID is not a valid UUID.
+/// - **401** If not authenticated.
+/// - **403** If the session is not a Company session, or it belongs to a
+///   different Company.
 /// - **404** If the Segment is not assigned to the Demand.
 ///
-fn unassign_demand_from_segment(
+fn unassign_segment_from_demand(
+  request: Request,
   database: pog.Connection,
   id: String,
   segment_id: String,
 ) -> Response {
   use id <- require_valid_uuid(id)
   use segment <- require_valid_uuid(segment_id)
+  use session <- require_company_session(request)
+  use owner <- require_demand_owner(database, demand: id, company: session.id)
 
   case demand.unassign_segment(database, id, unassign: segment) {
-    Ok(data) ->
+    Ok(data) if session.id == owner ->
       segment.to_json(data)
       |> json.to_string()
       |> wisp.json_response(200)
 
+    Ok(_) -> wisp.response(403)
     Error(error) -> handle_demand_error(error)
   }
 }
@@ -1604,6 +2281,10 @@ fn unassign_demand_from_segment(
 /// ## `POST /api/company/demand/:id/service`
 ///
 /// Assign a Service to a Company's Demand.
+///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Demand's ID.
 ///
 /// ## Request Body
 ///
@@ -1626,17 +2307,22 @@ fn unassign_demand_from_segment(
 /// ## Status Codes
 ///
 /// - **201** If successful.
-/// - **400** if :id or :service is not a valid UUID.
+/// - **400** If the ID or the service ID is not a valid UUID.
+/// - **401** If not authenticated.
+/// - **403** If the session is not a Company session, or it belongs to a
+///   different Company.
 /// - **404** If Demand or Service is not found.
 /// - **409** If Service is already assigned to the Demand.
 ///
-fn assign_demand_to_service(
+fn assign_service_to_demand(
   request: Request,
   database: pog.Connection,
   id: String,
 ) -> Response {
   use id <- require_valid_uuid(id)
   use body <- wisp.require_json(request)
+  use session <- require_company_session(request)
+  use owner <- require_demand_owner(database, demand: id, company: session.id)
 
   let decoder = {
     use service <- decode.field("service", internal.uuid_decoder())
@@ -1644,8 +2330,7 @@ fn assign_demand_to_service(
   }
 
   case decode.run(body, decoder) {
-    Error(_) -> wisp.bad_request("Invalid JSON")
-    Ok(service) ->
+    Ok(service) if session.id == owner ->
       case demand.assign_service(database, id, assign: service) {
         Ok(data) ->
           service.to_json(data)
@@ -1654,12 +2339,20 @@ fn assign_demand_to_service(
 
         Error(error) -> handle_demand_error(error)
       }
+
+    Ok(_) -> wisp.response(403)
+    Error(_) -> wisp.bad_request("Invalid JSON")
   }
 }
 
 /// ## `DELETE /api/company/demand/:id/service/:service_id`
 ///
 /// Unassign a Service from a Company's Demand.
+///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Demand's ID.
+/// - `service_id` (UUID, required): the Service's ID.
 ///
 /// ## Response Body
 ///
@@ -1674,23 +2367,30 @@ fn assign_demand_to_service(
 /// ## Status Codes
 ///
 /// - **200** If successful.
-/// - **400** if :id or :service_id is not a valid UUID.
+/// - **400** If the ID or the service ID is not a valid UUID.
+/// - **401** If not authenticated.
+/// - **403** If the session is not a Company session, or it belongs to a
+///   different Company.
 /// - **404** If the Service is not assigned to the Demand.
 ///
-fn unassign_demand_from_service(
+fn unassign_service_from_demand(
+  request: Request,
   database: pog.Connection,
   id: String,
   service_id: String,
 ) -> Response {
   use id <- require_valid_uuid(id)
   use service <- require_valid_uuid(service_id)
+  use session <- require_company_session(request)
+  use owner <- require_demand_owner(database, demand: id, company: session.id)
 
   case demand.unassign_service(database, id, unassign: service) {
-    Ok(data) ->
+    Ok(data) if session.id == owner ->
       service.to_json(data)
       |> json.to_string()
       |> wisp.json_response(200)
 
+    Ok(_) -> wisp.response(403)
     Error(error) -> handle_demand_error(error)
   }
 }
@@ -1698,6 +2398,10 @@ fn unassign_demand_from_service(
 /// ## `POST /api/company/demand/:id/technology`
 ///
 /// Assign a Technology to a Company's Demand.
+///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Demand's ID.
 ///
 /// ## Request Body
 ///
@@ -1720,17 +2424,22 @@ fn unassign_demand_from_service(
 /// ## Status Codes
 ///
 /// - **201** If successful.
-/// - **400** if :id or :technology is not a valid UUID.
+/// - **400** If the ID or the technology ID is not a valid UUID.
+/// - **401** If not authenticated.
+/// - **403** If the session is not a Company session, or it belongs to a
+///   different Company.
 /// - **404** If Demand or Technology is not found.
 /// - **409** If Technology is already assigned to the Demand.
 ///
-fn assign_demand_to_technology(
+fn assign_technology_to_demand(
   request: Request,
   database: pog.Connection,
   id: String,
 ) -> Response {
   use id <- require_valid_uuid(id)
   use body <- wisp.require_json(request)
+  use session <- require_company_session(request)
+  use owner <- require_demand_owner(database, demand: id, company: session.id)
 
   let decoder = {
     use technology <- decode.field("technology", internal.uuid_decoder())
@@ -1738,8 +2447,7 @@ fn assign_demand_to_technology(
   }
 
   case decode.run(body, decoder) {
-    Error(_) -> wisp.bad_request("Invalid JSON")
-    Ok(technology) ->
+    Ok(technology) if session.id == owner ->
       case demand.assign_technology(database, id, assign: technology) {
         Ok(data) ->
           technology.to_json(data)
@@ -1748,12 +2456,20 @@ fn assign_demand_to_technology(
 
         Error(error) -> handle_demand_error(error)
       }
+
+    Ok(_) -> wisp.response(403)
+    Error(_) -> wisp.bad_request("Invalid JSON")
   }
 }
 
 /// ## `DELETE /api/company/demand/:id/technology/:technology_id`
 ///
 /// Unassign a Technology from a Company's Demand.
+///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Demand's ID.
+/// - `technology_id` (UUID, required): the Technology's ID.
 ///
 /// ## Response Body
 ///
@@ -1768,23 +2484,30 @@ fn assign_demand_to_technology(
 /// ## Status Codes
 ///
 /// - **200** If successful.
-/// - **400** if :id or :technology_id is not a valid UUID.
+/// - **400** If the ID or the technology ID is not a valid UUID.
+/// - **401** If not authenticated.
+/// - **403** If the session is not a Company session, or it belongs to a
+///   different Company.
 /// - **404** If the Technology is not assigned to the Demand.
 ///
-fn unassign_demand_from_technology(
+fn unassign_technology_from_demand(
+  request: Request,
   database: pog.Connection,
   id: String,
   technology_id: String,
 ) -> Response {
   use id <- require_valid_uuid(id)
   use technology <- require_valid_uuid(technology_id)
+  use session <- require_company_session(request)
+  use owner <- require_demand_owner(database, demand: id, company: session.id)
 
   case demand.unassign_technology(database, id, unassign: technology) {
-    Ok(data) ->
+    Ok(data) if session.id == owner ->
       technology.to_json(data)
       |> json.to_string()
       |> wisp.json_response(200)
 
+    Ok(_) -> wisp.response(403)
     Error(error) -> handle_demand_error(error)
   }
 }
@@ -1792,6 +2515,10 @@ fn unassign_demand_from_technology(
 /// ## `POST /api/company/demand/:id/expertise`
 ///
 /// Assign an Expertise to a Company's Demand.
+///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Demand's ID.
 ///
 /// ## Request Body
 ///
@@ -1814,17 +2541,22 @@ fn unassign_demand_from_technology(
 /// ## Status Codes
 ///
 /// - **201** If successful.
-/// - **400** if :id or :expertise is not a valid UUID.
+/// - **400** If the ID or the expertise ID is not a valid UUID.
+/// - **401** If not authenticated.
+/// - **403** If the session is not a Company session, or it belongs to a
+///   different Company.
 /// - **404** If Demand or Expertise is not found.
 /// - **409** If Expertise is already assigned to the Demand.
 ///
-fn assign_demand_to_expertise(
+fn assign_expertise_to_demand(
   request: Request,
   database: pog.Connection,
   id: String,
 ) -> Response {
   use id <- require_valid_uuid(id)
   use body <- wisp.require_json(request)
+  use session <- require_company_session(request)
+  use owner <- require_demand_owner(database, demand: id, company: session.id)
 
   let decoder = {
     use expertise <- decode.field("expertise", internal.uuid_decoder())
@@ -1832,8 +2564,7 @@ fn assign_demand_to_expertise(
   }
 
   case decode.run(body, decoder) {
-    Error(_) -> wisp.bad_request("Invalid JSON")
-    Ok(expertise) ->
+    Ok(expertise) if session.id == owner ->
       case demand.assign_expertise(database, id, assign: expertise) {
         Ok(data) ->
           expertise.to_json(data)
@@ -1842,12 +2573,20 @@ fn assign_demand_to_expertise(
 
         Error(error) -> handle_demand_error(error)
       }
+
+    Ok(_) -> wisp.response(403)
+    Error(_) -> wisp.bad_request("Invalid JSON")
   }
 }
 
 /// ## `DELETE /api/company/demand/:id/expertise/:expertise_id`
 ///
 /// Unassign an Expertise from a Company's Demand.
+///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Demand's ID.
+/// - `expertise_id` (UUID, required): the Expertise's ID.
 ///
 /// ## Response Body
 ///
@@ -1862,30 +2601,41 @@ fn assign_demand_to_expertise(
 /// ## Status Codes
 ///
 /// - **200** If successful.
-/// - **400** if :id or :expertise_id is not a valid UUID.
+/// - **400** If the ID or the expertise ID is not a valid UUID.
+/// - **401** If not authenticated.
+/// - **403** If the session is not a Company session, or it belongs to a
+///   different Company.
 /// - **404** If the Expertise is not assigned to the Demand.
 ///
-fn unassign_demand_from_expertise(
+fn unassign_expertise_from_demand(
+  request: Request,
   database: pog.Connection,
   id: String,
   expertise_id: String,
 ) -> Response {
   use id <- require_valid_uuid(id)
   use expertise <- require_valid_uuid(expertise_id)
+  use session <- require_company_session(request)
+  use owner <- require_demand_owner(database, demand: id, company: session.id)
 
   case demand.unassign_expertise(database, id, unassign: expertise) {
-    Ok(data) ->
+    Ok(data) if session.id == owner ->
       expertise.to_json(data)
       |> json.to_string()
       |> wisp.json_response(200)
 
+    Ok(_) -> wisp.response(403)
     Error(error) -> handle_demand_error(error)
   }
 }
 
 /// ## `GET /api/segment/:id`
 ///
-/// Fetch information about a Segment
+/// Fetch information about a Segment.
+///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Segment's ID.
 ///
 /// ## Response Body
 ///
@@ -1900,8 +2650,8 @@ fn unassign_demand_from_expertise(
 /// ## Status Codes
 ///
 /// - **200** If successful.
-/// - **400** if ID is not a valid UUID.
-/// - **404** If Segment is not found.
+/// - **400** If the ID is not a valid UUID.
+/// - **404** If the Segment is not found.
 ///
 fn get_segment_by_id(database: pog.Connection, id: String) -> Response {
   use id <- require_valid_uuid(id)
@@ -1920,6 +2670,10 @@ fn get_segment_by_id(database: pog.Connection, id: String) -> Response {
 ///
 /// Fetch information about a Technology.
 ///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Technology's ID.
+///
 /// ## Response Body
 ///
 /// ```json
@@ -1933,8 +2687,8 @@ fn get_segment_by_id(database: pog.Connection, id: String) -> Response {
 /// ## Status Codes
 ///
 /// - **200** If successful.
-/// - **400** if ID is not a valid UUID.
-/// - **404** If Technology is not found.
+/// - **400** If the ID is not a valid UUID.
+/// - **404** If the Technology is not found.
 ///
 fn get_technology_by_id(database: pog.Connection, id: String) -> Response {
   use id <- require_valid_uuid(id)
@@ -1953,6 +2707,10 @@ fn get_technology_by_id(database: pog.Connection, id: String) -> Response {
 ///
 /// Fetch information about an Expertise.
 ///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Expertise's ID.
+///
 /// ## Response Body
 ///
 /// ```json
@@ -1966,8 +2724,8 @@ fn get_technology_by_id(database: pog.Connection, id: String) -> Response {
 /// ## Status Codes
 ///
 /// - **200** If successful.
-/// - **400** if ID is not a valid UUID.
-/// - **404** If Expertise is not found.
+/// - **400** If the ID is not a valid UUID.
+/// - **404** If the Expertise is not found.
 ///
 fn get_expertise_by_id(database: pog.Connection, id: String) -> Response {
   use id <- require_valid_uuid(id)
@@ -1986,6 +2744,10 @@ fn get_expertise_by_id(database: pog.Connection, id: String) -> Response {
 ///
 /// Fetch information about a Service.
 ///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Service's ID.
+///
 /// ## Response Body
 ///
 /// ```json
@@ -1999,8 +2761,8 @@ fn get_expertise_by_id(database: pog.Connection, id: String) -> Response {
 /// ## Status Codes
 ///
 /// - **200** If successful.
-/// - **400** if ID is not a valid UUID.
-/// - **404** If Service is not found.
+/// - **400** If the ID is not a valid UUID.
+/// - **404** If the Service is not found.
 ///
 fn get_service_by_id(database: pog.Connection, id: String) -> Response {
   use id <- require_valid_uuid(id)
@@ -2022,7 +2784,8 @@ fn get_service_by_id(database: pog.Connection, id: String) -> Response {
 ///
 /// ## Path Parameters
 ///
-/// - `id` (UUID, required)
+/// - `id` (UUID, required): the Company's ID. It must match the Company ID in
+///   the current session.
 ///
 /// ## Request Body
 ///
@@ -2065,6 +2828,9 @@ fn get_service_by_id(database: pog.Connection, id: String) -> Response {
 /// - **200** If successful.
 /// - **400** If the ID is not a valid UUID, the request body is invalid JSON,
 ///   or a field has an invalid value.
+/// - **401** If not authenticated.
+/// - **403** If the session is not a Company session, or it belongs to a
+///   different Company.
 /// - **404** If the Company is not found.
 /// - **409** If the new email or CNPJ is already in use.
 ///
@@ -2075,6 +2841,7 @@ fn update_company(
 ) -> Response {
   use body <- wisp.require_json(request)
   use id <- require_valid_uuid(id)
+  use session <- require_company_session(request)
 
   let decoder = {
     use name <- decode.optional_field("name", "", decode.string)
@@ -2117,12 +2884,10 @@ fn update_company(
   }
 
   case decode.run(body, decoder) {
-    Error(_) -> wisp.bad_request("Invalid JSON")
-
-    Ok(payload) -> {
-      let website = case uri.to_string(payload.website) {
-        "" -> None
-        _ -> Some(payload.website)
+    Ok(payload) if session.id == id -> {
+      let website = case payload.website == uri.empty {
+        True -> None
+        False -> Some(payload.website)
       }
 
       let result =
@@ -2148,6 +2913,9 @@ fn update_company(
         Error(error) -> handle_error(error)
       }
     }
+
+    Ok(_) -> wisp.response(403)
+    Error(_) -> wisp.bad_request("Invalid JSON")
   }
 }
 
@@ -2155,7 +2923,11 @@ fn update_company(
 ///
 /// Fetch information about a Company.
 ///
-/// ## Examples
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Company's ID.
+///
+/// ## Response Body
 ///
 /// ```json
 /// {
@@ -2175,9 +2947,9 @@ fn update_company(
 ///
 /// ## Status Codes
 ///
-/// - 200 If successful.
-/// - 400 If the ID is not a valid UUID.
-/// - 404 If Company is not found.
+/// - **200** If successful.
+/// - **400** If the ID is not a valid UUID.
+/// - **404** If the Company is not found.
 ///
 fn get_company_by_id(database: pog.Connection, id: String) -> Response {
   use id <- require_valid_uuid(id)
@@ -2194,7 +2966,11 @@ fn get_company_by_id(database: pog.Connection, id: String) -> Response {
 
 /// ## `POST /api/startup/:id/segment`
 ///
-/// Assign a Segment to a Startup
+/// Assign a Segment to a Startup.
+///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Startup's ID.
 ///
 /// ## Request Body
 ///
@@ -2217,16 +2993,20 @@ fn get_company_by_id(database: pog.Connection, id: String) -> Response {
 /// ## Status Codes
 ///
 /// - **201** If successful.
-/// - **400** if :id or :segment is not a valid UUID.
+/// - **400** If the ID or the segment ID is not a valid UUID.
+/// - **401** If not authenticated.
+/// - **403** If the session is not authorized for this Startup.
 /// - **404** If Startup or Segment is not found.
+/// - **409** If Segment is already assigned to the Startup.
 ///
-fn assign_startup_to_segment(
+fn assign_segment_to_startup(
   request: Request,
   database: pog.Connection,
   id: String,
 ) -> Response {
   use id <- require_valid_uuid(id)
   use body <- wisp.require_json(request)
+  use session <- require_startup_session(request)
 
   let decoder = {
     use segment <- decode.field("segment", internal.uuid_decoder())
@@ -2234,8 +3014,7 @@ fn assign_startup_to_segment(
   }
 
   case decode.run(body, decoder) {
-    Error(_) -> wisp.bad_request("Invalid JSON")
-    Ok(segment) ->
+    Ok(segment) if session.id == id ->
       case startup.assign_segment(database, id, assign: segment) {
         Ok(data) ->
           segment.to_json(data)
@@ -2244,12 +3023,19 @@ fn assign_startup_to_segment(
 
         Error(error) -> handle_startup_error(error)
       }
+
+    Ok(_) -> wisp.response(403)
+    Error(_) -> wisp.bad_request("Invalid JSON")
   }
 }
 
 /// ## `POST /api/startup/:id/technology`
 ///
-/// Assign a Technology to a Startup
+/// Assign a Technology to a Startup.
+///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Startup's ID.
 ///
 /// ## Request Body
 ///
@@ -2264,24 +3050,28 @@ fn assign_startup_to_segment(
 /// ```json
 /// {
 ///   "id": "01a155b2-69c7-75d7-8cc1-8d2626c6bc9b",
-///   "name": "Javascript",
-///   "description": "dont",
+///   "name": "Gleam",
+///   "description": "A friendly language for building type-safe systems"
 /// }
 /// ```
 ///
 /// ## Status Codes
 ///
 /// - **201** If successful.
-/// - **400** if :id or :technology is not a valid UUID.
+/// - **400** If the ID or the technology ID is not a valid UUID.
+/// - **401** If not authenticated.
+/// - **403** If the session is not authorized for this Startup.
 /// - **404** If Startup or Technology is not found.
+/// - **409** If Technology is already assigned to the Startup.
 ///
-fn assign_startup_to_technology(
+fn assign_technology_to_startup(
   request: Request,
   database: pog.Connection,
   id: String,
 ) -> Response {
   use id <- require_valid_uuid(id)
   use body <- wisp.require_json(request)
+  use session <- require_startup_session(request)
 
   let decoder = {
     use technology <- decode.field("technology", internal.uuid_decoder())
@@ -2289,8 +3079,7 @@ fn assign_startup_to_technology(
   }
 
   case decode.run(body, decoder) {
-    Error(_) -> wisp.bad_request("Invalid JSON")
-    Ok(technology) ->
+    Ok(technology) if session.id == id ->
       case startup.assign_technology(database, id, assign: technology) {
         Ok(data) ->
           technology.to_json(data)
@@ -2299,12 +3088,19 @@ fn assign_startup_to_technology(
 
         Error(error) -> handle_startup_error(error)
       }
+
+    Ok(_) -> wisp.response(403)
+    Error(_) -> wisp.bad_request("Invalid JSON")
   }
 }
 
 /// ## `POST /api/startup/:id/expertise`
 ///
-/// Assign an Expertise to a Startup
+/// Assign an Expertise to a Startup.
+///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Startup's ID.
 ///
 /// ## Request Body
 ///
@@ -2327,16 +3123,20 @@ fn assign_startup_to_technology(
 /// ## Status Codes
 ///
 /// - **201** If successful.
-/// - **400** if :id or :expertise is not a valid UUID.
+/// - **400** If the ID or the expertise ID is not a valid UUID.
+/// - **401** If not authenticated.
+/// - **403** If the session is not authorized for this Startup.
 /// - **404** If Startup or Expertise is not found.
+/// - **409** If Expertise is already assigned to the Startup.
 ///
-fn assign_startup_to_expertise(
+fn assign_expertise_to_startup(
   request: Request,
   database: pog.Connection,
   id: String,
 ) -> Response {
   use id <- require_valid_uuid(id)
   use body <- wisp.require_json(request)
+  use session <- require_startup_session(request)
 
   let decoder = {
     use expertise <- decode.field("expertise", internal.uuid_decoder())
@@ -2344,8 +3144,7 @@ fn assign_startup_to_expertise(
   }
 
   case decode.run(body, decoder) {
-    Error(_) -> wisp.bad_request("Invalid JSON")
-    Ok(expertise) ->
+    Ok(expertise) if session.id == id ->
       case startup.assign_expertise(database, id, assign: expertise) {
         Ok(data) ->
           expertise.to_json(data)
@@ -2354,12 +3153,19 @@ fn assign_startup_to_expertise(
 
         Error(error) -> handle_startup_error(error)
       }
+
+    Ok(_) -> wisp.response(403)
+    Error(_) -> wisp.bad_request("Invalid JSON")
   }
 }
 
 /// ## `POST /api/startup/:id/service`
 ///
-/// Assign a Service to a Startup
+/// Assign a Service to a Startup.
+///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Startup's ID.
 ///
 /// ## Request Body
 ///
@@ -2382,16 +3188,20 @@ fn assign_startup_to_expertise(
 /// ## Status Codes
 ///
 /// - **201** If successful.
-/// - **400** if :id or :service is not a valid UUID.
+/// - **400** If the ID or the service ID is not a valid UUID.
+/// - **401** If not authenticated.
+/// - **403** If the session is not authorized for this Startup.
 /// - **404** If Startup or Service is not found.
+/// - **409** If Service is already assigned to the Startup.
 ///
-fn assign_startup_to_service(
+fn assign_service_to_startup(
   request: Request,
   database: pog.Connection,
   id: String,
 ) -> Response {
   use id <- require_valid_uuid(id)
   use body <- wisp.require_json(request)
+  use session <- require_startup_session(request)
 
   let decoder = {
     use service <- decode.field("service", internal.uuid_decoder())
@@ -2399,8 +3209,7 @@ fn assign_startup_to_service(
   }
 
   case decode.run(body, decoder) {
-    Error(_) -> wisp.bad_request("Invalid JSON")
-    Ok(service) ->
+    Ok(service) if session.id == id ->
       case startup.assign_service(database, id, assign: service) {
         Ok(data) ->
           service.to_json(data)
@@ -2409,15 +3218,27 @@ fn assign_startup_to_service(
 
         Error(error) -> handle_startup_error(error)
       }
+
+    Ok(_) -> wisp.response(403)
+    Error(_) -> wisp.bad_request("Invalid JSON")
   }
 }
 
-/// Checks if there's an active session token in the user request.
-/// On sucess, the server will send Startup / Company JSON data to the client
-/// depending on their previous session type.
+/// ## `GET /api/auth/restore`
 ///
-/// > **NOTE:**  
-/// > This function **does not** refresh the session token duration.
+/// Restore the account associated with the current session.
+///
+/// The signed `SESSION` cookie is decoded and used to load the corresponding
+/// Startup or Company. The response body contains the account as JSON.
+///
+/// > **Note:** This route does **not** refresh the session token duration. Use
+/// > [`refresh_session`](#refresh_session) for that.
+///
+/// ## Status Codes
+///
+/// - **200** If the session is valid and the account exists.
+/// - **401** If the session cookie is missing or invalid.
+/// - **404** If the Startup or Company referenced by the session is not found.
 pub fn restore_session(request: Request, database: pog.Connection) -> Response {
   use session <- require_session(request)
 
@@ -2442,31 +3263,48 @@ pub fn restore_session(request: Request, database: pog.Connection) -> Response {
   }
 }
 
+/// ## `GET /api/auth/refresh`
+///
 /// Refresh the current session token duration.
+///
+/// A new signed `SESSION` cookie is issued with a one-hour lifetime. The
+/// response has no body.
 ///
 /// ## Status Codes
 ///
-/// - 200 if successfull
-/// - 401 if token is missing
+/// - **204** If the cookie was refreshed.
+/// - **401** If the session cookie is missing or invalid.
 pub fn refresh_session(request: Request) -> Response {
   use session <- require_session(request)
   set_session_token(wisp.no_content(), request, session, duration.hours(1))
 }
 
-/// Sets to cookie duration to 0.
+/// ## `POST /api/auth/logout`
+///
+/// Log out by expiring the session cookie.
+///
+/// The current session is required so the cookie can be overwritten with an
+/// empty value and a zero-second lifetime. The response has no body.
 ///
 /// ## Status Codes
 ///
-/// - 200 if successfull
-/// - 401 if token is missing
+/// - **204** If the cookie was expired.
+/// - **401** If the session cookie is missing or invalid.
 fn handle_logout(request: Request) -> Response {
   use session <- require_session(request)
   set_session_token(wisp.no_content(), request, session, duration.seconds(0))
 }
 
-/// ## `GET /api/startup/expertise/:id`
+/// ## `GET /api/startup/:id/expertise`
 ///
-/// Fetch all Expertises that a Startup is assigned to.
+/// Fetch all Expertises assigned to a Startup.
+///
+/// Returns an empty list if the Startup does not exist or has no assigned
+/// expertises.
+///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Startup's ID.
 ///
 /// ## Response Body
 ///
@@ -2475,12 +3313,12 @@ fn handle_logout(request: Request) -> Response {
 ///   {
 ///    "id": "01a058ae-057f-73e8-b2a0-50986559767b",
 ///    "name": "Education",
-///    "description": "",
+///    "description": ""
 ///   },
 ///   {
 ///    "id": "01a0dbb3-153a-7b84-8c3d-631788972d4a",
 ///    "name": "Health",
-///    "description": "Medical stuff",
+///    "description": "Medical stuff"
 ///   }
 /// ]
 /// ```
@@ -2488,8 +3326,7 @@ fn handle_logout(request: Request) -> Response {
 /// ## Status Codes
 ///
 /// - **200** If successful.
-/// - **400** if ID is not a valid UUID.
-/// - **404** If Startup is not found.
+/// - **400** If the ID is not a valid UUID.
 ///
 fn get_startup_expertises(database: pog.Connection, id: String) -> Response {
   use id <- require_valid_uuid(id)
@@ -2508,6 +3345,11 @@ fn get_startup_expertises(database: pog.Connection, id: String) -> Response {
 ///
 /// Unassign an Expertise from a Startup.
 ///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Startup's ID.
+/// - `expertise_id` (UUID, required): the Expertise's ID.
+///
 /// ## Response Body
 ///
 /// ```json
@@ -2521,10 +3363,10 @@ fn get_startup_expertises(database: pog.Connection, id: String) -> Response {
 /// ## Status Codes
 ///
 /// - **200** If successful.
-/// - **400** if :id or :expertise_id is not a valid UUID.
+/// - **400** If the ID or the expertise ID is not a valid UUID.
 /// - **404** If the Expertise is not assigned to the Startup.
 ///
-fn unassign_startup_from_expertise(
+fn unassign_expertise_from_expertise(
   database: pog.Connection,
   id: String,
   expertise_id: String,
@@ -2542,15 +3384,27 @@ fn unassign_startup_from_expertise(
   }
 }
 
-/// Return HTTP 401 if the Session token is not found
+/// Require a valid signed session cookie.
+///
+/// The `SESSION` cookie is verified and decoded with
+/// [`session_decoder`](#session_decoder). On success, the decoded
+/// [`Session`](#Session) is passed to `next`.
+///
+/// ## Status Codes
+///
+/// - **401** If the session cookie is missing, has an invalid signature, or
+///   contains an invalid session payload.
 ///
 /// ## Examples
 ///
 /// ```gleam
-/// pub fn handle_request(request, context, id) -> wisp.Response {
+/// pub fn handle_request(request: Request) -> Response {
 ///   use session <- require_session(request)
 ///
-///   // rest of the code
+///   case session {
+///     Startup(id:) -> handle_startup_session(request, id)
+///     Company(id:) -> handle_company_session(request, id)
+///   }
 /// }
 /// ```
 pub fn require_session(
@@ -2577,7 +3431,14 @@ pub fn require_session(
 
 /// ## `GET /api/startup/:id/service`
 ///
-/// Fetch all Services that a Startup is assigned to.
+/// Fetch all Services assigned to a Startup.
+///
+/// Returns an empty list if the Startup does not exist or has no assigned
+/// services.
+///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Startup's ID.
 ///
 /// ## Response Body
 ///
@@ -2599,8 +3460,7 @@ pub fn require_session(
 /// ## Status Codes
 ///
 /// - **200** If successful.
-/// - **400** if ID is not a valid UUID.
-/// - **404** If Startup is not found.
+/// - **400** If the ID is not a valid UUID.
 ///
 fn get_startup_services(database: pog.Connection, id: String) -> Response {
   use id <- require_valid_uuid(id)
@@ -2619,6 +3479,11 @@ fn get_startup_services(database: pog.Connection, id: String) -> Response {
 ///
 /// Unassign a Service from a Startup.
 ///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Startup's ID.
+/// - `service_id` (UUID, required): the Service's ID.
+///
 /// ## Response Body
 ///
 /// ```json
@@ -2632,30 +3497,42 @@ fn get_startup_services(database: pog.Connection, id: String) -> Response {
 /// ## Status Codes
 ///
 /// - **200** If successful.
-/// - **400** if :id or :service_id is not a valid UUID.
+/// - **400** If the ID or the service ID is not a valid UUID.
+/// - **401** If not authenticated.
+/// - **403** If the session is not authorized for this Startup.
 /// - **404** If the Service is not assigned to the Startup.
 ///
-fn unassign_startup_from_service(
+fn unassign_service_from_startup(
+  request: Request,
   database: pog.Connection,
   id: String,
   service_id: String,
 ) -> Response {
   use id <- require_valid_uuid(id)
   use service <- require_valid_uuid(service_id)
+  use session <- require_startup_session(request)
 
   case startup.unassign_service(database, id, unassign: service) {
-    Ok(data) ->
+    Ok(data) if session.id == id ->
       service.to_json(data)
       |> json.to_string()
       |> wisp.json_response(200)
 
+    Ok(_) -> wisp.response(403)
     Error(error) -> handle_startup_error(error)
   }
 }
 
 /// ## `GET /api/startup/:id/segment`
 ///
-/// Fetch all Segments that a Startup is assigned to.
+/// Fetch all Segments assigned to a Startup.
+///
+/// Returns an empty list if the Startup does not exist or has no assigned
+/// segments.
+///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Startup's ID.
 ///
 /// ## Response Body
 ///
@@ -2677,8 +3554,7 @@ fn unassign_startup_from_service(
 /// ## Status Codes
 ///
 /// - **200** If successful.
-/// - **400** if ID is not a valid UUID.
-/// - **404** If Startup is not found.
+/// - **400** If the ID is not a valid UUID.
 ///
 fn get_startup_segments(database: pog.Connection, id: String) -> Response {
   use id <- require_valid_uuid(id)
@@ -2697,6 +3573,11 @@ fn get_startup_segments(database: pog.Connection, id: String) -> Response {
 ///
 /// Unassign a Segment from a Startup.
 ///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Startup's ID.
+/// - `segment_id` (UUID, required): the Segment's ID.
+///
 /// ## Response Body
 ///
 /// ```json
@@ -2710,30 +3591,42 @@ fn get_startup_segments(database: pog.Connection, id: String) -> Response {
 /// ## Status Codes
 ///
 /// - **200** If successful.
-/// - **400** if :id or :segment_id is not a valid UUID.
+/// - **400** If the ID or the segment ID is not a valid UUID.
+/// - **401** If not authenticated.
+/// - **403** If the session is not authorized for this Startup.
 /// - **404** If the Segment is not assigned to the Startup.
 ///
-fn unassign_startup_from_segment(
+fn unassign_segment_from_startup(
+  request: Request,
   database: pog.Connection,
   id: String,
   segment_id: String,
 ) -> Response {
   use id <- require_valid_uuid(id)
   use segment <- require_valid_uuid(segment_id)
+  use session <- require_startup_session(request)
 
   case startup.unassign_segment(database, id, unassign: segment) {
-    Ok(data) ->
+    Ok(data) if session.id == id ->
       segment.to_json(data)
       |> json.to_string()
       |> wisp.json_response(200)
 
+    Ok(_) -> wisp.response(403)
     Error(error) -> handle_startup_error(error)
   }
 }
 
 /// ## `GET /api/startup/:id/technology`
 ///
-/// Fetch all Technologies that a Startup is assigned to.
+/// Fetch all Technologies assigned to a Startup.
+///
+/// Returns an empty list if the Startup does not exist or has no assigned
+/// technologies.
+///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Startup's ID.
 ///
 /// ## Response Body
 ///
@@ -2741,13 +3634,13 @@ fn unassign_startup_from_segment(
 /// [
 ///   {
 ///    "id": "01a058ae-057f-73e8-b2a0-50986559767b",
-///    "name": "Javascript",
-///    "description": "dont",
+///    "name": "Gleam",
+///    "description": "A friendly language for building type-safe systems"
 ///   },
 ///   {
 ///    "id": "01a0dbb3-153a-7b84-8c3d-631788972d4a",
-///    "name": "Python",
-///    "description": "Please dont"
+///    "name": "PostgreSQL",
+///    "description": "The world's most advanced open source database"
 ///   }
 /// ]
 /// ```
@@ -2755,8 +3648,7 @@ fn unassign_startup_from_segment(
 /// ## Status Codes
 ///
 /// - **200** If successful.
-/// - **400** if ID is not a valid UUID.
-/// - **404** If Startup is not found.
+/// - **400** If the ID is not a valid UUID.
 ///
 fn get_startup_technologies(database: pog.Connection, id: String) -> Response {
   use id <- require_valid_uuid(id)
@@ -2775,6 +3667,11 @@ fn get_startup_technologies(database: pog.Connection, id: String) -> Response {
 ///
 /// Unassign a Technology from a Startup.
 ///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Startup's ID.
+/// - `technology_id` (UUID, required): the Technology's ID.
+///
 /// ## Response Body
 ///
 /// ```json
@@ -2788,34 +3685,40 @@ fn get_startup_technologies(database: pog.Connection, id: String) -> Response {
 /// ## Status Codes
 ///
 /// - **200** If successful.
-/// - **400** if :id or :technology_id is not a valid UUID.
+/// - **400** If the ID or the technology ID is not a valid UUID.
+/// - **401** If not authenticated.
+/// - **403** If the session is not authorized for this Startup.
 /// - **404** If the Technology is not assigned to the Startup.
 ///
-fn unassign_startup_from_technology(
+fn unassign_technology_from_startup(
+  request: Request,
   database: pog.Connection,
   id: String,
   technology_id: String,
 ) -> Response {
   use id <- require_valid_uuid(id)
   use technology <- require_valid_uuid(technology_id)
+  use session <- require_startup_session(request)
 
   case startup.unassign_technology(database, id, unassign: technology) {
-    Ok(data) ->
+    Ok(data) if session.id == id ->
       technology.to_json(data)
       |> json.to_string()
       |> wisp.json_response(200)
 
+    Ok(_) -> wisp.response(403)
     Error(error) -> handle_startup_error(error)
   }
 }
 
 /// ## `GET /api/startup`
 ///
-/// Fetch a list of registered Startups, pagination is available.
+/// Fetch a paginated list of registered Startups.
 ///
-/// Required parameters:
-/// - limit: `Int`
-/// - offset: `Int`
+/// ## Query Parameters
+///
+/// - `limit` (Int, required): the maximum number of Startups to return.
+/// - `offset` (Int, required): the number of Startups to skip.
 ///
 /// ## Response Body
 ///
@@ -2852,8 +3755,8 @@ fn unassign_startup_from_technology(
 ///
 /// ## Status Codes
 ///
-/// - **200** if successful
-/// - **400** if query is missing, invalid or incomplete.
+/// - **200** If successful.
+/// - **400** If the query is missing, invalid or incomplete.
 ///
 fn get_many_startups(request: Request, database: pog.Connection) -> Response {
   let result = {
@@ -2888,7 +3791,441 @@ fn get_many_startups(request: Request, database: pog.Connection) -> Response {
   }
 }
 
-/// Handle [WebError](#WebError)
+/// ## `POST /api/company/:id/connection`
+///
+/// Request a [Connection](../server/connection.html#Connection) with a Startup.
+/// The connection starts as `pending` until the Startup accepts or declines it.
+///
+/// A Company session is required, and it must belong to the Company identified
+/// by `id`.
+///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Company's ID.
+///
+/// ## Request Body
+///
+/// ```json
+/// {
+///   "startup": "01a173cb-9533-7ebd-87a0-590965ef3653"
+/// }
+/// ```
+///
+/// ## Response Body
+///
+/// ```json
+/// {
+///   "company": "01a173cb-9533-7eb5-9522-9686fef4f2a4",
+///   "startup": "01a173cb-9533-7ebd-87a0-590965ef3653",
+///   "status": "pending",
+///   "created_at": "2026-09-14T20:08:02.000Z",
+///   "updated_at": "2026-09-14T20:08:02.000Z"
+/// }
+/// ```
+///
+/// ## Status Codes
+///
+/// - **201** If the connection was requested.
+/// - **400** If the Company or Startup ID is not a valid UUID, or the request
+///   body is invalid JSON.
+/// - **401** If not authenticated.
+/// - **403** If the session is not a Company session, or it belongs to a
+///   different Company.
+/// - **404** If the Company or Startup is not found.
+/// - **409** If a connection with the Startup was already requested.
+///
+fn request_connection(
+  request: Request,
+  database: pog.Connection,
+  id: String,
+) -> Response {
+  use body <- wisp.require_json(request)
+  use id <- require_valid_uuid(id)
+  use session <- require_company_session(request)
+
+  let decoder = {
+    use id <- decode.field("startup", internal.uuid_decoder())
+    decode.success(id)
+  }
+
+  case decode.run(body, decoder) {
+    Ok(startup_id) if session.id == id ->
+      case company.request_connection(database, id, to: startup_id) {
+        Ok(connection) ->
+          connection.to_json(connection)
+          |> json.to_string
+          |> wisp.json_response(201)
+
+        Error(error) -> handle_company_error(error)
+      }
+
+    Ok(_) -> wisp.response(403)
+    Error(_) -> wisp.bad_request("Invalid JSON")
+  }
+}
+
+/// ## `GET /api/company/:id/connection`
+///
+/// Fetch all Connections requested by a Company, newest first.
+///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Company's ID.
+///
+/// ## Query Parameters
+///
+/// - `limit` (Int, required): the maximum number of Connections to return.
+/// - `offset` (Int, required): the number of Connections to skip.
+///
+/// ## Response Body
+///
+/// ```json
+/// [
+///   {
+///     "company": "01a173cb-9533-7eb5-9522-9686fef4f2a4",
+///     "startup": "01a173cb-9533-7ebd-87a0-590965ef3653",
+///     "status": "accepted",
+///     "created_at": "2026-09-14T20:08:02.000Z",
+///     "updated_at": "2026-09-15T20:08:02.000Z"
+///   }
+/// ]
+/// ```
+///
+/// ## Status Codes
+///
+/// - **200** If successful.
+/// - **400** If the ID is not a valid UUID, or the query is missing, invalid
+///   or incomplete.
+///
+fn get_company_connections(
+  request: Request,
+  database: pog.Connection,
+  id: String,
+) -> Response {
+  use id <- require_valid_uuid(id)
+
+  let result = {
+    use query <- result.try(
+      request.get_query(request)
+      |> result.replace_error(MissingQuery),
+    )
+
+    use limit <- result.try(
+      list.key_find(query, "limit")
+      |> result.try(int.parse)
+      |> result.replace_error(InvalidQueryParameter("limit")),
+    )
+
+    use offset <- result.try(
+      list.key_find(query, "offset")
+      |> result.try(int.parse)
+      |> result.replace_error(InvalidQueryParameter("offset")),
+    )
+
+    company.get_connections(database, id, limit:, offset:)
+    |> result.map_error(CompanyError)
+  }
+
+  case result {
+    Ok(connections) ->
+      json.array(connections, connection.to_json)
+      |> json.to_string
+      |> wisp.json_response(200)
+
+    Error(error) -> handle_error(error)
+  }
+}
+
+/// ## `GET /api/startup/:id/connection`
+///
+/// Fetch all Connections received by a Startup, newest first.
+///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Startup's ID.
+///
+/// ## Query Parameters
+///
+/// - `limit` (Int, required): the maximum number of Connections to return.
+/// - `offset` (Int, required): the number of Connections to skip.
+///
+/// ## Response Body
+///
+/// ```json
+/// [
+///   {
+///     "company": "01a173cb-9533-7eb5-9522-9686fef4f2a4",
+///     "startup": "01a173cb-9533-7ebd-87a0-590965ef3653",
+///     "status": "pending",
+///     "created_at": "2026-09-14T20:08:02.000Z",
+///     "updated_at": "2026-09-14T20:08:02.000Z"
+///   }
+/// ]
+/// ```
+///
+/// ## Status Codes
+///
+/// - **200** If successful.
+/// - **400** If the ID is not a valid UUID, or the query is missing, invalid
+///   or incomplete.
+///
+fn get_startup_connections(
+  request: Request,
+  database: pog.Connection,
+  id: String,
+) -> Response {
+  use id <- require_valid_uuid(id)
+
+  let result = {
+    use query <- result.try(
+      request.get_query(request)
+      |> result.replace_error(MissingQuery),
+    )
+
+    use limit <- result.try(
+      list.key_find(query, "limit")
+      |> result.try(int.parse)
+      |> result.replace_error(InvalidQueryParameter("limit")),
+    )
+
+    use offset <- result.try(
+      list.key_find(query, "offset")
+      |> result.try(int.parse)
+      |> result.replace_error(InvalidQueryParameter("offset")),
+    )
+
+    startup.get_connections(database, id, limit:, offset:)
+    |> result.map_error(StartupError)
+  }
+
+  case result {
+    Ok(connections) ->
+      json.array(connections, connection.to_json)
+      |> json.to_string
+      |> wisp.json_response(200)
+
+    Error(error) -> handle_error(error)
+  }
+}
+
+/// ## `PATCH /api/startup/:id/connection/:company_id`
+///
+/// Accept or decline a pending Connection request received by a Startup.
+///
+/// A Startup session is required, and it must belong to the Startup identified
+/// by `id`.
+///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Startup's ID.
+/// - `company_id` (UUID, required): the ID of the Company that requested the
+///   connection.
+///
+/// ## Request Body
+///
+/// ```json
+/// {
+///   "status": "accepted"
+/// }
+/// ```
+///
+/// - `status`: either `"accepted"` or `"declined"`.
+///
+/// ## Response Body
+///
+/// ```json
+/// {
+///   "company": "01a173cb-9533-7eb5-9522-9686fef4f2a4",
+///   "startup": "01a173cb-9533-7ebd-87a0-590965ef3653",
+///   "status": "accepted",
+///   "created_at": "2026-09-14T20:08:02.000Z",
+///   "updated_at": "2026-09-15T20:08:02.000Z"
+/// }
+/// ```
+///
+/// ## Status Codes
+///
+/// - **200** If the Connection was updated.
+/// - **400** If an ID is not a valid UUID, the request body is invalid JSON, or
+///   `status` is not `"accepted"` or `"declined"`.
+/// - **401** If not authenticated.
+/// - **403** If the session is not a Startup session, or it belongs to a
+///   different Startup.
+/// - **404** If no pending Connection from the Company exists.
+///
+fn update_connection(
+  request: Request,
+  database: pog.Connection,
+  id: String,
+  company_id: String,
+) -> Response {
+  use body <- wisp.require_json(request)
+  use id <- require_valid_uuid(id)
+  use company <- require_valid_uuid(company_id)
+  use session <- require_startup_session(request)
+
+  let decoder = {
+    use status <- decode.field("status", connection.status_decoder())
+    decode.success(status)
+  }
+
+  case decode.run(body, decoder) {
+    Ok(status) if session.id == id ->
+      case status {
+        connection.Accepted ->
+          case startup.accept_connection(database, id, from: company) {
+            Ok(data) ->
+              connection.to_json(data)
+              |> json.to_string()
+              |> wisp.json_response(200)
+
+            Error(error) -> handle_startup_error(error)
+          }
+
+        connection.Declined ->
+          case startup.decline_connection(database, id, from: company) {
+            Ok(data) ->
+              connection.to_json(data)
+              |> json.to_string()
+              |> wisp.json_response(200)
+
+            Error(error) -> handle_startup_error(error)
+          }
+
+        connection.Pending ->
+          wisp.bad_request("Invalid connection status: pending")
+      }
+
+    Ok(_) -> wisp.response(403)
+    Error(_) -> wisp.bad_request("Invalid JSON")
+  }
+}
+
+/// ## `DELETE /api/company/:id/connection/:startup_id`
+///
+/// Delete the Connection between a Company and a Startup. The Company is
+/// identified by the path and must match the current Company session.
+///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Company's ID.
+/// - `startup_id` (UUID, required): the Startup's ID.
+///
+/// ## Response Body
+///
+/// The deleted Connection:
+///
+/// ```json
+/// {
+///   "company": "01a173cb-9533-7eb5-9522-9686fef4f2a4",
+///   "startup": "01a173cb-9533-7ebd-87a0-590965ef3653",
+///   "status": "declined",
+///   "created_at": "2026-09-14T20:08:02.000Z",
+///   "updated_at": "2026-09-15T20:08:02.000Z"
+/// }
+/// ```
+///
+/// ## Status Codes
+///
+/// - **200** If the Connection was deleted.
+/// - **400** If an ID is not a valid UUID.
+/// - **401** If not authenticated.
+/// - **403** If the session is not a Company session, or it belongs to a
+///   different Company.
+/// - **404** If the Connection is not found.
+///
+fn delete_company_connection(
+  request: Request,
+  database: pog.Connection,
+  id: String,
+  startup_id: String,
+) -> Response {
+  use id <- require_valid_uuid(id)
+  use startup <- require_valid_uuid(startup_id)
+  use session <- require_company_session(request)
+
+  case session.id == id {
+    False -> wisp.response(403)
+
+    True ->
+      case connection.delete(database, company: id, startup: startup) {
+        Ok(deleted) ->
+          connection.to_json(deleted)
+          |> json.to_string
+          |> wisp.json_response(200)
+
+        Error(error) -> handle_connection_error(error)
+      }
+  }
+}
+
+/// ## `DELETE /api/startup/:id/connection/:company_id`
+///
+/// Delete the Connection between a Startup and a Company. The Startup is
+/// identified by the path and must match the current Startup session.
+///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Startup's ID.
+/// - `company_id` (UUID, required): the Company's ID.
+///
+/// ## Response Body
+///
+/// The deleted Connection:
+///
+/// ```json
+/// {
+///   "company": "01a173cb-9533-7eb5-9522-9686fef4f2a4",
+///   "startup": "01a173cb-9533-7ebd-87a0-590965ef3653",
+///   "status": "accepted",
+///   "created_at": "2026-09-14T20:08:02.000Z",
+///   "updated_at": "2026-09-15T20:08:02.000Z"
+/// }
+/// ```
+///
+/// ## Status Codes
+///
+/// - **200** If the Connection was deleted.
+/// - **400** If an ID is not a valid UUID.
+/// - **401** If not authenticated.
+/// - **403** If the session is not a Startup session, or it belongs to a
+///   different Startup.
+/// - **404** If the Connection is not found.
+///
+fn delete_startup_connection(
+  request: Request,
+  database: pog.Connection,
+  id: String,
+  company_id: String,
+) -> Response {
+  use id <- require_valid_uuid(id)
+  use from <- require_valid_uuid(company_id)
+  use session <- require_startup_session(request)
+
+  case session.id == id {
+    False -> wisp.response(403)
+
+    True ->
+      case connection.delete(database, company: from, startup: id) {
+        Ok(deleted) ->
+          connection.to_json(deleted)
+          |> json.to_string
+          |> wisp.json_response(200)
+
+        Error(error) -> handle_connection_error(error)
+      }
+  }
+}
+
+/// Convert a Connection error into an HTTP response.
+fn handle_connection_error(error: connection.ConnectionError) -> Response {
+  case error {
+    connection.DatabaseError(error) -> handle_database_error(error)
+    connection.NotFound -> wisp.not_found()
+  }
+}
+
+/// Convert a [`WebError`](#WebError) into an HTTP response.
 fn handle_error(error: WebError) -> Response {
   case error {
     StartupError(error) -> handle_startup_error(error)
@@ -2900,9 +4237,19 @@ fn handle_error(error: WebError) -> Response {
     MissingQuery -> wisp.bad_request("Missing query")
     InvalidQueryParameter(key) -> wisp.bad_request("Invalid query: " <> key)
     CompanyError(error) -> handle_company_error(error)
+
+    PolicyVersionMismatch(expected:, got:) ->
+      {
+        "Policy version mismatch, expected: "
+        <> int.to_string(expected)
+        <> " got: "
+        <> int.to_string(got)
+      }
+      |> wisp.bad_request
   }
 }
 
+/// Convert a Segment error into an HTTP response.
 fn handle_segment_error(error: segment.SegmentError) -> Response {
   case error {
     segment.DatabaseError(error:) -> handle_database_error(error)
@@ -2911,6 +4258,7 @@ fn handle_segment_error(error: segment.SegmentError) -> Response {
   }
 }
 
+/// Convert a Technology error into an HTTP response.
 fn handle_technology_error(error: technology.TechnologyError) -> Response {
   case error {
     technology.DatabaseError(error:) -> handle_database_error(error)
@@ -2919,6 +4267,7 @@ fn handle_technology_error(error: technology.TechnologyError) -> Response {
   }
 }
 
+/// Convert an Expertise error into an HTTP response.
 fn handle_expertise_error(error: expertise.ExpertiseError) -> Response {
   case error {
     expertise.DatabaseError(error) -> handle_database_error(error)
@@ -2927,6 +4276,7 @@ fn handle_expertise_error(error: expertise.ExpertiseError) -> Response {
   }
 }
 
+/// Convert a Service error into an HTTP response.
 fn handle_service_error(error: service.ServiceError) -> Response {
   case error {
     service.DatabaseError(error:) -> handle_database_error(error)
@@ -2937,11 +4287,12 @@ fn handle_service_error(error: service.ServiceError) -> Response {
 
 /// ## `GET /api/segment`
 ///
-/// Fetch a list of registered Startups, pagination is available.
+/// Fetch a paginated list of registered Segments.
 ///
-/// Required parameters:
-/// - limit: `Int`
-/// - offset: `Int`
+/// ## Query Parameters
+///
+/// - `limit` (Int, required): the maximum number of Segments to return.
+/// - `offset` (Int, required): the number of Segments to skip.
 ///
 /// ## Response Body
 ///
@@ -2962,8 +4313,8 @@ fn handle_service_error(error: service.ServiceError) -> Response {
 ///
 /// ## Status Codes
 ///
-/// - **200** if successful
-/// - **400** if query is missing, invalid or incomplete.
+/// - **200** If successful.
+/// - **400** If the query is missing, invalid or incomplete.
 ///
 fn get_many_segments(request: Request, database: pog.Connection) -> Response {
   let result = {
@@ -3000,11 +4351,12 @@ fn get_many_segments(request: Request, database: pog.Connection) -> Response {
 
 /// ## `GET /api/technology`
 ///
-/// Fetch a list of registered Technologies, pagination is available.
+/// Fetch a paginated list of registered Technologies.
 ///
-/// Required parameters:
-/// - limit: `Int`
-/// - offset: `Int`
+/// ## Query Parameters
+///
+/// - `limit` (Int, required): the maximum number of Technologies to return.
+/// - `offset` (Int, required): the number of Technologies to skip.
 ///
 /// ## Response Body
 ///
@@ -3025,8 +4377,8 @@ fn get_many_segments(request: Request, database: pog.Connection) -> Response {
 ///
 /// ## Status Codes
 ///
-/// - **200** if successful
-/// - **400** if query is missing, invalid or incomplete.
+/// - **200** If successful.
+/// - **400** If the query is missing, invalid or incomplete.
 ///
 fn get_many_technologies(
   request: Request,
@@ -3066,11 +4418,12 @@ fn get_many_technologies(
 
 /// ## `GET /api/expertise`
 ///
-/// Fetch a list of registered Expertises, pagination is available.
+/// Fetch a paginated list of registered Expertises.
 ///
-/// Required parameters:
-/// - limit: `Int`
-/// - offset: `Int`
+/// ## Query Parameters
+///
+/// - `limit` (Int, required): the maximum number of Expertises to return.
+/// - `offset` (Int, required): the number of Expertises to skip.
 ///
 /// ## Response Body
 ///
@@ -3091,8 +4444,8 @@ fn get_many_technologies(
 ///
 /// ## Status Codes
 ///
-/// - **200** if successful
-/// - **400** if query is missing, invalid or incomplete.
+/// - **200** If successful.
+/// - **400** If the query is missing, invalid or incomplete.
 ///
 fn get_many_expertises(request: Request, database: pog.Connection) -> Response {
   let result = {
@@ -3129,11 +4482,12 @@ fn get_many_expertises(request: Request, database: pog.Connection) -> Response {
 
 /// ## `GET /api/service`
 ///
-/// Fetch a list of registered Services, pagination is available.
+/// Fetch a paginated list of registered Services.
 ///
-/// Required parameters:
-/// - limit: `Int`
-/// - offset: `Int`
+/// ## Query Parameters
+///
+/// - `limit` (Int, required): the maximum number of Services to return.
+/// - `offset` (Int, required): the number of Services to skip.
 ///
 /// ## Response Body
 ///
@@ -3154,8 +4508,8 @@ fn get_many_expertises(request: Request, database: pog.Connection) -> Response {
 ///
 /// ## Status Codes
 ///
-/// - **200** if successful
-/// - **400** if query is missing, invalid or incomplete.
+/// - **200** If successful.
+/// - **400** If the query is missing, invalid or incomplete.
 ///
 fn get_many_services(request: Request, database: pog.Connection) -> Response {
   let result = {
@@ -3190,8 +4544,14 @@ fn get_many_services(request: Request, database: pog.Connection) -> Response {
   }
 }
 
+/// ## `GET /`
+///
 /// Send the necessary HTML for the client-side application. The user will
 /// use it to communicate with the Server.
+///
+/// ## Status Codes
+///
+/// - **200** If successful.
 fn get_root_document() -> Response {
   let body =
     html.html([attribute.lang("pt-BR")], [
@@ -3274,6 +4634,10 @@ fn get_root_document() -> Response {
   |> wisp.html_body(wisp.ok(), _)
 }
 
+/// Apply the common HTTP middleware stack to a request.
+///
+/// If none of the middleware short-circuits the request, `next` is called with
+/// the transformed request.
 fn middleware(
   request: Request,
   context: Context,
@@ -3289,17 +4653,26 @@ fn middleware(
   next(request)
 }
 
-/// Return "400 Bad Request" if `id` is not a valid UUID format.
+/// Validate that `id` is a UUID before continuing.
+///
+/// If the value is a valid UUID, it is passed to `next` as a
+/// [`uuid.Uuid`](https://hexdocs.pm/youid/youid_uuid.html#Uuid). Otherwise the
+/// request is rejected with `400 Bad Request` and a message containing the
+/// invalid value.
+///
+/// ## Status Codes
+///
+/// - **400** If `id` is not a valid UUID.
 ///
 /// ## Examples
 ///
 /// ```gleam
-/// pub fn handle_request(request, context, id) -> wisp.Response {
+/// pub fn handle_request(database: pog.Connection, id: String) -> Response {
 ///   use id <- require_valid_uuid(id)
 ///
 ///   case startup.get(database, id) {
 ///     Ok(data) -> wisp.ok()
-///     Error(error) -> handle_error(error)
+///     Error(error) -> handle_startup_error(error)
 ///   }
 /// }
 /// ```
@@ -3316,6 +4689,10 @@ pub fn require_valid_uuid(
 /// ## `GET /api/startup/:id`
 ///
 /// Fetch information about a Startup.
+///
+/// ## Path Parameters
+///
+/// - `id` (UUID, required): the Startup's ID.
 ///
 /// ## Response Body
 ///
@@ -3337,8 +4714,9 @@ pub fn require_valid_uuid(
 ///
 /// ## Status Codes
 ///
-/// - 200 If successful.
-/// - 404 If Startup is not found.
+/// - **200** If successful.
+/// - **400** If the ID is not a valid UUID.
+/// - **404** If the Startup is not found.
 ///
 fn get_startup_by_id(database: pog.Connection, id: String) -> Response {
   use id <- require_valid_uuid(id)
@@ -3353,10 +4731,12 @@ fn get_startup_by_id(database: pog.Connection, id: String) -> Response {
   }
 }
 
-/// Handle startup.StartupError errors
+/// Convert a Startup error into an HTTP response.
 fn handle_startup_error(error: startup.StartupError) -> Response {
   case error {
     startup.DatabaseError(error) -> handle_database_error(error)
+
+    startup.LgpdError(error) -> handle_lgpd_error(error)
 
     startup.FailedToRegisterStartup -> wisp.internal_server_error()
 
@@ -3412,10 +4792,40 @@ fn handle_startup_error(error: startup.StartupError) -> Response {
     startup.InvalidWebsite(value:) ->
       { "Invalid website: " <> value }
       |> wisp.bad_request
+
+    startup.ConnectionNotFound(from) ->
+      { "Connection request from " <> uuid.to_string(from) <> " not found" }
+      |> wisp.string_body(wisp.not_found(), _)
+
+    startup.FailedToSaveCanvas(id:) ->
+      { "Failed to save BMC for: " <> uuid.to_string(id) }
+      |> wisp.string_body(wisp.internal_server_error(), _)
+
+    startup.DemandNotFound(demand) ->
+      { "Demand not found: " <> uuid.to_string(demand) }
+      |> wisp.string_body(wisp.not_found(), _)
+
+    startup.ApplicationConflict(demand) ->
+      { "Already applied to: " <> uuid.to_string(demand) }
+      |> wisp.string_body(wisp.response(409), _)
+
+    startup.DemandError(error) -> handle_demand_error(error)
+
+    startup.DemandNotOpen(id) ->
+      { "Demand " <> uuid.to_string(id) <> " is not open" }
+      |> wisp.string_body(wisp.response(400), _)
+
+    startup.FailedToApplyToDemand(demand_id) ->
+      { "Failed to apply to: " <> uuid.to_string(demand_id) }
+      |> wisp.string_body(wisp.internal_server_error(), _)
+
+    startup.ApplicationNotFound(id) ->
+      { "Application to: " <> uuid.to_string(id) <> " not found" }
+      |> wisp.string_body(wisp.not_found(), _)
   }
 }
 
-/// Handle pog.QueryError errors
+/// Convert a database error into an HTTP response.
 fn handle_database_error(error: pog.QueryError) -> Response {
   case error {
     pog.QueryTimeout | pog.ConnectionUnavailable -> wisp.response(503)
@@ -3428,13 +4838,19 @@ fn handle_database_error(error: pog.QueryError) -> Response {
   }
 }
 
-/// A user can be logged in as an Startup or as an Company
+/// An authenticated account session.
+///
+/// A session identifies whether the logged-in account is a Startup or a
+/// Company and stores its ID. It is persisted as JSON in the signed `SESSION`
+/// cookie.
 pub type Session {
+  /// An authenticated Startup.
   Startup(id: uuid.Uuid)
+  /// An authenticated Company.
   Company(id: uuid.Uuid)
 }
 
-/// Encode a Session into JSON
+/// Encode a [`Session`](#Session) as JSON.
 pub fn session_to_json(session: Session) -> json.Json {
   case session {
     Startup(id:) ->
@@ -3451,7 +4867,7 @@ pub fn session_to_json(session: Session) -> json.Json {
   }
 }
 
-/// A decoder that decodes `Session` values.
+/// Decode a JSON [`Session`](#Session) value.
 pub fn session_decoder() -> decode.Decoder(Session) {
   use variant <- decode.field("type", decode.string)
 
@@ -3470,14 +4886,16 @@ pub fn session_decoder() -> decode.Decoder(Session) {
   }
 }
 
-/// Cookie storing the user session.
+/// Name of the signed cookie that stores the user's [`Session`](#Session).
 pub const session_cookie = "SESSION"
 
 /// ## `POST /api/auth/login`
 ///
-/// Sets a session cookie if successful, it will last exactly one hour.
-/// The response body will include a Json string containing information about the
-/// Startup / Company being authorized.
+/// Authenticate a Startup or a Company.
+///
+/// On success, a signed [`session_cookie`](#session_cookie) is set on the
+/// response and lasts for one hour. The response body contains the
+/// authenticated Startup or Company as JSON.
 ///
 /// ## Request Body
 ///
@@ -3489,11 +4907,20 @@ pub const session_cookie = "SESSION"
 /// }
 /// ```
 ///
+/// - `session`: either `"startup"` or `"company"`.
+///
+/// ## Response Body
+///
+/// The authenticated Startup or Company object. See
+/// [`get_startup_by_id`](#get_startup_by_id) and
+/// [`get_company_by_id`](#get_company_by_id) for example payloads.
+///
 /// ## Status Codes
 ///
-/// - 200 If successful.
-/// - 401 If email or password is incorrect.
-/// - 400 If email is not a valid format.
+/// - **200** If the credentials are valid.
+/// - **400** If the request body is invalid JSON, the email has an invalid
+///   format, or the session type is invalid.
+/// - **401** If the email or password is incorrect.
 ///
 fn handle_login(request: Request, database: pog.Connection) -> Response {
   use body <- wisp.require_json(request)
@@ -3517,7 +4944,7 @@ fn handle_login(request: Request, database: pog.Connection) -> Response {
   }
 
   case decode.run(body, decoder) {
-    // Startup session
+    // startup session
     Ok(payload.Login(session: "startup", email:, password:)) ->
       case startup.verify(database, email:, password:) {
         Error(error) -> handle_startup_error(error)
@@ -3528,7 +4955,7 @@ fn handle_login(request: Request, database: pog.Connection) -> Response {
           |> set_session_token(request, Startup(startup.id), duration)
       }
 
-    // Company session
+    // company session
     Ok(payload.Login(session: "company", email:, password:)) ->
       case company.verify(database, email:, password:) {
         Error(error) -> handle_company_error(error)
@@ -3539,16 +4966,20 @@ fn handle_login(request: Request, database: pog.Connection) -> Response {
           |> set_session_token(request, Company(company.id), duration)
       }
 
-    // Correct Json but invalid session type
+    // correct json but invalid session type
     Ok(payload.Login(session:, ..)) ->
       wisp.bad_request("Invalid session type: " <> session)
 
-    // Incorrect Json
+    // incorrect json
     Error(_) -> wisp.bad_request("Invalid JSON format")
   }
 }
 
-/// Set a session cookie on the request.
+/// Attach a signed session cookie to a response.
+///
+/// The [`Session`](#Session) is encoded as JSON, signed, and stored in the
+/// [`session_cookie`](#session_cookie) cookie. `duration` controls the cookie's
+/// `Max-Age`; pass `duration.seconds(0)` to expire it during logout.
 fn set_session_token(
   response: Response,
   request: Request,
@@ -3574,7 +5005,7 @@ fn set_session_token(
 
 /// ## `POST /api/startup`
 ///
-/// Register a new Startup
+/// Register a new Startup.
 ///
 /// ## Request Body
 ///
@@ -3592,10 +5023,19 @@ fn set_session_token(
 /// }
 /// ```
 ///
+/// - `stage`: either `"traction"` or `"scaling"`.
+///
+/// ## Response Body
+///
+/// The created Startup. See [`get_startup_by_id`](#get_startup_by_id) for an
+/// example payload.
+///
 /// ## Status Codes
 ///
-/// - 200 If successful.
-/// - 409 If duplicated email or cnpj.
+/// - **201** If the Startup was created.
+/// - **400** If the request body is invalid JSON, or a field has an invalid
+///   value.
+/// - **409** If the email or CNPJ is already registered.
 ///
 fn register_startup(request: Request, database: pog.Connection) -> Response {
   use body <- wisp.require_json(request)
@@ -3656,7 +5096,7 @@ fn register_startup(request: Request, database: pog.Connection) -> Response {
 
 /// ## `POST /api/company`
 ///
-/// Register a new Company
+/// Register a new Company.
 ///
 /// ## Request Body
 ///
@@ -3673,10 +5113,19 @@ fn register_startup(request: Request, database: pog.Connection) -> Response {
 /// }
 /// ```
 ///
+/// - `size`: one of `"micro"`, `"small"`, `"medium"` or `"big"`.
+///
+/// ## Response Body
+///
+/// The created Company. See [`get_company_by_id`](#get_company_by_id) for an
+/// example payload.
+///
 /// ## Status Codes
 ///
-/// - 200 If successful.
-/// - 409 If duplicated email or cnpj.
+/// - **201** If the Company was created.
+/// - **400** If the request body is invalid JSON, or a field has an invalid
+///   value.
+/// - **409** If the email or CNPJ is already registered.
 ///
 fn register_company(request: Request, database: pog.Connection) -> Response {
   use body <- wisp.require_json(request)
@@ -3732,6 +5181,10 @@ fn register_company(request: Request, database: pog.Connection) -> Response {
   }
 }
 
+/// Convert a Demand error into an HTTP response.
+///
+/// Database or assignment failures become `500`, missing demands, companies
+/// and entities become `404`, and duplicate assignments become `409`.
 fn handle_demand_error(error: demand.DemandError) -> Response {
   case error {
     demand.DatabaseError(error) -> handle_database_error(error)
@@ -3761,9 +5214,20 @@ fn handle_demand_error(error: demand.DemandError) -> Response {
     demand.AssignedMissingEntity(id) ->
       { "Entity " <> uuid.to_string(id) <> " was not found" }
       |> wisp.string_body(wisp.not_found(), _)
+
+    demand.ApplicationNotFound(demand: demand_id, startup: startup_id) ->
+      {
+        "Application from startup "
+        <> uuid.to_string(startup_id)
+        <> " to demand "
+        <> uuid.to_string(demand_id)
+        <> " not found"
+      }
+      |> wisp.string_body(wisp.not_found(), _)
   }
 }
 
+/// Convert a Company error into an HTTP response.
 fn handle_company_error(error: company.CompanyError) -> Response {
   case error {
     company.DatabaseError(error) -> handle_database_error(error)
@@ -3771,6 +5235,8 @@ fn handle_company_error(error: company.CompanyError) -> Response {
     company.InvalidEmail(value) -> wisp.bad_request("Invalid email: " <> value)
 
     company.HashError(_) -> wisp.internal_server_error()
+
+    company.LgpdError(error) -> handle_lgpd_error(error)
 
     company.NotFound(id) ->
       { "Company not found: " <> uuid.to_string(id) }
@@ -3805,16 +5271,12 @@ fn handle_company_error(error: company.CompanyError) -> Response {
       { "Startup not found: " <> uuid.to_string(id) }
       |> wisp.string_body(wisp.not_found(), _)
 
-    company.BookmarkConflict(id) ->
-      { "Startup already bookmarked: " <> uuid.to_string(id) }
+    company.ConnectionConflict(id) ->
+      { "Connection already requested with Startup: " <> uuid.to_string(id) }
       |> wisp.string_body(wisp.response(409), _)
 
-    company.FailedToBookmarkStartup(_) ->
-      "Failed to bookmark Startup"
+    company.FailedToCreateConnection(_) ->
+      "Failed to request connection"
       |> wisp.string_body(wisp.internal_server_error(), _)
-
-    company.BookmarkNotFound ->
-      "Bookmark not found"
-      |> wisp.string_body(wisp.not_found(), _)
   }
 }

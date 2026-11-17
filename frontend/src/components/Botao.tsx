@@ -11,6 +11,7 @@ type Props = {
   /** Ocupa a largura toda e centraliza — é como os formulários usam. */
   bloco?: boolean
   id?: string
+  'aria-label'?: string
 }
 
 /**
@@ -40,19 +41,27 @@ export default function Botao({
   onClick,
   bloco,
   id,
+  'aria-label': ariaLabel,
 }: Props) {
   const classe = bloco ? `${ESTILO} w-full justify-center` : ESTILO
 
   if (to) {
     return (
-      <Link id={id} to={to} className={classe}>
+      <Link id={id} to={to} className={classe} aria-label={ariaLabel}>
         {children}
       </Link>
     )
   }
 
   return (
-    <button id={id} type={type} disabled={disabled} onClick={onClick} className={classe}>
+    <button
+      id={id}
+      type={type}
+      disabled={disabled}
+      onClick={onClick}
+      className={classe}
+      aria-label={ariaLabel}
+    >
       {children}
     </button>
   )

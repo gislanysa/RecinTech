@@ -326,16 +326,6 @@ export async function buscarStartups(
 }
 
 /**
- * Busca as tags de uma startup nas quatro rotas, em paralelo.
- *
- * O backend manteve um endpoint por tabela de propósito: numa resposta única,
- * uma consulta que falhasse derrubaria o card inteiro. Aqui cada recurso que
- * falhar vira lista vazia e os outros continuam valendo.
- *
- * `expertise` (área de atuação) vira o campo `area`, que a tela trata como um
- * valor só — usamos a primeira da lista.
- */
-/**
  * GET /startup/:id — uma startup só, para a tela de perfil.
  *
  * Deixa o erro subir: a tela precisa distinguir "não existe" (404) de
@@ -346,6 +336,16 @@ export async function buscarStartupPorId(id: string): Promise<StartupReal> {
   return data
 }
 
+/**
+ * Busca as tags de uma startup nas quatro rotas, em paralelo.
+ *
+ * O backend manteve um endpoint por tabela de propósito: numa resposta única,
+ * uma consulta que falhasse derrubaria o card inteiro. Aqui cada recurso que
+ * falhar vira lista vazia e os outros continuam valendo.
+ *
+ * `expertise` (área de atuação) vira o campo `area`, que a tela trata como um
+ * valor só — usamos a primeira da lista.
+ */
 export async function carregarTagsDaStartup(id: string): Promise<Tags> {
   const chaves = Object.keys(RECURSOS_DE_TAG) as (keyof typeof RECURSOS_DE_TAG)[]
 

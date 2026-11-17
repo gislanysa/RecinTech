@@ -1,3 +1,5 @@
+import Botao from '@/components/Botao.tsx'
+import { AlertIcon } from '@/components/icons.tsx'
 import { useAuth } from '@/contexts/useAuth.ts'
 import type { ContaLogada, TipoSessao } from '@/lib/api.ts'
 import { Navigate, Outlet } from 'react-router-dom'
@@ -15,11 +17,12 @@ type RotaProtegidaProps = {
  *
  * Consome o AuthContext global para validar o estado da sessão:
  * - Carregando → exibe tela de carregamento centralizada
+ * - Erro temporário → exibe tela de aviso com ação para tentar novamente sem deslogar
  * - Não autenticado → redireciona para /entrar
  * - Autenticado com tipo correto → renderiza a rota filha (Outlet)
  */
 export default function RotaProtegida({ tipo }: RotaProtegidaProps) {
-  const { conta, tipoConta, estado } = useAuth()
+  const { conta, tipoConta, estado, erroTemporario, recarregarSessao } = useAuth()
 
   if (estado === 'carregando') {
     return (
@@ -30,6 +33,27 @@ export default function RotaProtegida({ tipo }: RotaProtegidaProps) {
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
           </svg>
           <p className="text-sm text-ink-500">Verificando sessão…</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (estado === 'erro-temporario') {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-canvas p-4">
+        <div className="flex max-w-md flex-col items-center gap-4 rounded-2xl border border-brand-100 bg-surface p-8 text-center shadow-lg">
+          <div className="grid size-12 place-items-center rounded-full bg-amber-100 text-amber-600">
+            <AlertIcon className="size-6" />
+          </div>
+          <div>
+            <h2 className="font-display text-lg font-bold text-ink-900">Instabilidade de conexão</h2>
+            <p className="mt-1 text-sm text-ink-500">
+              {erroTemporario ?? 'Não foi possível verificar sua sessão. Verifique sua rede e tente novamente.'}
+            </p>
+          </div>
+          <Botao onClick={() => void recarregarSessao()}>
+            Tentar novamente
+          </Botao>
         </div>
       </div>
     )

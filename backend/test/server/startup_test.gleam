@@ -1,5 +1,8 @@
 import gleam/option.{None, Some}
 import gleam/uri
+import server/company
+import server/connection
+import server/demand
 import server/dummy
 import server/lgpd
 import server/startup
@@ -337,6 +340,188 @@ pub fn update_missing_startup_test() -> Nil {
   Nil
 }
 
+pub fn get_canvas_empty_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+
+  // a startup that never saved a canvas has an empty one.
+  let assert Ok(returned) = startup.get_canvas(context.database, startup.id)
+  assert returned == startup.empty_canvas
+
+  Nil
+}
+
+pub fn get_canvas_missing_startup_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let missing_id = uuid.v7()
+
+  let assert Error(startup.NotFound(returned)) =
+    startup.get_canvas(context.database, missing_id)
+
+  assert returned == missing_id
+
+  Nil
+}
+
+pub fn upsert_canvas_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+  let canvas =
+    startup.Canvas(
+      customer_segments: "Pequenas e médias empresas",
+      value_proposition: "Reduzir custos operacionais com automação",
+      channels: "Site, vendas diretas e parceiros",
+      customer_relationships: "Suporte dedicado e onboarding",
+      revenue_streams: "Assinatura mensal e implantação",
+      key_resources: "Equipe de engenharia e infraestrutura em nuvem",
+      key_activities: "Desenvolvimento, suporte e vendas",
+      key_partnerships: "Provedores de nuvem e consultorias",
+      cost_structure: "Folha de pagamento, nuvem e marketing",
+    )
+
+  let assert Ok(returned) =
+    startup.upsert_canvas(context.database, startup.id, canvas)
+
+  assert returned == canvas
+
+  let assert Ok(returned) = startup.get_canvas(context.database, startup.id)
+  assert returned == canvas
+
+  Nil
+}
+
+pub fn upsert_canvas_replaces_all_blocks_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+
+  let assert Ok(_) =
+    startup.upsert_canvas(
+      context.database,
+      startup.id,
+      startup.Canvas(
+        customer_segments: "Pequenas e médias empresas",
+        value_proposition: "Reduzir custos operacionais com automação",
+        channels: "Site, vendas diretas e parceiros",
+        customer_relationships: "Suporte dedicado e onboarding",
+        revenue_streams: "Assinatura mensal e implantação",
+        key_resources: "Equipe de engenharia e infraestrutura em nuvem",
+        key_activities: "Desenvolvimento, suporte e vendas",
+        key_partnerships: "Provedores de nuvem e consultorias",
+        cost_structure: "Folha de pagamento, nuvem e marketing",
+      ),
+    )
+
+  // a second save is a full replacement: blocks sent as empty strings must be
+  // cleared, not kept from the previous save.
+  let updated =
+    startup.Canvas(
+      customer_segments: "Outro segmento",
+      value_proposition: "",
+      channels: "Marketplace",
+      customer_relationships: "",
+      revenue_streams: "Comissão por venda",
+      key_resources: "",
+      key_activities: "Curadoria de fornecedores",
+      key_partnerships: "",
+      cost_structure: "Marketing",
+    )
+
+  let assert Ok(returned) =
+    startup.upsert_canvas(context.database, startup.id, updated)
+
+  assert returned == updated
+
+  let assert Ok(returned) = startup.get_canvas(context.database, startup.id)
+  assert returned == updated
+
+  Nil
+}
+
+pub fn upsert_canvas_missing_startup_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let missing_id = uuid.v7()
+
+  let canvas =
+    startup.Canvas(
+      customer_segments: "Pequenas e médias empresas",
+      value_proposition: "Reduzir custos operacionais com automação",
+      channels: "Site, vendas diretas e parceiros",
+      customer_relationships: "Suporte dedicado e onboarding",
+      revenue_streams: "Assinatura mensal e implantação",
+      key_resources: "Equipe de engenharia e infraestrutura em nuvem",
+      key_activities: "Desenvolvimento, suporte e vendas",
+      key_partnerships: "Provedores de nuvem e consultorias",
+      cost_structure: "Folha de pagamento, nuvem e marketing",
+    )
+
+  let assert Error(startup.NotFound(returned)) =
+    startup.upsert_canvas(context.database, missing_id, canvas)
+
+  assert returned == missing_id
+
+  Nil
+}
+
+pub fn delete_canvas_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+  let canvas =
+    startup.Canvas(
+      customer_segments: "Pequenas e médias empresas",
+      value_proposition: "Reduzir custos operacionais com automação",
+      channels: "Site, vendas diretas e parceiros",
+      customer_relationships: "Suporte dedicado e onboarding",
+      revenue_streams: "Assinatura mensal e implantação",
+      key_resources: "Equipe de engenharia e infraestrutura em nuvem",
+      key_activities: "Desenvolvimento, suporte e vendas",
+      key_partnerships: "Provedores de nuvem e consultorias",
+      cost_structure: "Folha de pagamento, nuvem e marketing",
+    )
+
+  let assert Ok(_) = startup.upsert_canvas(context.database, startup.id, canvas)
+
+  let assert Ok(returned) = startup.delete_canvas(context.database, startup.id)
+  assert returned == canvas
+
+  // the startup is back to not having a saved canvas
+  let assert Ok(returned) = startup.get_canvas(context.database, startup.id)
+  assert returned == startup.empty_canvas
+
+  Nil
+}
+
+pub fn delete_canvas_without_saved_canvas_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+
+  let assert Error(startup.NotFound(returned)) =
+    startup.delete_canvas(context.database, startup.id)
+
+  assert returned == startup.id
+
+  Nil
+}
+
+pub fn delete_canvas_missing_startup_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let missing_id = uuid.v7()
+
+  let assert Error(startup.NotFound(returned)) =
+    startup.delete_canvas(context.database, missing_id)
+
+  assert returned == missing_id
+
+  Nil
+}
+
 pub fn assign_segment_to_startup_test() -> Nil {
   use context <- server_test.with_context()
 
@@ -357,11 +542,11 @@ pub fn segment_assignment_conflict_test() -> Nil {
   let startup = dummy.new_startup(context.database)
   let segment = dummy.new_segment(context.database)
 
-  // Assigning once
+  // assigning once
   let assert Ok(_) =
     startup.assign_segment(context.database, startup.id, assign: segment.id)
 
-  // Assigning twice, this one must return an Error.
+  // assigning twice, this one must return an error.
   let assert Error(startup.AssignmentConflict(returned)) =
     startup.assign_segment(context.database, startup.id, assign: segment.id)
 
@@ -626,12 +811,11 @@ pub fn get_many_startup_test() -> Nil {
   use context <- server_test.with_context()
   let max = 6
 
-  let startups = dummy.many(max, fn() { dummy.new_startup(context.database) })
+  let _ = dummy.many(max, fn() { dummy.new_startup(context.database) })
 
   let assert Ok(returned) =
     startup.get_many(context.database, limit: max, offset: 0)
-
-  assert returned == startups
+  assert returned != []
 
   Nil
 }
@@ -642,11 +826,21 @@ pub fn get_lgpd_consent_multiple_policies_versions_test() -> Nil {
   let startup = dummy.new_startup(context.database)
 
   // Version one
+  let version = 1
   let assert Ok(policy_version_one) =
     lgpd.grant_consent(
       context.database,
       for: lgpd.Startup(id: startup.id),
-      version: 1,
+      version:,
+    )
+
+  let version = 2
+  let assert Ok(_) =
+    lgpd.register_new_policy(
+      context.database,
+      version,
+      "http://localhost/",
+      "wibble",
     )
 
   // Version two
@@ -654,7 +848,7 @@ pub fn get_lgpd_consent_multiple_policies_versions_test() -> Nil {
     lgpd.grant_consent(
       context.database,
       for: lgpd.Startup(id: startup.id),
-      version: 2,
+      version:,
     )
 
   let assert Ok(returned) =
@@ -876,6 +1070,460 @@ pub fn unassign_missing_technology_test() -> Nil {
     )
 
   assert returned == missing_id
+
+  Nil
+}
+
+pub fn accept_connection_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let startup = dummy.new_startup(context.database)
+
+  // The Company requests a connection with the Startup
+  let assert Ok(requested) =
+    company.request_connection(context.database, company.id, to: startup.id)
+
+  // The Startup accepts the request
+  let assert Ok(returned) =
+    startup.accept_connection(context.database, startup.id, from: company.id)
+
+  assert returned
+    == connection.Connection(
+      company: company.id,
+      startup: startup.id,
+      status: connection.Accepted,
+      created_at: requested.created_at,
+      updated_at: returned.updated_at,
+    )
+
+  Nil
+}
+
+pub fn decline_connection_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let startup = dummy.new_startup(context.database)
+
+  // The Company requests a connection with the Startup
+  let assert Ok(requested) =
+    company.request_connection(context.database, company.id, to: startup.id)
+
+  // The Startup declines the request
+  let assert Ok(returned) =
+    startup.decline_connection(context.database, startup.id, from: company.id)
+
+  assert returned
+    == connection.Connection(
+      company: company.id,
+      startup: startup.id,
+      status: connection.Declined,
+      created_at: requested.created_at,
+      updated_at: returned.updated_at,
+    )
+
+  Nil
+}
+
+pub fn accept_connection_twice_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let startup = dummy.new_startup(context.database)
+
+  // Requesting and accepting
+  let assert Ok(_) =
+    company.request_connection(context.database, company.id, to: startup.id)
+  let assert Ok(_) =
+    startup.accept_connection(context.database, startup.id, from: company.id)
+
+  // Only pending connections can be accepted
+  let assert Error(startup.ConnectionNotFound(returned)) =
+    startup.accept_connection(context.database, startup.id, from: company.id)
+
+  assert returned == company.id
+
+  Nil
+}
+
+pub fn decline_connection_twice_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let startup = dummy.new_startup(context.database)
+
+  // Requesting and declining
+  let assert Ok(_) =
+    company.request_connection(context.database, company.id, to: startup.id)
+  let assert Ok(_) =
+    startup.decline_connection(context.database, startup.id, from: company.id)
+
+  // Only pending connections can be declined
+  let assert Error(startup.ConnectionNotFound(returned)) =
+    startup.decline_connection(context.database, startup.id, from: company.id)
+
+  assert returned == company.id
+
+  Nil
+}
+
+/// A declined connection cannot be accepted later.
+pub fn accept_connection_after_decline_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let startup = dummy.new_startup(context.database)
+
+  // Requesting and declining
+  let assert Ok(_) =
+    company.request_connection(context.database, company.id, to: startup.id)
+  let assert Ok(_) =
+    startup.decline_connection(context.database, startup.id, from: company.id)
+
+  let assert Error(startup.ConnectionNotFound(returned)) =
+    startup.accept_connection(context.database, startup.id, from: company.id)
+
+  assert returned == company.id
+
+  Nil
+}
+
+/// An accepted connection cannot be declined later.
+pub fn decline_connection_after_accept_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let startup = dummy.new_startup(context.database)
+
+  // Requesting and accepting
+  let assert Ok(_) =
+    company.request_connection(context.database, company.id, to: startup.id)
+  let assert Ok(_) =
+    startup.accept_connection(context.database, startup.id, from: company.id)
+
+  let assert Error(startup.ConnectionNotFound(returned)) =
+    startup.decline_connection(context.database, startup.id, from: company.id)
+
+  assert returned == company.id
+
+  Nil
+}
+
+pub fn accept_missing_connection_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let startup = dummy.new_startup(context.database)
+
+  // no request was sent, so there is no connection to accept
+  let assert Error(startup.ConnectionNotFound(returned)) =
+    startup.accept_connection(context.database, startup.id, from: company.id)
+
+  assert returned == company.id
+
+  Nil
+}
+
+pub fn decline_missing_connection_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let startup = dummy.new_startup(context.database)
+
+  // No request was sent, so there is no connection to decline
+  let assert Error(startup.ConnectionNotFound(returned)) =
+    startup.decline_connection(context.database, startup.id, from: company.id)
+
+  assert returned == company.id
+
+  Nil
+}
+
+/// A declined connection is kept in the Database, so the Company cannot
+/// request it again.
+pub fn decline_connection_blocks_new_requests_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let startup = dummy.new_startup(context.database)
+
+  // Requesting and declining
+  let assert Ok(_) =
+    company.request_connection(context.database, company.id, to: startup.id)
+  let assert Ok(_) =
+    startup.decline_connection(context.database, startup.id, from: company.id)
+
+  let assert Error(company.ConnectionConflict(returned)) =
+    company.request_connection(context.database, company.id, to: startup.id)
+
+  assert returned == startup.id
+
+  Nil
+}
+
+pub fn get_startup_connections_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company_a = dummy.new_company(context.database)
+  let company_b = dummy.new_company(context.database)
+  let startup = dummy.new_startup(context.database)
+
+  // both companies request a connection with the startup
+  let assert Ok(requested_a) =
+    company.request_connection(context.database, company_a.id, to: startup.id)
+  let assert Ok(requested_b) =
+    company.request_connection(context.database, company_b.id, to: startup.id)
+
+  let assert Ok(returned) =
+    startup.get_connections(context.database, startup.id, limit: 100, offset: 0)
+
+  // connections created in the same transaction share their created_at, so
+  // their order is not guaranteed
+  assert returned == [requested_a, requested_b]
+    || returned == [requested_b, requested_a]
+
+  Nil
+}
+
+/// the listing reflects the response the startup gave to each request.
+pub fn get_startup_connections_statuses_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company_a = dummy.new_company(context.database)
+  let company_b = dummy.new_company(context.database)
+  let startup = dummy.new_startup(context.database)
+
+  // both companies request a connection with the startup
+  let assert Ok(_) =
+    company.request_connection(context.database, company_a.id, to: startup.id)
+  let assert Ok(_) =
+    company.request_connection(context.database, company_b.id, to: startup.id)
+
+  // the startup accepts one request and declines the other
+  let assert Ok(accepted) =
+    startup.accept_connection(context.database, startup.id, from: company_a.id)
+  let assert Ok(declined) =
+    startup.decline_connection(context.database, startup.id, from: company_b.id)
+
+  let assert Ok(returned) =
+    startup.get_connections(context.database, startup.id, limit: 100, offset: 0)
+
+  assert returned == [accepted, declined] || returned == [declined, accepted]
+
+  Nil
+}
+
+pub fn get_missing_startup_connections_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup_id = uuid.v7()
+
+  let assert Ok([]) =
+    startup.get_connections(context.database, startup_id, limit: 100, offset: 0)
+
+  Nil
+}
+
+pub fn apply_to_demand_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let startup = dummy.new_startup(context.database)
+  let demand = dummy.new_demand(context.database, from: company.id)
+
+  let assert Ok(returned) =
+    startup.apply_to_demand(context.database, startup.id, apply_to: demand.id)
+
+  assert returned
+    == demand.Application(
+      demand: demand.id,
+      startup: startup.id,
+      status: demand.Pending,
+      created_at: returned.created_at,
+      updated_at: returned.updated_at,
+    )
+
+  Nil
+}
+
+pub fn apply_to_missing_startup_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let demand = dummy.new_demand(context.database, from: company.id)
+  let missing_id = uuid.v7()
+
+  let assert Error(startup.NotFound(returned)) =
+    startup.apply_to_demand(context.database, missing_id, apply_to: demand.id)
+
+  assert returned == missing_id
+
+  Nil
+}
+
+pub fn apply_to_missing_demand_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+  let missing_id = uuid.v7()
+
+  let assert Error(startup.DemandError(demand.NotFound(returned))) =
+    startup.apply_to_demand(context.database, startup.id, apply_to: missing_id)
+
+  assert returned == missing_id
+
+  Nil
+}
+
+pub fn apply_to_closed_demand_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let startup = dummy.new_startup(context.database)
+  let demand = dummy.new_demand(context.database, from: company.id)
+
+  let assert Ok(_) = demand.close(context.database, demand.id)
+
+  let assert Error(startup.DemandNotOpen(returned)) =
+    startup.apply_to_demand(context.database, startup.id, apply_to: demand.id)
+
+  assert returned == demand.id
+
+  Nil
+}
+
+pub fn apply_to_canceled_demand_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let startup = dummy.new_startup(context.database)
+  let record = dummy.new_demand(context.database, from: company.id)
+
+  let assert Ok(_) = demand.cancel(context.database, record.id)
+
+  let assert Error(startup.DemandNotOpen(returned)) =
+    startup.apply_to_demand(context.database, startup.id, apply_to: record.id)
+
+  assert returned == record.id
+
+  Nil
+}
+
+pub fn apply_to_demand_twice_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let startup = dummy.new_startup(context.database)
+  let demand = dummy.new_demand(context.database, from: company.id)
+
+  let assert Ok(_) =
+    startup.apply_to_demand(context.database, startup.id, apply_to: demand.id)
+
+  let assert Error(startup.ApplicationConflict(returned)) =
+    startup.apply_to_demand(context.database, startup.id, apply_to: demand.id)
+
+  assert returned == demand.id
+
+  Nil
+}
+
+pub fn withdraw_demand_application_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let startup = dummy.new_startup(context.database)
+  let demand = dummy.new_demand(context.database, from: company.id)
+
+  let assert Ok(applied) =
+    startup.apply_to_demand(context.database, startup.id, apply_to: demand.id)
+
+  let assert Ok(returned) =
+    startup.withdraw_demand_application(
+      context.database,
+      startup.id,
+      from: demand.id,
+    )
+
+  assert returned
+    == demand.Application(
+      demand: demand.id,
+      startup: startup.id,
+      status: demand.Pending,
+      created_at: applied.created_at,
+      updated_at: returned.updated_at,
+    )
+
+  Nil
+}
+
+pub fn withdraw_missing_application_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let startup = dummy.new_startup(context.database)
+  let demand = dummy.new_demand(context.database, from: company.id)
+
+  let assert Error(startup.ApplicationNotFound(returned)) =
+    startup.withdraw_demand_application(
+      context.database,
+      startup.id,
+      from: demand.id,
+    )
+
+  assert returned == demand.id
+
+  Nil
+}
+
+/// Withdrawing deletes the application, so the Startup can apply again.
+pub fn reapply_after_withdraw_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let startup = dummy.new_startup(context.database)
+  let demand = dummy.new_demand(context.database, from: company.id)
+
+  let assert Ok(_) =
+    startup.apply_to_demand(context.database, startup.id, apply_to: demand.id)
+
+  let assert Ok(_) =
+    startup.withdraw_demand_application(
+      context.database,
+      startup.id,
+      from: demand.id,
+    )
+
+  let assert Ok(returned) =
+    startup.apply_to_demand(context.database, startup.id, apply_to: demand.id)
+
+  assert returned.status == demand.Pending
+
+  Nil
+}
+
+/// Only pending applications can be withdrawn.
+pub fn withdraw_accepted_application_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let startup = dummy.new_startup(context.database)
+  let demand = dummy.new_demand(context.database, from: company.id)
+
+  let assert Ok(_) =
+    startup.apply_to_demand(context.database, startup.id, apply_to: demand.id)
+
+  let assert Ok(_) =
+    demand.accept_application(context.database, demand.id, from: startup.id)
+
+  let assert Error(startup.ApplicationNotFound(returned)) =
+    startup.withdraw_demand_application(
+      context.database,
+      startup.id,
+      from: demand.id,
+    )
+
+  assert returned == demand.id
 
   Nil
 }

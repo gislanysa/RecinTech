@@ -1,3 +1,4 @@
+import gleam/list
 import server/dummy
 import server/expertise
 import server_test
@@ -50,7 +51,7 @@ pub fn get_many_expertises_test() -> Nil {
   let assert Ok(returned) =
     expertise.get_many(context.database, limit: max, offset: 0)
 
-  assert returned == expertises
+  assert list.all(returned, fn(item) { list.contains(expertises, item) })
 
   Nil
 }

@@ -1,13 +1,23 @@
 import Botao from '@/components/Botao.tsx'
+import type { ContextoSessao } from '@/components/RotaProtegida.tsx'
 import { Campo, CampoSelect } from '@/components/forms/Campo.tsx'
 import { CloseIcon } from '@/components/icons.tsx'
+import type { Company } from '@/lib/api.ts'
+import {
+  buscarSegmentos,
+  buscarServicos,
+  buscarTecnologias,
+  ehUuidReal,
+  type ItemCatalogo,
+} from '@/lib/catalogos.ts'
 import { atualizarDemanda, criarDemanda, type Demanda, type StatusDemanda } from '@/lib/demandas.ts'
-import { SEGMENTS, SERVICES, TECHNOLOGIES } from '@/lib/startups.ts'
+import axios from 'axios'
 import { useEffect, useState } from 'react'
+import { useOutletContext } from 'react-router-dom'
 
 type ModalNovaDemandaProps = {
   aberto: boolean
-  companyId: string
+  companyId?: string
   demandaParaEditar?: Demanda | null
   aoFechar: () => void
   aoSalvar?: (demanda: Demanda) => void
@@ -22,18 +32,43 @@ function FormularioDemanda({
   aoSalvar,
 }: {
   demandaParaEditar?: Demanda | null
-  companyId: string
+  companyId?: string
   aoFechar: () => void
   aoSalvar: (demanda: Demanda) => void
 }) {
+  const [listaSegmentos, setListaSegmentos] = useState<ItemCatalogo[]>([])
+  const [listaServicos, setListaServicos] = useState<ItemCatalogo[]>([])
+  const [listaTecnologias, setListaTecnologias] = useState<ItemCatalogo[]>([])
+
   const [titulo, setTitulo] = useState(demandaParaEditar?.titulo ?? '')
   const [descricao, setDescricao] = useState(demandaParaEditar?.descricao ?? '')
   const [segmento, setSegmento] = useState(demandaParaEditar?.segmento ?? '')
-  const [status, setStatus] = useState<StatusDemanda>(demandaParaEditar?.status ?? 'aberta')
+  const [status, setStatus] = useState<StatusDemanda>(
+    demandaParaEditar?.status === 'closed' || demandaParaEditar?.status === 'encerrada'
+      ? 'closed'
+      : demandaParaEditar?.status === 'canceled' || demandaParaEditar?.status === 'cancelada'
+        ? 'canceled'
+        : 'open',
+  )
   const [servicos, setServicos] = useState<string[]>(demandaParaEditar?.servicos ?? [])
   const [tecnologias, setTecnologias] = useState<string[]>(demandaParaEditar?.tecnologias ?? [])
   const [enviando, setEnviando] = useState(false)
   const [erro, setErro] = useState('')
+
+  useEffect(() => {
+    let ativo = true
+    Promise.all([buscarSegmentos(), buscarServicos(), buscarTecnologias()]).then(
+      ([segs, servs, tecs]) => {
+        if (!ativo) return
+        setListaSegmentos(segs)
+        setListaServicos(servs)
+        setListaTecnologias(tecs)
+      },
+    )
+    return () => {
+      ativo = false
+    }
+  }, [])
 
   const isEdicao = Boolean(demandaParaEditar)
 
@@ -49,8 +84,17 @@ function FormularioDemanda({
     )
   }
 
+  const contexto = useOutletContext<ContextoSessao | undefined>()
+  const resolvedCompany = contexto?.conta as Company | undefined
+  const resolvedCompanyId = companyId ?? resolvedCompany?.id
+  const resolvedCompanyName = resolvedCompany?.name
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    if (!resolvedCompanyId) {
+      setErro('Identificador da empresa não disponível. Recarregue a página ou faça login novamente.')
+      return
+    }
     if (!titulo.trim()) {
       setErro('Informe o título da demanda.')
       return
@@ -67,30 +111,73 @@ function FormularioDemanda({
     setErro('')
     setEnviando(true)
 
+    // Captura os IDs reais dos itens de catálogo selecionados (apenas UUIDs reais que existam no banco)
+    const segmentoItem = listaSegmentos.find((s) => s.name === segmento || s.id === segmento)
+    const segmentIds = segmentoItem && ehUuidReal(segmentoItem.id)
+      ? [segmentoItem.id]
+      : ehUuidReal(segmento)
+        ? [segmento]
+        : []
+
+    const serviceIds = servicos
+      .map((sNomeOuId) => {
+        const item = listaServicos.find((s) => s.name === sNomeOuId || s.id === sNomeOuId)
+        return item?.id ?? (ehUuidReal(sNomeOuId) ? sNomeOuId : undefined)
+      })
+      .filter((id): id is string => Boolean(id && ehUuidReal(id)))
+
+    const technologyIds = tecnologias
+      .map((tNomeOuId) => {
+        const item = listaTecnologias.find((t) => t.name === tNomeOuId || t.id === tNomeOuId)
+        return item?.id ?? (ehUuidReal(tNomeOuId) ? tNomeOuId : undefined)
+      })
+      .filter((id): id is string => Boolean(id && ehUuidReal(id)))
+
     try {
       if (demandaParaEditar) {
-        const atualizada = await atualizarDemanda(companyId, demandaParaEditar.id, {
+        const atualizada = await atualizarDemanda(resolvedCompanyId, demandaParaEditar.id, {
           titulo,
           descricao,
           segmento,
           servicos,
           tecnologias,
+          segmentIds,
+          serviceIds,
+          technologyIds,
           status,
+          ...(resolvedCompanyName ? { empresa_nome: resolvedCompanyName } : {}),
         })
         aoSalvar(atualizada)
       } else {
-        const nova = await criarDemanda(companyId, {
+        const nova = await criarDemanda(resolvedCompanyId, {
           titulo,
           descricao,
           segmento,
           servicos,
           tecnologias,
+          segmentIds,
+          serviceIds,
+          technologyIds,
+          status,
+          ...(resolvedCompanyName ? { empresa_nome: resolvedCompanyName } : {}),
         })
         aoSalvar(nova)
       }
       aoFechar()
-    } catch {
-      setErro('Não foi possível salvar a demanda. Tente novamente.')
+    } catch (err: unknown) {
+      let mensagem = 'Não foi possível salvar a demanda. Tente novamente.'
+      if (axios.isAxiosError(err)) {
+        if (typeof err.response?.data === 'string' && err.response.data.trim()) {
+          mensagem = `Erro do servidor: ${err.response.data.trim()}`
+        } else if (err.response?.data?.message) {
+          mensagem = `Erro do servidor: ${err.response.data.message}`
+        } else if (err.response?.status === 404) {
+          mensagem = 'Empresa ou catálogo não encontrado no servidor.'
+        } else if (err.response?.status === 400) {
+          mensagem = 'Dados inválidos enviados ao servidor. Verifique os campos.'
+        }
+      }
+      setErro(mensagem)
     } finally {
       setEnviando(false)
     }
@@ -160,7 +247,7 @@ function FormularioDemanda({
               setSegmento(v)
               if (erro) setErro('')
             }}
-            opcoes={SEGMENTS}
+            opcoes={listaSegmentos.map((s) => s.name)}
             placeholder="Selecione o segmento principal"
           />
 
@@ -173,10 +260,10 @@ function FormularioDemanda({
               onChange={(v) => setStatus(v as StatusDemanda)}
               opcoes={[
                 'Aberta (Recebendo recomendações)',
-                'Em andamento (Em contato com startups)',
                 'Encerrada (Finalizada)',
+                'Cancelada',
               ]}
-              valores={['aberta', 'em_andamento', 'encerrada']}
+              valores={['open', 'closed', 'canceled']}
             />
           )}
 
@@ -186,13 +273,13 @@ function FormularioDemanda({
               Serviços procurados (opcional)
             </span>
             <div className="flex flex-wrap gap-1.5">
-              {SERVICES.map((s) => {
-                const selecionado = servicos.includes(s)
+              {listaServicos.map((s) => {
+                const selecionado = servicos.includes(s.name)
                 return (
                   <button
-                    key={s}
+                    key={s.id}
                     type="button"
-                    onClick={() => alternarServico(s)}
+                    onClick={() => alternarServico(s.name)}
                     className={[
                       'rounded-full px-3 py-1 text-xs font-medium transition-all',
                       selecionado
@@ -200,7 +287,7 @@ function FormularioDemanda({
                         : 'bg-brand-50 text-ink-700 hover:bg-brand-100 ring-1 ring-brand-200',
                     ].join(' ')}
                   >
-                    {s}
+                    {s.name}
                   </button>
                 )
               })}
@@ -213,13 +300,13 @@ function FormularioDemanda({
               Tecnologias de interesse (opcional)
             </span>
             <div className="flex flex-wrap gap-1.5">
-              {TECHNOLOGIES.slice(0, 16).map((t) => {
-                const selecionado = tecnologias.includes(t)
+              {listaTecnologias.slice(0, 16).map((t) => {
+                const selecionado = tecnologias.includes(t.name)
                 return (
                   <button
-                    key={t}
+                    key={t.id}
                     type="button"
-                    onClick={() => alternarTecnologia(t)}
+                    onClick={() => alternarTecnologia(t.name)}
                     className={[
                       'rounded-full px-3 py-1 text-xs font-medium transition-all',
                       selecionado
@@ -227,7 +314,7 @@ function FormularioDemanda({
                         : 'bg-surface text-ink-700 hover:bg-brand-50 ring-1 ring-brand-200',
                     ].join(' ')}
                   >
-                    {t}
+                    {t.name}
                   </button>
                 )
               })}

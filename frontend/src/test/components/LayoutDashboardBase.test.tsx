@@ -32,8 +32,6 @@ describe('LayoutDashboardBase component', () => {
             element={
               <LayoutDashboardBase
                 nomeUsuario="Empresa Solar PE"
-                subtituloConta="Conta empresarial"
-                badgePerfil={{ rotulo: 'Empresa', classe: 'bg-accent-50 text-accent-700' }}
                 itensNavegacao={itensMock}
                 idPrefixo="empresa"
                 redirecionarAposLogout="/entrar"
@@ -48,12 +46,12 @@ describe('LayoutDashboardBase component', () => {
     )
   }
 
-  it('deve renderizar o nome do usuário, subtítulo, badge e itens de navegação', () => {
+  it('deve renderizar o nome do usuário e itens de navegação, sem subtítulo ou badge de perfil', () => {
     renderLayout()
 
     expect(screen.getAllByText('Empresa Solar PE')[0]).toBeInTheDocument()
-    expect(screen.getAllByText('Conta empresarial')[0]).toBeInTheDocument()
-    expect(screen.getByText('Empresa')).toBeInTheDocument()
+    expect(screen.queryByText('Conta empresarial')).not.toBeInTheDocument()
+    expect(screen.queryByText('Empresa')).not.toBeInTheDocument()
     expect(screen.getAllByText('Início')[0]).toBeInTheDocument()
     expect(screen.getAllByText('Demandas')[0]).toBeInTheDocument()
     expect(screen.getByText('Conteúdo da Página')).toBeInTheDocument()

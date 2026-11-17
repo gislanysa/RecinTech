@@ -55,7 +55,7 @@ export default function PainelConexoes({
           {[1, 2].map((i) => (
             <div
               key={i}
-              className="animate-pulse rounded-2xl border border-brand-100 bg-surface p-5"
+              className="animate-pulse rounded-2xl bg-surface p-5 shadow-sm"
             >
               <div className="h-4 w-1/3 rounded bg-brand-100" />
               <div className="mt-2 h-3 w-1/4 rounded bg-brand-50" />
@@ -65,7 +65,7 @@ export default function PainelConexoes({
       )}
 
       {!carregando && convites.length === 0 && (
-        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-brand-200 bg-surface px-6 py-12 text-center">
+        <div className="flex flex-col items-center justify-center rounded-2xl bg-surface px-6 py-12 text-center shadow-sm">
           <h3 className="font-display text-base font-semibold text-ink-900">
             Nenhuma conexão iniciada ainda
           </h3>
@@ -92,7 +92,7 @@ export default function PainelConexoes({
             return (
               <div
                 key={convite.id}
-                className="flex flex-col justify-between gap-4 rounded-2xl border border-brand-100 bg-surface p-5 sm:flex-row sm:items-center"
+                className="flex flex-col justify-between gap-4 rounded-2xl bg-surface p-5 shadow-sm sm:flex-row sm:items-center"
               >
                 <div>
                   <div className="flex items-center gap-2.5">

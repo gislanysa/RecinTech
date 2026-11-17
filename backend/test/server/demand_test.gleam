@@ -1,7 +1,9 @@
+import gleam/list
 import gleam/option.{None, Some}
 import server/company
-import server/company/demand
+import server/demand
 import server/dummy
+import server/startup
 import server_test
 import youid/uuid
 
@@ -762,6 +764,371 @@ pub fn delete_missing_demand_test() -> Nil {
     demand.delete(context.database, demand_id)
 
   assert returned == demand_id
+
+  Nil
+}
+
+pub fn accept_application_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let startup = dummy.new_startup(context.database)
+  let demand = dummy.new_demand(context.database, from: company.id)
+
+  let assert Ok(applied) =
+    startup.apply_to_demand(context.database, startup.id, apply_to: demand.id)
+
+  let assert Ok(returned) =
+    demand.accept_application(context.database, demand.id, from: startup.id)
+
+  assert returned
+    == demand.Application(
+      demand: demand.id,
+      startup: startup.id,
+      status: demand.Accepted,
+      created_at: applied.created_at,
+      updated_at: returned.updated_at,
+    )
+
+  Nil
+}
+
+pub fn decline_application_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let startup = dummy.new_startup(context.database)
+  let demand = dummy.new_demand(context.database, from: company.id)
+
+  let assert Ok(applied) =
+    startup.apply_to_demand(context.database, startup.id, apply_to: demand.id)
+
+  let assert Ok(returned) =
+    demand.decline_application(context.database, demand.id, from: startup.id)
+
+  assert returned
+    == demand.Application(
+      demand: demand.id,
+      startup: startup.id,
+      status: demand.Declined,
+      created_at: applied.created_at,
+      updated_at: returned.updated_at,
+    )
+
+  Nil
+}
+
+pub fn accept_missing_application_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let startup = dummy.new_startup(context.database)
+  let demand = dummy.new_demand(context.database, from: company.id)
+
+  let assert Error(demand.ApplicationNotFound(
+    demand: returned_demand,
+    startup: returned_startup,
+  )) = demand.accept_application(context.database, demand.id, from: startup.id)
+
+  assert returned_demand == demand.id
+  assert returned_startup == startup.id
+
+  Nil
+}
+
+pub fn decline_missing_application_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let startup = dummy.new_startup(context.database)
+  let demand = dummy.new_demand(context.database, from: company.id)
+
+  let assert Error(demand.ApplicationNotFound(
+    demand: returned_demand,
+    startup: returned_startup,
+  )) = demand.decline_application(context.database, demand.id, from: startup.id)
+
+  assert returned_demand == demand.id
+  assert returned_startup == startup.id
+
+  Nil
+}
+
+pub fn accept_missing_startup_application_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let demand = dummy.new_demand(context.database, from: company.id)
+  let missing_id = uuid.v7()
+
+  let assert Error(demand.ApplicationNotFound(
+    demand: returned_demand,
+    startup: returned_startup,
+  )) = demand.accept_application(context.database, demand.id, from: missing_id)
+
+  assert returned_demand == demand.id
+  assert returned_startup == missing_id
+
+  Nil
+}
+
+pub fn accept_missing_demand_application_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let startup = dummy.new_startup(context.database)
+  let missing_id = uuid.v7()
+
+  let assert Error(demand.ApplicationNotFound(
+    demand: returned_demand,
+    startup: returned_startup,
+  )) = demand.accept_application(context.database, missing_id, from: startup.id)
+
+  assert returned_demand == missing_id
+  assert returned_startup == startup.id
+
+  Nil
+}
+
+/// Accepting an application that is already accepted is allowed.
+pub fn accept_application_twice_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let startup = dummy.new_startup(context.database)
+  let demand = dummy.new_demand(context.database, from: company.id)
+
+  let assert Ok(_) =
+    startup.apply_to_demand(context.database, startup.id, apply_to: demand.id)
+
+  let assert Ok(_) =
+    demand.accept_application(context.database, demand.id, from: startup.id)
+
+  let assert Ok(returned) =
+    demand.accept_application(context.database, demand.id, from: startup.id)
+
+  assert returned.status == demand.Accepted
+
+  Nil
+}
+
+/// Accepting a declined application reverses the previous decision.
+pub fn accept_after_decline_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let startup = dummy.new_startup(context.database)
+  let demand = dummy.new_demand(context.database, from: company.id)
+
+  let assert Ok(_) =
+    startup.apply_to_demand(context.database, startup.id, apply_to: demand.id)
+
+  let assert Ok(_) =
+    demand.decline_application(context.database, demand.id, from: startup.id)
+
+  let assert Ok(returned) =
+    demand.accept_application(context.database, demand.id, from: startup.id)
+
+  assert returned.status == demand.Accepted
+
+  Nil
+}
+
+/// Declining an accepted application reverses the previous decision.
+pub fn decline_after_accept_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let startup = dummy.new_startup(context.database)
+  let demand = dummy.new_demand(context.database, from: company.id)
+
+  let assert Ok(_) =
+    startup.apply_to_demand(context.database, startup.id, apply_to: demand.id)
+
+  let assert Ok(_) =
+    demand.accept_application(context.database, demand.id, from: startup.id)
+
+  let assert Ok(returned) =
+    demand.decline_application(context.database, demand.id, from: startup.id)
+
+  assert returned.status == demand.Declined
+
+  Nil
+}
+
+/// A declined application still blocks the Startup from applying again.
+pub fn decline_application_blocks_reapply_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let startup = dummy.new_startup(context.database)
+  let demand = dummy.new_demand(context.database, from: company.id)
+
+  let assert Ok(_) =
+    startup.apply_to_demand(context.database, startup.id, apply_to: demand.id)
+
+  let assert Ok(_) =
+    demand.decline_application(context.database, demand.id, from: startup.id)
+
+  let assert Error(startup.ApplicationConflict(returned)) =
+    startup.apply_to_demand(context.database, startup.id, apply_to: demand.id)
+
+  assert returned == demand.id
+
+  Nil
+}
+
+pub fn get_applications_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let startup_a = dummy.new_startup(context.database)
+  let startup_b = dummy.new_startup(context.database)
+  let demand = dummy.new_demand(context.database, from: company.id)
+
+  let assert Ok(_) =
+    startup.apply_to_demand(context.database, startup_a.id, apply_to: demand.id)
+
+  let assert Ok(_) =
+    startup.apply_to_demand(context.database, startup_b.id, apply_to: demand.id)
+
+  let assert Ok(_) =
+    demand.accept_application(context.database, demand.id, from: startup_b.id)
+
+  let assert Ok(returned) = demand.get_applications(context.database, demand.id)
+
+  assert list.length(returned) == 2
+
+  assert list.any(returned, fn(application) {
+    application.startup == startup_a.id && application.status == demand.Pending
+  })
+
+  assert list.any(returned, fn(application) {
+    application.startup == startup_b.id && application.status == demand.Accepted
+  })
+
+  Nil
+}
+
+pub fn get_empty_applications_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let demand = dummy.new_demand(context.database, from: company.id)
+
+  let assert Ok([]) = demand.get_applications(context.database, demand.id)
+
+  Nil
+}
+
+/// A Demand that does not exist has no applications, so this is not an error.
+pub fn get_applications_from_missing_demand_test() -> Nil {
+  use context <- server_test.with_context()
+  let missing_id = uuid.v7()
+
+  let assert Ok([]) = demand.get_applications(context.database, missing_id)
+
+  Nil
+}
+
+/// Withdrawing deletes the application, so it is no longer returned.
+pub fn get_applications_after_withdraw_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let startup = dummy.new_startup(context.database)
+  let demand = dummy.new_demand(context.database, from: company.id)
+
+  let assert Ok(_) =
+    startup.apply_to_demand(context.database, startup.id, apply_to: demand.id)
+
+  let assert Ok(_) =
+    startup.withdraw_demand_application(
+      context.database,
+      startup.id,
+      from: demand.id,
+    )
+
+  let assert Ok([]) = demand.get_applications(context.database, demand.id)
+
+  Nil
+}
+
+pub fn browse_open_demands_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let demand_a = dummy.new_demand(context.database, from: company.id)
+  let demand_b = dummy.new_demand(context.database, from: company.id)
+
+  let assert Ok(returned) =
+    demand.browse_open_demands(context.database, limit: 100, offset: 0)
+
+  assert returned == [demand_b, demand_a]
+
+  Nil
+}
+
+/// Only demands with an `open` status are listed.
+pub fn browse_open_demands_excludes_closed_and_canceled_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let open = dummy.new_demand(context.database, from: company.id)
+
+  let closed = dummy.new_demand(context.database, from: company.id)
+  let assert Ok(_) = demand.close(context.database, closed.id)
+
+  let canceled = dummy.new_demand(context.database, from: company.id)
+  let assert Ok(_) = demand.cancel(context.database, canceled.id)
+
+  let assert Ok(returned) =
+    demand.browse_open_demands(context.database, limit: 100, offset: 0)
+
+  assert returned == [open]
+
+  Nil
+}
+
+pub fn browse_open_demands_pagination_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let company = dummy.new_company(context.database)
+  let demand_a = dummy.new_demand(context.database, from: company.id)
+  let demand_b = dummy.new_demand(context.database, from: company.id)
+  let demand_c = dummy.new_demand(context.database, from: company.id)
+
+  // only two demands fit in the first page
+  let assert Ok(first_page) =
+    demand.browse_open_demands(context.database, limit: 2, offset: 0)
+
+  assert list.length(first_page) == 2
+
+  // the last page holds the remaining demand
+  let assert Ok(second_page) =
+    demand.browse_open_demands(context.database, limit: 2, offset: 2)
+
+  assert list.length(second_page) == 1
+
+  // the two pages contain every demand exactly once
+  let pages = list.append(first_page, second_page)
+  assert list.length(pages) == 3
+
+  assert list.any(pages, fn(record) { record.id == demand_a.id })
+  assert list.any(pages, fn(record) { record.id == demand_b.id })
+  assert list.any(pages, fn(record) { record.id == demand_c.id })
+
+  // offsetting past every demand returns an empty list
+  let assert Ok([]) =
+    demand.browse_open_demands(context.database, limit: 2, offset: 10)
+
+  Nil
+}
+
+pub fn browse_open_demands_empty_test() -> Nil {
+  use context <- server_test.with_context()
+
+  let assert Ok([]) =
+    demand.browse_open_demands(context.database, limit: 100, offset: 0)
 
   Nil
 }

@@ -52,10 +52,8 @@ pub fn to_json(segment: Segment) -> json.Json {
 /// ## Examples
 ///
 /// ```gleam
-/// let result = segment.register(context.database, name:, description:)
-///
-/// case result {
-///   Ok(data) -> wisp.response(201)
+/// case segment.register(context.database, name:, description:) {
+///   Ok(segment) -> wisp.response(201)
 ///   Error(segment.NotFound) -> wisp.not_found()
 ///   Error(_) -> wisp.internal_server_error()
 /// }
@@ -83,10 +81,8 @@ pub fn register(
 /// ## Examples
 ///
 /// ```gleam
-/// let result = segment.get(context.database, id)
-///
-/// case result {
-///   Ok(data) -> wisp.ok()
+/// case segment.get(context.database, id) {
+///   Ok(segment) -> wisp.ok()
 ///   Error(segment.NotFound) -> wisp.not_found()
 ///   Error(_) -> wisp.internal_server_error()
 /// }
@@ -114,11 +110,8 @@ pub fn get(
 /// ## Examples
 ///
 /// ```gleam
-/// let result =
-///   segment.get_many(context.database, limit: 3, offset: 6)
-///
-/// case result {
-///   Ok(data) -> wisp.ok()
+/// case segment.get_many(context.database, limit: 3, offset: 6) {
+///   Ok(segments) -> wisp.ok()
 ///   Error(_) -> wisp.internal_server_error()
 /// }
 /// ```

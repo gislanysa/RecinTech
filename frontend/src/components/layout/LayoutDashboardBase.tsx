@@ -15,12 +15,6 @@ export type ItemNavegacaoDashboard = {
 
 export type LayoutDashboardBaseProps = {
   nomeUsuario: string
-  subtituloConta: string
-  etiquetaPlano?: { rotulo: string; destaque?: boolean }
-  badgePerfil: {
-    rotulo: string
-    classe?: string
-  }
   itensNavegacao: ItemNavegacaoDashboard[]
   idPrefixo?: 'empresa' | 'startup'
   redirecionarAposLogout?: string
@@ -38,18 +32,12 @@ function classeDoItem(ativo: boolean): string {
 
 function ConteudoDaSidebar({
   nomeUsuario,
-  subtituloConta,
-  badgePerfil,
-  etiquetaPlano,
   itensNavegacao,
   idPrefixo,
   redirecionarAposLogout = '/entrar',
   aoNavegar,
 }: {
   nomeUsuario: string
-  subtituloConta: string
-  badgePerfil: { rotulo: string; classe?: string }
-  etiquetaPlano?: { rotulo: string; destaque?: boolean }
   itensNavegacao: ItemNavegacaoDashboard[]
   idPrefixo?: 'empresa' | 'startup'
   redirecionarAposLogout?: string
@@ -81,32 +69,9 @@ function ConteudoDaSidebar({
         >
           {nomeUsuario}
         </p>
-        {/* O tipo de conta vira etiqueta: é o que sinaliza em qual perfil a
-            pessoa está logada, agora que o selo do topo saiu. */}
-        <span
-          className={[
-            'mt-2 inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium',
-            badgePerfil.classe ?? 'bg-brand-50 text-brand-700',
-          ].join(' ')}
-        >
-          {subtituloConta}
-        </span>
-
-        {/* Opcional: hoje só a startup tem planos. A empresa não passa nada e
-            a linha simplesmente não aparece. */}
-        {etiquetaPlano && (
-          <p
-            className={[
-              'mt-1.5 text-xs font-medium',
-              etiquetaPlano.destaque ? 'text-accent-700' : 'text-ink-500',
-            ].join(' ')}
-          >
-            {etiquetaPlano.rotulo}
-          </p>
-        )}
       </div>
 
-      <nav aria-label={`Navegação ${subtituloConta}`} className="flex-1 overflow-y-auto px-3 py-3">
+      <nav aria-label="Navegação do painel" className="flex-1 overflow-y-auto px-3 py-3">
         <ul className="flex flex-col gap-1">
           {itensNavegacao.map(({ rotulo, to, Icone, exato }) => (
             <li key={to}>
@@ -160,9 +125,6 @@ function ConteudoDaSidebar({
  */
 export default function LayoutDashboardBase({
   nomeUsuario,
-  subtituloConta,
-  badgePerfil,
-  etiquetaPlano,
   itensNavegacao,
   idPrefixo = 'startup',
   redirecionarAposLogout,
@@ -214,9 +176,6 @@ export default function LayoutDashboardBase({
       <aside className="fixed bottom-0 left-0 top-16 z-20 hidden w-64 border-r border-brand-100 bg-surface lg:block">
         <ConteudoDaSidebar
           nomeUsuario={nomeUsuario}
-          badgePerfil={badgePerfil}
-          etiquetaPlano={etiquetaPlano}
-          subtituloConta={subtituloConta}
           itensNavegacao={itensNavegacao}
           idPrefixo={idPrefixo}
           redirecionarAposLogout={redirecionarAposLogout}
@@ -255,9 +214,6 @@ export default function LayoutDashboardBase({
           </button>
           <ConteudoDaSidebar
             nomeUsuario={nomeUsuario}
-            badgePerfil={badgePerfil}
-            etiquetaPlano={etiquetaPlano}
-            subtituloConta={subtituloConta}
             itensNavegacao={itensNavegacao}
             idPrefixo={idPrefixo}
             redirecionarAposLogout={redirecionarAposLogout}

@@ -11,7 +11,7 @@ export default function PainelConexoesResumo({ conexoes }: { conexoes: Conexao[]
   return (
     <section
       aria-labelledby="titulo-conexoes-resumo"
-      className="rounded-card border border-brand-100 bg-surface p-5 shadow-sm sm:p-6"
+      className="rounded-card bg-surface p-5 shadow-sm sm:p-6"
     >
       <h2 id="titulo-conexoes-resumo" className="text-lg font-semibold">
         Conexões em andamento
@@ -48,8 +48,8 @@ function Numero({ rotulo, valor, destaque }: { rotulo: string; valor: number; de
   return (
     <div
       className={[
-        'rounded-xl border p-4 text-center',
-        destaque && valor > 0 ? 'border-accent-300 bg-accent-100' : 'border-brand-100 bg-surface-2',
+        'rounded-xl p-4 text-center shadow-sm',
+        destaque && valor > 0 ? 'bg-accent-100' : 'bg-surface-2/60',
       ].join(' ')}
     >
       <dd className="font-display text-2xl font-bold text-ink-900">{valor}</dd>

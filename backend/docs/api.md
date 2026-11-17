@@ -206,6 +206,8 @@ ignored.
 
 - 200: Successful
 - 400: Invalid JSON, invalid UUID format or invalid field value
+- 401: Not authenticated
+- 403: Invalid session
 - 404: Startup not found
 - 409: Email or CNPJ already in use
 
@@ -247,7 +249,6 @@ ordered by policy version.
 
 - 200: Successful
 - 400: Invalid UUID format
-- 404: Startup not found or has no consent records
 - 500: Failed to fetch consent records
 
 ## POST /api/startup/:id/lgpd/:version
@@ -255,6 +256,8 @@ ordered by policy version.
 Grant LGPD (Lei Geral de Proteção de Dados) consent for a startup at a given
 policy version. Once granted, the startup allows its data to be used as
 described by that version of the privacy policy.
+
+A Startup session is required.
 
 ### Path Parameters
 
@@ -280,6 +283,8 @@ described by that version of the privacy policy.
 
 - 200: Successful
 - 400: Invalid UUID format or invalid policy version
+- 401: Not authenticated
+- 403: Invalid session
 - 404: Startup not found
 - 500: Failed to update consent
 
@@ -288,6 +293,8 @@ described by that version of the privacy policy.
 Revoke LGPD (Lei Geral de Proteção de Dados) consent for a startup at a given
 policy version. Once revoked, the startup no longer allows its data to be used
 as described by that version of the privacy policy.
+
+A Startup session is required.
 
 ### Path Parameters
 
@@ -313,6 +320,8 @@ as described by that version of the privacy policy.
 
 - 200: Successful
 - 400: Invalid UUID format or invalid policy version
+- 401: Not authenticated
+- 403: Invalid session
 - 404: Startup not found
 - 500: Failed to update consent
 
@@ -618,6 +627,177 @@ Fetch information about a startup.
 - 400: Invalid UUID format
 - 404: Startup not found
 
+## GET /api/startup/:id/canvas
+
+Fetch a startup's Business Model Canvas.
+
+Returns a canvas with every block set to an empty string if the startup has not
+saved one yet.
+
+A session is required.
+
+### Path Parameters
+
+- `id` (UUID, required): the startup's ID.
+
+### Response Body
+
+```json
+{
+  "customer_segments": "Pequenas e médias empresas",
+  "value_proposition": "Reduzir custos operacionais com automação",
+  "channels": "Site, vendas diretas e parceiros",
+  "customer_relationships": "Suporte dedicado e onboarding",
+  "revenue_streams": "Assinatura mensal e implantação",
+  "key_resources": "Equipe de engenharia e infraestrutura em nuvem",
+  "key_activities": "Desenvolvimento, suporte e vendas",
+  "key_partnerships": "Provedores de nuvem e consultorias",
+  "cost_structure": "Folha de pagamento, nuvem e marketing"
+}
+```
+
+### Status Codes
+
+- 200: Successful
+- 400: Invalid UUID format
+- 401: Not authenticated
+- 404: Startup not found
+
+## PUT /api/startup/:id/canvas
+
+Create or replace a startup's Business Model Canvas.
+
+Every block is written as given, so an empty string clears a block instead of
+keeping its previous value.
+
+A Startup session is required, and it must belong to the startup identified by
+`id`.
+
+### Path Parameters
+
+- `id` (UUID, required): the startup's ID.
+
+### Request Body
+
+```json
+{
+  "customer_segments": "Pequenas e médias empresas",
+  "value_proposition": "Reduzir custos operacionais com automação",
+  "channels": "Site, vendas diretas e parceiros",
+  "customer_relationships": "Suporte dedicado e onboarding",
+  "revenue_streams": "Assinatura mensal e implantação",
+  "key_resources": "Equipe de engenharia e infraestrutura em nuvem",
+  "key_activities": "Desenvolvimento, suporte e vendas",
+  "key_partnerships": "Provedores de nuvem e consultorias",
+  "cost_structure": "Folha de pagamento, nuvem e marketing"
+}
+```
+
+- All nine blocks are required.
+
+### Response Body
+
+The saved canvas, in the same shape as the request body:
+
+```json
+{
+  "customer_segments": "Pequenas e médias empresas",
+  "value_proposition": "Reduzir custos operacionais com automação",
+  "channels": "Site, vendas diretas e parceiros",
+  "customer_relationships": "Suporte dedicado e onboarding",
+  "revenue_streams": "Assinatura mensal e implantação",
+  "key_resources": "Equipe de engenharia e infraestrutura em nuvem",
+  "key_activities": "Desenvolvimento, suporte e vendas",
+  "key_partnerships": "Provedores de nuvem e consultorias",
+  "cost_structure": "Folha de pagamento, nuvem e marketing"
+}
+```
+
+### Status Codes
+
+- 200: Successful
+- 400: Invalid JSON, invalid UUID format or missing block
+- 401: Not authenticated
+- 403: Invalid session
+- 404: Startup not found
+
+## POST /api/startup/:id/application
+
+Apply to an open demand. A startup can have at most one application per demand.
+
+A Startup session is required, and it must belong to the startup identified by
+`id`.
+
+### Path Parameters
+
+- `id` (UUID, required): the startup's ID.
+
+### Request Body
+
+```json
+{
+  "demand": "01a173cb-9533-7ebd-87a0-590965ef3653"
+}
+```
+
+### Response Body
+
+```json
+{
+  "demand": "01a173cb-9533-7ebd-87a0-590965ef3653",
+  "startup": "01a173cb-9533-7eb5-9522-9686fef4f2a4",
+  "status": "pending",
+  "created_at": "2026-09-14T20:08:02.000Z",
+  "updated_at": "2026-09-14T20:08:02.000Z"
+}
+```
+
+- `status`: one of `"pending"`, `"accepted"` or `"declined"`.
+
+### Status Codes
+
+- 201: Successful
+- 400: Invalid JSON, invalid UUID format, or demand is not open
+- 401: Not authenticated
+- 403: Invalid session
+- 404: Demand not found
+- 409: The startup already applied to the demand
+
+## DELETE /api/startup/:id/application/:demand_id
+
+Withdraw a pending application from a demand. The application is deleted, so
+the startup can apply to the same demand again later.
+
+A Startup session is required, and it must belong to the startup identified by
+`id`.
+
+### Path Parameters
+
+- `id` (UUID, required): the startup's ID.
+- `demand_id` (UUID, required): the demand's ID.
+
+### Response Body
+
+The withdrawn application:
+
+```json
+{
+  "demand": "01a173cb-9533-7ebd-87a0-590965ef3653",
+  "startup": "01a173cb-9533-7eb5-9522-9686fef4f2a4",
+  "status": "pending",
+  "created_at": "2026-09-14T20:08:02.000Z",
+  "updated_at": "2026-09-14T20:08:02.000Z"
+}
+```
+
+### Status Codes
+
+- 200: Successful
+- 400: Invalid UUID format
+- 401: Not authenticated
+- 403: Invalid session
+- 404: No pending application exists for the demand
+
 ## GET /api/startup/:id/segment
 
 Fetch all segments that a startup is assigned to.
@@ -647,7 +827,6 @@ Fetch all segments that a startup is assigned to.
 
 - 200: Successful
 - 400: Invalid UUID format
-- 404: Startup not found
 
 ## POST /api/startup/:id/segment
 
@@ -736,7 +915,6 @@ Fetch all services that a startup is assigned to.
 
 - 200: Successful
 - 400: Invalid UUID format
-- 404: Startup not found
 
 ## POST /api/startup/:id/service
 
@@ -825,7 +1003,6 @@ Fetch all expertises that a startup is assigned to.
 
 - 200: Successful
 - 400: Invalid UUID format
-- 404: Startup not found
 
 ## POST /api/startup/:id/expertise
 
@@ -914,7 +1091,6 @@ Fetch all technologies that a startup is assigned to.
 
 - 200: Successful
 - 400: Invalid UUID format
-- 404: Startup not found
 
 ## POST /api/startup/:id/technology
 
@@ -1100,125 +1276,10 @@ ignored.
 
 - 200: Successful
 - 400: Invalid JSON, invalid UUID format or invalid field value
+- 401: Not authenticated
+- 403: Invalid session
 - 404: Company not found
 - 409: Email or CNPJ already in use
-
-## GET /api/company/:id/bookmark
-
-Fetch all startups bookmarked by a company, ordered by bookmark date.
-
-### Path Parameters
-
-- `id` (UUID, required): the company's ID.
-
-### Query Parameters
-
-- `limit` (int, required)
-- `offset` (int, required)
-
-### Response Body
-
-```json
-[
-  {
-    "id": "01a058ae-057f-73e8-b2a0-50986559767b",
-    "name": "Critic Level",
-    "email": "critic@email.dev",
-    "stage": "traction",
-    "cnpj": "12345678901234",
-    "description": "startup muito maneira",
-    "city": "Recife",
-    "state": "Pernambuco",
-    "created_at": "2026-09-14T20:08:02.000Z",
-    "updated_at": "2026-09-14T20:08:02.000Z",
-    "is_active": true,
-    "website": "criticlevel.dev"
-  }
-]
-```
-
-- `stage`: one of `"traction"` or `"scaling"`.
-
-### Status Codes
-
-- 200: Successful
-- 400: Invalid UUID, or missing, invalid or incomplete query parameters
-
-## POST /api/company/:id/bookmark
-
-Add a startup to a company's bookmarks.
-
-### Path Parameters
-
-- `id` (UUID, required): the company's ID.
-
-### Request Body
-
-```json
-{
-  "startup": "01a058ae-057f-73e8-b2a0-50986559767b"
-}
-```
-
-### Response Body
-
-```json
-{
-  "id": "01a058ae-057f-73e8-b2a0-50986559767b",
-  "name": "Critic Level",
-  "email": "critic@email.dev",
-  "stage": "traction",
-  "cnpj": "12345678901234",
-  "description": "startup muito maneira",
-  "city": "Recife",
-  "state": "Pernambuco",
-  "created_at": "2026-09-14T20:08:02.000Z",
-  "updated_at": "2026-09-14T20:08:02.000Z",
-  "is_active": true,
-  "website": "criticlevel.dev"
-}
-```
-
-### Status Codes
-
-- 201: Successful
-- 400: Invalid JSON or invalid UUID
-- 404: Company or Startup not found
-- 409: Startup is already bookmarked
-
-## DELETE /api/company/:id/bookmark/:startup_id
-
-Remove a startup from a company's bookmarks.
-
-### Path Parameters
-
-- `id` (UUID, required): the company's ID.
-- `startup_id` (UUID, required): the bookmarked startup's ID.
-
-### Response Body
-
-```json
-{
-  "id": "01a058ae-057f-73e8-b2a0-50986559767b",
-  "name": "Critic Level",
-  "email": "critic@email.dev",
-  "stage": "traction",
-  "cnpj": "12345678901234",
-  "description": "startup muito maneira",
-  "city": "Recife",
-  "state": "Pernambuco",
-  "created_at": "2026-09-14T20:08:02.000Z",
-  "updated_at": "2026-09-14T20:08:02.000Z",
-  "is_active": true,
-  "website": "criticlevel.dev"
-}
-```
-
-### Status Codes
-
-- 200: Successful
-- 400: Invalid UUID format
-- 404: Company, Startup or bookmark not found
 
 ## GET /api/company/:id/lgpd
 
@@ -1258,7 +1319,6 @@ ordered by policy version.
 
 - 200: Successful
 - 400: Invalid UUID format
-- 404: Company not found or has no consent records
 - 500: Failed to fetch consent records
 
 ## POST /api/company/:id/lgpd/:version
@@ -1266,6 +1326,8 @@ ordered by policy version.
 Grant LGPD (Lei Geral de Proteção de Dados) consent for a company at a given
 policy version. Once granted, the company allows its data to be used as
 described by that version of the privacy policy.
+
+A Company session is required.
 
 ### Path Parameters
 
@@ -1291,6 +1353,8 @@ described by that version of the privacy policy.
 
 - 200: Successful
 - 400: Invalid UUID format or invalid policy version
+- 401: Not authenticated
+- 403: Invalid session
 - 404: Company not found
 - 500: Failed to update consent
 
@@ -1299,6 +1363,8 @@ described by that version of the privacy policy.
 Revoke LGPD (Lei Geral de Proteção de Dados) consent for a company at a given
 policy version. Once revoked, the company no longer allows its data to be used
 as described by that version of the privacy policy.
+
+A Company session is required.
 
 ### Path Parameters
 
@@ -1324,6 +1390,8 @@ as described by that version of the privacy policy.
 
 - 200: Successful
 - 400: Invalid UUID format or invalid policy version
+- 401: Not authenticated
+- 403: Invalid session
 - 404: Company not found
 - 500: Failed to update consent
 
@@ -1438,8 +1506,47 @@ technologies can be assigned to the demand in the same request.
 
 - 201: Successful
 - 400: Invalid JSON or invalid UUID
+- 401: Not authenticated
+- 403: Invalid session
 - 404: Company or assigned entity not found
 - 409: An entity is already assigned to the demand
+
+## GET /api/company/demand/browse
+
+Browse all open demands. Only demands whose status is `open` are returned,
+newest first. Closed and canceled demands are never included.
+
+This route does not require authentication.
+
+### Query Parameters
+
+- `limit` (int, required): the maximum number of demands to return.
+- `offset` (int, required): the number of demands to skip.
+- `status` (string, required): must be `"open"`.
+
+### Response Body
+
+```json
+[
+  {
+    "id": "01a173cb-9533-7ebd-87a0-590965ef3653",
+    "company_id": "01a173cb-9533-7eb5-9522-9686fef4f2a4",
+    "title": "Need more gleam projects",
+    "description": "A lot more of them",
+    "status": "open",
+    "created_at": "2025-09-14T20:08:02.000Z",
+    "updated_at": "2025-09-14T20:08:02.000Z"
+  }
+]
+```
+
+An empty array is returned when there are no open demands.
+
+### Status Codes
+
+- 200: Successful
+- 400: Missing, invalid or incomplete query parameters, or `status` is not
+  `"open"`
 
 ## GET /api/company/demand/:id
 
@@ -1509,6 +1616,8 @@ ignored.
 
 - 200: Successful
 - 400: Invalid JSON or invalid UUID format
+- 401: Not authenticated
+- 403: Invalid session, or the demand belongs to another company
 - 404: Demand not found
 
 ## DELETE /api/company/demand/:id
@@ -1538,6 +1647,89 @@ Delete a registered demand.
 - 200: Successful
 - 400: Invalid UUID format
 - 404: Demand not found
+
+## GET /api/company/demand/:id/application
+
+Fetch all applications to a demand.
+
+A Company session is required, and the demand must belong to the company
+identified by the session.
+
+Applications are returned in every status and are not ordered, so clients
+should not rely on a particular order.
+
+### Path Parameters
+
+- `id` (UUID, required): the demand's ID.
+
+### Response Body
+
+```json
+[
+  {
+    "demand": "01a173cb-9533-7ebd-87a0-590965ef3653",
+    "startup": "01a173cb-9533-7eb5-9522-9686fef4f2a4",
+    "status": "pending",
+    "created_at": "2026-09-14T20:08:02.000Z",
+    "updated_at": "2026-09-14T20:08:02.000Z"
+  }
+]
+```
+
+- `status`: one of `"pending"`, `"accepted"` or `"declined"`.
+- An empty array is returned when the demand has no applications.
+
+### Status Codes
+
+- 200: Successful
+- 400: Invalid UUID format
+- 401: Not authenticated
+- 403: Invalid session, or the demand belongs to another company
+- 404: Demand not found
+
+## PATCH /api/company/demand/:id/application/:startup_id
+
+Accept or decline a startup's application to a demand.
+
+A Company session is required, and the demand must belong to the company
+identified by the session. The application is set to the requested status
+regardless of its previous status, so a decision can be reversed by sending the
+opposite status.
+
+### Path Parameters
+
+- `id` (UUID, required): the demand's ID.
+- `startup_id` (UUID, required): the startup's ID.
+
+### Request Body
+
+```json
+{
+  "status": "accepted"
+}
+```
+
+- `status`: either `"accepted"` or `"declined"`.
+
+### Response Body
+
+```json
+{
+  "demand": "01a173cb-9533-7ebd-87a0-590965ef3653",
+  "startup": "01a173cb-9533-7eb5-9522-9686fef4f2a4",
+  "status": "accepted",
+  "created_at": "2026-09-14T20:08:02.000Z",
+  "updated_at": "2026-09-15T20:08:02.000Z"
+}
+```
+
+### Status Codes
+
+- 200: Successful
+- 400: Invalid JSON, invalid UUID format, or invalid status
+- 401: Not authenticated
+- 403: Invalid session, or the demand belongs to another company
+- 404: Demand or application not found
 
 ## GET /api/company/demand/:id/segment
 
@@ -1599,6 +1791,8 @@ Assign a segment to a company's demand.
 
 - 201: Successful
 - 400: Invalid JSON or invalid UUID
+- 401: Not authenticated
+- 403: Invalid session, or the demand belongs to another company
 - 404: Demand or Segment not found
 - 409: Already assigned
 
@@ -1625,6 +1819,8 @@ Unassign a segment from a company's demand.
 
 - 200: Successful
 - 400: Invalid UUID format
+- 401: Not authenticated
+- 403: Invalid session, or the demand belongs to another company
 - 404: Segment is not assigned to the demand
 
 ## GET /api/company/demand/:id/service
@@ -1687,6 +1883,8 @@ Assign a service to a company's demand.
 
 - 201: Successful
 - 400: Invalid JSON or invalid UUID
+- 401: Not authenticated
+- 403: Invalid session, or the demand belongs to another company
 - 404: Demand or Service not found
 - 409: Already assigned
 
@@ -1713,6 +1911,8 @@ Unassign a service from a company's demand.
 
 - 200: Successful
 - 400: Invalid UUID format
+- 401: Not authenticated
+- 403: Invalid session, or the demand belongs to another company
 - 404: Service is not assigned to the demand
 
 ## GET /api/company/demand/:id/technology
@@ -1775,6 +1975,8 @@ Assign a technology to a company's demand.
 
 - 201: Successful
 - 400: Invalid JSON or invalid UUID
+- 401: Not authenticated
+- 403: Invalid session, or the demand belongs to another company
 - 404: Demand or Technology not found
 - 409: Already assigned
 
@@ -1801,6 +2003,8 @@ Unassign a technology from a company's demand.
 
 - 200: Successful
 - 400: Invalid UUID format
+- 401: Not authenticated
+- 403: Invalid session, or the demand belongs to another company
 - 404: Technology is not assigned to the demand
 
 ## GET /api/company/demand/:id/expertise
@@ -1863,6 +2067,8 @@ Assign an expertise to a company's demand.
 
 - 201: Successful
 - 400: Invalid JSON or invalid UUID
+- 401: Not authenticated
+- 403: Invalid session, or the demand belongs to another company
 - 404: Demand or Expertise not found
 - 409: Already assigned
 
@@ -1889,4 +2095,220 @@ Unassign an expertise from a company's demand.
 
 - 200: Successful
 - 400: Invalid UUID format
+- 401: Not authenticated
+- 403: Invalid session, or the demand belongs to another company
 - 404: Expertise is not assigned to the demand
+
+## POST /api/company/:id/connection
+
+Request a connection with a startup. The connection starts as `pending` until
+the startup accepts or declines it.
+
+A Company session is required, and it must belong to the company identified by
+`id`.
+
+### Path Parameters
+
+- `id` (UUID, required): the company's ID.
+
+### Request Body
+
+```json
+{
+  "startup": "01a173cb-9533-7ebd-87a0-590965ef3653"
+}
+```
+
+### Response Body
+
+```json
+{
+  "company": "01a173cb-9533-7eb5-9522-9686fef4f2a4",
+  "startup": "01a173cb-9533-7ebd-87a0-590965ef3653",
+  "status": "pending",
+  "created_at": "2026-09-14T20:08:02.000Z",
+  "updated_at": "2026-09-14T20:08:02.000Z"
+}
+```
+
+- `status`: one of `"pending"`, `"accepted"` or `"declined"`.
+
+### Status Codes
+
+- 201: Successful
+- 400: Invalid JSON or invalid UUID
+- 401: Not authenticated
+- 403: Invalid session
+- 404: Company or Startup not found
+- 409: A connection with the startup was already requested
+
+## GET /api/company/:id/connection
+
+Fetch all connections requested by a company, newest first.
+
+### Path Parameters
+
+- `id` (UUID, required): the company's ID.
+
+### Query Parameters
+
+- `limit` (int, required)
+- `offset` (int, required)
+
+### Response Body
+
+```json
+[
+  {
+    "company": "01a173cb-9533-7eb5-9522-9686fef4f2a4",
+    "startup": "01a173cb-9533-7ebd-87a0-590965ef3653",
+    "status": "accepted",
+    "created_at": "2026-09-14T20:08:02.000Z",
+    "updated_at": "2026-09-15T20:08:02.000Z"
+  }
+]
+```
+
+### Status Codes
+
+- 200: Successful
+- 400: Invalid UUID, or missing, invalid or incomplete query parameters
+
+## GET /api/startup/:id/connection
+
+Fetch all connections received by a startup, newest first.
+
+### Path Parameters
+
+- `id` (UUID, required): the startup's ID.
+
+### Query Parameters
+
+- `limit` (int, required)
+- `offset` (int, required)
+
+### Response Body
+
+```json
+[
+  {
+    "company": "01a173cb-9533-7eb5-9522-9686fef4f2a4",
+    "startup": "01a173cb-9533-7ebd-87a0-590965ef3653",
+    "status": "pending",
+    "created_at": "2026-09-14T20:08:02.000Z",
+    "updated_at": "2026-09-14T20:08:02.000Z"
+  }
+]
+```
+
+### Status Codes
+
+- 200: Successful
+- 400: Invalid UUID, or missing, invalid or incomplete query parameters
+
+## PATCH /api/startup/:id/connection/:company_id
+
+Accept or decline a pending connection request received by a startup.
+
+A Startup session is required, and it must belong to the startup identified by
+`id`.
+
+### Path Parameters
+
+- `id` (UUID, required): the startup's ID.
+- `company_id` (UUID, required): the ID of the company that requested the
+  connection.
+
+### Request Body
+
+```json
+{
+  "status": "accepted"
+}
+```
+
+- `status`: either `"accepted"` or `"declined"`.
+
+### Response Body
+
+```json
+{
+  "company": "01a173cb-9533-7eb5-9522-9686fef4f2a4",
+  "startup": "01a173cb-9533-7ebd-87a0-590965ef3653",
+  "status": "accepted",
+  "created_at": "2026-09-14T20:08:02.000Z",
+  "updated_at": "2026-09-15T20:08:02.000Z"
+}
+```
+
+### Status Codes
+
+- 200: Successful
+- 400: Invalid JSON, invalid UUID, or invalid status
+- 401: Not authenticated
+- 403: Invalid session
+- 404: No pending connection from the company exists
+
+## DELETE /api/company/:id/connection/:startup_id
+
+Delete the connection between a company and a startup. The company identified
+by the path must match the current Company session.
+
+### Path Parameters
+
+- `id` (UUID, required): the company's ID.
+- `startup_id` (UUID, required): the startup's ID.
+
+### Response Body
+
+The deleted connection:
+
+```json
+{
+  "company": "01a173cb-9533-7eb5-9522-9686fef4f2a4",
+  "startup": "01a173cb-9533-7ebd-87a0-590965ef3653",
+  "status": "declined",
+  "created_at": "2026-09-14T20:08:02.000Z",
+  "updated_at": "2026-09-15T20:08:02.000Z"
+}
+```
+
+### Status Codes
+
+- 200: Successful
+- 400: Invalid UUID format
+- 401: Not authenticated
+- 403: Invalid session
+- 404: Connection not found
+
+## DELETE /api/startup/:id/connection/:company_id
+
+Delete the connection between a startup and a company. The startup identified
+by the path must match the current Startup session.
+
+### Path Parameters
+
+- `id` (UUID, required): the startup's ID.
+- `company_id` (UUID, required): the company's ID.
+
+### Response Body
+
+The deleted connection:
+
+```json
+{
+  "company": "01a173cb-9533-7eb5-9522-9686fef4f2a4",
+  "startup": "01a173cb-9533-7ebd-87a0-590965ef3653",
+  "status": "accepted",
+  "created_at": "2026-09-14T20:08:02.000Z",
+  "updated_at": "2026-09-15T20:08:02.000Z"
+}
+```
+
+### Status Codes
+
+- 200: Successful
+- 400: Invalid UUID format
+- 401: Not authenticated
+- 403: Invalid session
+- 404: Connection not found

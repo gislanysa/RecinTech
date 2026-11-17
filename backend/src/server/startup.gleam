@@ -1,4 +1,5 @@
-//// Types and functions for working with [Startups](#Startup)
+//// Startups are early-stage companies from Porto Digital that offer
+//// technological solutions to [Companies](company.html#Company).
 
 import argus
 import gleam/dynamic/decode
@@ -10,6 +11,8 @@ import gleam/time/timestamp
 import gleam/uri
 import pog
 import server/cnpj
+import server/connection
+import server/demand
 import server/email
 import server/expertise
 import server/internal
@@ -21,8 +24,10 @@ import server/technology
 import youid/uuid
 
 pub type StartupError {
-  /// Failed to connect to the Database
+  /// Failed to query the Database
   DatabaseError(error: pog.QueryError)
+  /// LGPD related errors
+  LgpdError(lgpd.LgpdError)
   /// Failed to hash the Startup password
   HashError(argus.HashError)
 
@@ -32,9 +37,9 @@ pub type StartupError {
   FailedToUpdateStartup(uuid.Uuid)
   /// Startup was not found in the Database
   NotFound(id: uuid.Uuid)
-  /// Startup provided an incorrect password when during login
+  /// Startup provided an incorrect password during login
   WrongPassword
-  /// CPNJ should have 14 characters
+  /// CNPJ should have 14 characters
   InvalidCnpj(value: String)
   /// Startup has an invalid website
   InvalidWebsite(value: String)
@@ -42,6 +47,10 @@ pub type StartupError {
   CnpjConflict(value: cnpj.Cnpj)
   /// Failed to parse a String into a [Stage](#Stage) type
   InvalidStage(value: String)
+  /// Demand related errors
+  DemandError(demand.DemandError)
+  /// Applied to a demand that is not registered
+  DemandNotFound(demand_id: uuid.Uuid)
 
   // Email related errors -----------------------------------------------------
   //
@@ -54,51 +63,66 @@ pub type StartupError {
 
   // Assignment errors --------------------------------------------------------
   //
-  /// Segment, technology, etc is already assigned
+  /// The entity is already assigned to the Startup
   AssignmentConflict(id: uuid.Uuid)
   /// Tried to assign an entity that is not registered
   AssignedMissingEntity(id: uuid.Uuid)
-  /// Failed to assign entity to a startup for unknown reasons
+  /// Failed to assign an entity to a Startup for unknown reasons
   AssignmentFailure(id: uuid.Uuid)
-  /// Failed to unassign entity to a startup for unknown reasons
+  /// Failed to unassign an entity from a Startup because the assignment was
+  /// not found
   AssignmentNotFound(id: uuid.Uuid)
+
+  /// No pending connection requests found from the given company
+  ConnectionNotFound(from: uuid.Uuid)
+  /// Something went wrong when saving a Startup's Business Model Canvas
+  FailedToSaveCanvas(id: uuid.Uuid)
+  /// Applied to a demand twice
+  ApplicationConflict(demand_id: uuid.Uuid)
+  /// Demand is not open
+  DemandNotOpen(uuid.Uuid)
+  /// Failed to apply to a demand
+  FailedToApplyToDemand(uuid.Uuid)
+  /// No applications found to the given Demand
+  ApplicationNotFound(uuid.Uuid)
 }
 
 pub type Startup {
   Startup(
-    /// Startup ID
+    /// The Startup's unique identifier
     id: uuid.Uuid,
-    /// Their name
+    /// The Startup's name
     name: String,
-    /// Their name
+    /// The Startup's email address
     email: email.Email,
-    /// The stage that they are currently on
+    /// The stage the Startup is currently on
     stage: Stage,
-    /// Their CPNJ, it must be exactly 14 digits
+    /// The Startup's CNPJ, it must be exactly 14 digits
     cnpj: cnpj.Cnpj,
-    /// A description
+    /// A description of the Startup
     description: String,
-    /// The city where it is located
+    /// The city where the Startup is located
     city: String,
-    /// The state of where it is located
+    /// The state where the Startup is located
     state: String,
-    /// Startup's website
+    /// The Startup's website
     website: uri.Uri,
     /// Whether the Startup is active
     is_active: Bool,
-    /// When the startup was created
+    /// When the Startup was created
     created_at: timestamp.Timestamp,
-    /// When the Startup was updated
+    /// When the Startup was last updated
     updated_at: timestamp.Timestamp,
   )
 }
 
-/// Tracks a startup's progress from an idea to a business
+/// Tracks a Startup's progress from an idea to a business
 pub type Stage {
-  /// Finding out if people will actually buy what you built.
+  /// Early evidence of product-market fit: adoption and demand are starting to
+  /// grow.
   /// > "Tração", in portuguese.
   Traction
-  /// Expanding operations, a startup's growth is fast and validated.
+  /// The Startup is expanding operations; growth is fast and validated.
   /// > "Escala", in portuguese.
   Scaling
 }
@@ -206,7 +230,10 @@ pub fn to_json(startup: Startup) -> json.Json {
   ])
 }
 
-/// Register an empty startup in the Database
+/// Register a Startup in the Database.
+///
+/// The password is hashed before being stored, and both the email and CNPJ must
+/// be unique.
 ///
 /// ## Examples
 ///
@@ -230,7 +257,7 @@ pub fn to_json(startup: Startup) -> json.Json {
 ///   Error(startup.CnpjConflict(..))
 ///   | Error(startup.EmailConflict(..)) -> wisp.response(409)
 ///
-///   Ok(data) -> wisp.response(201)
+///   Ok(startup) -> wisp.response(201)
 ///   Error(_) -> wisp.internal_server_error()
 /// }
 /// ```
@@ -253,7 +280,7 @@ pub fn register(
     |> result.map(fn(output) { output.encoded_hash }),
   )
 
-  let register_result =
+  let result =
     sql.register(
       database,
       name,
@@ -267,7 +294,7 @@ pub fn register(
       uri.to_string(website),
     )
 
-  use returned <- result.try(case register_result {
+  use returned <- result.try(case result {
     // Every Startup CNPJ needs to be unique.
     Error(pog.ConstraintViolated(constraint: "startup_cnpj_key", ..)) ->
       Error(CnpjConflict(value: cnpj))
@@ -320,8 +347,8 @@ pub fn register(
   )
 }
 
-/// Verifies the provided `email` and `password`, checking if they matche the
-/// ones stored in our Database. Returning Startup information if correct.
+/// Verifies the provided `email` and `password`, checking if they match the
+/// ones stored in our Database. Returns the Startup's information if correct.
 ///
 /// ## Examples
 ///
@@ -333,9 +360,10 @@ pub fn register(
 /// )
 ///
 /// case result {
-///   Ok(data) -> wisp.ok()
+///   Error(startup.EmailNotFound(..))
+///   | Error(startup.WrongPassword) -> wisp.response(401)
+///   Ok(startup) -> wisp.ok()
 ///   Error(startup.NotFound(_)) -> wisp.not_found()
-///   Error(startup.WrongPassword) -> wisp.response(401)
 ///   Error(_) -> wisp.internal_server_error()
 /// }
 /// ```
@@ -384,7 +412,7 @@ fn stage_to_enum(stage: Stage) -> sql.StartupStage {
   }
 }
 
-/// Search a startup in the Database using their ID.
+/// Fetch a Startup from the Database by ID.
 ///
 /// ## Examples
 ///
@@ -392,7 +420,7 @@ fn stage_to_enum(stage: Stage) -> sql.StartupStage {
 /// let result = startup.get(context.database, id)
 ///
 /// case result {
-///   Ok(data) -> wisp.ok()
+///   Ok(startup) -> wisp.ok()
 ///   Error(startup.NotFound(_)) -> wisp.not_found()
 ///   Error(_) -> wisp.internal_server_error()
 /// }
@@ -444,6 +472,10 @@ pub fn get(
 
 /// Get all segments that a Startup is assigned to.
 ///
+/// Returns an empty list if the Startup has no assigned segments, or if the
+/// Startup does not exist. Use [ensure_exists](#ensure_exists) first if you need
+/// to distinguish those cases.
+///
 /// ## Examples
 ///
 /// ```gleam
@@ -451,7 +483,6 @@ pub fn get(
 ///
 /// case result {
 ///   Ok(segments) -> wisp.ok()
-///   Error(startup.NotFound(_)) -> wisp.not_found()
 ///   Error(_) -> wisp.internal_server_error()
 /// }
 /// ```
@@ -499,8 +530,8 @@ pub fn ensure_exists(
   }
 }
 
-/// Assign a Segment to a Startup and returns the assigned Segment if
-/// successful. You cannot assign a segment to a startup more than once.
+/// Assign a Segment to a Startup and return the assigned Segment if successful.
+/// A Segment cannot be assigned to the same Startup more than once.
 ///
 /// ## Examples
 ///
@@ -513,7 +544,9 @@ pub fn ensure_exists(
 ///
 /// case result {
 ///   Ok(assigned) -> wisp.response(201)
-///   Error(startup.NotFound(_)) -> wisp.not_found()
+///   Error(startup.NotFound(..))
+///   | Error(startup.AssignedMissingEntity(..)) -> wisp.not_found()
+///   Error(startup.AssignmentConflict(..)) -> wisp.response(409)
 ///   Error(_) -> wisp.internal_server_error()
 /// }
 /// ```
@@ -551,7 +584,9 @@ pub fn assign_segment(
   segment.Segment(id: row.id, name: row.name, description: row.description)
 }
 
-/// Unassign a segment from a Startup.
+/// Unassign a Segment from a Startup.
+///
+/// Returns `AssignmentNotFound` if the Segment is not assigned to the Startup.
 ///
 /// ## Examples
 ///
@@ -564,7 +599,7 @@ pub fn assign_segment(
 ///
 /// case result {
 ///   Ok(deleted) -> wisp.ok()
-///   Error(startup.AssignmentNotFound(_)) -> wisp.not_found()
+///   Error(startup.AssignmentNotFound(..)) -> wisp.not_found()
 ///   Error(_) -> wisp.internal_server_error()
 /// }
 /// ```
@@ -586,9 +621,9 @@ pub fn unassign_segment(
   segment.Segment(id: row.id, name: row.name, description: row.description)
 }
 
-/// Assign an Expertise to a Startup and returns the assigned Expertise if
-/// successful. You cannot assign the same expertise to a startup more
-/// than once.
+/// Assign an Expertise to a Startup and return the assigned Expertise if
+/// successful. The same Expertise cannot be assigned to a Startup more than
+/// once.
 ///
 /// ## Examples
 ///
@@ -601,7 +636,9 @@ pub fn unassign_segment(
 ///
 /// case result {
 ///   Ok(assigned) -> wisp.response(201)
-///   Error(startup.NotFound(_)) -> wisp.not_found()
+///   Error(startup.NotFound(..))
+///   | Error(startup.AssignedMissingEntity(..)) -> wisp.not_found()
+///   Error(startup.AssignmentConflict(..)) -> wisp.response(409)
 ///   Error(_) -> wisp.internal_server_error()
 /// }
 /// ```
@@ -612,7 +649,7 @@ pub fn assign_expertise(
 ) -> Result(expertise.Expertise, StartupError) {
   use returned <- result.try(
     case sql.assign_expertise(database, id, expertise) {
-      // Tried to assign an Segment to a Startup that is not registered.
+      // Tried to assign an Expertise to a Startup that is not registered.
       Error(pog.ConstraintViolated(
         constraint: "startup_expertise_startup_id_fkey",
         ..,
@@ -643,6 +680,8 @@ pub fn assign_expertise(
 
 /// Unassign an Expertise from a Startup.
 ///
+/// Returns `AssignmentNotFound` if the Expertise is not assigned to the Startup.
+///
 /// ## Examples
 ///
 /// ```gleam
@@ -654,7 +693,7 @@ pub fn assign_expertise(
 ///
 /// case result {
 ///   Ok(deleted) -> wisp.ok()
-///   Error(startup.AssignmentNotFound(_)) -> wisp.not_found()
+///   Error(startup.AssignmentNotFound(..)) -> wisp.not_found()
 ///   Error(_) -> wisp.internal_server_error()
 /// }
 /// ```
@@ -676,7 +715,11 @@ pub fn unassign_expertise(
   expertise.Expertise(id: row.id, name: row.name, description: row.description)
 }
 
-/// Get all expertises that a Startup is assigned to
+/// Get all Expertises that a Startup is assigned to.
+///
+/// Returns an empty list if the Startup has no assigned Expertises, or if the
+/// Startup does not exist. Use [ensure_exists](#ensure_exists) first if you need
+/// to distinguish those cases.
 ///
 /// ## Examples
 ///
@@ -684,8 +727,7 @@ pub fn unassign_expertise(
 /// let result = startup.get_expertises(context.database, id)
 ///
 /// case result {
-///   Ok(segments) -> wisp.ok()
-///   Error(startup.NotFound(_)) -> wisp.not_found()
+///   Ok(expertises) -> wisp.ok()
 ///   Error(_) -> wisp.internal_server_error()
 /// }
 /// ```
@@ -707,7 +749,11 @@ pub fn get_expertises(
   })
 }
 
-/// Get all technologies that a Startup is assigned to
+/// Get all Technologies that a Startup is assigned to.
+///
+/// Returns an empty list if the Startup has no assigned Technologies, or if the
+/// Startup does not exist. Use [ensure_exists](#ensure_exists) first if you need
+/// to distinguish those cases.
 ///
 /// ## Examples
 ///
@@ -716,7 +762,6 @@ pub fn get_expertises(
 ///
 /// case result {
 ///   Ok(technologies) -> wisp.ok()
-///   Error(startup.NotFound(_)) -> wisp.not_found()
 ///   Error(_) -> wisp.internal_server_error()
 /// }
 /// ```
@@ -738,7 +783,11 @@ pub fn get_technologies(
   })
 }
 
-/// Get all services that a Startup is assigned to
+/// Get all Services that a Startup is assigned to.
+///
+/// Returns an empty list if the Startup has no assigned Services, or if the
+/// Startup does not exist. Use [ensure_exists](#ensure_exists) first if you need
+/// to distinguish those cases.
 ///
 /// ## Examples
 ///
@@ -747,7 +796,6 @@ pub fn get_technologies(
 ///
 /// case result {
 ///   Ok(services) -> wisp.ok()
-///   Error(startup.NotFound(_)) -> wisp.not_found()
 ///   Error(_) -> wisp.internal_server_error()
 /// }
 /// ```
@@ -765,8 +813,8 @@ pub fn get_services(
   })
 }
 
-/// Assign a Service to a Startup and returns the assigned Service if
-/// successful. You cannot assign a service to a startup more than once.
+/// Assign a Service to a Startup and return the assigned Service if successful.
+/// The same Service cannot be assigned to a Startup more than once.
 ///
 /// ## Examples
 ///
@@ -775,11 +823,13 @@ pub fn get_services(
 ///   context.database,
 ///   startup_id,
 ///   assign: service_id,
-///   )
+/// )
 ///
 /// case result {
 ///   Ok(assigned) -> wisp.response(201)
-///   Error(startup.NotFound(_)) -> wisp.not_found()
+///   Error(startup.NotFound(..))
+///   | Error(startup.AssignedMissingEntity(..)) -> wisp.not_found()
+///   Error(startup.AssignmentConflict(..)) -> wisp.response(409)
 ///   Error(_) -> wisp.internal_server_error()
 /// }
 /// ```
@@ -795,13 +845,13 @@ pub fn assign_service(
       ..,
     )) -> Error(NotFound(id:))
 
-    // Tried to assign an Expertise that is not registered.
+    // Tried to assign a Service that is not registered.
     Error(pog.ConstraintViolated(
       constraint: "startup_service_service_id_fkey",
       ..,
     )) -> Error(AssignedMissingEntity(id: service))
 
-    // Expertise has already been assigned to the given Startup
+    // Service has already been assigned to the given Startup
     Error(pog.ConstraintViolated(constraint: "startup_service_pkey", ..)) ->
       Error(AssignmentConflict(id: service))
 
@@ -819,6 +869,8 @@ pub fn assign_service(
 
 /// Unassign a Service from a Startup.
 ///
+/// Returns `AssignmentNotFound` if the Service is not assigned to the Startup.
+///
 /// ## Examples
 ///
 /// ```gleam
@@ -830,7 +882,7 @@ pub fn assign_service(
 ///
 /// case result {
 ///   Ok(deleted) -> wisp.ok()
-///   Error(startup.AssignmentNotFound(_)) -> wisp.not_found()
+///   Error(startup.AssignmentNotFound(..)) -> wisp.not_found()
 ///   Error(_) -> wisp.internal_server_error()
 /// }
 /// ```
@@ -852,8 +904,9 @@ pub fn unassign_service(
   service.Service(id: row.id, name: row.name, description: row.description)
 }
 
-/// Assign a Technology to a Startup and returns the assigned Technology if
-/// successful. You cannot assign a technology to a startup more than once.
+/// Assign a Technology to a Startup and return the assigned Technology if
+/// successful. The same Technology cannot be assigned to a Startup more than
+/// once.
 ///
 /// ## Examples
 ///
@@ -866,7 +919,9 @@ pub fn unassign_service(
 ///
 /// case result {
 ///   Ok(assigned) -> wisp.response(201)
-///   Error(startup.NotFound(_)) -> wisp.not_found()
+///   Error(startup.NotFound(..))
+///   | Error(startup.AssignedMissingEntity(..)) -> wisp.not_found()
+///   Error(startup.AssignmentConflict(..)) -> wisp.response(409)
 ///   Error(_) -> wisp.internal_server_error()
 /// }
 /// ```
@@ -912,6 +967,9 @@ pub fn assign_technology(
 
 /// Unassign a Technology from a Startup.
 ///
+/// Returns `AssignmentNotFound` if the Technology is not assigned to the
+/// Startup.
+///
 /// ## Examples
 ///
 /// ```gleam
@@ -923,7 +981,7 @@ pub fn assign_technology(
 ///
 /// case result {
 ///   Ok(deleted) -> wisp.ok()
-///   Error(startup.AssignmentNotFound(_)) -> wisp.not_found()
+///   Error(startup.AssignmentNotFound(..)) -> wisp.not_found()
 ///   Error(_) -> wisp.internal_server_error()
 /// }
 /// ```
@@ -955,11 +1013,8 @@ pub fn unassign_technology(
 /// ## Examples
 ///
 /// ```gleam
-/// let result =
-///   startup.get_many(context.database, limit: 3, offset: 6)
-///
-/// case result {
-///   Ok(data) -> wisp.ok()
+/// case startup.get_many(context.database, limit: 3, offset: 6) {
+///   Ok(startups) -> wisp.ok()
 ///   Error(_) -> wisp.internal_server_error()
 /// }
 /// ```
@@ -1006,16 +1061,19 @@ pub fn get_many(
   })
 }
 
-/// Get all consent records assigned to a given Startup
+/// Get all LGPD consent records for a given Startup.
+///
+/// Returns an empty list if the Startup has no consent records, or if the
+/// Startup does not exist. Use [ensure_exists](#ensure_exists) first if you need
+/// to distinguish those cases.
 ///
 /// ## Examples
 ///
 /// ```gleam
 /// let result = startup.get_lgpd_consent(context.database, id)
 ///
-/// case returned {
-///   Ok(data) -> wisp.ok()
-///   Error(startup.NotFound(_)) -> wisp.not_found()
+/// case result {
+///   Ok(consent) -> wisp.ok()
 ///   Error(_) -> wisp.internal_server_error()
 /// }
 /// ```
@@ -1047,6 +1105,55 @@ pub fn get_lgpd_consent(
   })
 }
 
+/// Grant LGPD (Lei Geral de Proteção de Dados) consent for a Startup at a
+/// given policy version. Once granted, the Startup allows its data to be used
+/// as described by that version of the privacy policy.
+///
+/// ## Examples
+///
+/// ```gleam
+/// let result = startup.grant_lgpd_consent(context.database, id, version: 1)
+///
+/// case result {
+///   Ok(lgpd.Granted(..)) -> wisp.ok()
+///   Ok(_) -> wisp.internal_server_error()
+///   Error(error) -> handle_error(error)
+/// }
+/// ```
+@internal
+pub fn grant_lgpd_consent(
+  database: pog.Connection,
+  id: uuid.Uuid,
+  version version: Int,
+) -> Result(lgpd.Consent, StartupError) {
+  lgpd.grant_consent(database, lgpd.Startup(id), version)
+  |> result.map_error(LgpdError)
+}
+
+/// Revoke LGPD (Lei Geral de Proteção de Dados) consent for a Startup at a
+/// given policy version. Once revoked, the Startup no longer allows its data
+/// to be used as described by that version of the privacy policy.
+///
+/// ## Examples
+///
+/// ```gleam
+/// let result = startup.revoke_lgpd_consent(context.database, id, version: 1)
+///
+/// case result {
+///   Ok(lgpd.Revoked(..)) -> wisp.ok()
+///   Ok(_) -> wisp.internal_server_error()
+///   Error(error) -> handle_error(error)
+/// }
+/// ```
+pub fn revoke_lgpd_consent(
+  database: pog.Connection,
+  id: uuid.Uuid,
+  version version: Int,
+) -> Result(lgpd.Consent, StartupError) {
+  lgpd.revoke_consent(database, lgpd.Startup(id), version)
+  |> result.map_error(LgpdError)
+}
+
 /// Convert a `Stage` into a String
 fn stage_to_string(stage: Stage) -> String {
   case stage {
@@ -1056,7 +1163,9 @@ fn stage_to_string(stage: Stage) -> String {
 }
 
 /// Updates a Startup's information.
-/// Passing `option.None` leaves a field unchanged.
+///
+/// Passing `option.None` leaves a field unchanged. Empty strings are also
+/// treated as "unchanged" by the underlying SQL query.
 ///
 /// ## Examples
 ///
@@ -1076,7 +1185,9 @@ fn stage_to_string(stage: Stage) -> String {
 ///
 /// case result {
 ///   Ok(startup) -> wisp.ok()
-///   Error(startup.NotFound(_)) -> wisp.not_found()
+///   Error(startup.NotFound(..)) -> wisp.not_found()
+///   Error(startup.CnpjConflict(..))
+///   | Error(startup.EmailConflict(..)) -> wisp.response(409)
 ///   Error(_) -> wisp.internal_server_error()
 /// }
 /// ```
@@ -1106,8 +1217,8 @@ pub fn update(
       option.unwrap(option.map(website, uri.to_string), or: ""),
     )
 
-  // Im not sure how an update can fail with a conflict while the key being
-  // `option.None`, so im returning a generic `FailedToUpdateStartup` error.
+  // I'm not sure how an update can fail with a conflict while the key is
+  // `option.None`, so I'm returning a generic `FailedToUpdateStartup` error.
   use returned <- result.try(case update_result {
     Error(pog.ConstraintViolated(constraint: "startup_cnpj_key", ..)) ->
       case cnpj {
@@ -1166,5 +1277,549 @@ pub fn update(
     updated_at: row.updated_at,
     is_active: row.is_active,
     website:,
+  )
+}
+
+/// Accept a pending [Connection](connection.html#Connection) request from a
+/// [Company](company.html#Company) and return the updated connection.
+///
+/// Only pending connections can be accepted: if the request does not exist,
+/// or if it was already accepted or declined, `Error(ConnectionNotFound)` is
+/// returned.
+///
+/// ## Examples
+///
+/// ```gleam
+/// let result = startup.accept_connection(
+///   context.database,
+///   startup.id,
+///   from: company.id,
+/// )
+///
+/// case result {
+///   Ok(connection) -> wisp.ok()
+///   Error(startup.ConnectionNotFound(..)) -> wisp.not_found()
+///   Error(_) -> wisp.internal_server_error()
+/// }
+/// ```
+pub fn accept_connection(
+  database: pog.Connection,
+  id: uuid.Uuid,
+  from company: uuid.Uuid,
+) -> Result(connection.Connection, StartupError) {
+  use returned <- result.try(
+    sql.accept_connection(database, company, id)
+    |> result.map_error(DatabaseError),
+  )
+
+  use row <- result.map(
+    list.first(returned.rows)
+    |> result.replace_error(ConnectionNotFound(company)),
+  )
+
+  let status = case row.connection_status {
+    sql.AcceptedConnection -> connection.Accepted
+    sql.DeclinedConnection -> connection.Declined
+    sql.PendingConnection -> connection.Pending
+  }
+
+  connection.Connection(
+    company: row.company_id,
+    created_at: row.created_at,
+    startup: row.startup_id,
+    status:,
+    updated_at: row.updated_at,
+  )
+}
+
+/// Decline a pending [Connection](connection.html#Connection) request from a
+/// [Company](company.html#Company) and return the updated connection.
+///
+/// Only pending connections can be declined: if the request does not exist,
+/// or if it was already accepted or declined, `Error(ConnectionNotFound)` is
+/// returned. A declined connection is kept in the Database, so the Company
+/// cannot request it again.
+///
+/// ## Examples
+///
+/// ```gleam
+/// let result = startup.decline_connection(
+///   context.database,
+///   startup.id,
+///   from: company.id,
+/// )
+///
+/// case result {
+///   Ok(connection) -> wisp.ok()
+///   Error(startup.ConnectionNotFound(..)) -> wisp.not_found()
+///   Error(_) -> wisp.internal_server_error()
+/// }
+/// ```
+pub fn decline_connection(
+  database: pog.Connection,
+  id: uuid.Uuid,
+  from company: uuid.Uuid,
+) -> Result(connection.Connection, StartupError) {
+  use returned <- result.try(
+    sql.decline_connection(database, company, id)
+    |> result.map_error(DatabaseError),
+  )
+
+  use row <- result.map(
+    list.first(returned.rows)
+    |> result.replace_error(ConnectionNotFound(company)),
+  )
+
+  let status = case row.connection_status {
+    sql.AcceptedConnection -> connection.Accepted
+    sql.DeclinedConnection -> connection.Declined
+    sql.PendingConnection -> connection.Pending
+  }
+
+  connection.Connection(
+    company: row.company_id,
+    created_at: row.created_at,
+    startup: row.startup_id,
+    status:,
+    updated_at: row.updated_at,
+  )
+}
+
+/// Get all [Connections](connection.html#Connection) received by a Startup,
+/// newest first.
+///
+/// `limit` is the maximum number of Connections to return and `offset` is the
+/// number of Connections to skip. Returns an empty list if the Startup has
+/// received no Connections, or if the Startup does not exist. Use
+/// [ensure_exists](#ensure_exists) first if you need to distinguish those
+/// cases.
+///
+/// ## Examples
+///
+/// ```gleam
+/// let result = startup.get_connections(
+///   context.database,
+///   startup_id,
+///   limit: 100,
+///   offset: 0,
+/// )
+///
+/// case result {
+///   Ok(connections) -> wisp.ok()
+///   Error(_) -> wisp.internal_server_error()
+/// }
+/// ```
+pub fn get_connections(
+  database: pog.Connection,
+  id: uuid.Uuid,
+  limit limit: Int,
+  offset offset: Int,
+) -> Result(List(connection.Connection), StartupError) {
+  use returned <- result.map(
+    sql.get_connections(database, id, limit, offset)
+    |> result.map_error(DatabaseError),
+  )
+
+  list.map(returned.rows, fn(row) {
+    let status = case row.connection_status {
+      sql.AcceptedConnection -> connection.Accepted
+      sql.DeclinedConnection -> connection.Declined
+      sql.PendingConnection -> connection.Pending
+    }
+
+    connection.Connection(
+      company: row.company_id,
+      created_at: row.created_at,
+      startup: row.startup_id,
+      status:,
+      updated_at: row.updated_at,
+    )
+  })
+}
+
+/// A Startup's Business Model Canvas.
+///
+/// Every block is free narrative text, and an empty string means the block was
+/// left blank.
+pub type Canvas {
+  Canvas(
+    /// The customer segments the Startup serves
+    customer_segments: String,
+    /// The value the Startup delivers to its customer segments
+    value_proposition: String,
+    /// How the Startup reaches its customer segments
+    channels: String,
+    /// The relationship the Startup builds with its customer segments
+    customer_relationships: String,
+    /// How the Startup earns money from its customer segments
+    revenue_streams: String,
+    /// The assets required to make the business model work
+    key_resources: String,
+    /// The most important things the Startup must do to make the model work
+    key_activities: String,
+    /// The suppliers and partners that make the business model work
+    key_partnerships: String,
+    /// The costs incurred to operate the business model
+    cost_structure: String,
+  )
+}
+
+/// Encode a [Canvas](#Canvas) into JSON
+pub fn canvas_to_json(canvas: Canvas) -> json.Json {
+  let Canvas(
+    customer_segments:,
+    value_proposition:,
+    channels:,
+    customer_relationships:,
+    revenue_streams:,
+    key_resources:,
+    key_activities:,
+    key_partnerships:,
+    cost_structure:,
+  ) = canvas
+
+  json.object([
+    #("customer_segments", json.string(customer_segments)),
+    #("value_proposition", json.string(value_proposition)),
+    #("channels", json.string(channels)),
+    #("customer_relationships", json.string(customer_relationships)),
+    #("revenue_streams", json.string(revenue_streams)),
+    #("key_resources", json.string(key_resources)),
+    #("key_activities", json.string(key_activities)),
+    #("key_partnerships", json.string(key_partnerships)),
+    #("cost_structure", json.string(cost_structure)),
+  ])
+}
+
+/// A decoder that decodes `Canvas` values.
+pub fn canvas_decoder() -> decode.Decoder(Canvas) {
+  use customer_segments <- decode.field("customer_segments", decode.string)
+  use value_proposition <- decode.field("value_proposition", decode.string)
+  use channels <- decode.field("channels", decode.string)
+  use customer_relationships <- decode.field(
+    "customer_relationships",
+    decode.string,
+  )
+  use revenue_streams <- decode.field("revenue_streams", decode.string)
+  use key_resources <- decode.field("key_resources", decode.string)
+  use key_activities <- decode.field("key_activities", decode.string)
+  use key_partnerships <- decode.field("key_partnerships", decode.string)
+  use cost_structure <- decode.field("cost_structure", decode.string)
+
+  decode.success(Canvas(
+    customer_segments:,
+    value_proposition:,
+    channels:,
+    customer_relationships:,
+    revenue_streams:,
+    key_resources:,
+    key_activities:,
+    key_partnerships:,
+    cost_structure:,
+  ))
+}
+
+/// A [Canvas](#Canvas) with every block left blank.
+pub const empty_canvas =
+  Canvas(
+    customer_segments: "",
+    value_proposition: "",
+    channels: "",
+    customer_relationships: "",
+    revenue_streams: "",
+    key_resources: "",
+    key_activities: "",
+    key_partnerships: "",
+    cost_structure: "",
+  )
+
+/// Fetch a Startup's [Canvas](#Canvas) from the Database.
+///
+/// Returns [empty_canvas](#empty_canvas) if the Startup has not saved a canvas
+/// yet, and `Error(NotFound(_))` if the Startup is not registered.
+///
+/// ## Examples
+///
+/// ```gleam
+/// case startup.get_canvas(context.database, id) {
+///   Ok(canvas) -> wisp.ok()
+///   Error(startup.NotFound(_)) -> wisp.not_found()
+///   Error(_) -> wisp.internal_server_error()
+/// }
+/// ```
+pub fn get_canvas(
+  database: pog.Connection,
+  id: uuid.Uuid,
+) -> Result(Canvas, StartupError) {
+  use <- ensure_exists(database, id)
+
+  use returned <- result.map(
+    sql.get_canvas(database, id)
+    |> result.map_error(DatabaseError),
+  )
+
+  case list.first(returned.rows) {
+    Ok(row) ->
+      Canvas(
+        customer_segments: row.customer_segments,
+        value_proposition: row.value_proposition,
+        channels: row.channels,
+        customer_relationships: row.customer_relationships,
+        revenue_streams: row.revenue_streams,
+        key_resources: row.key_resources,
+        key_activities: row.key_activities,
+        key_partnerships: row.key_partnerships,
+        cost_structure: row.cost_structure,
+      )
+
+    Error(_) -> empty_canvas
+  }
+}
+
+/// Create or replace a Startup's [Canvas](#Canvas) and return the saved canvas.
+///
+/// This is a full replacement: every block is written as given, so an empty
+/// string clears a block instead of keeping its previous value.
+///
+/// ## Examples
+///
+/// ```gleam
+/// case startup.upsert_canvas(context.database, id, canvas) {
+///   Ok(canvas) -> wisp.ok()
+///   Error(startup.NotFound(_)) -> wisp.not_found()
+///   Error(_) -> wisp.internal_server_error()
+/// }
+/// ```
+pub fn upsert_canvas(
+  database: pog.Connection,
+  id: uuid.Uuid,
+  canvas: Canvas,
+) -> Result(Canvas, StartupError) {
+  let result =
+    sql.upsert_canvas(
+      database,
+      id,
+      canvas.customer_segments,
+      canvas.value_proposition,
+      canvas.channels,
+      canvas.customer_relationships,
+      canvas.revenue_streams,
+      canvas.key_resources,
+      canvas.key_activities,
+      canvas.key_partnerships,
+      canvas.cost_structure,
+    )
+
+  use returned <- result.try(case result {
+    // startup not registered
+    Error(pog.ConstraintViolated(
+      constraint: "startup_canvas_startup_id_fkey",
+      ..,
+    )) -> Error(NotFound(id:))
+
+    Ok(rows) -> Ok(rows)
+    Error(error) -> Error(DatabaseError(error))
+  })
+
+  use row <- result.map(
+    list.first(returned.rows)
+    |> result.replace_error(FailedToSaveCanvas(id:)),
+  )
+
+  Canvas(
+    customer_segments: row.customer_segments,
+    value_proposition: row.value_proposition,
+    channels: row.channels,
+    customer_relationships: row.customer_relationships,
+    revenue_streams: row.revenue_streams,
+    key_resources: row.key_resources,
+    key_activities: row.key_activities,
+    key_partnerships: row.key_partnerships,
+    cost_structure: row.cost_structure,
+  )
+}
+
+/// Delete a Startup's [Canvas](#Canvas) and return the deleted canvas.
+///
+/// Returns `Error(NotFound(_))` if the Startup is not registered or has not
+/// saved a canvas yet. After deleting it, [get_canvas](#get_canvas) returns an
+/// [empty_canvas](#empty_canvas).
+///
+/// ## Examples
+///
+/// ```gleam
+/// case startup.delete_canvas(context.database, id) {
+///   Ok(canvas) -> wisp.ok()
+///   Error(startup.NotFound(_)) -> wisp.not_found()
+///   Error(_) -> wisp.internal_server_error()
+/// }
+/// ```
+pub fn delete_canvas(
+  database: pog.Connection,
+  id: uuid.Uuid,
+) -> Result(Canvas, StartupError) {
+  use returned <- result.try(
+    sql.delete_canvas(database, id)
+    |> result.map_error(DatabaseError),
+  )
+
+  use row <- result.map(
+    list.first(returned.rows)
+    |> result.replace_error(NotFound(id:)),
+  )
+
+  Canvas(
+    customer_segments: row.customer_segments,
+    value_proposition: row.value_proposition,
+    channels: row.channels,
+    customer_relationships: row.customer_relationships,
+    revenue_streams: row.revenue_streams,
+    key_resources: row.key_resources,
+    key_activities: row.key_activities,
+    key_partnerships: row.key_partnerships,
+    cost_structure: row.cost_structure,
+  )
+}
+
+/// Apply the Startup to a [Demand](demand.html#Demand) and return the created
+/// [Application](demand.html#Application).
+///
+/// Only demands with `open` status accept applications; applying to a `closed`
+/// or `canceled` demand returns `Error(DemandNotOpen(_))`. A Startup can have at
+/// most one application per Demand, so applying again while the application
+/// exists returns `Error(ApplicationConflict(_))`.
+///
+/// Withdrawing an application deletes it, so a Startup can apply to the same
+/// Demand again after
+/// [withdraw_demand_application](#withdraw_demand_application).
+///
+/// ## Examples
+///
+/// ```gleam
+/// let result = startup.apply_to_demand(
+///   context.database,
+///   startup.id,
+///   apply_to: demand.id,
+/// )
+///
+/// case result {
+///   Ok(application) -> wisp.response(201)
+///   Error(startup.NotFound(_))
+///   | Error(startup.DemandError(demand.NotFound(_))) -> wisp.not_found()
+///   Error(startup.DemandNotOpen(_))
+///   | Error(startup.ApplicationConflict(_)) -> wisp.response(409)
+///   Error(_) -> wisp.internal_server_error()
+/// }
+/// ```
+pub fn apply_to_demand(
+  database: pog.Connection,
+  id: uuid.Uuid,
+  apply_to demand_id: uuid.Uuid,
+) -> Result(demand.Application, StartupError) {
+  use target_demand <- result.try(
+    demand.get(database, demand_id)
+    |> result.map_error(DemandError),
+  )
+
+  // we can only apply to open demands
+  use _ <- result.try(case target_demand.status {
+    demand.Open -> Ok(Nil)
+    demand.Closed | demand.Canceled -> Error(DemandNotOpen(target_demand.id))
+  })
+
+  use returned <- result.try(case sql.apply_to_demand(database, id, demand_id) {
+    // startup is not registered
+    Error(pog.ConstraintViolated(
+      constraint: "demand_application_startup_id_fkey",
+      ..,
+    )) -> Error(NotFound(id))
+
+    // demand is not registered
+    Error(pog.ConstraintViolated(
+      constraint: "demand_application_demand_id_fkey",
+      ..,
+    )) -> Error(DemandNotFound(demand_id))
+
+    // already applied
+    Error(pog.ConstraintViolated(constraint: "demand_application_pkey", ..)) ->
+      Error(ApplicationConflict(demand_id))
+
+    Ok(data) -> Ok(data)
+    Error(error) -> Error(DatabaseError(error))
+  })
+
+  use row <- result.map(
+    list.first(returned.rows)
+    |> result.replace_error(FailedToApplyToDemand(demand_id)),
+  )
+
+  let status = case row.application_status {
+    sql.AcceptedApplication -> demand.Accepted
+    sql.PendingApplication -> demand.Pending
+    sql.DeclinedApplication -> demand.Declined
+  }
+
+  demand.Application(
+    demand: row.demand_id,
+    startup: row.startup_id,
+    status: status,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  )
+}
+
+/// Withdraw the Startup's pending [Application](demand.html#Application) to a
+/// [Demand](demand.html#Demand) and return the withdrawn application.
+///
+/// Withdrawing deletes the application from the Database, so the Startup can
+/// apply to the same Demand again through [apply_to_demand](#apply_to_demand).
+///
+/// Only pending applications can be withdrawn. If there is no pending
+/// application for the given Demand — because it does not exist, or because it
+/// was already accepted or declined — `Error(ApplicationNotFound(_))` is
+/// returned.
+///
+/// ## Examples
+///
+/// ```gleam
+/// let result = startup.withdraw_demand_application(
+///   context.database,
+///   startup.id,
+///   from: demand.id,
+/// )
+///
+/// case result {
+///   Ok(application) -> wisp.ok()
+///   Error(startup.ApplicationNotFound(_)) -> wisp.not_found()
+///   Error(_) -> wisp.internal_server_error()
+/// }
+/// ```
+pub fn withdraw_demand_application(
+  database: pog.Connection,
+  id: uuid.Uuid,
+  from demand_id: uuid.Uuid,
+) -> Result(demand.Application, StartupError) {
+  use returned <- result.try(
+    sql.withdraw_demand_application(database, id, demand_id)
+    |> result.map_error(DatabaseError),
+  )
+
+  use row <- result.map(
+    list.first(returned.rows)
+    |> result.replace_error(ApplicationNotFound(demand_id)),
+  )
+
+  let status = case row.application_status {
+    sql.AcceptedApplication -> demand.Accepted
+    sql.PendingApplication -> demand.Pending
+    sql.DeclinedApplication -> demand.Declined
+  }
+
+  demand.Application(
+    demand: row.demand_id,
+    startup: row.startup_id,
+    status: status,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
   )
 }

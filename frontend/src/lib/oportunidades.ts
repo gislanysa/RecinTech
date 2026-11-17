@@ -1,80 +1,31 @@
-/**
- * Oportunidades recomendadas para a startup.
- *
- * O BACKEND AINDA NÃO TEM suporte a isto. Rotas existentes em `web.gleam`:
- * nada de oportunidades, demandas de empresa, compatibilidade/matchmaking ou
- * manifestação de interesse. Também não há campo de "demanda" na tabela de
- * empresas. Por isso, e seguindo o padrão de `STARTUPS_MOCK` em `startups.ts`,
- * esta tela usa DADOS SIMULADOS — e a interface avisa isso ao usuário
- * (`origem: 'simulado'`).
- *
- * Quando o backend expuser os endpoints, só as três funções exportadas abaixo
- * (`listarOportunidades`, `manifestarInteresse`, `ignorarOportunidade`) precisam
- * mudar; os componentes continuam iguais. Nenhuma chamada HTTP é feita aqui de
- * propósito, para não depender de endpoints que não existem.
- */
+import {
+  listarConexoesStartup,
+  responderConexaoStartup,
+  type ConexaoBackend,
+} from '@/lib/api.ts'
+import { buscarDemandasDisponiveis } from '@/lib/demandas.ts'
+import type { Tags } from '@/lib/perfil.ts'
+import { carregarTagsDaStartup } from '@/lib/startups.ts'
+
 export type Oportunidade = {
   id: string
   empresa: string
   demanda: string
-  /** 0–100. Valor simulado enquanto o cálculo de matchmaking não existe. */
+  /** 0–100. Valor calculado com base na similaridade entre a startup e a demanda. */
   compatibilidade: number
   tecnologias: string[]
+  segmento?: string
+  servicos?: string[]
 }
 
 export type OrigemDosDados = 'api' | 'simulado'
 
-export const OPORTUNIDADES_SIMULADAS: Oportunidade[] = [
-  {
-    id: 'sim-1',
-    empresa: 'Grupo Atlântico Logística',
-    demanda: 'Plataforma de roteirização inteligente para reduzir o custo de entregas de última milha.',
-    compatibilidade: 92,
-    tecnologias: ['Python', 'AWS'],
-  },
-  {
-    id: 'sim-2',
-    empresa: 'Rede Clínica Vida',
-    demanda: 'Automação do agendamento e da triagem de pacientes com atendimento por IA.',
-    compatibilidade: 85,
-    tecnologias: ['Inteligência Artificial', 'Node.js'],
-  },
-  {
-    id: 'sim-3',
-    empresa: 'Mercantil Nordeste',
-    demanda: 'Painel de análise de dados de vendas para as lojas físicas e o e-commerce.',
-    compatibilidade: 78,
-    tecnologias: ['PostgreSQL', 'React'],
-  },
-  {
-    id: 'sim-4',
-    empresa: 'Construtora Horizonte',
-    demanda: 'Aplicativo mobile para acompanhamento de obras e relatórios de campo.',
-    compatibilidade: 64,
-    tecnologias: ['React Native', 'TypeScript'],
-  },
-]
-
-const atraso = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))
-
-/** TODO(backend): trocar por GET de oportunidades quando existir. */
-/**
- * Uma conexão entre startup e empresa.
- *
- * Modelo único para as duas direções: quando a startup clica em "Tenho
- * interesse" nasce com `iniciado_por: 'startup'`; quando a empresa convida,
- * com `'company'`. O "match" é o status virando `aceito`.
- *
- * NENHUMA ROTA DISSO EXISTE AINDA. O contrato proposto é:
- *   POST  /api/connection
- *   GET   /api/startup/:id/connection
- *   GET   /api/company/:id/connection
- *   PATCH /api/connection/:id
- */
 export type StatusConexao = 'pendente' | 'aceito' | 'recusado'
 
 export type Conexao = {
   id: string
+  company_id?: string
+  startup_id?: string
   oportunidade: Oportunidade
   iniciado_por: 'startup' | 'company'
   status: StatusConexao
@@ -83,95 +34,206 @@ export type Conexao = {
   respondido_em?: string
 }
 
-/**
- * Enquanto o backend não existe, as conexões vivem em memória.
- *
- * Isso some ao recarregar a página, e é de propósito: guardar no navegador
- * daria a impressão de que algo foi gravado de verdade, quando a empresa do
- * outro lado nunca fica sabendo.
- */
-const CONEXOES_SIMULADAS: Conexao[] = [
-  {
-    id: 'cnx-exemplo-1',
-    oportunidade: {
-      id: 'sim-4',
-      empresa: 'Hospital Santa Clara',
-      demanda: 'Portal de agendamento online integrado ao sistema de prontuário.',
-      compatibilidade: 88,
-      tecnologias: ['React', 'Node.js'],
-    },
-    iniciado_por: 'startup',
-    status: 'aceito',
-    created_at: '2026-10-18T14:00:00Z',
-    respondido_em: '2026-10-20T09:30:00Z',
-  },
-  {
-    id: 'cnx-exemplo-2',
-    oportunidade: {
-      id: 'sim-5',
-      empresa: 'Rede Mercadão Nordeste',
-      demanda: 'Aplicativo mobile para gerenciamento de pedidos das lojas.',
-      compatibilidade: 86,
-      tecnologias: ['React Native', 'PostgreSQL'],
-    },
-    iniciado_por: 'startup',
-    status: 'pendente',
-    created_at: '2026-10-21T16:20:00Z',
-  },
-]
+/** Ids de demandas que já viraram candidatura ou foram ignoradas pela startup. */
+const inscritas = new Set<string>()
 
-/** Ids que já viraram conexão e por isso saem das recomendações. */
-const inscritas = new Set(CONEXOES_SIMULADAS.map((c) => c.oportunidade.id))
-
-/**
- * GET /startup/:id/connection — quando existir.
- *
- * Lista o que a startup já se inscreveu, com a resposta da empresa.
- */
-export async function listarConexoes(): Promise<{
-  conexoes: Conexao[]
-  origem: OrigemDosDados
-}> {
-  await atraso(500)
-  return { conexoes: [...CONEXOES_SIMULADAS], origem: 'simulado' }
-}
-
-export async function listarOportunidades(): Promise<{
-  oportunidades: Oportunidade[]
-  origem: OrigemDosDados
-}> {
-  await atraso(600)
-  // O que já virou conexão sai da lista de descoberta: quem já demonstrou
-  // interesse acompanha em Conexões, não volta a ver a mesma demanda aqui.
-  return {
-    oportunidades: OPORTUNIDADES_SIMULADAS.filter((o) => !inscritas.has(o.id)),
-    origem: 'simulado',
+function normalizarStatusBackend(status: ConexaoBackend['status']): StatusConexao {
+  switch (status) {
+    case 'accepted':
+      return 'aceito'
+    case 'declined':
+      return 'recusado'
+    default:
+      return 'pendente'
   }
 }
 
 /**
- * POST /connection — quando existir.
+ * GET /api/startup/:id/connection
  *
- * Cria a conexão com `iniciado_por: 'startup'` e status `pendente`, à espera
- * da resposta da empresa.
+ * Lista as conexões recebidas ou iniciadas pela startup via backend.
  */
-export async function manifestarInteresse(oportunidadeId: string): Promise<void> {
-  await atraso(700)
-  const oportunidade = OPORTUNIDADES_SIMULADAS.find((o) => o.id === oportunidadeId)
-  if (!oportunidade || inscritas.has(oportunidadeId)) return
+export async function listarConexoes(startupId?: string): Promise<{
+  conexoes: Conexao[]
+  origem: OrigemDosDados
+}> {
+  if (startupId) {
+    try {
+      const dados = await listarConexoesStartup(startupId)
+      if (Array.isArray(dados)) {
+        const conexoesReais: Conexao[] = dados.map((c) => ({
+          id: `${c.company}-${c.startup}`,
+          company_id: c.company,
+          startup_id: c.startup,
+          oportunidade: {
+            id: `demanda-${c.company}`,
+            empresa: 'Empresa Parceira',
+            demanda: 'Solicitação de conexão e parceria com a sua startup.',
+            compatibilidade: 100,
+            tecnologias: [],
+          },
+          iniciado_por: 'company',
+          status: normalizarStatusBackend(c.status),
+          created_at: c.created_at,
+          respondido_em: c.updated_at !== c.created_at ? c.updated_at : undefined,
+        }))
+        return { conexoes: conexoesReais, origem: 'api' }
+      }
+    } catch {
+      // Retorna lista vazia em caso de falha no endpoint
+      return { conexoes: [], origem: 'api' }
+    }
+  }
 
-  inscritas.add(oportunidadeId)
-  CONEXOES_SIMULADAS.unshift({
-    id: `cnx-${oportunidadeId}`,
-    oportunidade,
-    iniciado_por: 'startup',
-    status: 'pendente',
-    created_at: new Date().toISOString(),
-  })
+  return { conexoes: [], origem: 'api' }
 }
 
-/** TODO(backend): persistir o "ignorar" quando existir; por ora só some da lista. */
+/**
+ * PATCH /api/startup/:id/connection/:company_id
+ *
+ * Atualiza o status da conexão da perspectiva da startup ('accepted' ou 'declined').
+ */
+export async function responderSolicitacaoConexao(
+  startupId: string,
+  companyId: string,
+  status: 'accepted' | 'declined',
+): Promise<ConexaoBackend> {
+  return responderConexaoStartup(startupId, companyId, status)
+}
+
+/**
+ * Calcula a compatibilidade percentual (0 a 100) entre o perfil técnico da startup
+ * (área, segmentos, serviços e tecnologias) e os requisitos cadastrados na demanda da empresa.
+ *
+ * Retorna 0 quando não houver qualquer similaridade relevante.
+ */
+export function calcularCompatibilidadeDemanda(
+  tags: {
+    area?: string
+    segments?: string[]
+    services?: string[]
+    technologies?: string[]
+  } | null | undefined,
+  demanda: {
+    segmento?: string
+    servicos?: string[]
+    tecnologias?: string[]
+  },
+): number {
+  if (!tags) return 0
+
+  const segmentosStartup = [tags.area, ...(tags.segments ?? [])]
+    .filter(Boolean)
+    .map((s) => s!.trim().toLowerCase())
+  const servicosStartup = (tags.services ?? []).map((s) => s.trim().toLowerCase())
+  const tecsStartup = (tags.technologies ?? []).map((t) => t.trim().toLowerCase())
+
+  const segmentoDemanda = demanda.segmento?.trim().toLowerCase()
+  const servicosDemanda = (demanda.servicos ?? []).map((s) => s.trim().toLowerCase())
+  const tecsDemanda = (demanda.tecnologias ?? []).map((t) => t.trim().toLowerCase())
+
+  // Match de segmento / área
+  const matchSegmento = Boolean(
+    segmentoDemanda && segmentosStartup.some((seg) => seg === segmentoDemanda),
+  )
+
+  // Match de serviços
+  const servicosComuns = servicosDemanda.filter((s) => servicosStartup.includes(s))
+
+  // Match de tecnologias
+  const tecsComuns = tecsDemanda.filter((t) => tecsStartup.includes(t))
+
+  // Se não coincidir em nada, pontuação é 0 (não é recomendação)
+  if (!matchSegmento && servicosComuns.length === 0 && tecsComuns.length === 0) {
+    return 0
+  }
+
+  // Se houver similaridade real, calcula pontuação proporcional entre 60% e 98%
+  let score = 50
+
+  if (matchSegmento) {
+    score += 20
+  }
+
+  if (servicosDemanda.length > 0) {
+    score += Math.round((servicosComuns.length / servicosDemanda.length) * 15)
+  } else if (servicosComuns.length > 0) {
+    score += 15
+  }
+
+  if (tecsDemanda.length > 0) {
+    score += Math.round((tecsComuns.length / tecsDemanda.length) * 15)
+  } else if (tecsComuns.length > 0) {
+    score += 15
+  }
+
+  return Math.min(99, Math.max(60, score))
+}
+
+/**
+ * Lista as oportunidades reais recomendadas para a startup com base no perfil
+ * e similaridade com as demandas cadastradas pelas empresas.
+ *
+ * Não utiliza dados falsos ou simulados: se não houver demandas correspondentes,
+ * retorna lista vazia para exibição do estado de busca da plataforma.
+ */
+export async function listarOportunidades(
+  startupId?: string,
+  tagsInformadas?: Tags | null,
+): Promise<{
+  oportunidades: Oportunidade[]
+  origem: OrigemDosDados
+}> {
+  let tags: Tags | null = tagsInformadas ?? null
+  if (!tags && startupId) {
+    try {
+      tags = await carregarTagsDaStartup(startupId)
+    } catch {
+      tags = null
+    }
+  }
+
+  const demandas = await buscarDemandasDisponiveis()
+  const abertas = demandas.filter(
+    (d) => (d.status === 'aberta' || d.status === 'open') && !inscritas.has(d.id),
+  )
+
+  const recomendadas: Oportunidade[] = []
+
+  for (const dem of abertas) {
+    const compatibilidade = calcularCompatibilidadeDemanda(tags, dem)
+    if (compatibilidade > 0) {
+      recomendadas.push({
+        id: dem.id,
+        empresa: dem.empresa_nome || 'Empresa Parceira',
+        demanda: dem.descricao || dem.titulo,
+        compatibilidade,
+        tecnologias: dem.tecnologias ?? [],
+        segmento: dem.segmento,
+        servicos: dem.servicos,
+      })
+    }
+  }
+
+  // Ordena pelas maiores compatibilidades primeiro
+  recomendadas.sort((a, b) => b.compatibilidade - a.compatibilidade)
+
+  return {
+    oportunidades: recomendadas,
+    origem: 'api',
+  }
+}
+
+/**
+ * Manifesta interesse na oportunidade (candidatura em memória/cache de sessão).
+ */
+export async function manifestarInteresse(oportunidadeId: string): Promise<void> {
+  inscritas.add(oportunidadeId)
+}
+
+/**
+ * Remove a oportunidade das recomendações da startup na sessão.
+ */
 export async function ignorarOportunidade(oportunidadeId: string): Promise<void> {
-  await atraso(300)
   inscritas.add(oportunidadeId)
 }

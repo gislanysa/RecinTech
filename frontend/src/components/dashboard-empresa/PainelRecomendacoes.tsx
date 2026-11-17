@@ -6,6 +6,7 @@ type PainelRecomendacoesProps = {
   demandas: Demanda[]
   demandaAtivaId?: string
   carregando: boolean
+  modo?: 'dashboard' | 'pagina'
   onSelecionarDemandaFiltro: (id?: string) => void
   onVerPerfil: (startup: StartupCatalogo, demandaId?: string) => void
 }
@@ -15,52 +16,83 @@ export default function PainelRecomendacoes({
   demandas,
   demandaAtivaId,
   carregando,
+  modo = 'dashboard',
   onSelecionarDemandaFiltro,
   onVerPerfil,
 }: PainelRecomendacoesProps) {
   const demandaSelecionadaObj = demandas.find((d) => d.id === demandaAtivaId)
 
   return (
-    <section aria-labelledby="titulo-recomendacoes" className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <div className="flex items-center gap-2">
-            <h2 id="titulo-recomendacoes" className="font-display text-xl font-bold text-ink-900 sm:text-2xl">
-              Startups recomendadas
-            </h2>
-            {!carregando && (
-              <span className="text-base font-semibold text-ink-500 sm:text-lg">
-                ({recomendacoes.length})
-              </span>
-            )}
+    <section
+      {...(modo === 'pagina'
+        ? { 'aria-label': 'Startups recomendadas' }
+        : { 'aria-labelledby': 'titulo-recomendacoes' })}
+      className="flex flex-col gap-4"
+    >
+      {modo === 'pagina' ? (
+        demandas.length > 1 && (
+          <div className="flex justify-end">
+            <div className="flex items-center gap-2">
+              <label htmlFor="filtro-demanda-rec" className="text-xs font-medium text-ink-500">
+                Filtrar por demanda:
+              </label>
+              <select
+                id="filtro-demanda-rec"
+                value={demandaAtivaId ?? ''}
+                onChange={(e) => onSelecionarDemandaFiltro(e.target.value || undefined)}
+                className="rounded-xl border border-brand-200 bg-surface px-3 py-1.5 text-xs text-ink-900 outline-none focus:ring-2 focus:ring-accent-500"
+              >
+                <option value="">Todas as demandas ({demandas.length})</option>
+                {demandas.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.titulo}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
-          <p className="mt-1 text-xs text-ink-500 sm:text-sm">
-            Startups compatíveis com as necessidades e tecnologias que a sua empresa procura.
-          </p>
-        </div>
+        )
+      ) : (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 id="titulo-recomendacoes" className="font-display text-xl font-bold text-ink-900 sm:text-2xl">
+                Startups recomendadas
+              </h2>
+              {!carregando && (
+                <span className="text-base font-semibold text-ink-500 sm:text-lg">
+                  ({recomendacoes.length})
+                </span>
+              )}
+            </div>
+            <p className="mt-1 text-xs text-ink-500 sm:text-sm">
+              Startups compatíveis com as necessidades e tecnologias que a sua empresa procura.
+            </p>
+          </div>
 
-        {/* Seletor de demanda para filtrar recomendações */}
-        {demandas.length > 1 && (
-          <div className="flex items-center gap-2">
-            <label htmlFor="filtro-demanda-rec" className="text-xs font-medium text-ink-500">
-              Filtrar por demanda:
-            </label>
-            <select
-              id="filtro-demanda-rec"
-              value={demandaAtivaId ?? ''}
-              onChange={(e) => onSelecionarDemandaFiltro(e.target.value || undefined)}
-              className="rounded-xl border border-brand-200 bg-surface px-3 py-1.5 text-xs text-ink-900 outline-none focus:ring-2 focus:ring-accent-500"
-            >
-              <option value="">Todas as demandas ({demandas.length})</option>
-              {demandas.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.titulo}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-      </div>
+          {/* Seletor de demanda para filtrar recomendações */}
+          {demandas.length > 1 && (
+            <div className="flex items-center gap-2">
+              <label htmlFor="filtro-demanda-rec" className="text-xs font-medium text-ink-500">
+                Filtrar por demanda:
+              </label>
+              <select
+                id="filtro-demanda-rec"
+                value={demandaAtivaId ?? ''}
+                onChange={(e) => onSelecionarDemandaFiltro(e.target.value || undefined)}
+                className="rounded-xl border border-brand-200 bg-surface px-3 py-1.5 text-xs text-ink-900 outline-none focus:ring-2 focus:ring-accent-500"
+              >
+                <option value="">Todas as demandas ({demandas.length})</option>
+                {demandas.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.titulo}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Indicador de filtro ativo */}
       {demandaSelecionadaObj && (
@@ -84,7 +116,7 @@ export default function PainelRecomendacoes({
           {[1, 2, 3].map((i) => (
             <div
               key={i}
-              className="animate-pulse rounded-2xl border border-brand-100 bg-surface p-5 shadow-sm"
+              className="animate-pulse rounded-2xl bg-surface p-5 shadow-sm"
             >
               <div className="flex items-center gap-3">
                 <div className="size-12 rounded-xl bg-brand-100" />
@@ -105,7 +137,7 @@ export default function PainelRecomendacoes({
 
       {/* Estado Vazio */}
       {!carregando && recomendacoes.length === 0 && (
-        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-brand-200 bg-surface px-6 py-12 text-center">
+        <div className="flex flex-col items-center justify-center rounded-2xl bg-surface px-6 py-12 text-center shadow-sm">
           <h3 className="font-display text-base font-semibold text-ink-900">
             Nenhuma startup recomendada no momento
           </h3>
@@ -118,7 +150,7 @@ export default function PainelRecomendacoes({
           {recomendacoes.map(({ startup, demanda, motivos }) => (
             <div
               key={`${demanda.id}-${startup.id}`}
-              className="group flex flex-col justify-between rounded-2xl border border-brand-100 bg-surface p-5 shadow-sm transition-all hover:border-brand-300 hover:shadow-md"
+              className="group flex flex-col justify-between rounded-2xl bg-surface p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
             >
               <div>
                 {/* Identificação da startup */}
@@ -160,7 +192,7 @@ export default function PainelRecomendacoes({
                 </div>
 
                 {/* Serviços & Tecnologias */}
-                <div className="mt-3 flex flex-wrap gap-1 border-t border-brand-100 pt-2.5">
+                <div className="mt-3 flex flex-wrap gap-1 border-t border-gray-100 pt-2.5">
                   {startup.services.slice(0, 2).map((srv) => (
                     <span
                       key={srv}
@@ -181,7 +213,7 @@ export default function PainelRecomendacoes({
               </div>
 
               {/* Botão Ver perfil */}
-              <div className="mt-5 border-t border-brand-100 pt-3">
+              <div className="mt-5 border-t border-gray-100 pt-3">
                 <button
                   type="button"
                   onClick={() => onVerPerfil(startup, demanda.id)}

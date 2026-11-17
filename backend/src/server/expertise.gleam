@@ -46,10 +46,8 @@ pub fn decoder() -> decode.Decoder(Expertise) {
 /// ## Examples
 ///
 /// ```gleam
-/// let result = expertise.get(context.database, id)
-///
-/// case result {
-///   Ok(data) -> wisp.ok()
+/// case expertise.get(context.database, id) {
+///   Ok(expertise) -> wisp.ok()
 ///   Error(expertise.NotFound(_)) -> wisp.not_found()
 ///   Error(_) -> wisp.internal_server_error()
 /// }
@@ -77,11 +75,8 @@ pub fn get(
 /// ## Examples
 ///
 /// ```gleam
-/// let result =
-///   expertise.get_many(context.database, limit: 3, offset: 6)
-///
-/// case result {
-///   Ok(data) -> wisp.ok()
+/// case expertise.get_many(context.database, limit: 3, offset: 6) {
+///   Ok(expertises) -> wisp.ok()
 ///   Error(_) -> wisp.internal_server_error()
 /// }
 /// ```

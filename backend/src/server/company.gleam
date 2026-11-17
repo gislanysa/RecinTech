@@ -1,5 +1,6 @@
-//// Companies look for technological solutions from the
-//// [Startups](startup.html#Startup) of Porto Digital.
+//// Companies are the demand side of RecInTech: organizations that use the
+//// platform to find [Startups](startup.html#Startup) from Porto Digital that
+//// can solve their technology needs.
 
 import argus
 import gleam/dynamic/decode
@@ -11,17 +12,19 @@ import gleam/time/timestamp
 import gleam/uri
 import pog
 import server/cnpj
-import server/company/demand
 import server/company/sql
+import server/connection
+import server/demand
 import server/email
 import server/internal
 import server/lgpd
-import server/startup
 import youid/uuid
 
 pub type CompanyError {
-  /// Failed to connect to the Database
+  /// Failed to query the Database
   DatabaseError(error: pog.QueryError)
+  /// LGPD related errors
+  LgpdError(lgpd.LgpdError)
   /// Company was not found in the Database
   NotFound(id: uuid.Uuid)
   /// Failed to hash the Company password
@@ -38,7 +41,7 @@ pub type CompanyError {
   /// Company's website has invalid format
   InvalidWebsite(value: String)
 
-  /// Company provided an incorrect password when during login
+  /// Company provided an incorrect password during login
   WrongPassword
   /// CNPJ is already registered
   CnpjConflict(cnpj.Cnpj)
@@ -46,56 +49,56 @@ pub type CompanyError {
   EmailConflict(email.Email)
   /// Failed to register a new Company
   FailedToRegisterCompany
+
   /// Startup not registered
   StartupNotFound(uuid.Uuid)
-  /// Startup is already bookmarked
-  BookmarkConflict(uuid.Uuid)
-  /// Failed to bookmark a Startup
-  FailedToBookmarkStartup(uuid.Uuid)
-  /// Bookmark was not found
-  BookmarkNotFound
+  /// Already tried to connect to the given Startup
+  ConnectionConflict(uuid.Uuid)
+  /// Failed to connect to a Startup
+  FailedToCreateConnection(uuid.Uuid)
 }
 
-/// Represents a Company supporting a [Startup](startup.html).
+/// Represents a Company supporting a [Startup](startup.html#Startup).
 pub type Company {
   Company(
-    /// User ID for the Company.
+    /// The Company's unique identifier.
     id: uuid.Uuid,
     /// The Company's full name.
     name: String,
-    /// Their size, based on the amount of workers.
+    /// The Company's size, based on the amount of workers.
     size: Size,
     /// The Company's email address.
     email: email.Email,
-    /// Their CPNJ, it must be exactly 14 digits
+    /// The Company's CNPJ, it must be exactly 14 digits.
     cnpj: cnpj.Cnpj,
-    /// The city where it is located
+    /// The city where the Company is located.
     city: String,
-    /// The state of where it is located
+    /// The state where the Company is located.
     state: String,
-    /// Timestamp of when the Company was registred.
+    /// Timestamp of when the Company was registered.
     created_at: timestamp.Timestamp,
     /// Timestamp of when the Company was last updated.
     updated_at: timestamp.Timestamp,
     /// Whether the Company is active.
     is_active: Bool,
-    /// Company's website
+    /// The Company's website.
     website: uri.Uri,
   )
 }
 
 /// A Company's size is based on the amount of workers.
 pub type Size {
-  /// Up to 9 workers
+  /// Up to 9 workers.
   Micro
-  /// 10 to 49 workers
+  /// 10 to 49 workers.
   Small
-  /// 50 to 249 workers
+  /// 50 to 249 workers.
   Medium
-  /// More than 250 workers
+  /// 250 or more workers.
   Big
 }
 
+/// Convert a [Size](#Size) into its database representation.
 @internal
 pub fn size_to_string(size: Size) -> String {
   case size {
@@ -106,12 +109,14 @@ pub fn size_to_string(size: Size) -> String {
   }
 }
 
+/// Encode a [Size](#Size) into JSON.
 @internal
 pub fn size_to_json(size: Size) -> json.Json {
   size_to_string(size)
   |> json.string
 }
 
+/// A decoder that decodes [Size](#Size) values.
 @internal
 pub fn size_decoder() -> decode.Decoder(Size) {
   use variant <- decode.then(decode.string)
@@ -185,7 +190,10 @@ pub fn to_json(company: Company) -> json.Json {
   ])
 }
 
-/// Register a Company on the Database
+/// Register a Company in the Database.
+///
+/// The password is hashed before being stored, and both the email and CNPJ must
+/// be unique.
 ///
 /// ## Examples
 ///
@@ -199,7 +207,6 @@ pub fn to_json(company: Company) -> json.Json {
 ///   password: "wibble",
 ///   size: company.Big,
 ///   cnpj: cnpj,
-///   description: "Polo de tecnologia do Recife",
 ///   city: "Recife",
 ///   state: "Pernambuco",
 ///   website: website,
@@ -209,7 +216,7 @@ pub fn to_json(company: Company) -> json.Json {
 ///   Error(company.CnpjConflict(..))
 ///   | Error(company.EmailConflict(..)) -> wisp.response(409)
 ///
-///   Ok(data) -> wisp.response(201)
+///   Ok(company) -> wisp.response(201)
 ///   Error(_) -> wisp.internal_server_error()
 /// }
 /// ```
@@ -245,7 +252,7 @@ pub fn register(
     )
 
   use returned <- result.try(case register_result {
-    // Every Startup CNPJ needs to be unique.
+    // Every Company CNPJ needs to be unique.
     Error(pog.ConstraintViolated(constraint: "company_cnpj_key", ..)) ->
       Error(CnpjConflict(cnpj))
 
@@ -253,7 +260,7 @@ pub fn register(
     Error(pog.ConstraintViolated(constraint: "company_cnpj_check", ..)) ->
       Error(InvalidCnpj(cnpj.to_string(cnpj)))
 
-    // Every company Email needs to be unique.
+    // Every Company Email needs to be unique.
     Error(pog.ConstraintViolated(constraint: "company_email_key", ..)) ->
       Error(EmailConflict(email))
 
@@ -296,8 +303,8 @@ pub fn register(
   )
 }
 
-/// Verifies the provided `email` and `password`, checking if they matches the
-/// ones stored in our Database. Returning Company information if correct.
+/// Verifies the provided `email` and `password`, checking if they match the
+/// ones stored in our Database. Returns the Company's information if correct.
 ///
 /// ## Examples
 ///
@@ -309,9 +316,10 @@ pub fn register(
 /// )
 ///
 /// case result {
-///   Ok(data) -> wisp.ok()
-///   Error(company.NotFound(_)) -> wisp.not_found()
-///   Error(company.WrongPassword) -> wisp.response(401)
+///   Ok(company) -> wisp.ok()
+///   Error(company.EmailNotFound(..))
+///   | Error(company.WrongPassword) -> wisp.response(401)
+///   Error(company.NotFound(..)) -> wisp.not_found()
 ///   Error(_) -> wisp.internal_server_error()
 /// }
 /// ```
@@ -344,7 +352,7 @@ pub fn verify(
   }
 }
 
-/// Search an Company in the Database
+/// Fetch a Company from the Database by ID.
 ///
 /// ## Examples
 ///
@@ -352,7 +360,7 @@ pub fn verify(
 /// let result = company.get(context.database, id)
 ///
 /// case result {
-///   Ok(data) -> wisp.ok()
+///   Ok(company) -> wisp.ok()
 ///   Error(company.NotFound(_)) -> wisp.not_found()
 ///   Error(_) -> wisp.internal_server_error()
 /// }
@@ -419,16 +427,48 @@ fn size_to_enum(size: Size) -> sql.CompanySize {
   }
 }
 
-/// Get all consent records assigned to a given Company
+/// Sometimes it can be a good idea to check if a Company exists before
+/// performing a query. This middleware returns `Error(NotFound(_))`
+/// if a Company is not registered.
+///
+/// ## Examples
+///
+/// ```gleam
+/// use <- ensure_exists(database, id)
+///
+/// use returned <- result.map(
+///   sql.get_segments(database, id)
+///   |> result.map_error(DatabaseError),
+/// )
+/// ```
+pub fn ensure_exists(
+  database: pog.Connection,
+  id: uuid.Uuid,
+  next: fn() -> Result(a, CompanyError),
+) -> Result(a, CompanyError) {
+  use returned <- result.try(
+    sql.ensure_exists(database, id)
+    |> result.map_error(DatabaseError),
+  )
+
+  case list.first(returned.rows) {
+    Ok(_) -> next()
+    Error(_) -> Error(NotFound(id:))
+  }
+}
+
+/// Get all LGPD consent records for a given Company.
+///
+/// Returns an empty list if the Company has no consent records, or if the
+/// Company does not exist.
 ///
 /// ## Examples
 ///
 /// ```gleam
 /// let result = company.get_lgpd_consent(context.database, id)
 ///
-/// case returned {
-///   Ok(data) -> wisp.ok()
-///   Error(company.NotFound(_)) -> wisp.not_found()
+/// case result {
+///   Ok(consent) -> wisp.ok()
 ///   Error(_) -> wisp.internal_server_error()
 /// }
 /// ```
@@ -460,12 +500,16 @@ pub fn get_lgpd_consent(
   })
 }
 
-/// Get all Demands assigned to a given company
+/// Get all Demands published by a given Company.
+///
+/// `limit` is the maximum number of Demands to return and `offset` is the number
+/// of Demands to skip. Returns an empty list if the Company has no Demands, or
+/// if the Company does not exist.
 ///
 /// ## Examples
 ///
 /// ```gleam
-/// let result = company.get(
+/// let result = company.get_demands(
 ///   context.database,
 ///   from: company_id,
 ///   limit: 100,
@@ -473,7 +517,7 @@ pub fn get_lgpd_consent(
 /// )
 ///
 /// case result {
-///   Ok(data) -> wisp.ok()
+///   Ok(demands) -> wisp.ok()
 ///   Error(_) -> wisp.internal_server_error()
 /// }
 /// ```
@@ -508,7 +552,9 @@ pub fn get_demands(
 }
 
 /// Updates a Company's information.
-/// Passing `option.None` leaves a field unchanged.
+///
+/// Passing `option.None` leaves a field unchanged. Empty strings are also
+/// treated as "unchanged" by the underlying SQL query.
 ///
 /// ## Examples
 ///
@@ -527,9 +573,9 @@ pub fn get_demands(
 ///
 /// case result {
 ///   Ok(company) -> wisp.ok()
-///   Error(company.NotFound(_)) -> wisp.not_found()
-///   Error(company.CnpjConflict(_)) -> wisp.response(409)
-///   Error(company.EmailConflict(_)) -> wisp.response(409)
+///   Error(company.NotFound(..)) -> wisp.not_found()
+///   Error(company.CnpjConflict(..))
+///   | Error(company.EmailConflict(..)) -> wisp.response(409)
 ///   Error(_) -> wisp.internal_server_error()
 /// }
 /// ```
@@ -557,7 +603,7 @@ pub fn update(
       option.unwrap(option.map(website, uri.to_string), or: ""),
     )
 
-  // I'm not sure how an update can fail with a conflict while the key being
+  // I'm not sure how an update can fail with a conflict while the key is
   // `option.None`, so I'm returning a generic `FailedToUpdateCompany` error.
   use returned <- result.try(case update_result {
     Error(pog.ConstraintViolated(constraint: "company_cnpj_key", ..)) ->
@@ -619,226 +665,175 @@ pub fn update(
   )
 }
 
-/// Add a Startup to a Company's bookmarks
+/// Grant LGPD (Lei Geral de Proteção de Dados) consent for a Company at a
+/// given policy version. Once granted, the Company allows its data to be used
+/// as described by that version of the privacy policy.
 ///
 /// ## Examples
 ///
 /// ```gleam
-/// let result = company.bookmark_startup(
-///   context.database,
-///   id,
-///   bookmark: startup
-/// )
+/// let result = company.grant_lgpd_consent(context.database, id, version: 1)
 ///
 /// case result {
-///   Error(company.BookmarkConflict(_)) -> wisp.response(409)
-///   Error(company.NotFound(_))
-///   | Error(company.StartupNotFound(_)) -> wisp.not_found()
-///
-///   Error(_) -> wisp.internal_server_error()
-///   Ok(startup) -> wisp.ok()
+///   Ok(lgpd.Granted(..)) -> wisp.ok()
+///   Ok(_) -> wisp.internal_server_error()
+///   Error(error) -> handle_error(error)
 /// }
 /// ```
-pub fn bookmark_startup(
+pub fn grant_lgpd_consent(
   database: pog.Connection,
   id: uuid.Uuid,
-  bookmark startup: uuid.Uuid,
-) -> Result(startup.Startup, CompanyError) {
-  use returned <- result.try(case sql.bookmark_startup(database, id, startup) {
-    // Company is not found
-    Error(pog.ConstraintViolated(
-      constraint: "company_startup_bookmark_company_id_fkey",
-      ..,
-    )) -> Error(NotFound(id))
-
-    // Startup is not found
-    Error(pog.ConstraintViolated(
-      constraint: "company_startup_bookmark_startup_id_fkey",
-      ..,
-    )) -> Error(StartupNotFound(startup))
-
-    // Startup is already bookmarked
-    Error(pog.ConstraintViolated(
-      constraint: "company_startup_bookmark_pkey",
-      ..,
-    )) -> Error(BookmarkConflict(startup))
-
-    Error(error) -> Error(DatabaseError(error))
-    Ok(data) -> Ok(data)
-  })
-
-  use row <- result.try(
-    list.first(returned.rows)
-    |> result.replace_error(FailedToBookmarkStartup(startup)),
-  )
-
-  use cnpj <- result.try(
-    cnpj.parse(row.cnpj)
-    |> result.replace_error(InvalidCnpj(value: row.cnpj)),
-  )
-
-  use email <- result.try(
-    email.parse(row.email)
-    |> result.replace_error(InvalidEmail(value: row.email)),
-  )
-
-  use website <- result.map(
-    uri.parse(row.website)
-    |> result.replace_error(InvalidWebsite(value: row.website)),
-  )
-
-  let stage = case row.stage {
-    sql.Scaling -> startup.Scaling
-    sql.Traction -> startup.Traction
-  }
-
-  startup.Startup(
-    id: row.id,
-    name: row.name,
-    email:,
-    stage:,
-    cnpj:,
-    description: row.description,
-    city: row.city,
-    state: row.state,
-    created_at: row.created_at,
-    updated_at: row.updated_at,
-    is_active: row.is_active,
-    website:,
-  )
+  version version: Int,
+) -> Result(lgpd.Consent, CompanyError) {
+  lgpd.grant_consent(database, lgpd.Company(id), version)
+  |> result.map_error(LgpdError)
 }
 
-/// Remove a Startup from a Company's bookmarks
+/// Revoke LGPD (Lei Geral de Proteção de Dados) consent for a Company at a
+/// given policy version. Once revoked, the Company no longer allows its data
+/// to be used as described by that version of the privacy policy.
 ///
 /// ## Examples
 ///
 /// ```gleam
-/// let result = company.unbookmark_startup(
+/// let result = company.revoke_lgpd_consent(context.database, id, version: 1)
+///
+/// case result {
+///   Ok(lgpd.Revoked(..)) -> wisp.ok()
+///   Ok(_) -> wisp.internal_server_error()
+///   Error(error) -> handle_error(error)
+/// }
+/// ```
+pub fn revoke_lgpd_consent(
+  database: pog.Connection,
+  id: uuid.Uuid,
+  version version: Int,
+) -> Result(lgpd.Consent, CompanyError) {
+  lgpd.revoke_consent(database, lgpd.Company(id), version)
+  |> result.map_error(LgpdError)
+}
+
+/// Request a [Connection](connection.html#Connection) with a
+/// [Startup](startup.html#Startup) and return it if successful.
+///
+/// The connection starts as [Pending](connection.html#Pending) and stays that
+/// way until the Startup [accepts](startup.html#accept_connection) or
+/// [declines](startup.html#decline_connection) it.
+///
+/// A connection is unique: a Company cannot request one with the same Startup
+/// more than once, even if the request was previously declined.
+///
+/// ## Examples
+///
+/// ```gleam
+/// let result = company.request_connection(
 ///   context.database,
-///   id,
-///   remove: startup
+///   company.id,
+///   to: startup.id,
 /// )
 ///
 /// case result {
-///   Error(company.BookmarkNotFound) -> wisp.not_found()
+///   Error(company.ConnectionConflict(..)) -> wisp.response(409)
+///   Error(company.NotFound(..))
+///   | Error(company.StartupNotFound(..)) -> wisp.not_found()
+///
 ///   Error(_) -> wisp.internal_server_error()
-///   Ok(removed) -> wisp.ok()
+///   Ok(connection) -> wisp.response(201)
 /// }
 /// ```
-pub fn unbookmark_startup(
+pub fn request_connection(
   database: pog.Connection,
-  id: uuid.Uuid,
-  remove startup: uuid.Uuid,
-) -> Result(startup.Startup, CompanyError) {
+  company: uuid.Uuid,
+  to startup: uuid.Uuid,
+) -> Result(connection.Connection, CompanyError) {
   use returned <- result.try(
-    sql.unbookmark_startup(database, id, startup)
-    |> result.map_error(DatabaseError),
+    case sql.request_connection(database, company, startup) {
+      Error(pog.ConstraintViolated(
+        constraint: "company_startup_connection_company_id_fkey",
+        ..,
+      )) -> Error(NotFound(company))
+
+      Error(pog.ConstraintViolated(
+        constraint: "company_startup_connection_startup_id_fkey",
+        ..,
+      )) -> Error(StartupNotFound(startup))
+
+      Error(pog.ConstraintViolated(
+        constraint: "company_startup_connection_pkey",
+        ..,
+      )) -> Error(ConnectionConflict(startup))
+
+      Ok(data) -> Ok(data)
+      Error(error) -> Error(DatabaseError(error))
+    },
   )
 
-  use row <- result.try(
+  use row <- result.map(
     list.first(returned.rows)
-    |> result.replace_error(BookmarkNotFound),
+    |> result.replace_error(FailedToCreateConnection(startup)),
   )
 
-  use cnpj <- result.try(
-    cnpj.parse(row.cnpj)
-    |> result.replace_error(InvalidCnpj(value: row.cnpj)),
-  )
-
-  use email <- result.try(
-    email.parse(row.email)
-    |> result.replace_error(InvalidEmail(value: row.email)),
-  )
-
-  use website <- result.map(
-    uri.parse(row.website)
-    |> result.replace_error(InvalidWebsite(value: row.website)),
-  )
-
-  let stage = case row.stage {
-    sql.Scaling -> startup.Scaling
-    sql.Traction -> startup.Traction
+  let status = case row.connection_status {
+    sql.AcceptedConnection -> connection.Accepted
+    sql.DeclinedConnection -> connection.Declined
+    sql.PendingConnection -> connection.Pending
   }
 
-  startup.Startup(
-    id: row.id,
-    name: row.name,
-    email:,
-    stage:,
-    cnpj:,
-    description: row.description,
-    city: row.city,
-    state: row.state,
+  connection.Connection(
+    company: row.company_id,
     created_at: row.created_at,
+    startup: row.startup_id,
+    status:,
     updated_at: row.updated_at,
-    is_active: row.is_active,
-    website:,
   )
 }
 
-/// Get all Startups bookmarked by a given Company
+/// Get all [Connections](connection.html#Connection) requested by a Company,
+/// newest first.
+///
+/// `limit` is the maximum number of Connections to return and `offset` is the
+/// number of Connections to skip. Returns an empty list if the Company has
+/// requested no Connections, or if the Company does not exist.
 ///
 /// ## Examples
 ///
 /// ```gleam
-/// let result = company.get_bookmarked_startups(
+/// let result = company.get_connections(
 ///   context.database,
-///   id,
+///   company_id,
 ///   limit: 100,
 ///   offset: 0,
 /// )
 ///
 /// case result {
-///   Error(company.BookmarkNotFound) -> wisp.not_found()
+///   Ok(connections) -> wisp.ok()
 ///   Error(_) -> wisp.internal_server_error()
-///   Ok(removed) -> wisp.ok()
 /// }
 /// ```
-pub fn get_bookmarked_startups(
+pub fn get_connections(
   database: pog.Connection,
   id: uuid.Uuid,
   limit limit: Int,
   offset offset: Int,
-) -> Result(List(startup.Startup), CompanyError) {
-  use returned <- result.try(
-    sql.get_bookmarked_startups(database, id, limit, offset)
+) -> Result(List(connection.Connection), CompanyError) {
+  use returned <- result.map(
+    sql.get_connections(database, id, limit, offset)
     |> result.map_error(DatabaseError),
   )
 
-  list.try_map(returned.rows, fn(row) {
-    use cnpj <- result.try(
-      cnpj.parse(row.cnpj)
-      |> result.replace_error(InvalidCnpj(value: row.cnpj)),
-    )
-
-    use email <- result.try(
-      email.parse(row.email)
-      |> result.replace_error(InvalidEmail(value: row.email)),
-    )
-
-    use website <- result.map(
-      uri.parse(row.website)
-      |> result.replace_error(InvalidWebsite(value: row.website)),
-    )
-
-    let stage = case row.stage {
-      sql.Scaling -> startup.Scaling
-      sql.Traction -> startup.Traction
+  list.map(returned.rows, fn(row) {
+    let status = case row.connection_status {
+      sql.AcceptedConnection -> connection.Accepted
+      sql.DeclinedConnection -> connection.Declined
+      sql.PendingConnection -> connection.Pending
     }
 
-    startup.Startup(
-      id: row.id,
-      name: row.name,
-      email:,
-      stage:,
-      cnpj:,
-      description: row.description,
-      city: row.city,
-      state: row.state,
+    connection.Connection(
+      company: row.company_id,
       created_at: row.created_at,
+      startup: row.startup_id,
+      status:,
       updated_at: row.updated_at,
-      is_active: row.is_active,
-      website:,
     )
   })
 }

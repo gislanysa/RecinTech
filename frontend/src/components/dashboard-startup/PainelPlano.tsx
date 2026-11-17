@@ -15,7 +15,7 @@ export default function PainelPlano() {
   return (
     <section
       aria-labelledby="titulo-plano"
-      className="rounded-card border border-brand-100 bg-brand-950 p-5 shadow-sm"
+      className="rounded-card bg-brand-950 p-5 shadow-sm"
     >
       <div className="flex justify-center">
         <span className="inline-flex rounded-full bg-brand-800 px-3 py-1 text-xs font-medium text-brand-200">

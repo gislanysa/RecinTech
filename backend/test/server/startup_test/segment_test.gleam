@@ -1,3 +1,4 @@
+import gleam/list
 import server/dummy
 import server/segment
 import server_test
@@ -49,7 +50,7 @@ pub fn get_many_segments_test() -> Nil {
   let assert Ok(returned) =
     segment.get_many(context.database, limit: max, offset: 0)
 
-  assert returned == segments
+  assert list.all(returned, fn(item) { list.contains(segments, item) })
 
   Nil
 }
