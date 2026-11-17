@@ -1,3 +1,4 @@
+import gleam/list
 import server/dummy
 import server/technology
 import server_test
@@ -44,12 +45,13 @@ pub fn get_many_technologies_test() -> Nil {
   use context <- server_test.with_context()
   let max = 6
 
-  let _ = dummy.many(max, fn() { dummy.new_technology(context.database) })
+  let technologies =
+    dummy.many(max, fn() { dummy.new_technology(context.database) })
 
   let assert Ok(returned) =
     technology.get_many(context.database, limit: max, offset: 0)
 
-  assert returned != []
+  assert list.all(returned, fn(item) { list.contains(technologies, item) })
 
   Nil
 }

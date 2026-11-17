@@ -31,7 +31,7 @@ default:
 
 # Run unit tests
 [group("dev")]
-test: require-database
+test: require-database clean-database
     gleam test
 
 # Build documentation
@@ -148,3 +148,9 @@ clean:
 [group("dev")]
 deps:
     gleam deps download
+
+# Delete all mock data
+[group("dev")]
+clean-database:
+    echo {{ YELLOW }}"󰃢  Cleaning Database"{{ NORMAL }}
+    psql $DATABASE_URL -f database/cleanup.sql

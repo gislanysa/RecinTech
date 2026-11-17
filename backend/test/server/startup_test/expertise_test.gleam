@@ -1,3 +1,4 @@
+import gleam/list
 import server/dummy
 import server/expertise
 import server_test
@@ -44,12 +45,13 @@ pub fn get_many_expertises_test() -> Nil {
   use context <- server_test.with_context()
   let max = 6
 
-  let _ = dummy.many(max, fn() { dummy.new_expertise(context.database) })
+  let expertises =
+    dummy.many(max, fn() { dummy.new_expertise(context.database) })
 
   let assert Ok(returned) =
     expertise.get_many(context.database, limit: max, offset: 0)
 
-  assert returned != []
+  assert list.all(returned, fn(item) { list.contains(expertises, item) })
 
   Nil
 }

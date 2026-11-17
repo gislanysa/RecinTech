@@ -1,3 +1,4 @@
+import gleam/list
 import server/dummy
 import server/segment
 import server_test
@@ -44,12 +45,12 @@ pub fn get_many_segments_test() -> Nil {
   use context <- server_test.with_context()
   let max = 6
 
-  let _ = dummy.many(max, fn() { dummy.new_segment(context.database) })
+  let segments = dummy.many(max, fn() { dummy.new_segment(context.database) })
 
   let assert Ok(returned) =
     segment.get_many(context.database, limit: max, offset: 0)
 
-  assert returned != []
+  assert list.all(returned, fn(item) { list.contains(segments, item) })
 
   Nil
 }
