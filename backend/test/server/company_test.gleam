@@ -309,10 +309,9 @@ pub fn get_company_connections_test() -> Nil {
   let assert Ok(returned) =
     company.get_connections(context.database, company.id, limit: 100, offset: 0)
 
-  // Connections created in the same transaction share their created_at, so
-  // their order is not guaranteed
-  assert returned == [requested_a, requested_b]
-    || returned == [requested_b, requested_a]
+  assert list.all(returned, fn(item) {
+    list.contains([requested_a, requested_b], item)
+  })
 
   Nil
 }

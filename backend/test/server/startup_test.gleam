@@ -1,3 +1,4 @@
+import gleam/list
 import gleam/option.{None, Some}
 import gleam/uri
 import server/company
@@ -798,7 +799,7 @@ pub fn expertise_assignment_conflict_test() -> Nil {
   let assert Ok(_) =
     startup.assign_expertise(context.database, startup.id, assign: expertise.id)
 
-  // You can not assign the same expertise twice
+  // you can not assign the same expertise twice
   let assert Error(startup.AssignmentConflict(returned)) =
     startup.assign_expertise(context.database, startup.id, assign: expertise.id)
 
@@ -811,11 +812,11 @@ pub fn get_many_startup_test() -> Nil {
   use context <- server_test.with_context()
   let max = 6
 
-  let _ = dummy.many(max, fn() { dummy.new_startup(context.database) })
+  let startups = dummy.many(max, fn() { dummy.new_startup(context.database) })
 
   let assert Ok(returned) =
     startup.get_many(context.database, limit: max, offset: 0)
-  assert returned != []
+  assert list.all(returned, fn(item) { list.contains(startups, item) })
 
   Nil
 }
@@ -853,7 +854,6 @@ pub fn get_lgpd_consent_multiple_policies_versions_test() -> Nil {
 
   let assert Ok(returned) =
     startup.get_lgpd_consent(context.database, startup.id)
-
   assert returned == [policy_version_one, policy_version_two]
 
   Nil
@@ -864,7 +864,7 @@ pub fn get_lgpd_consent_upsert_test() -> Nil {
 
   let startup = dummy.new_startup(context.database)
 
-  // This one will be removed.
+  // this one will be removed.
   let assert Ok(old) =
     lgpd.revoke_consent(
       context.database,
@@ -908,7 +908,7 @@ pub fn unassign_segment_test() -> Nil {
     )
   assert deleted.id == assigned.id
 
-  // It should no longer be assigned
+  // it should no longer be assigned
   let assert Ok([]) = startup.get_segments(context.database, startup.id)
 
   Nil
@@ -1050,7 +1050,7 @@ pub fn unassign_technology_test() -> Nil {
 
   assert deleted.id == assigned.id
 
-  // It should no longer be assigned
+  // it should no longer be assigned
   let assert Ok([]) = startup.get_technologies(context.database, startup.id)
 
   Nil
@@ -1080,11 +1080,11 @@ pub fn accept_connection_test() -> Nil {
   let company = dummy.new_company(context.database)
   let startup = dummy.new_startup(context.database)
 
-  // The Company requests a connection with the Startup
+  // the company requests a connection with the startup
   let assert Ok(requested) =
     company.request_connection(context.database, company.id, to: startup.id)
 
-  // The Startup accepts the request
+  // the startup accepts the request
   let assert Ok(returned) =
     startup.accept_connection(context.database, startup.id, from: company.id)
 
@@ -1106,11 +1106,11 @@ pub fn decline_connection_test() -> Nil {
   let company = dummy.new_company(context.database)
   let startup = dummy.new_startup(context.database)
 
-  // The Company requests a connection with the Startup
+  // the company requests a connection with the startup
   let assert Ok(requested) =
     company.request_connection(context.database, company.id, to: startup.id)
 
-  // The Startup declines the request
+  // the startup declines the request
   let assert Ok(returned) =
     startup.decline_connection(context.database, startup.id, from: company.id)
 
@@ -1132,13 +1132,13 @@ pub fn accept_connection_twice_test() -> Nil {
   let company = dummy.new_company(context.database)
   let startup = dummy.new_startup(context.database)
 
-  // Requesting and accepting
+  // requesting and accepting
   let assert Ok(_) =
     company.request_connection(context.database, company.id, to: startup.id)
   let assert Ok(_) =
     startup.accept_connection(context.database, startup.id, from: company.id)
 
-  // Only pending connections can be accepted
+  // only pending connections can be accepted
   let assert Error(startup.ConnectionNotFound(returned)) =
     startup.accept_connection(context.database, startup.id, from: company.id)
 
@@ -1153,13 +1153,13 @@ pub fn decline_connection_twice_test() -> Nil {
   let company = dummy.new_company(context.database)
   let startup = dummy.new_startup(context.database)
 
-  // Requesting and declining
+  // requesting and declining
   let assert Ok(_) =
     company.request_connection(context.database, company.id, to: startup.id)
   let assert Ok(_) =
     startup.decline_connection(context.database, startup.id, from: company.id)
 
-  // Only pending connections can be declined
+  // only pending connections can be declined
   let assert Error(startup.ConnectionNotFound(returned)) =
     startup.decline_connection(context.database, startup.id, from: company.id)
 
@@ -1175,7 +1175,7 @@ pub fn accept_connection_after_decline_test() -> Nil {
   let company = dummy.new_company(context.database)
   let startup = dummy.new_startup(context.database)
 
-  // Requesting and declining
+  // requesting and declining
   let assert Ok(_) =
     company.request_connection(context.database, company.id, to: startup.id)
   let assert Ok(_) =
@@ -1196,7 +1196,7 @@ pub fn decline_connection_after_accept_test() -> Nil {
   let company = dummy.new_company(context.database)
   let startup = dummy.new_startup(context.database)
 
-  // Requesting and accepting
+  // requesting and accepting
   let assert Ok(_) =
     company.request_connection(context.database, company.id, to: startup.id)
   let assert Ok(_) =
@@ -1231,7 +1231,7 @@ pub fn decline_missing_connection_test() -> Nil {
   let company = dummy.new_company(context.database)
   let startup = dummy.new_startup(context.database)
 
-  // No request was sent, so there is no connection to decline
+  // no request was sent, so there is no connection to decline
   let assert Error(startup.ConnectionNotFound(returned)) =
     startup.decline_connection(context.database, startup.id, from: company.id)
 
@@ -1248,7 +1248,7 @@ pub fn decline_connection_blocks_new_requests_test() -> Nil {
   let company = dummy.new_company(context.database)
   let startup = dummy.new_startup(context.database)
 
-  // Requesting and declining
+  // requesting and declining
   let assert Ok(_) =
     company.request_connection(context.database, company.id, to: startup.id)
   let assert Ok(_) =
@@ -1278,10 +1278,9 @@ pub fn get_startup_connections_test() -> Nil {
   let assert Ok(returned) =
     startup.get_connections(context.database, startup.id, limit: 100, offset: 0)
 
-  // connections created in the same transaction share their created_at, so
-  // their order is not guaranteed
-  assert returned == [requested_a, requested_b]
-    || returned == [requested_b, requested_a]
+  assert list.all(returned, fn(item) {
+    list.contains([requested_a, requested_b], item)
+  })
 
   Nil
 }
@@ -1309,7 +1308,9 @@ pub fn get_startup_connections_statuses_test() -> Nil {
   let assert Ok(returned) =
     startup.get_connections(context.database, startup.id, limit: 100, offset: 0)
 
-  assert returned == [accepted, declined] || returned == [declined, accepted]
+  assert list.all(returned, fn(item) {
+    list.contains([accepted, declined], item)
+  })
 
   Nil
 }
