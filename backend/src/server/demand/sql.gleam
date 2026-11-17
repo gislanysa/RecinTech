@@ -284,6 +284,78 @@ FROM
   |> pog.execute(db)
 }
 
+/// A row you get from running the `browse_open_demands` query
+/// defined in `./src/server/demand/sql/browse_open_demands.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v4.7.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type BrowseOpenDemandsRow {
+  BrowseOpenDemandsRow(
+    id: Uuid,
+    company_id: Uuid,
+    title: String,
+    description: String,
+    demand_status: DemandStatus,
+    created_at: Timestamp,
+    updated_at: Timestamp,
+  )
+}
+
+/// browse demands marked as open
+///
+/// > 🐿️ This function was generated automatically using v4.7.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn browse_open_demands(
+  db: pog.Connection,
+  arg_1: Int,
+  arg_2: Int,
+) -> Result(pog.Returned(BrowseOpenDemandsRow), pog.QueryError) {
+  let decoder = {
+    use id <- decode.field(0, uuid_decoder())
+    use company_id <- decode.field(1, uuid_decoder())
+    use title <- decode.field(2, decode.string)
+    use description <- decode.field(3, decode.string)
+    use demand_status <- decode.field(4, demand_status_decoder())
+    use created_at <- decode.field(5, pog.timestamp_decoder())
+    use updated_at <- decode.field(6, pog.timestamp_decoder())
+    decode.success(BrowseOpenDemandsRow(
+      id:,
+      company_id:,
+      title:,
+      description:,
+      demand_status:,
+      created_at:,
+      updated_at:,
+    ))
+  }
+
+  "-- browse demands marked as open
+SELECT
+    demand.id,
+    demand.company_id,
+    demand.title,
+    demand.description,
+    demand.demand_status,
+    demand.created_at,
+    demand.updated_at
+FROM
+    demand
+WHERE
+    demand.demand_status = 'open'
+ORDER BY
+    demand.id DESC
+LIMIT
+    $1 OFFSET $2
+"
+  |> pog.query
+  |> pog.parameter(pog.int(arg_1))
+  |> pog.parameter(pog.int(arg_2))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
 /// A row you get from running the `decline_application` query
 /// defined in `./src/server/demand/sql/decline_application.sql`.
 ///
