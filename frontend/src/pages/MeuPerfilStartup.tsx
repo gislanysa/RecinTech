@@ -6,6 +6,7 @@ import { CheckIcon, CloseIcon } from '@/components/icons.tsx'
 import { atualizarStartup, type Startup } from '@/lib/api.ts'
 import {
   BLOCOS_CANVAS,
+  canvasVazio,
   carregarCanvas,
   salvarCanvas,
   temConteudo,
@@ -134,29 +135,45 @@ export default function MeuPerfilStartup() {
   }
 
   // Estados do Business Model Canvas
-  const [canvas, setCanvas] = useState<CanvasStartup>(() => carregarCanvas(dadosStartup.id))
+  const [canvas, setCanvas] = useState<CanvasStartup>(() => canvasVazio())
+  const [salvandoCanvas, setSalvandoCanvas] = useState(false)
   const [editandoCanvas, setEditandoCanvas] = useState(false)
   const [erroCanvas, setErroCanvas] = useState('')
+
+  useEffect(() => {
+    let ativo = true
+    if (!dadosStartup.id) return
+    carregarCanvas(dadosStartup.id).then((c) => {
+      if (ativo) setCanvas(c)
+    })
+    return () => {
+      ativo = false
+    }
+  }, [dadosStartup.id])
 
   function alterarCanvas(chave: ChaveCanvas, valor: string) {
     setCanvas((atual) => ({ ...atual, [chave]: valor }))
   }
 
-  function handleSalvarCanvas(e: React.FormEvent) {
+  async function handleSalvarCanvas(e: React.FormEvent) {
     e.preventDefault()
+    setSalvandoCanvas(true)
     try {
-      salvarCanvas(dadosStartup.id, canvas)
+      const salvo = await salvarCanvas(dadosStartup.id, canvas)
+      setCanvas(salvo)
       setErroCanvas('')
       setEditandoCanvas(false)
       setMensagemSucesso('Business Model Canvas salvo com sucesso!')
       setTimeout(() => setMensagemSucesso(''), 4000)
     } catch {
-      setErroCanvas('Não foi possível salvar o canvas neste navegador.')
+      setErroCanvas('Não foi possível salvar o canvas na API. Tente novamente.')
+    } finally {
+      setSalvandoCanvas(false)
     }
   }
 
   function handleCancelarCanvas() {
-    setCanvas(carregarCanvas(dadosStartup.id))
+    void carregarCanvas(dadosStartup.id).then((c) => setCanvas(c))
     setErroCanvas('')
     setEditandoCanvas(false)
   }
@@ -290,11 +307,14 @@ export default function MeuPerfilStartup() {
             )}
 
             <div className="flex flex-wrap items-center gap-3">
-              <Botao type="submit">Salvar canvas</Botao>
+              <Botao type="submit" disabled={salvandoCanvas}>
+                {salvandoCanvas ? 'Salvando…' : 'Salvar canvas'}
+              </Botao>
               <button
                 type="button"
+                disabled={salvandoCanvas}
                 onClick={handleCancelarCanvas}
-                className="rounded-xl border border-brand-200 px-4 py-2 text-sm font-medium text-ink-700 hover:bg-brand-50"
+                className="rounded-xl border border-brand-200 px-4 py-2 text-sm font-medium text-ink-700 hover:bg-brand-50 disabled:opacity-50"
               >
                 Cancelar
               </button>
@@ -455,9 +475,8 @@ export default function MeuPerfilStartup() {
         aoSalvarSucesso={(tagsAtualizadas) => {
           if (tagsAtualizadas) {
             setTags(tagsAtualizadas)
-          } else {
-            void carregarTagsDaStartup(dadosStartup.id).then(setTags)
           }
+          void carregarTagsDaStartup(dadosStartup.id).then(setTags)
           setMensagemSucesso('Áreas, serviços e tecnologias atualizados com sucesso!')
           setTimeout(() => setMensagemSucesso(''), 4000)
         }}

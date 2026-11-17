@@ -38,15 +38,19 @@ vi.mock('@/lib/startups.ts', async () => {
   }
 })
 
-function instalarStorageEmMemoria() {
-  const dados = new Map<string, string>()
-  vi.stubGlobal('localStorage', {
-    getItem: (k: string) => dados.get(k) ?? null,
-    setItem: (k: string, v: string) => void dados.set(k, v),
-    removeItem: (k: string) => void dados.delete(k),
-    clear: () => dados.clear(),
-  })
-}
+let dadosMockCanvas = canvasLib.canvasVazio()
+
+vi.mock('@/lib/canvas.ts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/canvas.ts')>()
+  return {
+    ...actual,
+    carregarCanvas: vi.fn(async () => dadosMockCanvas),
+    salvarCanvas: vi.fn(async (_id: string, c: any) => {
+      dadosMockCanvas = { ...c }
+      return dadosMockCanvas
+    }),
+  }
+})
 
 function renderPerfil() {
   return render(
@@ -58,49 +62,50 @@ function renderPerfil() {
 
 describe('MeuPerfilStartup - Business Model Canvas', () => {
   beforeEach(() => {
-    instalarStorageEmMemoria()
+    dadosMockCanvas = canvasLib.canvasVazio()
+    vi.clearAllMocks()
   })
 
-  it('exibe estado inicial vazio e botão para preencher canvas', () => {
+  it('exibe estado inicial vazio e botão para preencher canvas', async () => {
     renderPerfil()
     expect(screen.getByRole('heading', { name: 'Business Model Canvas' })).toBeInTheDocument()
-    expect(screen.getByText('Você ainda não preencheu o seu Business Model Canvas.')).toBeInTheDocument()
+    expect(await screen.findByText('Você ainda não preencheu o seu Business Model Canvas.')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Preencher canvas' })).toBeInTheDocument()
   })
 
-  it('permite preencher e salvar o canvas na própria tela de perfil', () => {
+  it('permite preencher e salvar o canvas na própria tela de perfil', async () => {
     renderPerfil()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Preencher canvas' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Preencher canvas' }))
 
     const campoProposta = screen.getByLabelText('Proposta de valor')
     fireEvent.change(campoProposta, { target: { value: 'Redução de custos operacionais com IA' } })
 
     fireEvent.click(screen.getByRole('button', { name: 'Salvar canvas' }))
 
-    expect(screen.getByText('Business Model Canvas salvo com sucesso!')).toBeInTheDocument()
+    expect(await screen.findByText('Business Model Canvas salvo com sucesso!')).toBeInTheDocument()
     expect(screen.getByText('Redução de custos operacionais com IA')).toBeInTheDocument()
-
-    // O storage deve ter persistido os dados
-    const salvo = canvasLib.carregarCanvas('startup-1')
-    expect(salvo.propostaValor).toBe('Redução de custos operacionais com IA')
+    expect(canvasLib.salvarCanvas).toHaveBeenCalledWith(
+      'startup-1',
+      expect.objectContaining({ propostaValor: 'Redução de custos operacionais com IA' }),
+    )
   })
 
-  it('permite cancelar a edição mantendo os dados salvos', () => {
-    canvasLib.salvarCanvas('startup-1', {
+  it('permite cancelar a edição mantendo os dados salvos', async () => {
+    dadosMockCanvas = {
       ...canvasLib.canvasVazio(),
       propostaValor: 'Valor original',
-    })
+    }
 
     renderPerfil()
-    expect(screen.getByText('Valor original')).toBeInTheDocument()
+    expect(await screen.findByText('Valor original')).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Editar canvas' }))
     const campoProposta = screen.getByLabelText('Proposta de valor')
     fireEvent.change(campoProposta, { target: { value: 'Valor modificado não salvo' } })
 
     fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }))
-    expect(screen.getByText('Valor original')).toBeInTheDocument()
+    expect(await screen.findByText('Valor original')).toBeInTheDocument()
     expect(screen.queryByText('Valor modificado não salvo')).not.toBeInTheDocument()
   })
 })

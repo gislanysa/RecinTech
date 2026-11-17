@@ -1,6 +1,6 @@
 import PainelSaudePerfil from '@/components/dashboard-startup/PainelSaudePerfil.tsx'
 import type { Startup } from '@/lib/api.ts'
-import { canvasVazio, salvarCanvas } from '@/lib/canvas.ts'
+import { canvasVazio } from '@/lib/canvas.ts'
 import type { Tags } from '@/lib/perfil.ts'
 import { cleanup, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
@@ -73,12 +73,7 @@ describe('PainelSaudePerfil', () => {
     expect(btnPerfil).toHaveAttribute('href', '/dashboard/startup/perfil')
   })
 
-  it('não deve exibir a tag de pendências quando o perfil estiver 100% completo', () => {
-    salvarCanvas(startupMock.id, {
-      ...canvasVazio(),
-      propostaValor: 'Plataforma líder',
-    })
-
+  it('deve indicar perfil completo quando todos os dados estiverem preenchidos', () => {
     const startupCompleta: Startup = {
       ...startupMock,
       description: 'Startup completa',
@@ -87,7 +82,14 @@ describe('PainelSaudePerfil', () => {
 
     render(
       <MemoryRouter>
-        <PainelSaudePerfil startup={startupCompleta} tags={tagsCompletas} />
+        <PainelSaudePerfil
+          startup={startupCompleta}
+          tags={tagsCompletas}
+          canvas={{
+            ...canvasVazio(),
+            propostaValor: 'Plataforma líder',
+          }}
+        />
       </MemoryRouter>,
     )
 

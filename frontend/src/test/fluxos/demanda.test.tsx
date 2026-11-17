@@ -4,11 +4,15 @@ import * as demandasLib from '@/lib/demandas.ts'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-vi.mock('@/lib/catalogos.ts', () => ({
-  buscarSegmentos: vi.fn(),
-  buscarServicos: vi.fn(),
-  buscarTecnologias: vi.fn(),
-}))
+vi.mock('@/lib/catalogos.ts', async (importOriginal) => {
+  const mod = await importOriginal<typeof import('@/lib/catalogos.ts')>()
+  return {
+    ...mod,
+    buscarSegmentos: vi.fn(),
+    buscarServicos: vi.fn(),
+    buscarTecnologias: vi.fn(),
+  }
+})
 
 vi.mock('@/lib/demandas.ts', async (importOriginal) => {
   const mod = await importOriginal<typeof import('@/lib/demandas.ts')>()
@@ -26,16 +30,16 @@ describe('Fluxo de Demanda - Criação e Edição (ModalNovaDemanda)', () => {
     vi.clearAllMocks()
 
     vi.mocked(catalogos.buscarSegmentos).mockResolvedValue([
-      { id: 'seg-1', name: 'Agritech', description: 'Tecnologia no campo' },
-      { id: 'seg-2', name: 'Cleantech', description: 'Sustentabilidade' },
+      { id: '01930000-0000-7000-0001-000000000001', name: 'Agritech', description: 'Tecnologia no campo' },
+      { id: '01930000-0000-7000-0001-000000000002', name: 'Cleantech', description: 'Sustentabilidade' },
     ])
     vi.mocked(catalogos.buscarServicos).mockResolvedValue([
-      { id: 'serv-1', name: 'Consultoria ESG', description: 'Consultoria' },
-      { id: 'serv-2', name: 'Desenvolvimento Web', description: 'Web' },
+      { id: '01930000-0000-7000-0002-000000000001', name: 'Consultoria ESG', description: 'Consultoria' },
+      { id: '01930000-0000-7000-0002-000000000002', name: 'Desenvolvimento Web', description: 'Web' },
     ])
     vi.mocked(catalogos.buscarTecnologias).mockResolvedValue([
-      { id: 'tec-1', name: 'Python', description: 'Linguagem' },
-      { id: 'tec-2', name: 'React', description: 'Frontend' },
+      { id: '01930000-0000-7000-0003-000000000001', name: 'Python', description: 'Linguagem' },
+      { id: '01930000-0000-7000-0003-000000000002', name: 'React', description: 'Frontend' },
     ])
   })
 
@@ -145,7 +149,7 @@ describe('Fluxo de Demanda - Criação e Edição (ModalNovaDemanda)', () => {
     const demandaAtualizada: demandasLib.Demanda = {
       ...demandaExistente,
       titulo: 'Demanda Renovada',
-      status: 'em_andamento',
+      status: 'closed',
     }
 
     vi.mocked(demandasLib.atualizarDemanda).mockResolvedValueOnce(demandaAtualizada)
@@ -172,7 +176,7 @@ describe('Fluxo de Demanda - Criação e Edição (ModalNovaDemanda)', () => {
       target: { value: 'Demanda Renovada' },
     })
     fireEvent.change(screen.getByLabelText(/status da demanda/i), {
-      target: { value: 'em_andamento' },
+      target: { value: 'closed' },
     })
 
     // Salva alterações via submit no formulário
@@ -184,7 +188,7 @@ describe('Fluxo de Demanda - Criação e Edição (ModalNovaDemanda)', () => {
         'dem-existente-1',
         expect.objectContaining({
           titulo: 'Demanda Renovada',
-          status: 'em_andamento',
+          status: 'closed',
         }),
       )
     })

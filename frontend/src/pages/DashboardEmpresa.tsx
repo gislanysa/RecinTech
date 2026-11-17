@@ -125,7 +125,7 @@ export default function DashboardEmpresa() {
       {/* Modal para cadastrar ou editar demanda */}
       <ModalNovaDemanda
         aberto={modalNovaDemanda}
-        companyId={empresa.id}
+        companyId={empresa?.id}
         demandaParaEditar={demandaEmEdicao}
         aoFechar={() => {
           setModalNovaDemanda(false)

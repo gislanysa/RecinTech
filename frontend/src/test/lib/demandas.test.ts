@@ -1,11 +1,15 @@
 import {
   atualizarDemanda,
   calcularRecomendacoes,
+  candidatarADemanda,
   criarDemanda,
-  excluirDemanda,
+  desistirCandidaturaDemanda,
   enviarConviteReuniao,
+  excluirDemanda,
+  listarCandidaturasDemanda,
   listarConvites,
   listarDemandas,
+  responderCandidaturaDemanda,
   type Demanda,
 } from '@/lib/demandas.ts'
 import { api } from '@/lib/api.ts'
@@ -160,7 +164,9 @@ describe('demandas.ts - Integração HTTP com a API', () => {
 
     const resultado = await listarConvites(companyId)
 
-    expect(api.get).toHaveBeenCalledWith(`/company/${companyId}/connection`)
+    expect(api.get).toHaveBeenCalledWith(`/company/${companyId}/connection`, {
+      params: { limit: 50, offset: 0 },
+    })
     expect(resultado[0].company_id).toBe(companyId)
     expect(resultado[0].startup_id).toBe('start-1')
     expect(resultado[0].status).toBe('pendente')
@@ -192,6 +198,91 @@ describe('demandas.ts - Integração HTTP com a API', () => {
     })
     expect(resultado.startup_id).toBe(dadosConvite.startupId)
     expect(resultado.status).toBe('pendente')
+  })
+
+  it('deve candidatar startup a uma demanda aberta via POST /startup/:id/application', async () => {
+    const startupId = 'st-100'
+    const demandId = '01a173cb-9533-7ebd-87a0-590965ef3653'
+    const mockResposta = {
+      demand: demandId,
+      startup: startupId,
+      status: 'pending' as const,
+      created_at: '2026-01-01T00:00:00Z',
+      updated_at: '2026-01-01T00:00:00Z',
+    }
+
+    vi.mocked(api.post).mockResolvedValueOnce({ data: mockResposta })
+
+    const resultado = await candidatarADemanda(startupId, demandId)
+
+    expect(api.post).toHaveBeenCalledWith(`/startup/${startupId}/application`, {
+      demand: demandId,
+    })
+    expect(resultado.demand).toBe(demandId)
+    expect(resultado.startup).toBe(startupId)
+    expect(resultado.status).toBe('pending')
+  })
+
+  it('deve cancelar/desistir de candidatura via DELETE /startup/:id/application/:demand_id', async () => {
+    const startupId = 'st-100'
+    const demandId = '01a173cb-9533-7ebd-87a0-590965ef3653'
+    const mockResposta = {
+      demand: demandId,
+      startup: startupId,
+      status: 'pending' as const,
+      created_at: '2026-01-01T00:00:00Z',
+      updated_at: '2026-01-01T00:00:00Z',
+    }
+
+    vi.mocked(api.delete).mockResolvedValueOnce({ data: mockResposta })
+
+    const resultado = await desistirCandidaturaDemanda(startupId, demandId)
+
+    expect(api.delete).toHaveBeenCalledWith(`/startup/${startupId}/application/${demandId}`)
+    expect(resultado.demand).toBe(demandId)
+  })
+
+  it('deve listar candidaturas da demanda via GET /company/demand/:id/application', async () => {
+    const demandId = '01a173cb-9533-7ebd-87a0-590965ef3653'
+    const mockResposta = [
+      {
+        demand: demandId,
+        startup: 'st-100',
+        status: 'pending' as const,
+        created_at: '2026-01-01T00:00:00Z',
+        updated_at: '2026-01-01T00:00:00Z',
+      },
+    ]
+
+    vi.mocked(api.get).mockResolvedValueOnce({ data: mockResposta })
+
+    const resultado = await listarCandidaturasDemanda(demandId)
+
+    expect(api.get).toHaveBeenCalledWith(`/company/demand/${demandId}/application`)
+    expect(resultado).toHaveLength(1)
+    expect(resultado[0].startup).toBe('st-100')
+  })
+
+  it('deve aceitar ou recusar candidatura via PATCH /company/demand/:id/application/:startup_id', async () => {
+    const demandId = '01a173cb-9533-7ebd-87a0-590965ef3653'
+    const startupId = 'st-100'
+    const mockResposta = {
+      demand: demandId,
+      startup: startupId,
+      status: 'accepted' as const,
+      created_at: '2026-01-01T00:00:00Z',
+      updated_at: '2026-01-02T00:00:00Z',
+    }
+
+    vi.mocked(api.patch).mockResolvedValueOnce({ data: mockResposta })
+
+    const resultado = await responderCandidaturaDemanda(demandId, startupId, 'accepted')
+
+    expect(api.patch).toHaveBeenCalledWith(
+      `/company/demand/${demandId}/application/${startupId}`,
+      { status: 'accepted' },
+    )
+    expect(resultado.status).toBe('accepted')
   })
 })
 

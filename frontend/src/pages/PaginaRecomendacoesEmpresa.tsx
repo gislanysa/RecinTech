@@ -65,7 +65,7 @@ export default function PaginaRecomendacoesEmpresa() {
 
       <ModalNovaDemanda
         aberto={modalNovaDemanda}
-        companyId={empresa.id}
+        companyId={empresa?.id}
         aoFechar={() => setModalNovaDemanda(false)}
         aoSalvar={salvarDemandaLocal}
       />

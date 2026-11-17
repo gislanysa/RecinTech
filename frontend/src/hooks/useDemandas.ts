@@ -94,7 +94,11 @@ export function useDemandas({
 
   useEffect(() => {
     const ativoRef = { current: true }
-    buscar(ativoRef)
+    queueMicrotask(() => {
+      if (ativoRef.current) {
+        void buscar(ativoRef)
+      }
+    })
     return () => {
       ativoRef.current = false
     }

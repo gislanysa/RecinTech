@@ -1,12 +1,14 @@
 import Botao from '@/components/Botao.tsx'
 import { AlertIcon, CheckIcon } from '@/components/icons.tsx'
 import type { Startup } from '@/lib/api.ts'
+import { carregarCanvas, type CanvasStartup } from '@/lib/canvas.ts'
 import {
   DIAS_PARA_PERFIL_DESATUALIZADO,
   calcularSaudeDoPerfil,
   diasSemAtualizar,
   type Tags,
 } from '@/lib/perfil.ts'
+import { useEffect, useState } from 'react'
 
 const ROTA_EDITAR_PERFIL = '/dashboard/startup/perfil'
 
@@ -16,9 +18,34 @@ const ROTA_EDITAR_PERFIL = '/dashboard/startup/perfil'
  * Mostra quanto do perfil está preenchido e exibe a tag com a quantidade
  * de pendências restantes, permitindo acessar diretamente a tela de Meu Perfil.
  */
-export default function PainelSaudePerfil({ startup, tags }: { startup: Startup; tags: Tags | null }) {
+export default function PainelSaudePerfil({
+  startup,
+  tags,
+  canvas: canvasProp,
+}: {
+  startup: Startup
+  tags: Tags | null
+  canvas?: CanvasStartup | null
+}) {
+  const [canvasApi, setCanvasApi] = useState<CanvasStartup | null>(null)
+
+  useEffect(() => {
+    if (canvasProp !== undefined) return
+    let ativo = true
+    if (startup.id) {
+      void carregarCanvas(startup.id).then((c) => {
+        if (ativo) setCanvasApi(c)
+      })
+    }
+    return () => {
+      ativo = false
+    }
+  }, [startup.id, canvasProp])
+
+  const canvas = canvasProp !== undefined ? canvasProp : canvasApi
+
   const carregando = tags === null
-  const saude = calcularSaudeDoPerfil(startup, tags)
+  const saude = calcularSaudeDoPerfil(startup, tags, canvas)
   const dias = diasSemAtualizar(startup)
   const desatualizado = dias !== null && dias > DIAS_PARA_PERFIL_DESATUALIZADO
   const completo = !carregando && saude.faltando.length === 0

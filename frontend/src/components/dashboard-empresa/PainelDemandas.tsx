@@ -1,5 +1,7 @@
 import Botao from '@/components/Botao.tsx'
+import ModalCandidaturasDemanda from '@/components/dashboard-empresa/ModalCandidaturasDemanda.tsx'
 import type { Demanda, StatusDemanda } from '@/lib/demandas.ts'
+import { useState } from 'react'
 
 type PainelDemandasProps = {
   demandas: Demanda[]
@@ -16,20 +18,33 @@ type PainelDemandasProps = {
 
 function badgeStatus(status: StatusDemanda) {
   switch (status) {
+    case 'open':
     case 'aberta':
       return {
         texto: 'Aberta',
         classe: 'text-emerald-700',
+      }
+    case 'closed':
+    case 'encerrada':
+      return {
+        texto: 'Encerrada',
+        classe: 'text-ink-500',
+      }
+    case 'canceled':
+    case 'cancelada':
+      return {
+        texto: 'Cancelada',
+        classe: 'text-rose-700',
       }
     case 'em_andamento':
       return {
         texto: 'Em andamento',
         classe: 'text-blue-700',
       }
-    case 'encerrada':
+    default:
       return {
-        texto: 'Encerrada',
-        classe: 'text-ink-500',
+        texto: 'Aberta',
+        classe: 'text-emerald-700',
       }
   }
 }
@@ -46,6 +61,8 @@ export default function PainelDemandas({
   onSelecionarDemanda,
   onTentarNovamente,
 }: PainelDemandasProps) {
+  const [demandaCandidaturas, setDemandaCandidaturas] = useState<Demanda | null>(null)
+
   return (
     <section
       aria-labelledby="titulo-demandas"
@@ -176,10 +193,20 @@ export default function PainelDemandas({
                     <span className="text-xs font-semibold text-brand-700">
                       {demanda.segmento}
                     </span>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
                       <span className={`text-xs font-medium ${statusInfo.classe}`}>
                         {statusInfo.texto}
                       </span>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setDemandaCandidaturas(demanda)
+                        }}
+                        className="rounded-full bg-brand-50 px-2.5 py-1 text-xs font-medium text-brand-700 ring-1 ring-brand-200 transition-all hover:bg-brand-100 hover:text-brand-900"
+                      >
+                        Candidaturas
+                      </button>
                       {onEditarDemanda && (
                         <button
                           type="button"
@@ -246,6 +273,14 @@ export default function PainelDemandas({
             )
           })}
         </div>
+      )}
+
+      {demandaCandidaturas && (
+        <ModalCandidaturasDemanda
+          aberto={Boolean(demandaCandidaturas)}
+          demanda={demandaCandidaturas}
+          aoFechar={() => setDemandaCandidaturas(null)}
+        />
       )}
     </section>
   )

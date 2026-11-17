@@ -83,8 +83,12 @@ export default function ModalEditarTagsStartup({
     if (!aberto) return
 
     let ativo = true
-    setCarregando(true)
-    setErro('')
+    queueMicrotask(() => {
+      if (ativo) {
+        setCarregando(true)
+        setErro('')
+      }
+    })
 
     Promise.all([
       buscarExpertises(),
