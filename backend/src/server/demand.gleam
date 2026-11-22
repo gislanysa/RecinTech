@@ -51,13 +51,17 @@ pub type Status {
   Canceled
 }
 
+/// The state of a Startup's [Application](#Application) to a [Demand](#Demand).
 pub type ApplicationStatus {
+  /// The Startup is waiting for the Company's decision.
   Pending
+  /// The Company accepted the application.
   Accepted
+  /// The Company declined the application.
   Declined
 }
 
-/// Encode a `ApplicationStatus` into JSON
+/// Encode an `ApplicationStatus` into JSON
 fn application_status_to_json(
   application_status: ApplicationStatus,
 ) -> json.Json {
@@ -79,16 +83,23 @@ fn application_status_decoder() -> decode.Decoder(ApplicationStatus) {
   }
 }
 
+/// A Startup's application to a [Demand](#Demand).
 pub type Application {
   Application(
+    /// The Demand the Startup applied to.
     demand: uuid.Uuid,
+    /// The Startup that submitted the application.
     startup: uuid.Uuid,
+    /// The current state of the application.
     status: ApplicationStatus,
+    /// Timestamp of when the application was created.
     created_at: timestamp.Timestamp,
+    /// Timestamp of when the application was last updated.
     updated_at: timestamp.Timestamp,
   )
 }
 
+/// Encode an `Application` into JSON.
 pub fn application_to_json(application: Application) -> json.Json {
   let Application(demand:, startup:, status:, created_at:, updated_at:) =
     application
@@ -119,6 +130,7 @@ pub fn application_decoder() -> decode.Decoder(Application) {
   ))
 }
 
+/// A decoder that decodes `Status` values.
 @internal
 pub fn status_decoder() -> decode.Decoder(Status) {
   use variant <- decode.then(decode.string)
@@ -130,6 +142,7 @@ pub fn status_decoder() -> decode.Decoder(Status) {
   }
 }
 
+/// Encode a `Status` into JSON.
 @internal
 pub fn status_to_json(status: Status) -> json.Json {
   case status {
@@ -243,6 +256,7 @@ pub fn get(
   )
 }
 
+/// Convert the sql-generated DemandStatus enum to a valid [Status](#Status) type.
 fn status_from_enum(enum: sql.DemandStatus) -> Status {
   case enum {
     sql.Open -> Open
@@ -356,6 +370,7 @@ pub fn get_expertises(
   })
 }
 
+/// Convert a [Status](#Status) to its sql-generated counterpart.
 fn status_to_enum(status: Status) -> sql.DemandStatus {
   case status {
     Open -> sql.Open
@@ -391,17 +406,22 @@ pub fn register(
   description description: String,
   status status: Status,
 ) -> Result(Demand, DemandError) {
-  let status = status_to_enum(status)
+  let register_result =
+    sql.register(
+      database,
+      company_id,
+      title,
+      description,
+      status_to_enum(status),
+    )
 
-  use returned <- result.try(
-    case sql.register(database, company_id, title, description, status) {
-      Error(pog.ConstraintViolated(constraint: "demand_company_id_fkey", ..)) ->
-        Error(CompanyNotFound(company_id))
+  use returned <- result.try(case register_result {
+    Error(pog.ConstraintViolated(constraint: "demand_company_id_fkey", ..)) ->
+      Error(CompanyNotFound(company_id))
 
-      Ok(data) -> Ok(data)
-      Error(error) -> Error(DatabaseError(error))
-    },
-  )
+    Ok(data) -> Ok(data)
+    Error(error) -> Error(DatabaseError(error))
+  })
 
   use row <- result.map(
     list.first(returned.rows)
@@ -902,6 +922,8 @@ pub fn decline_application(
   )
 }
 
+/// Convert the sql-generated DemandApplicationStatus enum to a valid
+/// [ApplicationStatus](#ApplicationStatus) type.
 fn application_from_enum(
   enum: sql.DemandApplicationStatus,
 ) -> ApplicationStatus {
