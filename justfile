@@ -1,5 +1,5 @@
-mod backend "./backend/justfile"
-mod frontend "./frontend/justfile"
+mod backend
+mod frontend
 
 set quiet
 
@@ -20,6 +20,7 @@ down:
 # Build frontend and backend applications
 [group("dev")]
 build:
+    just frontend::build
     just backend::build
 
 # Build application container
@@ -30,4 +31,5 @@ build-container:
 # Run application
 [group("dev")]
 run:
+    just frontend::build
     just backend::run
