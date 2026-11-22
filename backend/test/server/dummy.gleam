@@ -62,8 +62,23 @@ pub fn new_startup(database: pog.Connection) -> startup.Startup {
   }
 }
 
-/// Send a request while including a Startup session token.
-pub fn with_session(
+pub fn with_startup_session(
+  request: Request,
+  context: web.Context,
+  startup: startup.Startup,
+) -> Request {
+  with_session(request, context, web.Startup(startup.id), startup.email)
+}
+
+pub fn with_company_session(
+  request: Request,
+  context: web.Context,
+  company: company.Company,
+) -> Request {
+  with_session(request, context, web.Company(company.id), company.email)
+}
+
+fn with_session(
   request: Request,
   context: web.Context,
   session: web.Session,
