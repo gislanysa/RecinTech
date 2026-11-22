@@ -2,9 +2,8 @@
 WITH assigned AS (
     INSERT INTO
         public.startup_service (startup_id, service_id)
-    SELECT
-        $1::uuid AS startup_id,
-        $2::uuid AS service_id
+    VALUES
+        ($1::uuid, $2::uuid)
     RETURNING
         service_id
 )

@@ -2,9 +2,8 @@
 WITH assigned AS (
     INSERT INTO
         public.demand_technology (demand_id, technology_id)
-    SELECT
-        $1::uuid AS demand_id,
-        $2::uuid AS technology_id
+    VALUES
+        ($1::uuid, $2::uuid)
     RETURNING
         technology_id
 )

@@ -2,9 +2,8 @@
 WITH assigned AS (
     INSERT INTO
         public.demand_expertise (demand_id, expertise_id)
-    SELECT
-        $1::uuid AS demand_id,
-        $2::uuid AS expertise_id
+    VALUES
+        ($1::uuid, $2::uuid)
     RETURNING
         expertise_id
 )

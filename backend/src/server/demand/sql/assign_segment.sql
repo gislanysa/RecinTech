@@ -2,16 +2,15 @@
 WITH assigned AS (
     INSERT INTO
         public.demand_segment (demand_id, segment_id)
-    SELECT
-        $1::uuid AS demand_id,
-        $2::uuid AS segment_id
+    VALUES
+        ($1::uuid, $2::uuid)
     RETURNING
         segment_id
 )
 SELECT
-    s.id,
-    s.name,
-    s.description
+    segment.id,
+    segment.name,
+    segment.description
 FROM
-    public.segment AS s
-    INNER JOIN assigned AS a ON a.segment_id = s.id;
+    public.segment
+    INNER JOIN assigned ON assigned.segment_id = segment.id;

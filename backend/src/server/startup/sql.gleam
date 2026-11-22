@@ -168,9 +168,8 @@ pub fn assign_expertise(
 WITH assigned AS (
     INSERT INTO
         public.startup_expertise (startup_id, expertise_id)
-    SELECT
-        $1::uuid AS startup_id,
-        $2::uuid AS expertise_id
+    VALUES
+        ($1::uuid, $2::uuid)
     RETURNING
         expertise_id
 )
@@ -180,7 +179,8 @@ SELECT
     e.description
 FROM
     public.expertise AS e
-    INNER JOIN assigned AS a ON a.expertise_id = e.id;"
+    INNER JOIN assigned AS a ON a.expertise_id = e.id;
+"
   |> pog.query
   |> pog.parameter(pog.text(uuid.to_string(arg_1)))
   |> pog.parameter(pog.text(uuid.to_string(arg_2)))
@@ -219,9 +219,8 @@ pub fn assign_segment(
 WITH assigned AS (
     INSERT INTO
         public.startup_segment (startup_id, segment_id)
-    SELECT
-        $1::uuid AS startup_id,
-        $2::uuid AS segment_id
+    VALUES
+        ($1::uuid, $2::uuid)
     RETURNING
         segment_id
 )
@@ -271,9 +270,8 @@ pub fn assign_service(
 WITH assigned AS (
     INSERT INTO
         public.startup_service (startup_id, service_id)
-    SELECT
-        $1::uuid AS startup_id,
-        $2::uuid AS service_id
+    VALUES
+        ($1::uuid, $2::uuid)
     RETURNING
         service_id
 )
@@ -323,9 +321,8 @@ pub fn assign_technology(
 WITH assigned AS (
     INSERT INTO
         public.startup_technology (startup_id, technology_id)
-    SELECT
-        $1::uuid AS startup_id,
-        $2::uuid AS technology_id
+    VALUES
+        ($1::uuid, $2::uuid)
     RETURNING
         technology_id
 )
@@ -335,7 +332,8 @@ SELECT
     t.description
 FROM
     public.technology AS t
-    INNER JOIN assigned AS a ON a.technology_id = t.id;"
+    INNER JOIN assigned AS a ON a.technology_id = t.id;
+"
   |> pog.query
   |> pog.parameter(pog.text(uuid.to_string(arg_1)))
   |> pog.parameter(pog.text(uuid.to_string(arg_2)))

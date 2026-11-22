@@ -107,9 +107,8 @@ pub fn assign_expertise(
 WITH assigned AS (
     INSERT INTO
         public.demand_expertise (demand_id, expertise_id)
-    SELECT
-        $1::uuid AS demand_id,
-        $2::uuid AS expertise_id
+    VALUES
+        ($1::uuid, $2::uuid)
     RETURNING
         expertise_id
 )
@@ -159,19 +158,18 @@ pub fn assign_segment(
 WITH assigned AS (
     INSERT INTO
         public.demand_segment (demand_id, segment_id)
-    SELECT
-        $1::uuid AS demand_id,
-        $2::uuid AS segment_id
+    VALUES
+        ($1::uuid, $2::uuid)
     RETURNING
         segment_id
 )
 SELECT
-    s.id,
-    s.name,
-    s.description
+    segment.id,
+    segment.name,
+    segment.description
 FROM
-    public.segment AS s
-    INNER JOIN assigned AS a ON a.segment_id = s.id;
+    public.segment
+    INNER JOIN assigned ON assigned.segment_id = segment.id;
 "
   |> pog.query
   |> pog.parameter(pog.text(uuid.to_string(arg_1)))
@@ -211,9 +209,8 @@ pub fn assign_service(
 WITH assigned AS (
     INSERT INTO
         public.demand_service (demand_id, service_id)
-    SELECT
-        $1::uuid AS demand_id,
-        $2::uuid AS service_id
+    VALUES
+        ($1::uuid, $2::uuid)
     RETURNING
         service_id
 )
@@ -263,9 +260,8 @@ pub fn assign_technology(
 WITH assigned AS (
     INSERT INTO
         public.demand_technology (demand_id, technology_id)
-    SELECT
-        $1::uuid AS demand_id,
-        $2::uuid AS technology_id
+    VALUES
+        ($1::uuid, $2::uuid)
     RETURNING
         technology_id
 )
