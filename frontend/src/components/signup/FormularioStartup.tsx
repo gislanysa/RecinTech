@@ -1,5 +1,7 @@
 import Botao from '@/components/Botao.tsx'
 import BotaoVoltar from '@/components/BotaoVoltar.tsx'
+import AceiteDaPolitica from '@/components/signup/AceiteDaPolitica.tsx'
+import { useAceiteDaPolitica } from '@/components/signup/useAceiteDaPolitica.ts'
 import { Campo, CampoSelect } from '@/components/forms/Campo.tsx'
 import { registrarStartup } from '@/lib/api.ts'
 import { UFS } from '@/lib/ufs.ts'
@@ -16,7 +18,6 @@ import {
 } from '@/lib/validacao.ts'
 import axios from 'axios'
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 
 type FormularioStartupProps = {
   onVoltar: () => void
@@ -85,10 +86,10 @@ const REGRAS: Regras<Campos> = {
  * }
  */
 export default function FormularioStartup({ onVoltar }: FormularioStartupProps) {
-  const navigate = useNavigate()
   const [campos, setCampos] = useState<Campos>(VAZIO)
   const [errors, setErrors] = useState<Partial<Campos>>({})
   const [enviando, setEnviando] = useState(false)
+  const aceite = useAceiteDaPolitica('startup')
 
   function atualizar(campo: keyof Campos, valor: string) {
     setCampos((prev) => ({ ...prev, [campo]: valor }))
@@ -103,7 +104,9 @@ export default function FormularioStartup({ onVoltar }: FormularioStartupProps) 
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!validar()) return
+    const formularioOk = validar()
+    const aceiteOk = aceite.validar()
+    if (!formularioOk || !aceiteOk) return
     setEnviando(true)
 
     try {
@@ -127,13 +130,7 @@ export default function FormularioStartup({ onVoltar }: FormularioStartupProps) 
         }
       }
 
-      navigate('/entrar', {
-        state: {
-          mensagemSucesso: 'Cadastro realizado com sucesso! Faça login para continuar.',
-          tipo: 'startup',
-          email: campos.email,
-        },
-      })
+      await aceite.concluir(campos.email, campos.senha)
     } catch (err) {
       const errosApi = mapearErroApi(err)
       setErrors((prev) => ({ ...prev, ...errosApi }))
@@ -264,6 +261,8 @@ export default function FormularioStartup({ onVoltar }: FormularioStartupProps) 
             />
           </div>
         </fieldset>
+
+        <AceiteDaPolitica {...aceite.caixa} />
 
         <div className="mt-2">
           <Botao id="btn-cadastrar-startup" type="submit" disabled={enviando} bloco>
