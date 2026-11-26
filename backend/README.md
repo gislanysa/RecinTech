@@ -1,5 +1,28 @@
 # REC IN TECH — Backend
 
+<!-- rumdl-disable-file no-inline-html line-length -->
+<script src="https://cdn.jsdelivr.net/npm/pele@1/dist/pele.global.js"></script>
+<script defer>
+window.addEventListener("DOMContentLoaded", () => {
+  for (const code of document.querySelectorAll("code.language-mermaid")) {
+    const target = code.closest("pre") || code;
+    pele.mount(target, code.textContent);
+  }
+});
+</script>
+
+<style>
+.pele {
+  --pele-fg: var(--fg);
+  --pele-muted: var(--fg-shade-1);
+  --pele-bg: var(--bg);
+  --pele-surface: var(--bg-shade-1);
+  --pele-line: var(--text);
+}
+</style>
+
+---
+
 | Layer | Technology |
 | --- | --- |
 | Language | Gleam |
