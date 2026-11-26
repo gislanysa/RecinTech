@@ -26,14 +26,14 @@ export const PLANOS: Plano[] = [
   },
   {
     id: 'premium',
-    nome: 'Premium',
-    preco: 50,
+    nome: 'Destaque',
+    preco: 40,
     recursos: [
       'Tudo do gratuito',
-      'Destaque na busca, marcado como Patrocinado',
-      'Selo de perfil verificado',
-      'Até 12 cases',
-      'Relatório de visualizações',
+      'Posicionamento prioritário no topo do ranking',
+      'Selo dourado de destaque / patrocinado',
+      'Maior visibilidade e acesso a demandas reais',
+      'Relatório de visualizações e interesse',
     ],
   },
 ]

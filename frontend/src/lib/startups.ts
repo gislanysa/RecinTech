@@ -28,6 +28,8 @@ export type StartupCatalogo = StartupReal & {
   onsite: boolean
   site?: string
   relevance: number
+  emDestaque?: boolean
+  faixaPreco?: number
 }
 
 export const AREAS = [
@@ -119,6 +121,8 @@ export const STARTUPS_MOCK: StartupCatalogo[] = [
     is_active: true,
     created_at: '2026-08-20',
     relevance: 98,
+    emDestaque: true,
+    faixaPreco: 30000,
   },
   {
     id: 'mobilize-labs',
@@ -142,6 +146,7 @@ export const STARTUPS_MOCK: StartupCatalogo[] = [
     is_active: true,
     created_at: '2026-09-02',
     relevance: 95,
+    faixaPreco: 45000,
   },
   {
     id: 'vita-healthtech',
@@ -165,6 +170,7 @@ export const STARTUPS_MOCK: StartupCatalogo[] = [
     is_active: true,
     created_at: '2026-07-11',
     relevance: 91,
+    faixaPreco: 22000,
   },
   {
     id: 'credmatch',
@@ -188,6 +194,8 @@ export const STARTUPS_MOCK: StartupCatalogo[] = [
     is_active: true,
     created_at: '2026-06-30',
     relevance: 89,
+    emDestaque: true,
+    faixaPreco: 60000,
   },
   {
     id: 'aprende-mais',
@@ -211,6 +219,7 @@ export const STARTUPS_MOCK: StartupCatalogo[] = [
     is_active: true,
     created_at: '2026-09-10',
     relevance: 84,
+    faixaPreco: 18000,
   },
   {
     id: 'dataforge',
@@ -300,6 +309,7 @@ function paraCatalogo(startup: StartupReal): StartupCatalogo {
     remote: true,
     onsite: true,
     relevance: 0,
+    emDestaque: false,
     ...SEM_TAGS,
   }
 }

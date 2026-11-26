@@ -10,6 +10,7 @@ import {
   listarConvites,
   listarDemandas,
   responderCandidaturaDemanda,
+  filtrarPorFaixaOrcamento,
   type Demanda,
 } from '@/lib/demandas.ts'
 import { api } from '@/lib/api.ts'
@@ -378,5 +379,35 @@ describe('demandas.ts - Algoritmo de recomendações', () => {
 
     const recomendacoes = calcularRecomendacoes(demandas, startups)
     expect(recomendacoes).toHaveLength(0)
+  })
+
+  describe('filtrarPorFaixaOrcamento', () => {
+    const itens = [
+      { id: 'd1', orcamento: 15000 },
+      { id: 'd2', orcamento: 20000 },
+      { id: 'd3', orcamento: 35000 },
+      { id: 'd4', orcamento: 50000 },
+      { id: 'd5', orcamento: 80000 },
+      { id: 'd6', orcamento: undefined },
+    ]
+
+    it('deve retornar todos os itens quando faixa for "todas"', () => {
+      expect(filtrarPorFaixaOrcamento(itens, 'todas')).toHaveLength(6)
+    })
+
+    it('deve filtrar itens de até R$ 20k', () => {
+      const res = filtrarPorFaixaOrcamento(itens, 'ate_20k')
+      expect(res.map((i) => i.id)).toEqual(['d1', 'd2'])
+    })
+
+    it('deve filtrar itens entre R$ 20k e R$ 50k', () => {
+      const res = filtrarPorFaixaOrcamento(itens, '20k_50k')
+      expect(res.map((i) => i.id)).toEqual(['d3', 'd4'])
+    })
+
+    it('deve filtrar itens acima de R$ 50k', () => {
+      const res = filtrarPorFaixaOrcamento(itens, 'acima_50k')
+      expect(res.map((i) => i.id)).toEqual(['d5'])
+    })
   })
 })

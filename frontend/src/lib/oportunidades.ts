@@ -16,9 +16,10 @@ export type Oportunidade = {
   tecnologias: string[]
   segmento?: string
   servicos?: string[]
+  orcamento?: number
 }
 
-export type OrigemDosDados = 'api' | 'simulado'
+export type OrigemDosDados = 'api'
 
 export type StatusConexao = 'pendente' | 'aceito' | 'recusado'
 
@@ -103,7 +104,7 @@ export async function responderSolicitacaoConexao(
 
 /**
  * Calcula a compatibilidade percentual (0 a 100) entre o perfil técnico da startup
- * (área, segmentos, serviços e tecnologias) e os requisitos cadastrados na demanda da empresa.
+ * (área, segmentos, serviços, tecnologias e faixa de preço) e os requisitos cadastrados na demanda da empresa.
  *
  * Retorna 0 quando não houver qualquer similaridade relevante.
  */
@@ -113,11 +114,13 @@ export function calcularCompatibilidadeDemanda(
     segments?: string[]
     services?: string[]
     technologies?: string[]
+    faixaPreco?: number
   } | null | undefined,
   demanda: {
     segmento?: string
     servicos?: string[]
     tecnologias?: string[]
+    orcamento?: number
   },
 ): number {
   if (!tags) return 0
@@ -148,7 +151,7 @@ export function calcularCompatibilidadeDemanda(
     return 0
   }
 
-  // Se houver similaridade real, calcula pontuação proporcional entre 60% e 98%
+  // Se houver similaridade real, calcula pontuação proporcional entre 60% e 99%
   let score = 50
 
   if (matchSegmento) {
@@ -165,6 +168,24 @@ export function calcularCompatibilidadeDemanda(
     score += Math.round((tecsComuns.length / tecsDemanda.length) * 15)
   } else if (tecsComuns.length > 0) {
     score += 15
+  }
+
+  // Inserção do Fator Valor no Score
+  if (demanda.orcamento && demanda.orcamento > 0) {
+    if (tags.faixaPreco && tags.faixaPreco > 0) {
+      if (tags.faixaPreco <= demanda.orcamento) {
+        // Proposta da startup está dentro do teto de orçamento da empresa
+        score += 10
+      } else if (tags.faixaPreco <= demanda.orcamento * 1.25) {
+        // Faixa de negociação aceitável
+        score += 4
+      } else {
+        // Muito acima do teto estipulado pela empresa
+        score -= 8
+      }
+    } else {
+      score += 4
+    }
   }
 
   return Math.min(99, Math.max(60, score))
@@ -211,6 +232,7 @@ export async function listarOportunidades(
         tecnologias: dem.tecnologias ?? [],
         segmento: dem.segmento,
         servicos: dem.servicos,
+        orcamento: dem.orcamento,
       })
     }
   }

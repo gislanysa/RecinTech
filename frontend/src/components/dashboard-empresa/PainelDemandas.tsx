@@ -1,6 +1,13 @@
 import Botao from '@/components/Botao.tsx'
 import ModalCandidaturasDemanda from '@/components/dashboard-empresa/ModalCandidaturasDemanda.tsx'
-import type { Demanda, StatusDemanda } from '@/lib/demandas.ts'
+import {
+  FAIXAS_ORCAMENTO,
+  filtrarPorFaixaOrcamento,
+  type Demanda,
+  type FaixaOrcamento,
+  type StatusDemanda,
+} from '@/lib/demandas.ts'
+import { formatarMoeda } from '@/lib/formatadores.ts'
 import { useState } from 'react'
 
 type PainelDemandasProps = {
@@ -62,6 +69,9 @@ export default function PainelDemandas({
   onTentarNovamente,
 }: PainelDemandasProps) {
   const [demandaCandidaturas, setDemandaCandidaturas] = useState<Demanda | null>(null)
+  const [faixaFiltro, setFaixaFiltro] = useState<FaixaOrcamento>('todas')
+
+  const demandasFiltradas = filtrarPorFaixaOrcamento(demandas, faixaFiltro)
 
   return (
     <section
@@ -90,7 +100,7 @@ export default function PainelDemandas({
               </h2>
               {!carregando && (
                 <span className="text-base font-semibold text-ink-500 sm:text-lg">
-                  ({demandas.length})
+                  ({demandasFiltradas.length})
                 </span>
               )}
             </div>
@@ -105,6 +115,32 @@ export default function PainelDemandas({
               Adicionar nova demanda
             </Botao>
           )}
+        </div>
+      )}
+
+      {/* Barra de Filtro por Faixa de Orçamento */}
+      {!carregando && !erro && demandas.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 rounded-xl bg-surface-2 p-2.5">
+          <span className="text-xs font-semibold text-ink-700">Faixa de orçamento:</span>
+          {FAIXAS_ORCAMENTO.map((faixa) => {
+            const ativo = faixaFiltro === faixa.id
+            return (
+              <button
+                key={faixa.id}
+                type="button"
+                onClick={() => setFaixaFiltro(faixa.id)}
+                className={[
+                  'rounded-full px-3 py-1 text-xs font-medium transition-colors',
+                  ativo
+                    ? 'bg-brand-600 text-white shadow-xs'
+                    : 'border border-gray-200 bg-surface text-ink-700 hover:border-brand-300 hover:bg-brand-50',
+                ].join(' ')}
+                aria-pressed={ativo}
+              >
+                {faixa.rotulo}
+              </button>
+            )
+          })}
         </div>
       )}
 
@@ -157,10 +193,26 @@ export default function PainelDemandas({
         </div>
       )}
 
+      {/* Aviso de filtro de faixa sem resultados */}
+      {!carregando && !erro && demandas.length > 0 && demandasFiltradas.length === 0 && (
+        <div className="flex flex-col items-center justify-center rounded-xl bg-surface px-6 py-10 text-center shadow-sm">
+          <p className="text-sm font-semibold text-ink-900">
+            Nenhuma demanda encontrada nesta faixa de orçamento.
+          </p>
+          <button
+            type="button"
+            onClick={() => setFaixaFiltro('todas')}
+            className="mt-3 text-xs font-semibold text-brand-600 hover:underline"
+          >
+            Ver todas as demandas
+          </button>
+        </div>
+      )}
+
       {/* Lista de Demandas */}
-      {!carregando && !erro && demandas.length > 0 && (
+      {!carregando && !erro && demandasFiltradas.length > 0 && (
         <div className="grid gap-4 sm:grid-cols-2">
-          {demandas.map((demanda) => {
+          {demandasFiltradas.map((demanda) => {
             const statusInfo = badgeStatus(demanda.status)
             const ativa = demandaAtivaId === demanda.id
             const qtdRecomendadas = contagemRecomendacoesPorDemanda[demanda.id] ?? 0
@@ -231,7 +283,12 @@ export default function PainelDemandas({
                   </p>
 
                   {/* Tags de tecnologias e serviços */}
-                  <div className="mt-4 flex flex-wrap gap-1.5">
+                  <div className="mt-4 flex flex-wrap items-center gap-1.5">
+                    {demanda.orcamento && demanda.orcamento > 0 && (
+                      <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700 ring-1 ring-emerald-200">
+                        Orçamento: {formatarMoeda(demanda.orcamento)}
+                      </span>
+                    )}
                     {demanda.servicos.map((s) => (
                       <span
                         key={s}

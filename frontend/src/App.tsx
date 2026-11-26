@@ -7,6 +7,7 @@ import DashboardStartup from '@/pages/DashboardStartup.tsx'
 import Entrar from '@/pages/Entrar.tsx'
 import ExplorarStartups from '@/pages/ExplorarStartups.tsx'
 import Home from '@/pages/Home.tsx'
+import MeuPerfilEmpresa from '@/pages/MeuPerfilEmpresa.tsx'
 import MeuPerfilStartup from '@/pages/MeuPerfilStartup.tsx'
 import PaginaConexoesEmpresa from '@/pages/PaginaConexoesEmpresa.tsx'
 import PaginaConexoesStartup from '@/pages/PaginaConexoesStartup.tsx'
@@ -64,6 +65,7 @@ export default function App() {
           <Route element={<RotaProtegida tipo="company" />}>
             <Route element={<LayoutDashboardEmpresa />}>
               <Route path="/dashboard/empresa" element={<DashboardEmpresa />} />
+              <Route path="/dashboard/empresa/perfil" element={<MeuPerfilEmpresa />} />
               <Route path="/dashboard/empresa/demandas" element={<PaginaDemandasEmpresa />} />
               <Route path="/dashboard/empresa/recomendacoes" element={<PaginaRecomendacoesEmpresa />} />
               <Route path="/dashboard/empresa/conexoes" element={<PaginaConexoesEmpresa />} />

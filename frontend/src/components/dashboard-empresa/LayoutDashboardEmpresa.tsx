@@ -7,6 +7,7 @@ import {
   HomeIcon,
   RocketIcon,
   TargetIcon,
+  UserIcon,
 } from '@/components/icons.tsx'
 import type { ContextoSessao } from '@/components/RotaProtegida.tsx'
 import type { Company } from '@/lib/api.ts'
@@ -14,6 +15,7 @@ import { useOutletContext } from 'react-router-dom'
 
 const ITENS_EMPRESA: ItemNavegacaoDashboard[] = [
   { rotulo: 'Dashboard', to: '/dashboard/empresa', Icone: HomeIcon, exato: true },
+  { rotulo: 'Meu perfil', to: '/dashboard/empresa/perfil', Icone: UserIcon },
   { rotulo: 'Minhas demandas', to: '/dashboard/empresa/demandas', Icone: TargetIcon },
   { rotulo: 'Recomendações', to: '/dashboard/empresa/recomendacoes', Icone: RocketIcon },
   { rotulo: 'Conexões', to: '/dashboard/empresa/conexoes', Icone: HandshakeIcon },

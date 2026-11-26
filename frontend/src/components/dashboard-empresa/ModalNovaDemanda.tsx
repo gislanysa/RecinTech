@@ -43,6 +43,7 @@ function FormularioDemanda({
   const [titulo, setTitulo] = useState(demandaParaEditar?.titulo ?? '')
   const [descricao, setDescricao] = useState(demandaParaEditar?.descricao ?? '')
   const [segmento, setSegmento] = useState(demandaParaEditar?.segmento ?? '')
+  const [orcamento, setOrcamento] = useState(demandaParaEditar?.orcamento ? String(demandaParaEditar.orcamento) : '')
   const [status, setStatus] = useState<StatusDemanda>(
     demandaParaEditar?.status === 'closed' || demandaParaEditar?.status === 'encerrada'
       ? 'closed'
@@ -133,6 +134,8 @@ function FormularioDemanda({
       })
       .filter((id): id is string => Boolean(id && ehUuidReal(id)))
 
+    const orcamentoNumero = orcamento.trim() ? Number(orcamento) : undefined
+
     try {
       if (demandaParaEditar) {
         const atualizada = await atualizarDemanda(resolvedCompanyId, demandaParaEditar.id, {
@@ -141,6 +144,7 @@ function FormularioDemanda({
           segmento,
           servicos,
           tecnologias,
+          orcamento: orcamentoNumero,
           segmentIds,
           serviceIds,
           technologyIds,
@@ -155,6 +159,7 @@ function FormularioDemanda({
           segmento,
           servicos,
           tecnologias,
+          orcamento: orcamentoNumero,
           segmentIds,
           serviceIds,
           technologyIds,
@@ -250,6 +255,25 @@ function FormularioDemanda({
             opcoes={listaSegmentos.map((s) => s.name)}
             placeholder="Selecione o segmento principal"
           />
+
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="demanda-orcamento" className="text-sm font-medium text-ink-700">
+              Valor que a empresa está disposta a pagar (R$)
+            </label>
+            <input
+              id="demanda-orcamento"
+              type="number"
+              min="0"
+              step="500"
+              value={orcamento}
+              onChange={(e) => setOrcamento(e.target.value)}
+              placeholder="Ex.: 30000"
+              className="w-full rounded-xl border border-brand-200 bg-surface px-3.5 py-2.5 text-sm text-ink-900 outline-none transition-shadow placeholder:text-ink-500/60 focus:border-transparent focus:ring-2 focus:ring-accent-500"
+            />
+            <p className="text-xs text-ink-500">
+              A startup poderá aceitar esse valor ou propor uma contraproposta negociável.
+            </p>
+          </div>
 
           {isEdicao && (
             <CampoSelect

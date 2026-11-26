@@ -1,15 +1,21 @@
-
-export default function Logo({ sobreEscuro = false }: { sobreEscuro?: boolean }) {
+// Altura de 18px reproduz o tamanho do logotipo em texto da develop
+// (font-display text-lg: ~90px de largura na proporção 879x174 da imagem).
+export default function Logo({
+  sobreEscuro = false,
+  className = 'h-[18px] w-auto object-contain',
+}: {
+  sobreEscuro?: boolean
+  className?: string
+}) {
   return (
-    <span
-      className={[
-        'font-display text-lg font-bold tracking-tight',
-        sobreEscuro ? 'text-white' : 'text-ink-900',
-      ].join(' ')}
-    >
-      {/* Sobre o escuro o azul do header (brand-600) ficaria em 2,82:1 e
-          reprovaria em AA; brand-400 é o tom mais próximo que passa. */}
-      Rec<span className={sobreEscuro ? 'text-brand-400' : 'text-brand-600'}>In</span>Tech
+    <span className="inline-flex items-center">
+      {/* Sobre fundo escuro, o azul-escuro de "Rec" e "tech" vira branco;
+          o azul de "In" permanece o original. */}
+      <img
+        src={sobreEscuro ? '/logo-white.png' : '/logo.png'}
+        alt="RecInTech"
+        className={className}
+      />
     </span>
   )
 }
