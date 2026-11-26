@@ -112,57 +112,20 @@ export type DemandaPublica = Demanda & {
   empresa_nome?: string
 }
 
-const DEMANDAS_PUBLICAS_PADRAO: DemandaPublica[] = [
-  {
-    id: 'demanda-ex-1',
-    company_id: 'empresa-inovare',
-    titulo: 'Desenvolvimento de App Mobile para Varejo e Logística',
-    descricao: 'Buscamos startup para desenvolver app mobile integrado de rastreamento de entregas e estoque.',
-    segmento: 'Retailtech',
-    servicos: ['Desenvolvimento Mobile', 'UX/UI Design'],
-    tecnologias: ['React Native', 'TypeScript', 'Node.js'],
-    status: 'aberta',
-    orcamento: 45000,
-    empresa_nome: 'Inovare Varejo S.A.',
-    created_at: '2026-10-15',
-  },
-  {
-    id: 'demanda-ex-2',
-    company_id: 'empresa-fintech',
-    titulo: 'Consultoria e Implementação de IA para Análise de Crédito',
-    descricao: 'Necessitamos de modelo de IA preditivo para análise de risco em concessão de crédito.',
-    segmento: 'Fintech',
-    servicos: ['Inteligência Artificial', 'Análise de Dados', 'Consultoria'],
-    tecnologias: ['Python', 'PostgreSQL', 'AWS'],
-    status: 'aberta',
-    orcamento: 75000,
-    empresa_nome: 'CrediNordeste Financeira',
-    created_at: '2026-10-20',
-  },
-  {
-    id: 'demanda-ex-3',
-    company_id: 'empresa-saude',
-    titulo: 'Portal Web de Atendimento e Telemedicina',
-    descricao: 'Criação de interface web ágil e segura para agendamento e consultas médicas.',
-    segmento: 'Healthtech / Medtech',
-    servicos: ['Desenvolvimento Web', 'UX/UI Design'],
-    tecnologias: ['React', 'Node.js', 'PostgreSQL'],
-    status: 'aberta',
-    orcamento: 18000,
-    empresa_nome: 'Hospitalar Vida & Saúde',
-    created_at: '2026-11-01',
-  },
-]
-
 export function obterDemandasPublicas(): DemandaPublica[] {
   try {
     const raw = typeof window !== 'undefined' ? localStorage.getItem(CHAVE_DEMANDAS_PUBLICAS) : null
-    if (!raw) return DEMANDAS_PUBLICAS_PADRAO
+    if (!raw) return []
     const parsed = JSON.parse(raw)
-    return Array.isArray(parsed) && parsed.length > 0 ? parsed : DEMANDAS_PUBLICAS_PADRAO
+    return Array.isArray(parsed) ? parsed : []
   } catch {
-    return DEMANDAS_PUBLICAS_PADRAO
+    return []
   }
+}
+
+/** Retorna exclusivamente demandas reais cadastradas por empresas no sistema, sem dados fictícios. */
+export function obterDemandasReais(): DemandaPublica[] {
+  return obterDemandasPublicas()
 }
 
 export function salvarDemandaPublica(demanda: Demanda, empresaNome?: string): void {

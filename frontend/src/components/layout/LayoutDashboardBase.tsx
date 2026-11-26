@@ -16,7 +16,7 @@ export type ItemNavegacaoDashboard = {
 export type LayoutDashboardBaseProps = {
   nomeUsuario: string
   itensNavegacao: ItemNavegacaoDashboard[]
-  idPrefixo?: 'empresa' | 'startup'
+  idPrefixo?: 'empresa' | 'startup' | 'admin'
   redirecionarAposLogout?: string
 }
 
@@ -39,7 +39,7 @@ function ConteudoDaSidebar({
 }: {
   nomeUsuario: string
   itensNavegacao: ItemNavegacaoDashboard[]
-  idPrefixo?: 'empresa' | 'startup'
+  idPrefixo?: 'empresa' | 'startup' | 'admin'
   redirecionarAposLogout?: string
   aoNavegar?: () => void
 }) {

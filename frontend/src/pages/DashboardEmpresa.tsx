@@ -1,3 +1,4 @@
+import GraficosEmpresa from '@/components/dashboard-empresa/GraficosEmpresa.tsx'
 import ModalNovaDemanda from '@/components/dashboard-empresa/ModalNovaDemanda.tsx'
 import ModalPerfilStartup from '@/components/dashboard-empresa/ModalPerfilStartup.tsx'
 import PainelDemandas from '@/components/dashboard-empresa/PainelDemandas.tsx'
@@ -121,6 +122,9 @@ export default function DashboardEmpresa() {
         }}
         onTentarNovamente={handleRecarregar}
       />
+
+      {/* Indicador Visual da Empresa (Status de Candidaturas Recebidas) */}
+      <GraficosEmpresa demandas={demandas} />
 
       {/* 4. Painel de startups recomendadas */}
       <PainelRecomendacoes

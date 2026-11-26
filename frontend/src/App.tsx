@@ -1,12 +1,18 @@
 import RotaProtegida from '@/components/RotaProtegida.tsx'
+import LayoutDashboardAdmin from '@/components/dashboard-admin/LayoutDashboardAdmin.tsx'
 import LayoutDashboardEmpresa from '@/components/dashboard-empresa/LayoutDashboardEmpresa.tsx'
 import LayoutDashboardStartup from '@/components/dashboard-startup/LayoutDashboardStartup.tsx'
 import CriarConta from '@/pages/CriarConta.tsx'
+import DashboardAdmin from '@/pages/DashboardAdmin.tsx'
 import DashboardEmpresa from '@/pages/DashboardEmpresa.tsx'
 import DashboardStartup from '@/pages/DashboardStartup.tsx'
 import Entrar from '@/pages/Entrar.tsx'
 import ExplorarStartups from '@/pages/ExplorarStartups.tsx'
 import Home from '@/pages/Home.tsx'
+import AdminEmpresas from '@/pages/AdminEmpresas.tsx'
+import AdminStartups from '@/pages/AdminStartups.tsx'
+import AdminUsuarios from '@/pages/AdminUsuarios.tsx'
+import MeuPerfilAdmin from '@/pages/MeuPerfilAdmin.tsx'
 import MeuPerfilEmpresa from '@/pages/MeuPerfilEmpresa.tsx'
 import MeuPerfilStartup from '@/pages/MeuPerfilStartup.tsx'
 import PaginaConexoesEmpresa from '@/pages/PaginaConexoesEmpresa.tsx'
@@ -70,6 +76,15 @@ export default function App() {
               <Route path="/dashboard/empresa/recomendacoes" element={<PaginaRecomendacoesEmpresa />} />
               <Route path="/dashboard/empresa/conexoes" element={<PaginaConexoesEmpresa />} />
               <Route path="/dashboard/empresa/catalogo" element={<MuralStartups />} />
+            </Route>
+          </Route>
+          <Route element={<RotaProtegida tipo="admin" />}>
+            <Route element={<LayoutDashboardAdmin />}>
+              <Route path="/dashboard/admin" element={<DashboardAdmin />} />
+              <Route path="/dashboard/admin/startups" element={<AdminStartups />} />
+              <Route path="/dashboard/admin/empresas" element={<AdminEmpresas />} />
+              <Route path="/dashboard/admin/usuarios" element={<AdminUsuarios />} />
+              <Route path="/dashboard/admin/perfil" element={<MeuPerfilAdmin />} />
             </Route>
           </Route>
 

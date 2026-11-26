@@ -121,7 +121,7 @@ export const STARTUPS_MOCK: StartupCatalogo[] = [
     is_active: true,
     created_at: '2026-08-20',
     relevance: 98,
-    emDestaque: true,
+    emDestaque: false,
     faixaPreco: 30000,
   },
   {
@@ -194,7 +194,7 @@ export const STARTUPS_MOCK: StartupCatalogo[] = [
     is_active: true,
     created_at: '2026-06-30',
     relevance: 89,
-    emDestaque: true,
+    emDestaque: false,
     faixaPreco: 60000,
   },
   {

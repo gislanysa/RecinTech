@@ -1,4 +1,5 @@
 import type { ContextoSessao } from '@/components/RotaProtegida.tsx'
+import GraficosStartup from '@/components/dashboard-startup/GraficosStartup.tsx'
 import PainelConexoesResumo from '@/components/dashboard-startup/PainelConexoesResumo.tsx'
 import PainelNotificacoes from '@/components/dashboard-startup/PainelNotificacoes.tsx'
 import PainelOportunidades from '@/components/dashboard-startup/PainelOportunidades.tsx'
@@ -60,11 +61,13 @@ export default function DashboardStartup() {
         {tags?.area && <p className="mt-1 truncate text-sm text-ink-500">{tags.area}</p>}
       </header>
 
-      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
+      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_17.5rem]">
         <div className="flex min-w-0 flex-col gap-6">
           <PainelSaudePerfil startup={startup} tags={tags} />
           {/* Duas no dashboard; o resto fica na página de Oportunidades. */}
           <PainelOportunidades limite={2} startupId={startup.id} tags={tags} />
+          {/* Gráficos Visuais da Startup (Demandas por Segmento e Proporção de Propostas Aceitas) */}
+          <GraficosStartup conexoes={conexoes} tags={tags} />
           <PainelConexoesResumo conexoes={conexoes} />
           {/* Visibilidade é benefício do plano premium ("Relatório de
               visualizações"), então só aparece para quem assina. */}

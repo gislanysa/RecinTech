@@ -42,3 +42,15 @@ export function formatarMoeda(valor?: number | null): string {
   }).format(valor)
 }
 
+const ROTULOS_PORTE: Record<string, string> = {
+  micro: 'Microempresa',
+  small: 'Pequeno',
+  medium: 'Médio',
+  big: 'Grande',
+}
+
+export function formatarPorteEmpresa(porte?: string | null): string {
+  if (!porte) return ''
+  return ROTULOS_PORTE[porte.toLowerCase()] || porte
+}
+

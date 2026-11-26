@@ -1,15 +1,51 @@
 import { CheckIcon } from '@/components/icons.tsx'
-import { PLANOS, PLANO_ATUAL, formatarPreco, type Plano } from '@/lib/planos.ts'
+import { PLANOS, formatarPreco, type Plano } from '@/lib/planos.ts'
+import { useState } from 'react'
 
-/**
- * Tela "Plano" da sidebar: compara o gratuito com o premium.
- *
- * A assinatura em si não existe. Não há campo de plano no banco, rota de
- * contratação nem meio de pagamento integrado, então o botão do premium fica
- * desligado com a razão escrita. Botão de pagamento que não cobra é pior que
- * botão nenhum.
- */
+const CHAVE_PLANO_STARTUP = 'recintech:plano_startup'
+const CHAVE_CONTRATACOES_STARTUPS = 'recintech:planos_destaque_contratados'
+
 export default function PaginaPlanoStartup() {
+  const [planoAtivo, setPlanoAtivo] = useState<string>(() => {
+    if (typeof window === 'undefined') return 'gratuito'
+    return localStorage.getItem(CHAVE_PLANO_STARTUP) || 'gratuito'
+  })
+  const [feedback, setFeedback] = useState<string>('')
+
+  function handleContratar(id: string) {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(CHAVE_PLANO_STARTUP, id)
+      try {
+        const raw = localStorage.getItem(CHAVE_CONTRATACOES_STARTUPS)
+        const list = raw ? JSON.parse(raw) : []
+        if (!list.includes('startup-sessao-atual')) {
+          list.push('startup-sessao-atual')
+          localStorage.setItem(CHAVE_CONTRATACOES_STARTUPS, JSON.stringify(list))
+        }
+      } catch {
+        // silencia
+      }
+    }
+    setPlanoAtivo(id)
+    setFeedback('Plano Destaque contratado com sucesso! Sua startup agora ganha prioridade no ranking.')
+  }
+
+  function handleCancelar() {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(CHAVE_PLANO_STARTUP, 'gratuito')
+      try {
+        const raw = localStorage.getItem(CHAVE_CONTRATACOES_STARTUPS)
+        const list = raw ? JSON.parse(raw) : []
+        const filtrado = list.filter((item: string) => item !== 'startup-sessao-atual')
+        localStorage.setItem(CHAVE_CONTRATACOES_STARTUPS, JSON.stringify(filtrado))
+      } catch {
+        // silencia
+      }
+    }
+    setPlanoAtivo('gratuito')
+    setFeedback('Assinatura do Plano Destaque cancelada.')
+  }
+
   return (
     <div className="flex flex-col gap-8">
       <header>
@@ -17,25 +53,44 @@ export default function PaginaPlanoStartup() {
           Plano
         </h1>
         <p className="mt-1 text-sm text-ink-500">
-          Sua startup está no plano gratuito. O premium dá mais destaque para quem procura soluções.
+          {planoAtivo === 'premium'
+            ? 'Sua startup está com o Plano Destaque ativo com prioridade máxima.'
+            : 'Sua startup está no plano gratuito. O premium dá mais destaque para quem procura soluções.'}
         </p>
       </header>
 
+      {feedback && (
+        <div className="rounded-xl border border-brand-200 bg-brand-50 p-4 text-xs font-medium text-brand-800">
+          {feedback}
+        </div>
+      )}
+
       <div className="grid items-start gap-6 lg:grid-cols-2">
         {PLANOS.map((plano) => (
-          <CartaoPlano key={plano.id} plano={plano} atual={plano.id === PLANO_ATUAL} />
+          <CartaoPlano
+            key={plano.id}
+            plano={plano}
+            atual={plano.id === planoAtivo}
+            onContratar={() => handleContratar(plano.id)}
+            onCancelar={handleCancelar}
+          />
         ))}
       </div>
-
-      <p className="rounded-card border border-dashed border-brand-200 px-5 py-4 text-sm text-ink-500">
-        A contratação do premium ainda não está disponível. A plataforma não tem meio de pagamento
-        integrado, e todas as contas seguem no plano gratuito até que ele exista.
-      </p>
     </div>
   )
 }
 
-function CartaoPlano({ plano, atual }: { plano: Plano; atual: boolean }) {
+function CartaoPlano({
+  plano,
+  atual,
+  onContratar,
+  onCancelar,
+}: {
+  plano: Plano
+  atual: boolean
+  onContratar: () => void
+  onCancelar: () => void
+}) {
   const destaque = plano.id === 'premium'
 
   return (
@@ -43,15 +98,15 @@ function CartaoPlano({ plano, atual }: { plano: Plano; atual: boolean }) {
       aria-labelledby={`plano-${plano.id}`}
       className={[
         'flex h-full flex-col rounded-card border bg-surface p-6 shadow-sm',
-        destaque ? 'border-accent-500' : 'border-brand-100',
+        destaque ? 'border-brand-300' : 'border-brand-100',
       ].join(' ')}
     >
       <div className="flex items-center gap-3">
-        <h2 id={`plano-${plano.id}`} className="text-lg font-semibold">
+        <h2 id={`plano-${plano.id}`} className="text-lg font-semibold text-ink-900">
           {plano.nome}
         </h2>
         {atual && (
-          <span className="rounded-full bg-brand-50 px-2.5 py-0.5 text-xs font-medium text-brand-700">
+          <span className="rounded-full bg-surface-2 px-2.5 py-0.5 text-xs font-semibold text-ink-700 border border-brand-100">
             Seu plano
           </span>
         )}
@@ -73,20 +128,27 @@ function CartaoPlano({ plano, atual }: { plano: Plano; atual: boolean }) {
 
       <div className="mt-6">
         {atual ? (
-          <p className="rounded-full border border-brand-100 px-4 py-2.5 text-center text-sm font-medium text-ink-500">
-            Plano atual
-          </p>
-        ) : (
-          <>
+          plano.id === 'premium' ? (
             <button
               type="button"
-              disabled
-              className="w-full cursor-not-allowed rounded-full bg-accent-600 px-4 py-2.5 text-sm font-semibold text-white opacity-60"
+              onClick={onCancelar}
+              className="w-full rounded-full border border-brand-200 px-4 py-2.5 text-center text-sm font-medium text-ink-600 hover:bg-brand-50"
             >
-              Assinar premium
+              Cancelar plano destaque
             </button>
-            <p className="mt-2 text-center text-xs text-ink-500">Disponível quando o pagamento existir.</p>
-          </>
+          ) : (
+            <p className="rounded-full border border-brand-100 bg-surface-2 px-4 py-2.5 text-center text-sm font-medium text-ink-500">
+              Plano gratuito ativo
+            </p>
+          )
+        ) : (
+          <button
+            type="button"
+            onClick={onContratar}
+            className="w-full rounded-full bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-brand-700"
+          >
+            Contratar Plano Destaque
+          </button>
         )}
       </div>
     </section>

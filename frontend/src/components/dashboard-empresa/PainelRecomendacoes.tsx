@@ -36,6 +36,17 @@ export default function PainelRecomendacoes({
 
   function handleConfirmarDesbloqueio() {
     localStorage.setItem(CHAVE_DESBLOQUEIO, 'true')
+    try {
+      const chaveContratos = 'recintech:desbloqueios_contratados'
+      const raw = localStorage.getItem(chaveContratos)
+      const list = raw ? JSON.parse(raw) : []
+      if (!list.includes('empresa-atual')) {
+        list.push('empresa-atual')
+        localStorage.setItem(chaveContratos, JSON.stringify(list))
+      }
+    } catch {
+      // silencia
+    }
     setDesbloqueado(true)
     setModalDesbloqueio(false)
   }
@@ -66,14 +77,13 @@ export default function PainelRecomendacoes({
             type="button"
             onClick={() => setApenasDestaques((v) => !v)}
             className={[
-              'inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-semibold transition-all',
+              'inline-flex items-center rounded-xl border px-3 py-1.5 text-xs font-semibold transition-all',
               apenasDestaques
                 ? 'border-amber-400 bg-amber-50 text-amber-900 shadow-sm ring-1 ring-amber-300'
                 : 'border-brand-200 bg-surface text-ink-700 hover:bg-brand-50',
             ].join(' ')}
             aria-pressed={apenasDestaques}
           >
-            <SparklesIcon className="size-3.5 text-amber-500" />
             <span>{apenasDestaques ? 'Apenas Destaques (Ativo)' : 'Filtrar Destaques'}</span>
           </button>
 
@@ -127,14 +137,13 @@ export default function PainelRecomendacoes({
               type="button"
               onClick={() => setApenasDestaques((v) => !v)}
               className={[
-                'inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-semibold transition-all',
+                'inline-flex items-center rounded-xl border px-3 py-1.5 text-xs font-semibold transition-all',
                 apenasDestaques
                   ? 'border-amber-400 bg-amber-50 text-amber-900 shadow-sm ring-1 ring-amber-300'
                   : 'border-brand-200 bg-surface text-ink-700 hover:bg-brand-50',
               ].join(' ')}
               aria-pressed={apenasDestaques}
             >
-              <SparklesIcon className="size-3.5 text-amber-500" />
               <span>{apenasDestaques ? 'Apenas Destaques (Ativo)' : 'Filtrar Destaques'}</span>
             </button>
 

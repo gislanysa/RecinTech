@@ -65,7 +65,12 @@ export default function RotaProtegida({ tipo }: RotaProtegidaProps) {
 
   // Conta logada do tipo errado: manda para o dashboard correto.
   if (tipo && tipoConta !== tipo) {
-    const destino = tipoConta === 'company' ? '/dashboard/empresa' : '/dashboard/startup'
+    const destino =
+      tipoConta === 'admin'
+        ? '/dashboard/admin'
+        : tipoConta === 'company'
+        ? '/dashboard/empresa'
+        : '/dashboard/startup'
     return <Navigate to={destino} replace />
   }
 
