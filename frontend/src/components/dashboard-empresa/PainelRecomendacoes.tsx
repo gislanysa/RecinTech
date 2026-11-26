@@ -410,9 +410,11 @@ export default function PainelRecomendacoes({
           aria-labelledby="modal-desbloqueio-titulo"
           className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6"
         >
-          <div
+          <button
+            type="button"
+            aria-label="Fechar modal de desbloqueio"
             onClick={() => setModalDesbloqueio(false)}
-            className="fixed inset-0 bg-ink-900/60 backdrop-blur-sm"
+            className="fixed inset-0 bg-ink-900/60 backdrop-blur-sm cursor-default"
           />
 
           <div className="relative z-10 w-full max-w-lg rounded-2xl bg-surface p-6 shadow-2xl ring-1 ring-brand-100 sm:p-8">

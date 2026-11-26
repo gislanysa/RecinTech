@@ -40,13 +40,13 @@ export default function PainelOportunidades({
   limite,
   startupId,
   tags,
-}: {
+}: Readonly<{
   comCabecalho?: boolean
   /** Quantos cards mostrar. Sem limite, mostra todos. */
   limite?: number
   startupId?: string
   tags?: Tags | null
-}) {
+}>) {
   const contexto = useOutletContext<ContextoSessao | undefined>()
   const startupAtualId = startupId ?? (contexto?.conta as Startup | undefined)?.id
   const [carga, setCarga] = useState<Carga>({ status: 'carregando' })
@@ -129,12 +129,12 @@ export default function PainelOportunidades({
         await manifestarInteresse(o.id)
       }
       definirEstado(o.id, 'interessado')
-      const msgValor =
-        tipoProposta === 'contraproposta' && valorFinal
-          ? `com contraproposta de ${formatarMoeda(valorFinal)}`
-          : o.orcamento
-            ? `aceitando o orçamento de ${formatarMoeda(o.orcamento)}`
-            : ''
+      let msgValor = ''
+      if (tipoProposta === 'contraproposta' && valorFinal) {
+        msgValor = `com contraproposta de ${formatarMoeda(valorFinal)}`
+      } else if (o.orcamento) {
+        msgValor = `aceitando o orçamento de ${formatarMoeda(o.orcamento)}`
+      }
       setAviso({
         tipo: 'sucesso',
         texto: `Candidatura à demanda de ${o.empresa} enviada com sucesso ${msgValor}! Acompanhe em Conexões.`,
@@ -322,9 +322,11 @@ export default function PainelOportunidades({
           aria-labelledby="modal-proposta-titulo"
           className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6"
         >
-          <div
+          <button
+            type="button"
+            aria-label="Fechar modal de proposta"
             onClick={() => setOportunidadeModal(null)}
-            className="fixed inset-0 bg-ink-900/60 backdrop-blur-sm"
+            className="fixed inset-0 bg-ink-900/60 backdrop-blur-sm cursor-default"
           />
 
           <div className="relative z-10 w-full max-w-lg rounded-2xl bg-surface p-6 shadow-2xl ring-1 ring-brand-100 sm:p-8">
@@ -369,10 +371,22 @@ export default function PainelOportunidades({
                   Sua Proposta Financeira:
                 </span>
 
-                <label className="flex items-start gap-3 rounded-xl border border-brand-200 p-3.5 cursor-pointer hover:bg-brand-50/40">
+                <label
+                  aria-label={
+                    oportunidadeModal.orcamento
+                      ? `Aceitar o valor oferecido (${formatarMoeda(oportunidadeModal.orcamento)})`
+                      : 'Aceitar valor a combinar'
+                  }
+                  className="flex items-start gap-3 rounded-xl border border-brand-200 p-3.5 cursor-pointer hover:bg-brand-50/40"
+                >
                   <input
                     type="radio"
                     name="tipoProposta"
+                    aria-label={
+                      oportunidadeModal.orcamento
+                        ? `Aceitar o valor oferecido (${formatarMoeda(oportunidadeModal.orcamento)})`
+                        : 'Aceitar valor a combinar'
+                    }
                     checked={tipoProposta === 'aceitou'}
                     onChange={() => setTipoProposta('aceitou')}
                     className="mt-1 size-4 text-brand-600 focus:ring-accent-500"
@@ -389,10 +403,14 @@ export default function PainelOportunidades({
                   </div>
                 </label>
 
-                <label className="flex items-start gap-3 rounded-xl border border-brand-200 p-3.5 cursor-pointer hover:bg-brand-50/40">
+                <label
+                  aria-label="Fazer uma contraproposta de valor"
+                  className="flex items-start gap-3 rounded-xl border border-brand-200 p-3.5 cursor-pointer hover:bg-brand-50/40"
+                >
                   <input
                     type="radio"
                     name="tipoProposta"
+                    aria-label="Fazer uma contraproposta de valor"
                     checked={tipoProposta === 'contraproposta'}
                     onChange={() => setTipoProposta('contraproposta')}
                     className="mt-1 size-4 text-brand-600 focus:ring-accent-500"

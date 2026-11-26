@@ -66,12 +66,12 @@ export default function FormularioLogin() {
     setEnviando(true)
     try {
       const conta = await realizarLogin(campos.email, campos.senha, sessao)
-      const rotulo =
-        sessao === 'admin'
-          ? 'administrador'
-          : sessao === 'company'
-          ? 'empresa'
-          : 'startup'
+      let rotulo = 'startup'
+      if (sessao === 'admin') {
+        rotulo = 'administrador'
+      } else if (sessao === 'company') {
+        rotulo = 'empresa'
+      }
       if (tipoDaConta(conta) !== sessao) {
         // Garante que nenhuma sessão fique ativa com o tipo errado.
         await realizarLogout().catch(() => undefined)

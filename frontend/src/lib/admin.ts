@@ -34,7 +34,7 @@ export type StartupAdmin = {
   name: string
   email?: string
   initials?: string
-  stage?: 'traction' | 'scaling' | string
+  stage?: 'traction' | 'scaling' | (string & {})
   cnpj?: string
   description?: string
   city?: string
@@ -109,8 +109,8 @@ export function adicionarAdmin(dados: {
   const lista = obterAdmins()
   const emailNormalizado = dados.email.trim().toLowerCase()
 
-  const existente = lista.find((a) => a.email.toLowerCase() === emailNormalizado)
-  if (existente) {
+  const existe = lista.some((a) => a.email.toLowerCase() === emailNormalizado)
+  if (existe) {
     throw new Error('Já existe um administrador cadastrado com este e-mail.')
   }
 
@@ -172,7 +172,7 @@ export function atualizarAdmin(id: string, dados: Partial<Admin>): Admin {
 
   // Se for o admin logado atualmente, atualiza a sessão
   const sessaoAtual = obterSessaoAdminAtual()
-  if (sessaoAtual && sessaoAtual.id === id) {
+  if (sessaoAtual?.id === id) {
     salvarSessaoAdmin(atualizado)
   }
 
@@ -189,7 +189,7 @@ export function obterSessaoAdminAtual(): Admin | null {
     const raw = localStorage.getItem(CHAVE_SESSAO_ADMIN)
     if (!raw) return null
     const parsed = JSON.parse(raw)
-    return parsed && parsed.role === 'admin' ? (parsed as Admin) : null
+    return parsed?.role === 'admin' ? (parsed as Admin) : null
   } catch {
     return null
   }
@@ -326,7 +326,7 @@ export function salvarStatusStartupAdmin(
   if (typeof window === 'undefined') return
   try {
     const todos = obterStatusStartupsAdmin()
-    todos[startupId] = { ...(todos[startupId] ?? {}), ...alteracoes }
+    todos[startupId] = { ...todos[startupId], ...alteracoes }
     localStorage.setItem(CHAVE_STATUS_STARTUPS_ADMIN, JSON.stringify(todos))
 
     // Atualiza também na lista de startups cadastradas
@@ -337,8 +337,8 @@ export function salvarStatusStartupAdmin(
       if (idx >= 0) {
         lista[idx] = {
           ...lista[idx],
-          is_active: alteracoes.is_active !== undefined ? alteracoes.is_active : lista[idx].is_active,
-          emDestaque: alteracoes.emDestaque !== undefined ? alteracoes.emDestaque : lista[idx].emDestaque,
+          is_active: alteracoes.is_active ?? lista[idx].is_active,
+          emDestaque: alteracoes.emDestaque ?? lista[idx].emDestaque,
         }
         localStorage.setItem(CHAVE_LISTA_STARTUPS_ADMIN, JSON.stringify(lista))
       }
@@ -348,57 +348,63 @@ export function salvarStatusStartupAdmin(
   }
 }
 
+function sincronizarStartupAdminItem(s: Partial<StartupAdmin> & { name?: string; id?: string }): void {
+  if (!s.id || !s.name) return
+  const lista = obterStartupsAdmin()
+  const idx = lista.findIndex((item) => item.id === s.id)
+  const statusMap = obterStatusStartupsAdmin()
+  const custom = statusMap[s.id]
+  const novoItem: StartupAdmin = {
+    id: s.id,
+    name: s.name,
+    initials: s.initials || s.name.substring(0, 2).toUpperCase(),
+    stage: s.stage || 'traction',
+    city: s.city || 'Recife',
+    state: s.state || 'PE',
+    technologies: s.technologies || [],
+    is_active: custom?.is_active ?? s.is_active ?? true,
+    emDestaque: custom?.emDestaque ?? Boolean(s.emDestaque),
+    created_at: s.created_at || new Date().toISOString(),
+  }
+  if (idx >= 0) {
+    lista[idx] = { ...lista[idx], ...novoItem }
+  } else {
+    lista.push(novoItem)
+  }
+  salvarStartupsAdmin(lista)
+}
+
+function sincronizarEmpresaAdminItem(e: Partial<EmpresaAdmin> & { name?: string; id?: string }): void {
+  if (!e.id || !e.name) return
+  const lista = obterEmpresasAdmin()
+  const idx = lista.findIndex((item) => item.id === e.id)
+  const novoItem: EmpresaAdmin = {
+    id: e.id,
+    name: e.name,
+    size: (e.size as EmpresaAdmin['size']) || 'medium',
+    cnpj: e.cnpj || '',
+    city: e.city || 'Recife',
+    state: e.state || 'PE',
+    email: e.email || '',
+    website: e.website || '',
+    is_active: e.is_active ?? true,
+    created_at: e.created_at || new Date().toISOString(),
+  }
+  if (idx >= 0) {
+    lista[idx] = { ...lista[idx], ...novoItem }
+  } else {
+    lista.push(novoItem)
+  }
+  salvarEmpresasAdmin(lista)
+}
+
 export function sincronizarContaAdmin(conta: unknown): void {
   if (!conta || typeof conta !== 'object') return
   try {
     if ('stage' in conta) {
-      const s = conta as Partial<StartupAdmin> & { name?: string; id?: string }
-      if (!s.id || !s.name) return
-      const lista = obterStartupsAdmin()
-      const idx = lista.findIndex((item) => item.id === s.id)
-      const statusMap = obterStatusStartupsAdmin()
-      const custom = statusMap[s.id]
-      const novoItem: StartupAdmin = {
-        id: s.id,
-        name: s.name,
-        initials: s.initials || s.name.substring(0, 2).toUpperCase(),
-        stage: s.stage || 'traction',
-        city: s.city || 'Recife',
-        state: s.state || 'PE',
-        technologies: s.technologies || [],
-        is_active: custom?.is_active !== undefined ? custom.is_active : (s.is_active !== undefined ? s.is_active : true),
-        emDestaque: custom?.emDestaque !== undefined ? custom.emDestaque : Boolean(s.emDestaque),
-        created_at: s.created_at || new Date().toISOString(),
-      }
-      if (idx >= 0) {
-        lista[idx] = { ...lista[idx], ...novoItem }
-      } else {
-        lista.push(novoItem)
-      }
-      salvarStartupsAdmin(lista)
+      sincronizarStartupAdminItem(conta as Partial<StartupAdmin> & { name?: string; id?: string })
     } else if ('size' in conta) {
-      const e = conta as Partial<EmpresaAdmin> & { name?: string; id?: string }
-      if (!e.id || !e.name) return
-      const lista = obterEmpresasAdmin()
-      const idx = lista.findIndex((item) => item.id === e.id)
-      const novoItem: EmpresaAdmin = {
-        id: e.id,
-        name: e.name,
-        size: (e.size as EmpresaAdmin['size']) || 'medium',
-        cnpj: e.cnpj || '',
-        city: e.city || 'Recife',
-        state: e.state || 'PE',
-        email: e.email || '',
-        website: e.website || '',
-        is_active: e.is_active !== undefined ? e.is_active : true,
-        created_at: e.created_at || new Date().toISOString(),
-      }
-      if (idx >= 0) {
-        lista[idx] = { ...lista[idx], ...novoItem }
-      } else {
-        lista.push(novoItem)
-      }
-      salvarEmpresasAdmin(lista)
+      sincronizarEmpresaAdminItem(conta as Partial<EmpresaAdmin> & { name?: string; id?: string })
     }
   } catch {
     // silencia
@@ -500,11 +506,9 @@ export function calcularMetricasGlobais(): MetricasPlataforma {
 
   for (const s of startups) {
     const mod = statusStartups[s.id]
-    const ativo = mod?.is_active !== undefined ? mod.is_active : s.is_active
+    const ativo = mod?.is_active ?? s.is_active
     const destaque =
-      mod?.emDestaque !== undefined
-        ? mod.emDestaque
-        : contratacoesStartups.includes(s.id) || Boolean(s.emDestaque)
+      mod?.emDestaque ?? (contratacoesStartups.includes(s.id) || Boolean(s.emDestaque))
     if (ativo) startupsAtivas++
     if (destaque) startupsDestaque++
   }

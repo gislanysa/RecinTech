@@ -108,6 +108,14 @@ export async function responderSolicitacaoConexao(
  *
  * Retorna 0 quando não houver qualquer similaridade relevante.
  */
+function calcularAjusteFatorPreco(faixaPreco?: number, orcamento?: number): number {
+  if (!orcamento || orcamento <= 0) return 0
+  if (!faixaPreco || faixaPreco <= 0) return 4
+  if (faixaPreco <= orcamento) return 10
+  if (faixaPreco <= orcamento * 1.25) return 4
+  return -8
+}
+
 export function calcularCompatibilidadeDemanda(
   tags: {
     area?: string
@@ -171,22 +179,7 @@ export function calcularCompatibilidadeDemanda(
   }
 
   // Inserção do Fator Valor no Score
-  if (demanda.orcamento && demanda.orcamento > 0) {
-    if (tags.faixaPreco && tags.faixaPreco > 0) {
-      if (tags.faixaPreco <= demanda.orcamento) {
-        // Proposta da startup está dentro do teto de orçamento da empresa
-        score += 10
-      } else if (tags.faixaPreco <= demanda.orcamento * 1.25) {
-        // Faixa de negociação aceitável
-        score += 4
-      } else {
-        // Muito acima do teto estipulado pela empresa
-        score -= 8
-      }
-    } else {
-      score += 4
-    }
-  }
+  score += calcularAjusteFatorPreco(tags.faixaPreco, demanda.orcamento)
 
   return Math.min(99, Math.max(60, score))
 }

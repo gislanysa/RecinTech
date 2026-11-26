@@ -85,13 +85,41 @@ function CartaoPlano({
   atual,
   onContratar,
   onCancelar,
-}: {
+}: Readonly<{
   plano: Plano
   atual: boolean
   onContratar: () => void
   onCancelar: () => void
-}) {
+}>) {
   const destaque = plano.id === 'premium'
+
+  let botaoAcao = (
+    <button
+      type="button"
+      onClick={onContratar}
+      className="w-full rounded-full bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-brand-700"
+    >
+      Contratar Plano Destaque
+    </button>
+  )
+
+  if (atual && plano.id === 'premium') {
+    botaoAcao = (
+      <button
+        type="button"
+        onClick={onCancelar}
+        className="w-full rounded-full border border-brand-200 px-4 py-2.5 text-center text-sm font-medium text-ink-600 hover:bg-brand-50"
+      >
+        Cancelar plano destaque
+      </button>
+    )
+  } else if (atual) {
+    botaoAcao = (
+      <p className="rounded-full border border-brand-100 bg-surface-2 px-4 py-2.5 text-center text-sm font-medium text-ink-500">
+        Plano gratuito ativo
+      </p>
+    )
+  }
 
   return (
     <section
@@ -127,29 +155,7 @@ function CartaoPlano({
       </ul>
 
       <div className="mt-6">
-        {atual ? (
-          plano.id === 'premium' ? (
-            <button
-              type="button"
-              onClick={onCancelar}
-              className="w-full rounded-full border border-brand-200 px-4 py-2.5 text-center text-sm font-medium text-ink-600 hover:bg-brand-50"
-            >
-              Cancelar plano destaque
-            </button>
-          ) : (
-            <p className="rounded-full border border-brand-100 bg-surface-2 px-4 py-2.5 text-center text-sm font-medium text-ink-500">
-              Plano gratuito ativo
-            </p>
-          )
-        ) : (
-          <button
-            type="button"
-            onClick={onContratar}
-            className="w-full rounded-full bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-brand-700"
-          >
-            Contratar Plano Destaque
-          </button>
-        )}
+        {botaoAcao}
       </div>
     </section>
   )

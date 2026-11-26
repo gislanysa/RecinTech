@@ -81,7 +81,7 @@ describe('admin.ts - Gestão e Governança Administrativa no Frontend', () => {
     })
 
     const empresas = obterEmpresasAdmin()
-    expect(empresas.length).toBe(1)
+    expect(empresas).toHaveLength(1)
     const primeira = empresas[0]
     const statusOriginal = primeira.is_active
 

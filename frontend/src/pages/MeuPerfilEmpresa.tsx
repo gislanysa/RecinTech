@@ -53,31 +53,35 @@ function CampoVisualizacao({
   rotulo,
   valor,
   link = false,
-}: {
+}: Readonly<{
   rotulo: string
   valor?: string
   link?: boolean
-}) {
-  const vazio = !valor || !valor.trim()
+}>) {
+  const vazio = !valor?.trim()
+
+  let conteudo: React.ReactNode = valor
+  if (vazio) {
+    conteudo = 'Não informado'
+  } else if (link && valor) {
+    conteudo = (
+      <a
+        href={valor.startsWith('http') ? valor : `https://${valor}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex items-center gap-1 font-medium text-brand-600 underline-offset-4 hover:underline"
+      >
+        {formatarUrlExibicao(valor)}
+        <LinkIcon className="size-3.5 text-brand-400" />
+      </a>
+    )
+  }
+
   return (
     <div>
       <dt className="text-xs font-medium uppercase tracking-wide text-ink-500">{rotulo}</dt>
       <dd className={vazio ? 'mt-1 text-sm italic text-ink-500' : 'mt-1 text-sm text-ink-900'}>
-        {vazio ? (
-          'Não informado'
-        ) : link ? (
-          <a
-            href={valor.startsWith('http') ? valor : `https://${valor}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 font-medium text-brand-600 underline-offset-4 hover:underline"
-          >
-            {formatarUrlExibicao(valor)}
-            <LinkIcon className="size-3.5 text-brand-400" />
-          </a>
-        ) : (
-          valor
-        )}
+        {conteudo}
       </dd>
     </div>
   )

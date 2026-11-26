@@ -13,7 +13,7 @@ interface GraficosEmpresaProps {
 export default function GraficosEmpresa({
   demandas,
   candidaturasIniciais,
-}: GraficosEmpresaProps) {
+}: Readonly<GraficosEmpresaProps>) {
   const [candidaturas, setCandidaturas] = useState<CandidaturaDemanda[]>(
     candidaturasIniciais ?? [],
   )
@@ -97,6 +97,158 @@ export default function GraficosEmpresa({
   const offsetPendentes = -dashAceitas
   const offsetRecusadas = -(dashAceitas + dashPendentes)
 
+  let conteudoGrafico = null
+  if (carregandoCandidaturas) {
+    conteudoGrafico = (
+      <div className="my-8 flex h-48 animate-pulse items-center justify-center rounded-xl bg-brand-50">
+        <span className="text-xs font-medium text-ink-500">
+          Carregando candidaturas...
+        </span>
+      </div>
+    )
+  } else if (metricasCandidaturas.total === 0) {
+    conteudoGrafico = (
+      <div className="my-6 flex flex-col items-center justify-center rounded-xl bg-surface-2/40 p-6 text-center">
+        <p className="text-sm font-semibold text-ink-900">
+          Nenhuma candidatura recebida ainda
+        </p>
+        <p className="mt-1 max-w-xs text-xs text-ink-500">
+          Quando startups se candidatarem às suas demandas abertas, os indicadores de conversão aparecerão aqui.
+        </p>
+      </div>
+    )
+  } else {
+    conteudoGrafico = (
+      <div className="mt-6 flex flex-col items-center sm:flex-row sm:items-center sm:justify-around gap-8">
+        {/* Donut Chart SVG */}
+        <div className="relative flex items-center justify-center">
+          <svg
+            className="size-40 -rotate-90 transform"
+            viewBox="0 0 100 100"
+            aria-label="Gráfico em donut do status de candidaturas"
+          >
+            {/* Círculo de fundo */}
+            <circle
+              cx="50"
+              cy="50"
+              r={raio}
+              className="stroke-brand-50"
+              strokeWidth="12"
+              fill="transparent"
+            />
+            {/* Aceitas (Marca/Escuro) */}
+            {metricasCandidaturas.aceitas > 0 && (
+              <circle
+                cx="50"
+                cy="50"
+                r={raio}
+                className="stroke-brand-600 transition-all duration-500"
+                strokeWidth="12"
+                strokeDasharray={`${dashAceitas} ${circunferencia}`}
+                strokeDashoffset={offsetAceitas}
+                strokeLinecap="round"
+                fill="transparent"
+              />
+            )}
+            {/* Pendentes (Azul claro) */}
+            {metricasCandidaturas.pendentes > 0 && (
+              <circle
+                cx="50"
+                cy="50"
+                r={raio}
+                className="stroke-brand-400 transition-all duration-500"
+                strokeWidth="12"
+                strokeDasharray={`${dashPendentes} ${circunferencia}`}
+                strokeDashoffset={offsetPendentes}
+                strokeLinecap="round"
+                fill="transparent"
+              />
+            )}
+            {/* Recusadas (Tinta / Cinza) */}
+            {metricasCandidaturas.recusadas > 0 && (
+              <circle
+                cx="50"
+                cy="50"
+                r={raio}
+                className="stroke-ink-400 transition-all duration-500"
+                strokeWidth="12"
+                strokeDasharray={`${dashRecusadas} ${circunferencia}`}
+                strokeDashoffset={offsetRecusadas}
+                strokeLinecap="round"
+                fill="transparent"
+              />
+            )}
+          </svg>
+          <div className="absolute flex flex-col items-center justify-center text-center">
+            <span className="font-display text-2xl font-bold text-ink-900">
+              {metricasCandidaturas.total}
+            </span>
+            <span className="text-[10px] uppercase font-semibold tracking-wider text-ink-500">
+              Total
+            </span>
+          </div>
+        </div>
+
+        {/* Legendas e barras por status */}
+        <div className="flex w-full max-w-md flex-col gap-3.5">
+          <div>
+            <div className="flex justify-between text-xs font-medium text-ink-700">
+              <span className="flex items-center gap-1.5 font-semibold text-brand-900">
+                <span className="size-2.5 rounded-full bg-brand-600" aria-hidden="true" />
+                <span>Aceitas (Match)</span>
+              </span>
+              <span>
+                {metricasCandidaturas.pctAceitas}% ({metricasCandidaturas.aceitas})
+              </span>
+            </div>
+            <div className="mt-1 h-2.5 w-full rounded-full bg-brand-50">
+              <div
+                className="h-2.5 rounded-full bg-brand-600 transition-all duration-500"
+                style={{ width: `${metricasCandidaturas.pctAceitas}%` }}
+              />
+            </div>
+          </div>
+
+          <div>
+            <div className="flex justify-between text-xs font-medium text-ink-700">
+              <span className="flex items-center gap-1.5 font-semibold text-brand-900">
+                <span className="size-2.5 rounded-full bg-brand-400" aria-hidden="true" />
+                <span>Em análise (Pendentes)</span>
+              </span>
+              <span>
+                {metricasCandidaturas.pctPendentes}% ({metricasCandidaturas.pendentes})
+              </span>
+            </div>
+            <div className="mt-1 h-2.5 w-full rounded-full bg-brand-50">
+              <div
+                className="h-2.5 rounded-full bg-brand-400 transition-all duration-500"
+                style={{ width: `${metricasCandidaturas.pctPendentes}%` }}
+              />
+            </div>
+          </div>
+
+          <div>
+            <div className="flex justify-between text-xs font-medium text-ink-700">
+              <span className="flex items-center gap-1.5 font-semibold text-brand-900">
+                <span className="size-2.5 rounded-full bg-ink-400" aria-hidden="true" />
+                <span>Não seguiu (Recusadas)</span>
+              </span>
+              <span>
+                {metricasCandidaturas.pctRecusadas}% ({metricasCandidaturas.recusadas})
+              </span>
+            </div>
+            <div className="mt-1 h-2.5 w-full rounded-full bg-brand-50">
+              <div
+                className="h-2.5 rounded-full bg-ink-400 transition-all duration-500"
+                style={{ width: `${metricasCandidaturas.pctRecusadas}%` }}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <section
       id="secao-indicadores-empresa"
@@ -131,150 +283,7 @@ export default function GraficosEmpresa({
             Proporção de propostas em análise, conexões aprovadas e recusas
           </p>
 
-          {carregandoCandidaturas ? (
-            <div className="my-8 flex h-48 animate-pulse items-center justify-center rounded-xl bg-brand-50">
-              <span className="text-xs font-medium text-ink-500">
-                Carregando candidaturas...
-              </span>
-            </div>
-          ) : metricasCandidaturas.total === 0 ? (
-            <div className="my-6 flex flex-col items-center justify-center rounded-xl bg-surface-2/40 p-6 text-center">
-              <p className="text-sm font-semibold text-ink-900">
-                Nenhuma candidatura recebida ainda
-              </p>
-              <p className="mt-1 max-w-xs text-xs text-ink-500">
-                Quando startups se candidatarem às suas demandas abertas, os indicadores de conversão aparecerão aqui.
-              </p>
-            </div>
-          ) : (
-            <div className="mt-6 flex flex-col items-center sm:flex-row sm:items-center sm:justify-around gap-8">
-              {/* Donut Chart SVG */}
-              <div className="relative flex items-center justify-center">
-                <svg
-                  className="size-40 -rotate-90 transform"
-                  viewBox="0 0 100 100"
-                  aria-label="Gráfico em donut do status de candidaturas"
-                >
-                  {/* Círculo de fundo */}
-                  <circle
-                    cx="50"
-                    cy="50"
-                    r={raio}
-                    className="stroke-brand-50"
-                    strokeWidth="12"
-                    fill="transparent"
-                  />
-                  {/* Aceitas (Marca/Escuro) */}
-                  {metricasCandidaturas.aceitas > 0 && (
-                    <circle
-                      cx="50"
-                      cy="50"
-                      r={raio}
-                      className="stroke-brand-600 transition-all duration-500"
-                      strokeWidth="12"
-                      strokeDasharray={`${dashAceitas} ${circunferencia}`}
-                      strokeDashoffset={offsetAceitas}
-                      strokeLinecap="round"
-                      fill="transparent"
-                    />
-                  )}
-                  {/* Pendentes (Azul claro) */}
-                  {metricasCandidaturas.pendentes > 0 && (
-                    <circle
-                      cx="50"
-                      cy="50"
-                      r={raio}
-                      className="stroke-brand-400 transition-all duration-500"
-                      strokeWidth="12"
-                      strokeDasharray={`${dashPendentes} ${circunferencia}`}
-                      strokeDashoffset={offsetPendentes}
-                      strokeLinecap="round"
-                      fill="transparent"
-                    />
-                  )}
-                  {/* Recusadas (Tinta / Cinza) */}
-                  {metricasCandidaturas.recusadas > 0 && (
-                    <circle
-                      cx="50"
-                      cy="50"
-                      r={raio}
-                      className="stroke-ink-400 transition-all duration-500"
-                      strokeWidth="12"
-                      strokeDasharray={`${dashRecusadas} ${circunferencia}`}
-                      strokeDashoffset={offsetRecusadas}
-                      strokeLinecap="round"
-                      fill="transparent"
-                    />
-                  )}
-                </svg>
-                <div className="absolute flex flex-col items-center justify-center text-center">
-                  <span className="font-display text-2xl font-bold text-ink-900">
-                    {metricasCandidaturas.total}
-                  </span>
-                  <span className="text-[10px] uppercase font-semibold tracking-wider text-ink-500">
-                    Total
-                  </span>
-                </div>
-              </div>
-
-              {/* Legendas e barras por status */}
-              <div className="flex w-full max-w-md flex-col gap-3.5">
-                <div>
-                  <div className="flex justify-between text-xs font-medium text-ink-700">
-                    <span className="flex items-center gap-1.5 font-semibold text-brand-900">
-                      <span className="size-2.5 rounded-full bg-brand-600" />
-                      Aceitas (Match)
-                    </span>
-                    <span>
-                      {metricasCandidaturas.pctAceitas}% ({metricasCandidaturas.aceitas})
-                    </span>
-                  </div>
-                  <div className="mt-1 h-2.5 w-full rounded-full bg-brand-50">
-                    <div
-                      className="h-2.5 rounded-full bg-brand-600 transition-all duration-500"
-                      style={{ width: `${metricasCandidaturas.pctAceitas}%` }}
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <div className="flex justify-between text-xs font-medium text-ink-700">
-                    <span className="flex items-center gap-1.5 font-semibold text-brand-900">
-                      <span className="size-2.5 rounded-full bg-brand-400" />
-                      Em análise (Pendentes)
-                    </span>
-                    <span>
-                      {metricasCandidaturas.pctPendentes}% ({metricasCandidaturas.pendentes})
-                    </span>
-                  </div>
-                  <div className="mt-1 h-2.5 w-full rounded-full bg-brand-50">
-                    <div
-                      className="h-2.5 rounded-full bg-brand-400 transition-all duration-500"
-                      style={{ width: `${metricasCandidaturas.pctPendentes}%` }}
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <div className="flex justify-between text-xs font-medium text-ink-700">
-                    <span className="flex items-center gap-1.5 font-semibold text-brand-900">
-                      <span className="size-2.5 rounded-full bg-ink-400" />
-                      Não seguiu (Recusadas)
-                    </span>
-                    <span>
-                      {metricasCandidaturas.pctRecusadas}% ({metricasCandidaturas.recusadas})
-                    </span>
-                  </div>
-                  <div className="mt-1 h-2.5 w-full rounded-full bg-brand-50">
-                    <div
-                      className="h-2.5 rounded-full bg-ink-400 transition-all duration-500"
-                      style={{ width: `${metricasCandidaturas.pctRecusadas}%` }}
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
+          {conteudoGrafico}
         </div>
 
         {metricasCandidaturas.contrapropostas > 0 && (

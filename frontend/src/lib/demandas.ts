@@ -155,6 +155,20 @@ export function removerDemandaPublica(demandaId: string): void {
   }
 }
 
+function extrairListaTexto(prop1: unknown, prop2: unknown): string[] {
+  if (Array.isArray(prop1)) return prop1
+  if (Array.isArray(prop2)) {
+    return prop2.map((s: any) => (typeof s === 'string' ? s : s.name ?? ''))
+  }
+  return []
+}
+
+function extrairOrcamento(valor1: unknown, valor2: unknown): number | undefined {
+  if (typeof valor1 === 'number') return valor1
+  if (typeof valor2 === 'number') return valor2
+  return undefined
+}
+
 export async function buscarDemandasDisponiveis(): Promise<DemandaPublica[]> {
   try {
     // Tenta endpoint geral de demandas caso o backend venha a expor
@@ -166,18 +180,10 @@ export async function buscarDemandasDisponiveis(): Promise<DemandaPublica[]> {
         titulo: item.titulo ?? item.title ?? '',
         descricao: item.descricao ?? item.description ?? '',
         segmento: item.segmento ?? '',
-        servicos: Array.isArray(item.servicos)
-          ? item.servicos
-          : Array.isArray(item.services)
-            ? item.services.map((s: any) => (typeof s === 'string' ? s : s.name ?? ''))
-            : [],
-        tecnologias: Array.isArray(item.tecnologias)
-          ? item.tecnologias
-          : Array.isArray(item.technologies)
-            ? item.technologies.map((t: any) => (typeof t === 'string' ? t : t.name ?? ''))
-            : [],
+        servicos: extrairListaTexto(item.servicos, item.services),
+        tecnologias: extrairListaTexto(item.tecnologias, item.technologies),
         status: item.status ?? item.demand_status ?? 'aberta',
-        orcamento: typeof item.orcamento === 'number' ? item.orcamento : typeof item.budget === 'number' ? item.budget : undefined,
+        orcamento: extrairOrcamento(item.orcamento, item.budget),
         created_at: item.created_at ?? new Date().toISOString(),
         empresa_nome: item.empresa_nome ?? item.company_name ?? 'Empresa Parceira',
       }))
@@ -226,17 +232,9 @@ export async function listarDemandas(
       titulo: item.titulo ?? item.title ?? '',
       descricao: item.descricao ?? item.description ?? '',
       segmento: item.segmento ?? (Array.isArray(item.segments) && item.segments[0]?.name ? item.segments[0].name : ''),
-      servicos: Array.isArray(item.servicos)
-        ? item.servicos
-        : Array.isArray(item.services)
-          ? item.services.map((s: any) => (typeof s === 'string' ? s : s.name ?? ''))
-          : [],
-      tecnologias: Array.isArray(item.tecnologias)
-        ? item.tecnologias
-        : Array.isArray(item.technologies)
-          ? item.technologies.map((t: any) => (typeof t === 'string' ? t : t.name ?? ''))
-          : [],
-      orcamento: typeof item.orcamento === 'number' ? item.orcamento : typeof item.budget === 'number' ? item.budget : undefined,
+      servicos: extrairListaTexto(item.servicos, item.services),
+      tecnologias: extrairListaTexto(item.tecnologias, item.technologies),
+      orcamento: extrairOrcamento(item.orcamento, item.budget),
       status: statusNormalizado,
       created_at: item.created_at ?? new Date().toISOString(),
     }
@@ -406,7 +404,7 @@ export async function atualizarDemanda(
     segmento: dados.segmento ?? '',
     servicos: dados.servicos ?? [],
     tecnologias: dados.tecnologias ?? [],
-    orcamento: dados.orcamento !== undefined ? dados.orcamento : item.orcamento,
+    orcamento: dados.orcamento ?? item.orcamento,
     status: (item.status || item.demand_status || dados.status || 'aberta') as StatusDemanda,
     created_at: item.created_at ?? new Date().toISOString(),
   }

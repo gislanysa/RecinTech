@@ -3,10 +3,10 @@
 export default function Logo({
   sobreEscuro = false,
   className = 'h-[18px] w-auto object-contain',
-}: {
+}: Readonly<{
   sobreEscuro?: boolean
   className?: string
-}) {
+}>) {
   return (
     <span className="inline-flex items-center">
       {/* Sobre fundo escuro, o azul-escuro de "Rec" e "tech" vira branco;

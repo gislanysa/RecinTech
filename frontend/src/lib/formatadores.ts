@@ -32,7 +32,7 @@ export function calcularTempoAtuacao(dataCriacao?: string | null): string {
  * Ex: 30000 -> "R$ 30.000"
  */
 export function formatarMoeda(valor?: number | null): string {
-  if (valor === undefined || valor === null || isNaN(valor) || valor <= 0) {
+  if (valor === undefined || valor === null || Number.isNaN(valor) || valor <= 0) {
     return 'A combinar'
   }
   return new Intl.NumberFormat('pt-BR', {

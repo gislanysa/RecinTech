@@ -16,7 +16,7 @@ export default function GraficosStartup({
   conexoes,
   tags,
   demandasIniciais,
-}: GraficosStartupProps) {
+}: Readonly<GraficosStartupProps>) {
   const [demandas, setDemandas] = useState<Demanda[]>(demandasIniciais ?? [])
   const [carregandoDemandas, setCarregandoDemandas] = useState(
     !demandasIniciais,
@@ -134,6 +134,219 @@ export default function GraficosStartup({
   const offsetPendentes = -dashAceitas
   const offsetRecusadas = -(dashAceitas + dashPendentes)
 
+  let conteudoSegmentos = (
+    <div className="mt-6 space-y-3.5">
+      {metricasSegmentos.segmentos.map((item) => (
+        <div key={item.nome}>
+          <div className="flex items-center justify-between text-xs font-medium text-ink-700">
+            <div className="flex items-center gap-1.5 truncate">
+              <span className="truncate font-semibold text-ink-900">{item.nome}</span>
+              {item.compativel && (
+                <span className="inline-flex shrink-0 items-center rounded-md bg-accent-100 px-1.5 py-0.2 text-[10px] font-semibold text-accent-700">
+                  Seu perfil
+                </span>
+              )}
+            </div>
+            <span className="shrink-0 text-ink-500">
+              {item.qtd} {item.qtd === 1 ? 'demanda' : 'demandas'} ({item.pct}%)
+            </span>
+          </div>
+          <div className="mt-1.5 h-2.5 w-full rounded-full bg-brand-50">
+            <div
+              className={[
+                'h-2.5 rounded-full transition-all duration-500',
+                item.compativel ? 'bg-accent-500' : 'bg-brand-600',
+              ].join(' ')}
+              style={{ width: `${Math.min(100, Math.max(8, item.pct))}%` }}
+            />
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+
+  if (carregandoDemandas) {
+    conteudoSegmentos = (
+      <div className="my-8 flex h-48 animate-pulse items-center justify-center rounded-xl bg-brand-50">
+        <span className="text-xs font-medium text-ink-500">
+          Mapeando demandas de mercado...
+        </span>
+      </div>
+    )
+  } else if (metricasSegmentos.segmentos.length === 0) {
+    conteudoSegmentos = (
+      <div className="my-6 flex flex-col items-center justify-center rounded-xl bg-surface-2/40 p-6 text-center">
+        <svg
+          className="size-12 text-ink-400 stroke-1"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          aria-hidden="true"
+        >
+          <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
+          <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
+        </svg>
+        <p className="mt-3 text-sm font-semibold text-ink-900">
+          Nenhuma demanda mapeada ainda
+        </p>
+        <p className="mt-1 max-w-xs text-xs text-ink-500">
+          Novas oportunidades cadastradas por empresas contratantes aparecerão aqui agrupadas por área técnica.
+        </p>
+      </div>
+    )
+  }
+
+  let conteudoPropostas = (
+    <div className="mt-6 flex flex-col items-center sm:flex-row sm:items-center sm:justify-around gap-6">
+      {/* Donut Chart SVG */}
+      <div className="relative flex items-center justify-center">
+        <svg
+          className="size-36 -rotate-90 transform"
+          viewBox="0 0 100 100"
+          aria-label="Gráfico em donut de propostas aceitas"
+        >
+          {/* Círculo base */}
+          <circle
+            cx="50"
+            cy="50"
+            r={raio}
+            className="stroke-brand-50"
+            strokeWidth="12"
+            fill="transparent"
+          />
+          {/* Aceitas (Marca/Escuro) */}
+          {metricasPropostas.aceitas > 0 && (
+            <circle
+              cx="50"
+              cy="50"
+              r={raio}
+              className="stroke-brand-600 transition-all duration-500"
+              strokeWidth="12"
+              strokeDasharray={`${dashAceitas} ${circunferencia}`}
+              strokeDashoffset={offsetAceitas}
+              strokeLinecap="round"
+              fill="transparent"
+            />
+          )}
+          {/* Pendentes (Azul claro) */}
+          {metricasPropostas.pendentes > 0 && (
+            <circle
+              cx="50"
+              cy="50"
+              r={raio}
+              className="stroke-brand-400 transition-all duration-500"
+              strokeWidth="12"
+              strokeDasharray={`${dashPendentes} ${circunferencia}`}
+              strokeDashoffset={offsetPendentes}
+              strokeLinecap="round"
+              fill="transparent"
+            />
+          )}
+          {/* Recusadas (Tinta/Cinza) */}
+          {metricasPropostas.recusadas > 0 && (
+            <circle
+              cx="50"
+              cy="50"
+              r={raio}
+              className="stroke-ink-400 transition-all duration-500"
+              strokeWidth="12"
+              strokeDasharray={`${dashRecusadas} ${circunferencia}`}
+              strokeDashoffset={offsetRecusadas}
+              strokeLinecap="round"
+              fill="transparent"
+            />
+          )}
+        </svg>
+        <div className="absolute flex flex-col items-center justify-center text-center">
+          <span className="font-display text-2xl font-bold text-ink-900">
+            {metricasPropostas.taxaAceite}%
+          </span>
+          <span className="text-[10px] uppercase font-semibold tracking-wider text-ink-500">
+            Conversão
+          </span>
+        </div>
+      </div>
+
+      {/* Legendas e contadores */}
+      <div className="flex w-full max-w-xs flex-col gap-3">
+        <div>
+          <div className="flex justify-between text-xs font-medium text-ink-700">
+            <span className="flex items-center gap-1.5">
+              <span className="size-2.5 rounded-full bg-brand-600" />
+              <span>Propostas Aceitas (Match)</span>
+            </span>
+            <span>
+              {metricasPropostas.taxaAceite}% ({metricasPropostas.aceitas})
+            </span>
+          </div>
+          <div className="mt-1 h-2 w-full rounded-full bg-brand-50">
+            <div
+              className="h-2 rounded-full bg-brand-600 transition-all duration-500"
+              style={{ width: `${metricasPropostas.taxaAceite}%` }}
+            />
+          </div>
+        </div>
+
+        <div>
+          <div className="flex justify-between text-xs font-medium text-ink-700">
+            <span className="flex items-center gap-1.5">
+              <span className="size-2.5 rounded-full bg-brand-400" />
+              <span>Em Análise (Aguardando)</span>
+            </span>
+            <span>
+              {metricasPropostas.pctPendentes}% ({metricasPropostas.pendentes})
+            </span>
+          </div>
+          <div className="mt-1 h-2 w-full rounded-full bg-brand-50">
+            <div
+              className="h-2 rounded-full bg-brand-400 transition-all duration-500"
+              style={{ width: `${metricasPropostas.pctPendentes}%` }}
+            />
+          </div>
+        </div>
+
+        <div>
+          <div className="flex justify-between text-xs font-medium text-ink-700">
+            <span className="flex items-center gap-1.5">
+              <span className="size-2.5 rounded-full bg-ink-400" />
+              <span>Não seguiu (Recusadas)</span>
+            </span>
+            <span>
+              {metricasPropostas.pctRecusadas}% ({metricasPropostas.recusadas})
+            </span>
+          </div>
+          <div className="mt-1 h-2 w-full rounded-full bg-brand-50">
+            <div
+              className="h-2 rounded-full bg-ink-400 transition-all duration-500"
+              style={{ width: `${metricasPropostas.pctRecusadas}%` }}
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+
+  if (conexoes === null) {
+    conteudoPropostas = (
+      <div className="my-8 flex h-48 animate-pulse items-center justify-center rounded-xl bg-brand-50">
+        <span className="text-xs font-medium text-ink-500">
+          Carregando conexões...
+        </span>
+      </div>
+    )
+  } else if (metricasPropostas.total === 0) {
+    conteudoPropostas = (
+      <div className="my-6 flex flex-col items-center justify-center rounded-xl bg-surface-2/40 p-6 text-center">
+        <p className="text-sm font-semibold text-ink-900">
+          Nenhuma proposta enviada ainda
+        </p>
+        <p className="mt-1 max-w-xs text-xs text-ink-500">
+          Candidate-se às demandas abertas nas oportunidades para acompanhar sua taxa de conversão e aprovação.
+        </p>
+      </div>
+    )
+  }
+
   return (
     <section
       id="secao-indicadores-startup"
@@ -165,61 +378,7 @@ export default function GraficosStartup({
               Áreas técnicas e tecnologias mais requisitadas por empresas no ecossistema
             </p>
 
-            {carregandoDemandas ? (
-              <div className="my-8 flex h-48 animate-pulse items-center justify-center rounded-xl bg-brand-50">
-                <span className="text-xs font-medium text-ink-500">
-                  Mapeando demandas de mercado...
-                </span>
-              </div>
-            ) : metricasSegmentos.segmentos.length === 0 ? (
-              <div className="my-6 flex flex-col items-center justify-center rounded-xl bg-surface-2/40 p-6 text-center">
-                <svg
-                  className="size-12 text-ink-400 stroke-1"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  aria-hidden="true"
-                >
-                  <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
-                  <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
-                </svg>
-                <p className="mt-3 text-sm font-semibold text-ink-900">
-                  Nenhuma demanda mapeada ainda
-                </p>
-                <p className="mt-1 max-w-xs text-xs text-ink-500">
-                  Novas oportunidades cadastradas por empresas contratantes aparecerão aqui agrupadas por área técnica.
-                </p>
-              </div>
-            ) : (
-              <div className="mt-6 space-y-3.5">
-                {metricasSegmentos.segmentos.map((item) => (
-                  <div key={item.nome}>
-                    <div className="flex items-center justify-between text-xs font-medium text-ink-700">
-                      <div className="flex items-center gap-1.5 truncate">
-                        <span className="truncate font-semibold text-ink-900">{item.nome}</span>
-                        {item.compativel && (
-                          <span className="inline-flex shrink-0 items-center rounded-md bg-accent-100 px-1.5 py-0.2 text-[10px] font-semibold text-accent-700">
-                            Seu perfil
-                          </span>
-                        )}
-                      </div>
-                      <span className="shrink-0 text-ink-500">
-                        {item.qtd} {item.qtd === 1 ? 'demanda' : 'demandas'} ({item.pct}%)
-                      </span>
-                    </div>
-                    <div className="mt-1.5 h-2.5 w-full rounded-full bg-brand-50">
-                      <div
-                        className={[
-                          'h-2.5 rounded-full transition-all duration-500',
-                          item.compativel ? 'bg-accent-500' : 'bg-brand-600',
-                        ].join(' ')}
-                        style={{ width: `${Math.min(100, Math.max(8, item.pct))}%` }}
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+            {conteudoSegmentos}
           </div>
 
           <div className="mt-6 flex flex-wrap items-center justify-between border-t border-surface-2 pt-3 text-xs text-ink-500">
@@ -250,150 +409,7 @@ export default function GraficosStartup({
               Taxa de conversão das suas manifestações de interesse e conexões com empresas
             </p>
 
-            {conexoes === null ? (
-              <div className="my-8 flex h-48 animate-pulse items-center justify-center rounded-xl bg-brand-50">
-                <span className="text-xs font-medium text-ink-500">
-                  Carregando conexões...
-                </span>
-              </div>
-            ) : metricasPropostas.total === 0 ? (
-              <div className="my-6 flex flex-col items-center justify-center rounded-xl bg-surface-2/40 p-6 text-center">
-                <p className="text-sm font-semibold text-ink-900">
-                  Nenhuma proposta enviada ainda
-                </p>
-                <p className="mt-1 max-w-xs text-xs text-ink-500">
-                  Candidate-se às demandas abertas nas oportunidades para acompanhar sua taxa de conversão e aprovação.
-                </p>
-              </div>
-            ) : (
-              <div className="mt-6 flex flex-col items-center sm:flex-row sm:items-center sm:justify-around gap-6">
-                {/* Donut Chart SVG */}
-                <div className="relative flex items-center justify-center">
-                  <svg
-                    className="size-36 -rotate-90 transform"
-                    viewBox="0 0 100 100"
-                    aria-label="Gráfico em donut de propostas aceitas"
-                  >
-                    {/* Círculo base */}
-                    <circle
-                      cx="50"
-                      cy="50"
-                      r={raio}
-                      className="stroke-brand-50"
-                      strokeWidth="12"
-                      fill="transparent"
-                    />
-                    {/* Aceitas (Marca/Escuro) */}
-                    {metricasPropostas.aceitas > 0 && (
-                      <circle
-                        cx="50"
-                        cy="50"
-                        r={raio}
-                        className="stroke-brand-600 transition-all duration-500"
-                        strokeWidth="12"
-                        strokeDasharray={`${dashAceitas} ${circunferencia}`}
-                        strokeDashoffset={offsetAceitas}
-                        strokeLinecap="round"
-                        fill="transparent"
-                      />
-                    )}
-                    {/* Pendentes (Azul claro) */}
-                    {metricasPropostas.pendentes > 0 && (
-                      <circle
-                        cx="50"
-                        cy="50"
-                        r={raio}
-                        className="stroke-brand-400 transition-all duration-500"
-                        strokeWidth="12"
-                        strokeDasharray={`${dashPendentes} ${circunferencia}`}
-                        strokeDashoffset={offsetPendentes}
-                        strokeLinecap="round"
-                        fill="transparent"
-                      />
-                    )}
-                    {/* Recusadas (Tinta/Cinza) */}
-                    {metricasPropostas.recusadas > 0 && (
-                      <circle
-                        cx="50"
-                        cy="50"
-                        r={raio}
-                        className="stroke-ink-400 transition-all duration-500"
-                        strokeWidth="12"
-                        strokeDasharray={`${dashRecusadas} ${circunferencia}`}
-                        strokeDashoffset={offsetRecusadas}
-                        strokeLinecap="round"
-                        fill="transparent"
-                      />
-                    )}
-                  </svg>
-                  <div className="absolute flex flex-col items-center justify-center text-center">
-                    <span className="font-display text-2xl font-bold text-ink-900">
-                      {metricasPropostas.taxaAceite}%
-                    </span>
-                    <span className="text-[10px] uppercase font-semibold tracking-wider text-ink-500">
-                      Conversão
-                    </span>
-                  </div>
-                </div>
-
-                {/* Legendas e contadores */}
-                <div className="flex w-full max-w-xs flex-col gap-3">
-                  <div>
-                    <div className="flex justify-between text-xs font-medium text-ink-700">
-                      <span className="flex items-center gap-1.5">
-                        <span className="size-2.5 rounded-full bg-brand-600" />
-                        Propostas Aceitas (Match)
-                      </span>
-                      <span>
-                        {metricasPropostas.taxaAceite}% ({metricasPropostas.aceitas})
-                      </span>
-                    </div>
-                    <div className="mt-1 h-2 w-full rounded-full bg-brand-50">
-                      <div
-                        className="h-2 rounded-full bg-brand-600 transition-all duration-500"
-                        style={{ width: `${metricasPropostas.taxaAceite}%` }}
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="flex justify-between text-xs font-medium text-ink-700">
-                      <span className="flex items-center gap-1.5">
-                        <span className="size-2.5 rounded-full bg-brand-400" />
-                        Em Análise (Aguardando)
-                      </span>
-                      <span>
-                        {metricasPropostas.pctPendentes}% ({metricasPropostas.pendentes})
-                      </span>
-                    </div>
-                    <div className="mt-1 h-2 w-full rounded-full bg-brand-50">
-                      <div
-                        className="h-2 rounded-full bg-brand-400 transition-all duration-500"
-                        style={{ width: `${metricasPropostas.pctPendentes}%` }}
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="flex justify-between text-xs font-medium text-ink-700">
-                      <span className="flex items-center gap-1.5">
-                        <span className="size-2.5 rounded-full bg-ink-400" />
-                        Não seguiu (Recusadas)
-                      </span>
-                      <span>
-                        {metricasPropostas.pctRecusadas}% ({metricasPropostas.recusadas})
-                      </span>
-                    </div>
-                    <div className="mt-1 h-2 w-full rounded-full bg-brand-50">
-                      <div
-                        className="h-2 rounded-full bg-ink-400 transition-all duration-500"
-                        style={{ width: `${metricasPropostas.pctRecusadas}%` }}
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
+            {conteudoPropostas}
           </div>
 
           <div className="mt-6 flex flex-wrap items-center justify-between border-t border-surface-2 pt-3 text-xs text-ink-500">
