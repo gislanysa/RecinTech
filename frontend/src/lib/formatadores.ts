@@ -26,3 +26,31 @@ export function calcularTempoAtuacao(dataCriacao?: string | null): string {
     return 'Tempo na plataforma não informado'
   }
 }
+
+/**
+ * Formata um valor numérico em Real (BRL).
+ * Ex: 30000 -> "R$ 30.000"
+ */
+export function formatarMoeda(valor?: number | null): string {
+  if (valor === undefined || valor === null || Number.isNaN(valor) || valor <= 0) {
+    return 'A combinar'
+  }
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+    maximumFractionDigits: 0,
+  }).format(valor)
+}
+
+const ROTULOS_PORTE: Record<string, string> = {
+  micro: 'Microempresa',
+  small: 'Pequeno',
+  medium: 'Médio',
+  big: 'Grande',
+}
+
+export function formatarPorteEmpresa(porte?: string | null): string {
+  if (!porte) return ''
+  return ROTULOS_PORTE[porte.toLowerCase()] || porte
+}
+

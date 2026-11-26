@@ -162,4 +162,21 @@ describe('Fluxo de Login - FormularioLogin', () => {
       await screen.findByText('E-mail ou senha incorretos para o tipo de conta selecionado.'),
     ).toBeInTheDocument()
   })
+
+  it('ao selecionar aba Admin não deve exibir criar conta, esqueceu a senha nem mensagem de credenciais', () => {
+    renderizarLogin()
+
+    // Inicialmente (startup), links de criar conta e esqueci senha existem
+    expect(screen.getByRole('link', { name: /criar conta/i })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /esqueceu a senha\?/i })).toBeInTheDocument()
+
+    // Alterna para admin
+    fireEvent.click(screen.getByRole('radio', { name: /admin/i }))
+
+    // Devem sumir
+    expect(screen.queryByRole('link', { name: /criar conta/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /esqueceu a senha\?/i })).not.toBeInTheDocument()
+    expect(screen.queryByText(/admin@recintech.com/i)).not.toBeInTheDocument()
+  })
 })
+

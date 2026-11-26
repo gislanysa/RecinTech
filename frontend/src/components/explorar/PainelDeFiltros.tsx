@@ -28,6 +28,13 @@ export default function PainelDeFiltros({ filtros, setFiltros, cidades, onLimpar
 
   return (
     <div className="space-y-1">
+      <div className="border-b border-brand-100 py-3">
+        <ToggleLinha
+          rotulo="⭐ Apenas em destaque"
+          marcado={filtros.apenasDestaque}
+          onChange={(v) => setFiltros({ ...filtros, apenasDestaque: v })}
+        />
+      </div>
       <Grupo
         titulo="Área de atuação"
         opcoes={AREAS}

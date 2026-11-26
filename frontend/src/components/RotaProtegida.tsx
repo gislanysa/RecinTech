@@ -21,7 +21,13 @@ type RotaProtegidaProps = {
  * - Não autenticado → redireciona para /entrar
  * - Autenticado com tipo correto → renderiza a rota filha (Outlet)
  */
-export default function RotaProtegida({ tipo }: RotaProtegidaProps) {
+function obterDestinoDashboard(tipoConta?: TipoSessao | null): string {
+  if (tipoConta === 'admin') return '/dashboard/admin'
+  if (tipoConta === 'company') return '/dashboard/empresa'
+  return '/dashboard/startup'
+}
+
+export default function RotaProtegida({ tipo }: Readonly<RotaProtegidaProps>) {
   const { conta, tipoConta, estado, erroTemporario, recarregarSessao } = useAuth()
 
   if (estado === 'carregando') {
@@ -65,7 +71,7 @@ export default function RotaProtegida({ tipo }: RotaProtegidaProps) {
 
   // Conta logada do tipo errado: manda para o dashboard correto.
   if (tipo && tipoConta !== tipo) {
-    const destino = tipoConta === 'company' ? '/dashboard/empresa' : '/dashboard/startup'
+    const destino = obterDestinoDashboard(tipoConta)
     return <Navigate to={destino} replace />
   }
 

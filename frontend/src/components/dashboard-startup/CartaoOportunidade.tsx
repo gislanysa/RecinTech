@@ -1,5 +1,6 @@
 import Botao from '@/components/Botao.tsx'
 import { CheckIcon } from '@/components/icons.tsx'
+import { formatarMoeda } from '@/lib/formatadores.ts'
 import type { Oportunidade } from '@/lib/oportunidades.ts'
 import { Link } from 'react-router-dom'
 
@@ -49,6 +50,14 @@ export default function CartaoOportunidade({
             <span className="sr-only"> de compatibilidade</span>
           </span>
         </div>
+
+        {/* Orçamento da demanda da empresa */}
+        {oportunidade.orcamento && oportunidade.orcamento > 0 && (
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 px-3 py-2 text-xs">
+            <span className="text-[11px] font-medium text-emerald-700 block">Orçamento que a empresa está disposta a pagar:</span>
+            <p className="font-bold text-sm text-emerald-900">{formatarMoeda(oportunidade.orcamento)}</p>
+          </div>
+        )}
 
         <div>
           <p className="text-xs font-semibold uppercase tracking-widest text-ink-500">Demanda</p>

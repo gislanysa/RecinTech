@@ -102,30 +102,37 @@ export type Company = {
   created_at: string
 }
 
+export type { Admin } from './admin.ts'
+import {
+  autenticarAdminLocal,
+  limparSessaoAdmin,
+  obterSessaoAdminAtual,
+  sincronizarContaAdmin,
+  type Admin,
+} from './admin.ts'
+
 /** O que `/auth/login` e `/auth/restore` devolvem, conforme o tipo da sessão. */
-export type ContaLogada = Startup | Company
+export type ContaLogada = Startup | Company | Admin
 
 // ---------------------------------------------------------------------------
 // Auth
 // ---------------------------------------------------------------------------
 
-export type TipoSessao = 'startup' | 'company'
+export type TipoSessao = 'startup' | 'company' | 'admin'
 
 /**
  * POST /auth/login
  *
- * Autentica um usuário. O backend deve definir um cookie de sessão
- * (Set-Cookie) na resposta — o browser cuida do resto.
+ * Autentica um usuário. O backend define um cookie de sessão
+ * para startup e empresa. Sessões de admin são mantidas no frontend.
  *
  * Body:
  * ```json
  * { "session": "startup", "email": "user@email.com", "password": "senha123" }
  * ```
  *
- * `session` é obrigatório no backend: "startup" | "company".
- *
  * Respostas:
- * - 200 OK - ContaLogada (Startup ou Company, cookie de sessão definido pelo backend)
+ * - 200 OK - ContaLogada (Startup, Company ou Admin)
  * - 401 Unauthorized - "Wrong email or password"
  */
 export async function login(
@@ -133,17 +140,26 @@ export async function login(
   password: string,
   session: TipoSessao = 'startup',
 ): Promise<ContaLogada> {
+  if (session === 'admin') {
+    return autenticarAdminLocal(email, password)
+  }
   const { data } = await api.post<ContaLogada>('/auth/login', { session, email, password })
+  sincronizarContaAdmin(data)
   return data
 }
 
 /**
  * POST /auth/logout
  *
- * Encerra a sessão. O backend deve invalidar o cookie.
+ * Encerra a sessão. O backend invalida o cookie e a sessão local de admin é limpa.
  */
 export async function logout(): Promise<void> {
-  await api.post('/auth/logout')
+  limparSessaoAdmin()
+  try {
+    await api.post('/auth/logout')
+  } catch {
+    // Silencia se for sessão local
+  }
 }
 
 /**
@@ -153,6 +169,9 @@ export async function logout(): Promise<void> {
  * Retorna true se a sessão foi renovada com sucesso (status 204), ou false caso contrário.
  */
 export async function renovarSessao(): Promise<boolean> {
+  if (typeof window !== 'undefined' && obterSessaoAdminAtual()) {
+    return true
+  }
   try {
     await api.get('/auth/refresh')
     return true
@@ -164,17 +183,17 @@ export async function renovarSessao(): Promise<boolean> {
 /**
  * GET /auth/restore
  *
- * Restaura a sessão ao abrir/recarregar o site. O cookie de sessão é
- * enviado automaticamente pelo browser.
- *
- * Respostas:
- * - 200 OK → ContaLogada
- * - 401 Unauthorized → sessão expirada/inexistente (retorna null)
- * - Erro de rede ou status 500 → lança erro para exibir falha temporária sem deslogar
+ * Restaura a sessão ao abrir/recarregar o site.
+ * Verifica primeiro sessão de administrador local, depois cookie de sessão via API.
  */
 export async function restaurarSessao(): Promise<ContaLogada | null> {
+  const admin = obterSessaoAdminAtual()
+  if (admin) {
+    return admin
+  }
   try {
     const { data } = await api.get<ContaLogada>('/auth/restore')
+    sincronizarContaAdmin(data)
     return data
   } catch (error) {
     if (axios.isAxiosError(error)) {
@@ -189,11 +208,12 @@ export async function restaurarSessao(): Promise<ContaLogada | null> {
 }
 
 /**
- * Descobre o tipo da conta pelo payload devolvido pelo backend:
- * empresas têm `size`, startups têm `stage`.
+ * Descobre o tipo da conta pelo payload:
+ * admins têm `role === 'admin'`, empresas têm `size`, startups têm `stage`.
  */
 export function tipoDaConta(dados: object | null): TipoSessao | null {
   if (!dados) return null
+  if ('role' in dados && (dados as { role?: string }).role === 'admin') return 'admin'
   if ('size' in dados) return 'company'
   if ('stage' in dados) return 'startup'
   return null
@@ -246,8 +266,21 @@ export async function registrarStartup(body: BodyRegistroStartup): Promise<Start
     website: body.website ?? '',
   }
 
-  const returned = await api.post<Startup>('/startup', requestBody)
-  return returned.data
+  try {
+    const returned = await api.post<Startup>('/startup', requestBody)
+    sincronizarContaAdmin(returned.data)
+    return returned.data
+  } catch (err) {
+    if (axios.isAxiosError(err) && err.response?.status === 404) {
+      sincronizarContaAdmin({
+        ...requestBody,
+        id: `startup-${Date.now()}`,
+        created_at: new Date().toISOString(),
+        is_active: true,
+      })
+    }
+    throw err
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -280,8 +313,26 @@ export async function registrarEmpresa(body: BodyRegistroEmpresa): Promise<unkno
     cnpj: body.cnpj.replace(/\D/g, ''),
     website: body.website ?? '',
   }
-  const returned = await api.post('/company', requestBody)
-  return returned.data
+  try {
+    const returned = await api.post('/company', requestBody)
+    sincronizarContaAdmin({
+      ...requestBody,
+      id: (returned.data as { id?: string })?.id || `empresa-${Date.now()}`,
+      created_at: new Date().toISOString(),
+      is_active: true,
+    })
+    return returned.data
+  } catch (err) {
+    if (axios.isAxiosError(err) && err.response?.status === 404) {
+      sincronizarContaAdmin({
+        ...requestBody,
+        id: `empresa-${Date.now()}`,
+        created_at: new Date().toISOString(),
+        is_active: true,
+      })
+    }
+    throw err
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -313,6 +364,7 @@ export async function atualizarStartup(
     requestBody.cnpj = body.cnpj.replace(/\D/g, '')
   }
   const { data } = await api.patch<Startup>(`/startup/${id}`, requestBody)
+  sincronizarContaAdmin(data)
   return data
 }
 
@@ -335,6 +387,7 @@ export async function atualizarEmpresa(
   body: BodyAtualizarEmpresa,
 ): Promise<Company> {
   const { data } = await api.patch<Company>(`/company/${id}`, body)
+  sincronizarContaAdmin(data)
   return data
 }
 

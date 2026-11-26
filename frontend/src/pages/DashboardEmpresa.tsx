@@ -1,3 +1,4 @@
+import GraficosEmpresa from '@/components/dashboard-empresa/GraficosEmpresa.tsx'
 import ModalNovaDemanda from '@/components/dashboard-empresa/ModalNovaDemanda.tsx'
 import ModalPerfilStartup from '@/components/dashboard-empresa/ModalPerfilStartup.tsx'
 import PainelDemandas from '@/components/dashboard-empresa/PainelDemandas.tsx'
@@ -7,8 +8,9 @@ import { useDemandas } from '@/hooks/useDemandas.ts'
 import type { Company } from '@/lib/api.ts'
 import { calcularRecomendacoes, type Demanda } from '@/lib/demandas.ts'
 import { listarStartups, type StartupCatalogo } from '@/lib/startups.ts'
+import { UserIcon } from '@/components/icons.tsx'
 import { useEffect, useMemo, useState } from 'react'
-import { useOutletContext } from 'react-router-dom'
+import { Link, useOutletContext } from 'react-router-dom'
 
 /**
  * Dashboard da Empresa — Página inicial / Visão geral.
@@ -82,13 +84,22 @@ export default function DashboardEmpresa() {
   return (
     <div className="flex flex-col gap-10">
       {/* 2. Cabeçalho de boas-vindas com dados dinâmicos da empresa */}
-      <header className="flex flex-col gap-1">
-        <h1 className="font-display text-2xl font-bold tracking-tight text-ink-900 sm:text-3xl">
-          Olá, {empresa.name}!
-        </h1>
-        <p className="text-sm text-ink-500">
-          Gerencie suas demandas tecnológicas e encontre startups recomendadas para o seu negócio.
-        </p>
+      <header className="flex flex-wrap items-start justify-between gap-4">
+        <div className="flex flex-col gap-1">
+          <h1 className="font-display text-2xl font-bold tracking-tight text-ink-900 sm:text-3xl">
+            Olá, {empresa.name}!
+          </h1>
+          <p className="text-sm text-ink-500">
+            Gerencie suas demandas tecnológicas e encontre startups recomendadas para o seu negócio.
+          </p>
+        </div>
+        <Link
+          to="/dashboard/empresa/perfil"
+          className="inline-flex items-center gap-1.5 rounded-xl border border-brand-200 bg-surface px-3.5 py-2 text-sm font-medium text-ink-700 shadow-2xs transition-colors hover:border-brand-300 hover:bg-brand-50"
+        >
+          <UserIcon className="size-4 text-brand-600" />
+          Meu perfil
+        </Link>
       </header>
 
       {/* 3. Painel de demandas da empresa */}
@@ -111,6 +122,9 @@ export default function DashboardEmpresa() {
         }}
         onTentarNovamente={handleRecarregar}
       />
+
+      {/* Indicador Visual da Empresa (Status de Candidaturas Recebidas) */}
+      <GraficosEmpresa demandas={demandas} />
 
       {/* 4. Painel de startups recomendadas */}
       <PainelRecomendacoes

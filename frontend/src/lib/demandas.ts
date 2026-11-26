@@ -20,6 +20,7 @@ export type Demanda = {
   segmento: string
   servicos: string[]
   tecnologias: string[]
+  orcamento?: number
   status: StatusDemanda
   created_at: string
 }
@@ -30,6 +31,7 @@ export type CriarDemandaPayload = {
   segmento: string
   servicos: string[]
   tecnologias: string[]
+  orcamento?: number
   segmentIds?: string[]
   serviceIds?: string[]
   technologyIds?: string[]
@@ -43,6 +45,7 @@ export type AtualizarDemandaPayload = {
   segmento?: string
   servicos?: string[]
   tecnologias?: string[]
+  orcamento?: number
   segmentIds?: string[]
   serviceIds?: string[]
   technologyIds?: string[]
@@ -74,6 +77,31 @@ export type Recomendacao = {
   startup: StartupCatalogo
   demanda: Demanda
   motivos: string[]
+  scoreCompatibilidade?: number
+  emDestaque?: boolean
+}
+
+export type FaixaOrcamento = 'todas' | 'ate_20k' | '20k_50k' | 'acima_50k'
+
+export const FAIXAS_ORCAMENTO = [
+  { id: 'todas', rotulo: 'Todas as faixas' },
+  { id: 'ate_20k', rotulo: 'Até R$ 20k' },
+  { id: '20k_50k', rotulo: 'R$ 20k a R$ 50k' },
+  { id: 'acima_50k', rotulo: 'Acima de R$ 50k' },
+] as const
+
+export function filtrarPorFaixaOrcamento<T extends { orcamento?: number }>(
+  itens: T[],
+  faixa: FaixaOrcamento,
+): T[] {
+  if (faixa === 'todas') return itens
+  return itens.filter((item) => {
+    const valor = item.orcamento ?? 0
+    if (faixa === 'ate_20k') return valor > 0 && valor <= 20000
+    if (faixa === '20k_50k') return valor > 20000 && valor <= 50000
+    if (faixa === 'acima_50k') return valor > 50000
+    return false
+  })
 }
 
 export const LIMITE_PADRAO_DEMANDAS = 100
@@ -93,6 +121,11 @@ export function obterDemandasPublicas(): DemandaPublica[] {
   } catch {
     return []
   }
+}
+
+/** Retorna exclusivamente demandas reais cadastradas por empresas no sistema, sem dados fictícios. */
+export function obterDemandasReais(): DemandaPublica[] {
+  return obterDemandasPublicas()
 }
 
 export function salvarDemandaPublica(demanda: Demanda, empresaNome?: string): void {
@@ -122,6 +155,20 @@ export function removerDemandaPublica(demandaId: string): void {
   }
 }
 
+function extrairListaTexto(prop1: unknown, prop2: unknown): string[] {
+  if (Array.isArray(prop1)) return prop1
+  if (Array.isArray(prop2)) {
+    return prop2.map((s: any) => (typeof s === 'string' ? s : s.name ?? ''))
+  }
+  return []
+}
+
+function extrairOrcamento(valor1: unknown, valor2: unknown): number | undefined {
+  if (typeof valor1 === 'number') return valor1
+  if (typeof valor2 === 'number') return valor2
+  return undefined
+}
+
 export async function buscarDemandasDisponiveis(): Promise<DemandaPublica[]> {
   try {
     // Tenta endpoint geral de demandas caso o backend venha a expor
@@ -133,17 +180,10 @@ export async function buscarDemandasDisponiveis(): Promise<DemandaPublica[]> {
         titulo: item.titulo ?? item.title ?? '',
         descricao: item.descricao ?? item.description ?? '',
         segmento: item.segmento ?? '',
-        servicos: Array.isArray(item.servicos)
-          ? item.servicos
-          : Array.isArray(item.services)
-            ? item.services.map((s: any) => (typeof s === 'string' ? s : s.name ?? ''))
-            : [],
-        tecnologias: Array.isArray(item.tecnologias)
-          ? item.tecnologias
-          : Array.isArray(item.technologies)
-            ? item.technologies.map((t: any) => (typeof t === 'string' ? t : t.name ?? ''))
-            : [],
+        servicos: extrairListaTexto(item.servicos, item.services),
+        tecnologias: extrairListaTexto(item.tecnologias, item.technologies),
         status: item.status ?? item.demand_status ?? 'aberta',
+        orcamento: extrairOrcamento(item.orcamento, item.budget),
         created_at: item.created_at ?? new Date().toISOString(),
         empresa_nome: item.empresa_nome ?? item.company_name ?? 'Empresa Parceira',
       }))
@@ -192,16 +232,9 @@ export async function listarDemandas(
       titulo: item.titulo ?? item.title ?? '',
       descricao: item.descricao ?? item.description ?? '',
       segmento: item.segmento ?? (Array.isArray(item.segments) && item.segments[0]?.name ? item.segments[0].name : ''),
-      servicos: Array.isArray(item.servicos)
-        ? item.servicos
-        : Array.isArray(item.services)
-          ? item.services.map((s: any) => (typeof s === 'string' ? s : s.name ?? ''))
-          : [],
-      tecnologias: Array.isArray(item.tecnologias)
-        ? item.tecnologias
-        : Array.isArray(item.technologies)
-          ? item.technologies.map((t: any) => (typeof t === 'string' ? t : t.name ?? ''))
-          : [],
+      servicos: extrairListaTexto(item.servicos, item.services),
+      tecnologias: extrairListaTexto(item.tecnologias, item.technologies),
+      orcamento: extrairOrcamento(item.orcamento, item.budget),
       status: statusNormalizado,
       created_at: item.created_at ?? new Date().toISOString(),
     }
@@ -308,6 +341,7 @@ export async function criarDemanda(
     segmento: dados.segmento,
     servicos: dados.servicos,
     tecnologias: dados.tecnologias,
+    orcamento: dados.orcamento,
     status:
       item.status === 'closed' || item.demand_status === 'closed' || dados.status === 'closed' || dados.status === 'encerrada'
         ? 'encerrada'
@@ -355,6 +389,7 @@ export async function atualizarDemanda(
     segmento: dados.segmento,
     servicos: dados.servicos,
     tecnologias: dados.tecnologias,
+    ...(dados.orcamento !== undefined ? { orcamento: dados.orcamento } : {}),
     ...(statusBackend ? { status: statusBackend } : {}),
   }
 
@@ -369,6 +404,7 @@ export async function atualizarDemanda(
     segmento: dados.segmento ?? '',
     servicos: dados.servicos ?? [],
     tecnologias: dados.tecnologias ?? [],
+    orcamento: dados.orcamento ?? item.orcamento,
     status: (item.status || item.demand_status || dados.status || 'aberta') as StatusDemanda,
     created_at: item.created_at ?? new Date().toISOString(),
   }
@@ -471,7 +507,9 @@ export async function enviarConviteReuniao(
 
 /**
  * Algoritmo de compatibilidade que relaciona demandas da empresa com startups do catálogo
- * com base em serviços, tecnologias e segmentos correspondentes.
+ * com base em serviços, tecnologias, segmentos correspondentes e compatibilidade financeira (orçamento).
+ *
+ * Monetização: Startups em destaque aparecem com prioridade no topo do ranking.
  */
 export function calcularRecomendacoes(
   demandas: Demanda[],
@@ -491,41 +529,79 @@ export function calcularRecomendacoes(
       if (vistas.has(chave)) continue
 
       const motivos: string[] = []
+      let score = 50
 
       // Checa correspondência de segmento
       if (demanda.segmento && startup.segments.includes(demanda.segmento)) {
         motivos.push(`Segmento compatível: ${demanda.segmento}`)
+        score += 20
       }
 
       // Checa correspondência de serviços
       const servicosComuns = demanda.servicos.filter((s) => startup.services.includes(s))
       if (servicosComuns.length > 0) {
         motivos.push(`Serviços: ${servicosComuns.join(', ')}`)
+        score += Math.round((servicosComuns.length / Math.max(1, demanda.servicos.length)) * 15)
       }
 
       // Checa correspondência de tecnologias
       const tecsComuns = demanda.tecnologias.filter((t) => startup.technologies.includes(t))
       if (tecsComuns.length > 0) {
         motivos.push(`Tecnologias: ${tecsComuns.join(', ')}`)
+        score += Math.round((tecsComuns.length / Math.max(1, demanda.tecnologias.length)) * 15)
+      }
+
+      // Inserção do Fator Valor no Score
+      if (demanda.orcamento && demanda.orcamento > 0) {
+        if (startup.faixaPreco && startup.faixaPreco > 0) {
+          if (startup.faixaPreco <= demanda.orcamento) {
+            score += 15
+            motivos.push(`Orçamento compatível (dentro do teto estipulado)`)
+          } else if (startup.faixaPreco <= demanda.orcamento * 1.25) {
+            score += 5
+            motivos.push('Valor em faixa negociável')
+          } else {
+            score -= 10
+            motivos.push('Valor acima do teto estipulado')
+          }
+        } else {
+          score += 5
+        }
+      }
+
+      if (startup.emDestaque) {
+        motivos.unshift('⭐ Startup em Destaque (Patrocinada)')
       }
 
       // Se houver qualquer afinidade relevante, adiciona à lista
       if (motivos.length > 0) {
         vistas.add(chave)
+        const scoreFinal = Math.min(99, Math.max(60, score))
         recomendacoes.push({
           startup,
           demanda,
           motivos,
+          scoreCompatibilidade: scoreFinal,
+          emDestaque: Boolean(startup.emDestaque),
         })
       }
     }
   }
 
+  // Regra de Monetização no Ranking:
+  // 1º: Startups patrocinadas (em destaque) no topo da lista
+  // 2º: Ordenadas por maior score de compatibilidade
+  recomendacoes.sort((a, b) => {
+    if (a.emDestaque && !b.emDestaque) return -1
+    if (!a.emDestaque && b.emDestaque) return 1
+    return (b.scoreCompatibilidade ?? 0) - (a.scoreCompatibilidade ?? 0)
+  })
+
   return recomendacoes
 }
 
 // ---------------------------------------------------------------------------
-// Candidaturas a Demandas (demand_application)
+// Candidaturas a Demandas (demand_application) e Propostas de Valor
 // ---------------------------------------------------------------------------
 
 export type StatusCandidatura = 'pending' | 'accepted' | 'declined'
@@ -534,6 +610,9 @@ export type CandidaturaDemanda = {
   demand: string
   startup: string
   status: StatusCandidatura
+  tipo_proposta?: 'aceitou' | 'contraproposta'
+  valor_proposto?: number
+  justificativa?: string
   created_at: string
   updated_at: string
   startup_nome?: string
@@ -542,19 +621,69 @@ export type CandidaturaDemanda = {
   startup_estado?: string
 }
 
+export type CandidatarPayload = {
+  demand: string
+  tipo_proposta?: 'aceitou' | 'contraproposta'
+  valor_proposto?: number
+  justificativa?: string
+}
+
+const CHAVE_PROPOSTAS_CANDIDATURAS = 'recintech:propostas_candidaturas'
+
+function obterPropostasArmazenadas(): Record<string, { tipo_proposta?: 'aceitou' | 'contraproposta'; valor_proposto?: number; justificativa?: string }> {
+  try {
+    if (typeof window === 'undefined') return {}
+    const raw = localStorage.getItem(CHAVE_PROPOSTAS_CANDIDATURAS)
+    return raw ? JSON.parse(raw) : {}
+  } catch {
+    return {}
+  }
+}
+
+function salvarPropostaArmazenada(chave: string, dados: { tipo_proposta?: 'aceitou' | 'contraproposta'; valor_proposto?: number; justificativa?: string }) {
+  try {
+    if (typeof window === 'undefined') return
+    const todas = obterPropostasArmazenadas()
+    todas[chave] = dados
+    localStorage.setItem(CHAVE_PROPOSTAS_CANDIDATURAS, JSON.stringify(todas))
+  } catch {
+    // Silencioso
+  }
+}
+
 /**
  * POST /api/startup/:id/application
  *
- * Startup se candidata a uma demanda aberta.
+ * Startup se candidata a uma demanda aberta, opcionalmente com contraproposta de valor.
  */
 export async function candidatarADemanda(
   startupId: string,
-  demandId: string,
+  demandIdOuPayload: string | CandidatarPayload,
 ): Promise<CandidaturaDemanda> {
+  const demandId = typeof demandIdOuPayload === 'string' ? demandIdOuPayload : demandIdOuPayload.demand
+  const tipoProposta = typeof demandIdOuPayload === 'object' ? demandIdOuPayload.tipo_proposta : undefined
+  const valorProposto = typeof demandIdOuPayload === 'object' ? demandIdOuPayload.valor_proposto : undefined
+  const justificativa = typeof demandIdOuPayload === 'object' ? demandIdOuPayload.justificativa : undefined
+
   const { data } = await api.post<CandidaturaDemanda>(`/startup/${startupId}/application`, {
     demand: demandId,
   })
-  return data
+
+  // Registra metadados de proposta de valor para acompanhamento e negociação
+  if (tipoProposta || valorProposto) {
+    salvarPropostaArmazenada(`${demandId}-${startupId}`, {
+      tipo_proposta: tipoProposta ?? 'aceitou',
+      valor_proposto: valorProposto,
+      justificativa,
+    })
+  }
+
+  return {
+    ...data,
+    tipo_proposta: tipoProposta,
+    valor_proposto: valorProposto,
+    justificativa,
+  }
 }
 
 /**
@@ -575,7 +704,8 @@ export async function desistirCandidaturaDemanda(
 /**
  * GET /api/company/demand/:id/application
  *
- * Lista todas as candidaturas de startups recebidas para uma demanda da empresa.
+ * Lista todas as candidaturas de startups recebidas para uma demanda da empresa,
+ * enriquecidas com a proposta/contraproposta de valor negociada.
  */
 export async function listarCandidaturasDemanda(
   demandId: string,
@@ -583,7 +713,20 @@ export async function listarCandidaturasDemanda(
   const { data } = await api.get<CandidaturaDemanda[]>(
     `/company/demand/${demandId}/application`,
   )
-  return Array.isArray(data) ? data : []
+  if (!Array.isArray(data)) return []
+
+  const propostas = obterPropostasArmazenadas()
+
+  return data.map((item) => {
+    const chave = `${demandId}-${item.startup}`
+    const metaProposta = propostas[chave]
+    return {
+      ...item,
+      tipo_proposta: item.tipo_proposta ?? metaProposta?.tipo_proposta,
+      valor_proposto: item.valor_proposto ?? metaProposta?.valor_proposto,
+      justificativa: item.justificativa ?? metaProposta?.justificativa,
+    }
+  })
 }
 
 /**

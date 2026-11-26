@@ -12,9 +12,10 @@ import { useAuth } from '@/contexts/useAuth.ts'
 import { listarStartups, type StartupCatalogo } from '@/lib/startups.ts'
 import { useEffect, useMemo, useState } from 'react'
 
-type OrdenarPor = 'relevancia' | 'recentes' | 'nome'
+type OrdenarPor = 'relevancia' | 'destaques' | 'recentes' | 'nome'
 
 function combina(startup: StartupCatalogo, busca: string, f: Filtros): boolean {
+  if (f.apenasDestaque && !startup.emDestaque) return false
   const termo = busca.trim().toLowerCase()
   if (termo) {
     const texto = [
@@ -88,6 +89,11 @@ export default function ExplorarStartups() {
 
   const resultados = useMemo(() => {
     const filtradas = todas.filter((s) => combina(s, busca, filtros))
+    if (ordenar === 'destaques') {
+      return [...filtradas].sort(
+        (a, b) => (b.emDestaque ? 1 : 0) - (a.emDestaque ? 1 : 0) || b.relevance - a.relevance,
+      )
+    }
     if (ordenar === 'nome') return [...filtradas].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
     if (ordenar === 'recentes') return [...filtradas].sort((a, b) => b.created_at.localeCompare(a.created_at))
     return [...filtradas].sort((a, b) => b.relevance - a.relevance)
@@ -168,6 +174,21 @@ export default function ExplorarStartups() {
             </div>
 
             <div className="flex items-center gap-3">
+              {/* Botão Filtro Rápido de Destaques */}
+              <button
+                type="button"
+                onClick={() => setFiltros((atual) => ({ ...atual, apenasDestaque: !atual.apenasDestaque }))}
+                className={[
+                  'inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-sm font-semibold transition-all',
+                  filtros.apenasDestaque
+                    ? 'border-amber-400 bg-amber-50 text-amber-900 shadow-sm ring-1 ring-amber-300'
+                    : 'border-gray-300 bg-surface text-ink-800 hover:border-gray-400 hover:bg-gray-50',
+                ].join(' ')}
+                aria-pressed={filtros.apenasDestaque}
+              >
+                <span>⭐ Destaques</span>
+              </button>
+
               {/* Botão Filtros */}
               <button
                 type="button"
@@ -211,6 +232,7 @@ export default function ExplorarStartups() {
                   className="rounded-xl border border-gray-300 bg-surface px-3.5 py-2 text-sm font-medium text-ink-800 shadow-sm outline-none transition-all hover:border-gray-400 focus:border-accent-500 focus:ring-2 focus:ring-accent-500"
                 >
                   <option value="relevancia">Mais relevantes</option>
+                  <option value="destaques">⭐ Em destaque primeiro</option>
                   <option value="recentes">Mais recentes</option>
                   <option value="nome">Nome A–Z</option>
                 </select>

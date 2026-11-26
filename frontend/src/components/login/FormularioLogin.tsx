@@ -66,17 +66,30 @@ export default function FormularioLogin() {
     setEnviando(true)
     try {
       const conta = await realizarLogin(campos.email, campos.senha, sessao)
-      const rotulo = sessao === 'company' ? 'empresa' : 'startup'
+      let rotulo = 'startup'
+      if (sessao === 'admin') {
+        rotulo = 'administrador'
+      } else if (sessao === 'company') {
+        rotulo = 'empresa'
+      }
       if (tipoDaConta(conta) !== sessao) {
         // Garante que nenhuma sessão fique ativa com o tipo errado.
         await realizarLogout().catch(() => undefined)
-        setErrors({ email: `Não existe ${rotulo} cadastrada com este e-mail. Verifique o tipo de conta selecionado.` })
+        setErrors({ email: `Não existe conta de ${rotulo} para este e-mail. Verifique o tipo selecionado.` })
         return
       }
-      navigate(sessao === 'company' ? '/dashboard/empresa' : '/dashboard/startup')
+      if (sessao === 'admin') {
+        navigate('/dashboard/admin')
+      } else if (sessao === 'company') {
+        navigate('/dashboard/empresa')
+      } else {
+        navigate('/dashboard/startup')
+      }
     } catch (err) {
       if (axios.isAxiosError(err) && err.response?.status === 401) {
         setErrors({ senha: 'E-mail ou senha incorretos para o tipo de conta selecionado.' })
+      } else if (err instanceof Error && err.message) {
+        setErrors({ senha: err.message })
       } else {
         setErrors({ senha: 'Erro ao conectar. Tente novamente.' })
       }
@@ -119,11 +132,12 @@ export default function FormularioLogin() {
         <div
           role="radiogroup"
           aria-label="Tipo de conta"
-          className="grid grid-cols-2 gap-1 rounded-xl bg-brand-50 p-1"
+          className="grid grid-cols-3 gap-1 rounded-xl bg-brand-50 p-1"
         >
           {([
             ['startup', 'Startup'],
             ['company', 'Empresa'],
+            ['admin', 'Admin'],
           ] as const).map(([valor, rotulo]) => (
             <button
               key={valor}
@@ -132,7 +146,7 @@ export default function FormularioLogin() {
               role="radio"
               aria-checked={sessao === valor}
               onClick={() => setSessao(valor)}
-              className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+              className={`rounded-lg px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium transition-colors ${
                 sessao === valor
                   ? 'bg-white text-brand-700 shadow-sm'
                   : 'text-ink-500 hover:text-brand-600'
@@ -152,7 +166,7 @@ export default function FormularioLogin() {
           value={campos.email}
           onChange={(v) => atualizar('email', v)}
           error={errors.email}
-          placeholder="voce@empresa.com"
+          placeholder={sessao === 'admin' ? 'admin@exemplo.com' : 'voce@empresa.com'}
         />
 
         <Campo
@@ -168,14 +182,16 @@ export default function FormularioLogin() {
           placeholder="••••••••"
         />
 
-        <div className="flex items-center justify-end">
-          <Link
-            to="/recuperar-senha"
-            className="text-xs font-medium text-brand-600 hover:text-brand-700 hover:underline"
-          >
-            Esqueceu a senha?
-          </Link>
-        </div>
+        {sessao !== 'admin' && (
+          <div className="flex items-center justify-end">
+            <Link
+              to="/recuperar-senha"
+              className="text-xs font-medium text-brand-600 hover:text-brand-700 hover:underline"
+            >
+              Esqueceu a senha?
+            </Link>
+          </div>
+        )}
 
         <div className="mt-2">
           <Botao id="btn-entrar" type="submit" disabled={enviando} bloco>
@@ -195,12 +211,14 @@ export default function FormularioLogin() {
         </div>
       </form>
 
-      <p className="mt-6 text-center text-sm text-ink-500">
-        Ainda não tem conta?{' '}
-        <Link to="/criar-conta" className="font-medium text-brand-600 hover:text-brand-700 hover:underline">
-          Criar conta
-        </Link>
-      </p>
+      {sessao !== 'admin' && (
+        <p className="mt-6 text-center text-sm text-ink-500">
+          Ainda não tem conta?{' '}
+          <Link to="/criar-conta" className="font-medium text-brand-600 hover:text-brand-700 hover:underline">
+            Criar conta
+          </Link>
+        </p>
+      )}
     </div>
   )
 }

@@ -1,3 +1,4 @@
+import { SparklesIcon } from '@/components/icons.tsx'
 import type { StartupCatalogo } from '@/lib/startups.ts'
 import { Link } from 'react-router-dom'
 
@@ -30,7 +31,20 @@ export default function CartaoStartup({
   isAutenticado?: boolean
 }) {
   return (
-    <article className="flex h-full flex-col gap-4 rounded-card border border-gray-200 bg-surface p-5 transition-all hover:-translate-y-0.5 hover:border-gray-300 hover:shadow-sm">
+    <article
+      className={[
+        'flex h-full flex-col gap-4 rounded-card p-5 transition-all hover:-translate-y-0.5 hover:shadow-sm',
+        startup.emDestaque
+          ? 'border-2 border-amber-300 bg-gradient-to-b from-amber-50/30 to-surface shadow-xs ring-1 ring-amber-200 hover:border-amber-400'
+          : 'border border-gray-200 bg-surface hover:border-gray-300',
+      ].join(' ')}
+    >
+      {startup.emDestaque && (
+        <div className="flex items-center gap-1.5 self-start rounded-full bg-amber-100/80 px-2.5 py-0.5 text-[11px] font-semibold text-amber-900 ring-1 ring-amber-300">
+          <SparklesIcon className="size-3.5 text-amber-600" />
+          <span>Destaque Patrocinado</span>
+        </div>
+      )}
       <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-3">
         <AvatarStartup startup={startup} />
         <div className="min-w-0">

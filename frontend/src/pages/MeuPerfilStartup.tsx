@@ -15,7 +15,8 @@ import {
 } from '@/lib/canvas.ts'
 import type { Tags } from '@/lib/perfil.ts'
 import { carregarTagsDaStartup } from '@/lib/startups.ts'
-import { useEffect, useState } from 'react'
+import { AuthContext } from '@/contexts/authContextDef.ts'
+import { useContext, useEffect, useState } from 'react'
 import { Link, useOutletContext } from 'react-router-dom'
 
 const ESTAGIOS: Record<string, string> = {
@@ -72,6 +73,7 @@ function GrupoDeTags({ rotulo, itens }: { rotulo: string; itens: string[] }) {
 export default function MeuPerfilStartup() {
   const { conta } = useOutletContext<ContextoSessao>()
   const startupInicial = conta as Startup
+  const auth = useContext(AuthContext)
 
   const [dadosStartup, setDadosStartup] = useState<Startup>(startupInicial)
   const [tags, setTags] = useState<Tags | null>(null)
@@ -124,6 +126,9 @@ export default function MeuPerfilStartup() {
         description: descricao.trim(),
       })
       setDadosStartup(atualizada)
+      if (auth && typeof auth.definirConta === 'function') {
+        auth.definirConta(atualizada)
+      }
       setModalAberto(false)
       setMensagemSucesso('Perfil atualizado com sucesso!')
       setTimeout(() => setMensagemSucesso(''), 4000)

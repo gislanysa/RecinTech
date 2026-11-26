@@ -82,11 +82,6 @@ export default function PaginaConexoesStartup() {
           <h1 className="font-display text-2xl font-bold tracking-tight text-ink-900 sm:text-3xl">
             Conexões
           </h1>
-          {carga.status === 'ok' && carga.origem === 'simulado' && (
-            <span className="rounded-full bg-accent-100 px-3 py-1 text-xs font-medium text-accent-700">
-              Dados de exemplo
-            </span>
-          )}
         </div>
         <p className="mt-1 text-sm text-ink-500">
           As oportunidades em que você demonstrou interesse e o que as empresas responderam.

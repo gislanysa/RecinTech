@@ -5,6 +5,7 @@ import {
   type CandidaturaDemanda,
   type Demanda,
 } from '@/lib/demandas.ts'
+import { formatarMoeda } from '@/lib/formatadores.ts'
 import { buscarStartupPorId } from '@/lib/startups.ts'
 import { useEffect, useState } from 'react'
 
@@ -99,18 +100,18 @@ export default function ModalCandidaturasDemanda({
     switch (status) {
       case 'accepted':
         return {
-          texto: 'Aceita',
+          texto: 'Proposta Aceita',
           classe: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
         }
       case 'declined':
         return {
-          texto: 'Recusada',
+          texto: 'Proposta Recusada',
           classe: 'bg-rose-50 text-rose-700 ring-rose-200',
         }
       case 'pending':
       default:
         return {
-          texto: 'Pendente',
+          texto: 'Aguardando Avaliação',
           classe: 'bg-amber-50 text-amber-700 ring-amber-200',
         }
     }
@@ -133,14 +134,21 @@ export default function ModalCandidaturasDemanda({
       <div className="relative z-10 flex max-h-[85vh] w-full max-w-2xl flex-col rounded-2xl bg-surface p-6 shadow-2xl ring-1 ring-brand-100 sm:p-8">
         <div className="flex items-start justify-between border-b border-brand-100 pb-4">
           <div>
-            <span className="text-xs font-semibold uppercase tracking-wider text-brand-700">
-              Candidaturas Recebidas
-            </span>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs font-semibold uppercase tracking-wider text-brand-700">
+                Candidaturas & Negociação de Valor
+              </span>
+              {demanda.orcamento && demanda.orcamento > 0 && (
+                <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-bold text-emerald-700 ring-1 ring-emerald-200">
+                  Orçamento Definido: {formatarMoeda(demanda.orcamento)}
+                </span>
+              )}
+            </div>
             <h2 id="modal-candidaturas-titulo" className="mt-1 font-display text-xl font-bold text-ink-900 sm:text-2xl">
               {demanda.titulo}
             </h2>
             <p className="mt-1 text-xs text-ink-500 sm:text-sm">
-              Startups que se candidataram a esta demanda aberta.
+              Avalie as propostas financeiras e aceite ou recuse a contratação das startups.
             </p>
           </div>
           <button
@@ -177,7 +185,7 @@ export default function ModalCandidaturasDemanda({
                 Nenhuma startup candidatada ainda
               </h3>
               <p className="mt-1 text-xs text-ink-500 sm:text-sm">
-                Quando uma startup visualizar esta demanda aberta e submeter sua candidatura, ela aparecerá aqui para sua avaliação.
+                Quando uma startup visualizar esta demanda aberta e submeter sua candidatura com proposta ou contraproposta, ela aparecerá aqui para sua avaliação.
               </p>
             </div>
           )}
@@ -193,7 +201,7 @@ export default function ModalCandidaturasDemanda({
                     key={c.startup}
                     className="flex flex-col gap-3 rounded-xl border border-brand-100 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between"
                   >
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
                         <h4 className="font-display text-base font-bold text-ink-900">
                           {c.startup_nome}
@@ -209,6 +217,32 @@ export default function ModalCandidaturasDemanda({
                           {c.startup_cidade}, {c.startup_estado}
                         </p>
                       )}
+
+                      {/* Bloco de Negociação de Valor (Proposta / Contraproposta) */}
+                      {c.tipo_proposta === 'contraproposta' && c.valor_proposto ? (
+                        <div className="mt-2 rounded-lg border border-accent-200 bg-accent-50/60 p-2 text-xs">
+                          <p className="font-bold text-accent-800">
+                            🔄 Contraproposta da startup: {formatarMoeda(c.valor_proposto)}
+                          </p>
+                          {demanda.orcamento && (
+                            <p className="mt-0.5 text-[11px] text-ink-500">
+                              Orçamento que a empresa havia definido: {formatarMoeda(demanda.orcamento)}
+                            </p>
+                          )}
+                          {c.justificativa && (
+                            <p className="mt-1 text-ink-600 italic">
+                              Motivo: "{c.justificativa}"
+                            </p>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="mt-2 rounded-lg border border-emerald-200 bg-emerald-50/60 p-2 text-xs text-emerald-800">
+                          <p className="font-bold">
+                            ✓ Aceitou o valor proposto pela empresa ({formatarMoeda(c.valor_proposto || demanda.orcamento)})
+                          </p>
+                        </div>
+                      )}
+
                       {c.startup_descricao && (
                         <p className="mt-1 line-clamp-2 text-xs text-ink-700">
                           {c.startup_descricao}
@@ -219,21 +253,21 @@ export default function ModalCandidaturasDemanda({
                       </p>
                     </div>
 
-                    <div className="flex shrink-0 items-center gap-2 pt-2 sm:pt-0">
+                    <div className="flex shrink-0 items-center gap-2 pt-2 sm:pt-0 sm:ml-4">
                       <button
                         type="button"
                         disabled={ocupado || c.status === 'accepted'}
                         onClick={() => handleResponder(c.startup, 'accepted')}
-                        className="inline-flex items-center gap-1 rounded-full bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition-all hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
+                        className="inline-flex items-center gap-1 rounded-full bg-emerald-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm transition-all hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
                       >
                         <CheckIcon className="size-3.5" />
-                        Aceitar
+                        Aceitar Proposta
                       </button>
                       <button
                         type="button"
                         disabled={ocupado || c.status === 'declined'}
                         onClick={() => handleResponder(c.startup, 'declined')}
-                        className="rounded-full border border-rose-200 bg-white px-3 py-1.5 text-xs font-semibold text-rose-700 transition-all hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-40"
+                        className="rounded-full border border-rose-200 bg-white px-3.5 py-1.5 text-xs font-semibold text-rose-700 transition-all hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-40"
                       >
                         Recusar
                       </button>
@@ -258,3 +292,4 @@ export default function ModalCandidaturasDemanda({
     </div>
   )
 }
+

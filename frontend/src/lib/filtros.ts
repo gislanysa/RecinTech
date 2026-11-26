@@ -9,6 +9,7 @@ export type Filtros = {
   cities: string[]
   remote: boolean
   onsite: boolean
+  apenasDestaque: boolean
 }
 
 export const FILTROS_VAZIOS: Filtros = {
@@ -20,6 +21,7 @@ export const FILTROS_VAZIOS: Filtros = {
   cities: [],
   remote: false,
   onsite: false,
+  apenasDestaque: false,
 }
 
 export function contarAtivos(f: Filtros): number {
@@ -31,7 +33,8 @@ export function contarAtivos(f: Filtros): number {
     f.states.length +
     f.cities.length +
     (f.remote ? 1 : 0) +
-    (f.onsite ? 1 : 0)
+    (f.onsite ? 1 : 0) +
+    (f.apenasDestaque ? 1 : 0)
   )
 }
 

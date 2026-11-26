@@ -16,9 +16,10 @@ export type Oportunidade = {
   tecnologias: string[]
   segmento?: string
   servicos?: string[]
+  orcamento?: number
 }
 
-export type OrigemDosDados = 'api' | 'simulado'
+export type OrigemDosDados = 'api'
 
 export type StatusConexao = 'pendente' | 'aceito' | 'recusado'
 
@@ -103,21 +104,31 @@ export async function responderSolicitacaoConexao(
 
 /**
  * Calcula a compatibilidade percentual (0 a 100) entre o perfil técnico da startup
- * (área, segmentos, serviços e tecnologias) e os requisitos cadastrados na demanda da empresa.
+ * (área, segmentos, serviços, tecnologias e faixa de preço) e os requisitos cadastrados na demanda da empresa.
  *
  * Retorna 0 quando não houver qualquer similaridade relevante.
  */
+function calcularAjusteFatorPreco(faixaPreco?: number, orcamento?: number): number {
+  if (!orcamento || orcamento <= 0) return 0
+  if (!faixaPreco || faixaPreco <= 0) return 4
+  if (faixaPreco <= orcamento) return 10
+  if (faixaPreco <= orcamento * 1.25) return 4
+  return -8
+}
+
 export function calcularCompatibilidadeDemanda(
   tags: {
     area?: string
     segments?: string[]
     services?: string[]
     technologies?: string[]
+    faixaPreco?: number
   } | null | undefined,
   demanda: {
     segmento?: string
     servicos?: string[]
     tecnologias?: string[]
+    orcamento?: number
   },
 ): number {
   if (!tags) return 0
@@ -148,7 +159,7 @@ export function calcularCompatibilidadeDemanda(
     return 0
   }
 
-  // Se houver similaridade real, calcula pontuação proporcional entre 60% e 98%
+  // Se houver similaridade real, calcula pontuação proporcional entre 60% e 99%
   let score = 50
 
   if (matchSegmento) {
@@ -166,6 +177,9 @@ export function calcularCompatibilidadeDemanda(
   } else if (tecsComuns.length > 0) {
     score += 15
   }
+
+  // Inserção do Fator Valor no Score
+  score += calcularAjusteFatorPreco(tags.faixaPreco, demanda.orcamento)
 
   return Math.min(99, Math.max(60, score))
 }
@@ -211,6 +225,7 @@ export async function listarOportunidades(
         tecnologias: dem.tecnologias ?? [],
         segmento: dem.segmento,
         servicos: dem.servicos,
+        orcamento: dem.orcamento,
       })
     }
   }

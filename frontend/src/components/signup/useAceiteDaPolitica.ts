@@ -10,6 +10,7 @@ const MENSAGEM_DE_ERRO = 'Para criar a conta, e preciso aceitar a politica e os 
 const PAINEL: Record<TipoSessao, string> = {
   startup: '/dashboard/startup',
   company: '/dashboard/empresa',
+  admin: '/dashboard/admin',
 }
 
 /**

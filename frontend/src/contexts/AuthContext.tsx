@@ -1,3 +1,4 @@
+import { sincronizarContaAdmin } from '@/lib/admin.ts'
 import {
   AuthContext,
   type AuthContextTipo,
@@ -38,6 +39,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setEstado(novaConta ? 'autenticado' : 'nao-autenticado')
     if (novaConta) {
       setErroTemporario(null)
+      sincronizarContaAdmin(novaConta)
     }
   }, [])
 

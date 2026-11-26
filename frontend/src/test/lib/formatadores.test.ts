@@ -1,4 +1,4 @@
-import { calcularTempoAtuacao } from '@/lib/formatadores.ts'
+import { calcularTempoAtuacao, formatarPorteEmpresa } from '@/lib/formatadores.ts'
 import { describe, expect, it } from 'vitest'
 
 describe('Utilitários de formatação - calcularTempoAtuacao', () => {
@@ -31,5 +31,20 @@ describe('Utilitários de formatação - calcularTempoAtuacao', () => {
     const dataUmAnoAtras = new Date()
     dataUmAnoAtras.setFullYear(dataUmAnoAtras.getFullYear() - 1)
     expect(calcularTempoAtuacao(dataUmAnoAtras.toISOString())).toBe('1 ano na plataforma')
+  })
+})
+
+describe('Utilitários de formatação - formatarPorteEmpresa', () => {
+  it('deve formatar big, medium e small para Grande, Médio e Pequeno', () => {
+    expect(formatarPorteEmpresa('big')).toBe('Grande')
+    expect(formatarPorteEmpresa('medium')).toBe('Médio')
+    expect(formatarPorteEmpresa('small')).toBe('Pequeno')
+    expect(formatarPorteEmpresa('micro')).toBe('Microempresa')
+  })
+
+  it('deve retornar string vazia para valor vazio ou indefinido', () => {
+    expect(formatarPorteEmpresa('')).toBe('')
+    expect(formatarPorteEmpresa(null)).toBe('')
+    expect(formatarPorteEmpresa(undefined)).toBe('')
   })
 })

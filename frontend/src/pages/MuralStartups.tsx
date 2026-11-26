@@ -1,13 +1,13 @@
 import type { ContextoSessao } from '@/components/RotaProtegida.tsx'
 import { AvatarStartup } from '@/components/explorar/CartaoStartup.tsx'
-import { CloseIcon } from '@/components/icons.tsx'
+import { CloseIcon, SparklesIcon } from '@/components/icons.tsx'
 import { BLOCOS_CANVAS, carregarCanvas, canvasVazio, temConteudo, type CanvasStartup } from '@/lib/canvas.ts'
 import { calcularTempoAtuacao } from '@/lib/formatadores.ts'
 import { listarStartups, type StartupCatalogo } from '@/lib/startups.ts'
 import { useEffect, useMemo, useState } from 'react'
 import { useOutletContext } from 'react-router-dom'
 
-type Ordem = 'recentes' | 'relevancia' | 'nome'
+type Ordem = 'recentes' | 'destaques' | 'relevancia' | 'nome'
 
 function textoDaStartup(s: StartupCatalogo): string {
   return [s.name, s.tagline, s.area, s.city, ...s.services, ...s.technologies, ...s.segments]
@@ -28,6 +28,7 @@ export default function MuralStartups() {
   const [carregando, setCarregando] = useState(true)
   const [busca, setBusca] = useState('')
   const [area, setArea] = useState('')
+  const [apenasDestaque, setApenasDestaque] = useState(false)
   const [ordem, setOrdem] = useState<Ordem>('recentes')
   const [aberta, setAberta] = useState<StartupCatalogo | null>(null)
 
@@ -58,12 +59,20 @@ export default function MuralStartups() {
   const resultados = useMemo(() => {
     const termo = busca.trim().toLowerCase()
     const filtradas = outras.filter(
-      (s) => (!area || s.area === area) && (!termo || textoDaStartup(s).includes(termo)),
+      (s) =>
+        (!area || s.area === area) &&
+        (!apenasDestaque || s.emDestaque) &&
+        (!termo || textoDaStartup(s).includes(termo)),
     )
+    if (ordem === 'destaques') {
+      return [...filtradas].sort(
+        (a, b) => (b.emDestaque ? 1 : 0) - (a.emDestaque ? 1 : 0) || b.relevance - a.relevance,
+      )
+    }
     if (ordem === 'nome') return [...filtradas].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
     if (ordem === 'relevancia') return [...filtradas].sort((a, b) => b.relevance - a.relevance)
     return [...filtradas].sort((a, b) => b.created_at.localeCompare(a.created_at))
-  }, [outras, busca, area, ordem])
+  }, [outras, busca, area, apenasDestaque, ordem])
 
   return (
     <div className="flex flex-col gap-6">
@@ -83,17 +92,33 @@ export default function MuralStartups() {
           aria-label="Buscar startups"
           className="w-full rounded-xl border border-brand-200 bg-surface px-4 py-2.5 text-sm text-ink-900 outline-none placeholder:text-ink-500/60 focus:border-transparent focus:ring-2 focus:ring-accent-500 sm:max-w-md sm:flex-1"
         />
-        <select
-          id="mural-ordem"
-          value={ordem}
-          onChange={(e) => setOrdem(e.target.value as Ordem)}
-          aria-label="Ordenar startups"
-          className="rounded-xl border border-brand-200 bg-surface px-3.5 py-2.5 text-sm text-ink-900 outline-none focus:ring-2 focus:ring-accent-500"
-        >
-          <option value="recentes">Mais recentes</option>
-          <option value="relevancia">Mais relevantes</option>
-          <option value="nome">Nome A–Z</option>
-        </select>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setApenasDestaque((v) => !v)}
+            className={[
+              'inline-flex items-center gap-1.5 rounded-xl border px-3.5 py-2 text-sm font-semibold transition-all',
+              apenasDestaque
+                ? 'border-amber-400 bg-amber-50 text-amber-900 shadow-sm ring-1 ring-amber-300'
+                : 'border-brand-200 bg-surface text-ink-900 hover:bg-brand-50',
+            ].join(' ')}
+            aria-pressed={apenasDestaque}
+          >
+            <span>⭐ Apenas destaques</span>
+          </button>
+          <select
+            id="mural-ordem"
+            value={ordem}
+            onChange={(e) => setOrdem(e.target.value as Ordem)}
+            aria-label="Ordenar startups"
+            className="rounded-xl border border-brand-200 bg-surface px-3.5 py-2.5 text-sm text-ink-900 outline-none focus:ring-2 focus:ring-accent-500"
+          >
+            <option value="recentes">Mais recentes</option>
+            <option value="destaques">⭐ Em destaque primeiro</option>
+            <option value="relevancia">Mais relevantes</option>
+            <option value="nome">Nome A–Z</option>
+          </select>
+        </div>
       </div>
 
       {areas.length > 0 && (
@@ -153,8 +178,19 @@ function CartaoMural({
       type="button"
       onClick={aoAbrir}
       aria-label={`Ver perfil de ${startup.name}`}
-      className="group flex h-full w-full flex-col overflow-hidden rounded-card bg-surface p-5 text-left shadow-sm transition-all hover:-translate-y-1 hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-600"
+      className={[
+        'group flex h-full w-full flex-col overflow-hidden rounded-card p-5 text-left shadow-sm transition-all hover:-translate-y-1 hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-600',
+        startup.emDestaque
+          ? 'border-2 border-amber-300 bg-gradient-to-b from-amber-50/20 to-surface ring-1 ring-amber-200'
+          : 'bg-surface',
+      ].join(' ')}
     >
+      {startup.emDestaque && (
+        <div className="mb-3 flex items-center gap-1.5 self-start rounded-full bg-amber-100/90 px-2.5 py-0.5 text-[11px] font-semibold text-amber-900 ring-1 ring-amber-300">
+          <SparklesIcon className="size-3.5 text-amber-600" />
+          <span>Destaque Patrocinado</span>
+        </div>
+      )}
       <div className="flex items-center gap-3">
         <AvatarStartup startup={startup} />
         <div className="min-w-0">
