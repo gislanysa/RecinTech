@@ -139,7 +139,7 @@ pub fn handle_request(request: Request, context: Context) -> Response {
   case request.method, request.path_segments(request) {
     // ## HEALTHCHECK
     // Check if the HTTP server is running correctly.
-    http.Get, ["api", "healthcheck"] -> wisp.ok()
+    http.Get, ["api", "healthcheck"] -> healthcheck(context.database)
 
     // ## CLIENT
     // Send the HTML to the client.
@@ -383,6 +383,17 @@ pub fn handle_request(request: Request, context: Context) -> Response {
 
     // Page not found in the frontend
     _, _ -> get_root_document()
+  }
+}
+
+fn healthcheck(database: pog.Connection) -> Response {
+  let database_healthcheck =
+    pog.query("select 1")
+    |> pog.execute(database)
+
+  case database_healthcheck {
+    Ok(_) -> wisp.ok()
+    Error(_) -> wisp.response(503)
   }
 }
 
