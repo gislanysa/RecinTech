@@ -155,12 +155,22 @@ export default function PoliticaPrivacidade() {
           tratamos seus dados, acessá-los, corrigir o que estiver errado, pedir a exclusão,
           revogar o consentimento e saber com quem compartilhamos.
         </p>
+        <p>
+          A consulta da situação dos seus dados e a revogação ou concessão do consentimento podem
+          ser realizadas a qualquer momento diretamente no painel{' '}
+          <Link
+            to="/privacidade/dados"
+            className="font-medium text-brand-600 underline-offset-4 hover:underline"
+          >
+            Seus dados
+          </Link>
+          . A atualização de dados cadastrais também pode ser feita pelo titular em Meu perfil.
+        </p>
 
         <Destaque>
-          Parte desses direitos ainda não está disponível na interface. A exportação dos seus
-          dados, a exclusão da conta e a revogação do consentimento estão em desenvolvimento.
-          Enquanto não existirem como botão, o pedido pode ser feito pelo contato abaixo e será
-          atendido manualmente pela equipe.
+          A exportação dos seus dados e a exclusão definitiva da conta ainda não estão disponíveis
+          como botão na interface. Enquanto não existirem de forma automatizada, esses pedidos podem
+          ser feitos pelo canal de contato abaixo e serão atendidos manualmente pela equipe.
         </Destaque>
       </SecaoLegal>
 
