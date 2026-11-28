@@ -1,0 +1,4272 @@
+openapi: 3.0.4
+info:
+  title: RecinTech API
+  description: API do backend (Gleam) da plataforma que conecta startups e empresas. Gerado a partir de
+    docs/api.md; os schemas são inferidos dos exemplos de resposta.
+  version: 0.1.0
+servers:
+- url: http://localhost:8000
+  description: Desenvolvimento local (ajuste a porta)
+paths:
+  /api/healthcheck:
+    get:
+      tags:
+      - health
+      summary: Check if the HTTP server is running correctly.
+      operationId: getApiHealthcheck
+      responses:
+        '200':
+          description: Successful
+  /:
+    get:
+      tags:
+      - client
+      summary: Serve the HTML document for the client-side application.
+      description: Serve the HTML document for the client-side application. Any unknown non-API route
+        falls back to this document.
+      operationId: getRoot
+      responses:
+        '200':
+          description: Successful. The application's HTML document.
+  /api/auth/login:
+    post:
+      tags:
+      - auth
+      summary: Authenticate a startup or a company.
+      description: Authenticate a startup or a company. On success, a signed `SESSION` cookie is set on
+        the response, lasting exactly one hour. The response body contains startup or company data, depending
+        on the session type.
+      operationId: postApiAuthLogin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                session:
+                  type: string
+                  enum:
+                  - startup
+                  - company
+                email:
+                  type: string
+                password:
+                  type: string
+              required:
+              - session
+              - email
+              - password
+            example:
+              session: startup
+              email: wibble@email.com
+              password: '12345678'
+        description: '`session`: either `"startup"` or `"company"`'
+      responses:
+        '200':
+          description: Successful. The startup or company object for the authenticated account, e.g.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  name:
+                    type: string
+                  email:
+                    type: string
+                  stage:
+                    type: string
+                  cnpj:
+                    type: string
+                  description:
+                    type: string
+                  city:
+                    type: string
+                  state:
+                    type: string
+                  created_at:
+                    type: string
+                    format: date-time
+                  updated_at:
+                    type: string
+                    format: date-time
+                  is_active:
+                    type: boolean
+                  website:
+                    type: string
+                required:
+                - id
+                - name
+                - email
+                - stage
+                - cnpj
+                - description
+                - city
+                - state
+                - created_at
+                - updated_at
+                - is_active
+                - website
+              example:
+                id: 01a058ae-057f-73e8-b2a0-50986559767b
+                name: Critic Level
+                email: critic@email.dev
+                stage: traction
+                cnpj: '12345678901234'
+                description: startup muito maneira
+                city: Recife
+                state: Pernambuco
+                created_at: '2026-09-14T20:08:02.000Z'
+                updated_at: '2026-09-14T20:08:02.000Z'
+                is_active: true
+                website: criticlevel.dev
+        '400':
+          description: Invalid JSON, invalid email format or invalid session type
+        '401':
+          description: Wrong email or password
+  /api/auth/logout:
+    post:
+      tags:
+      - auth
+      summary: Deletes the session cookie stored in the user request.
+      operationId: postApiAuthLogout
+      responses:
+        '204':
+          description: Successful
+        '401':
+          description: Missing cookie
+      security:
+      - cookieAuth: []
+  /api/auth/restore:
+    get:
+      tags:
+      - auth
+      summary: Check for an active session token and restore it.
+      description: Check for an active session token and restore it. On success, the server sends startup
+        or company data, depending on the session type. This route does **not** refresh the session token
+        duration. Requires the `SESSION` cookie.
+      operationId: getApiAuthRestore
+      responses:
+        '200':
+          description: Successful. The startup or company object for the active session.
+        '401':
+          description: Missing session cookie
+        '404':
+          description: Startup or Company not found
+      security:
+      - cookieAuth: []
+  /api/auth/refresh:
+    get:
+      tags:
+      - auth
+      summary: Refresh the duration of the current session token.
+      description: Refresh the duration of the current session token. Requires the `SESSION` cookie.
+      operationId: getApiAuthRefresh
+      responses:
+        '204':
+          description: Successful
+        '401':
+          description: Missing session cookie
+      security:
+      - cookieAuth: []
+  /api/startup:
+    post:
+      tags:
+      - startup
+      summary: Register a new startup.
+      operationId: postApiStartup
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                email:
+                  type: string
+                password:
+                  type: string
+                cnpj:
+                  type: string
+                stage:
+                  type: string
+                  enum:
+                  - traction
+                  - scaling
+                description:
+                  type: string
+                city:
+                  type: string
+                state:
+                  type: string
+                website:
+                  type: string
+              required:
+              - name
+              - email
+              - password
+              - cnpj
+              - stage
+              - description
+              - city
+              - state
+              - website
+            example:
+              name: Recintech
+              email: recintech@email.com
+              password: '12345678'
+              cnpj: '12345678901234'
+              stage: traction
+              description: startup muito maneira
+              city: Recife
+              state: Pernambuco
+              website: recintech.dev
+        description: '`stage`: either `"traction"` or `"scaling"`'
+      responses:
+        '201':
+          description: Successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  name:
+                    type: string
+                  email:
+                    type: string
+                  stage:
+                    type: string
+                  cnpj:
+                    type: string
+                  description:
+                    type: string
+                  city:
+                    type: string
+                  state:
+                    type: string
+                  created_at:
+                    type: string
+                    format: date-time
+                  updated_at:
+                    type: string
+                    format: date-time
+                  is_active:
+                    type: boolean
+                  website:
+                    type: string
+                required:
+                - id
+                - name
+                - email
+                - stage
+                - cnpj
+                - description
+                - city
+                - state
+                - created_at
+                - updated_at
+                - is_active
+                - website
+              example:
+                id: 01a058ae-057f-73e8-b2a0-50986559767b
+                name: Critic Level
+                email: critic@email.dev
+                stage: traction
+                cnpj: '12345678901234'
+                description: startup muito maneira
+                city: Recife
+                state: Pernambuco
+                created_at: '2026-09-14T20:08:02.000Z'
+                updated_at: '2026-09-14T20:08:02.000Z'
+                is_active: true
+                website: criticlevel.dev
+        '400':
+          description: Invalid JSON or invalid data
+        '409':
+          description: Duplicated email or CNPJ
+    get:
+      tags:
+      - startup
+      summary: Fetch a list of registered startups.
+      operationId: getApiStartup
+      parameters:
+      - $ref: '#/components/parameters/Limit'
+      - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          description: Successful
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                      format: uuid
+                    name:
+                      type: string
+                    email:
+                      type: string
+                    stage:
+                      type: string
+                    cnpj:
+                      type: string
+                    description:
+                      type: string
+                    city:
+                      type: string
+                    state:
+                      type: string
+                    created_at:
+                      type: string
+                      format: date-time
+                    updated_at:
+                      type: string
+                      format: date-time
+                    is_active:
+                      type: boolean
+                    website:
+                      type: string
+                  required:
+                  - id
+                  - name
+                  - email
+                  - stage
+                  - cnpj
+                  - description
+                  - city
+                  - state
+                  - created_at
+                  - updated_at
+                  - is_active
+                  - website
+              example:
+              - id: 01a058ae-057f-73e8-b2a0-50986559767b
+                name: Critic Level
+                email: wibble@email.com
+                stage: traction
+                cnpj: '12345678901234'
+                description: startup muito maneira
+                city: Recife
+                state: Pernambuco
+                created_at: '2026-09-14T20:08:02.000Z'
+                updated_at: '2026-09-14T20:08:02.000Z'
+                is_active: true
+                website: wibble.com
+              - id: 01a0dbb3-153a-7b84-8c3d-631788972d4a
+                name: Virada no Cafe
+                email: wobble@email.com
+                stage: scaling
+                cnpj: '12345678901234'
+                description: bem legal
+                city: Recife
+                state: Pernambuco
+                created_at: '2025-09-14T20:08:02.000Z'
+                updated_at: '2026-09-14T20:08:02.000Z'
+                is_active: true
+                website: wobble.com
+        '400':
+          description: Missing, invalid or incomplete query parameters
+  /api/startup/{id}:
+    patch:
+      tags:
+      - startup
+      summary: Update information about a startup.
+      description: Update information about a startup. Missing fields and empty strings are ignored.
+      operationId: patchApiStartupById
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                email:
+                  type: string
+                stage:
+                  type: string
+                  enum:
+                  - traction
+                  - scaling
+                cnpj:
+                  type: string
+                description:
+                  type: string
+                city:
+                  type: string
+                state:
+                  type: string
+                website:
+                  type: string
+            example:
+              name: Virada no Cafe
+              email: contact@viradanocafe.com
+              stage: scaling
+              cnpj: '12345678901234'
+              description: Inovacao periferica que transforma
+              city: Olinda
+              state: Pernambuco
+              website: https://viradanocafe.com
+        description: 'All fields are optional. `stage`: either `"traction"` or `"scaling"`. Empty strings
+          are treated as missing fields.'
+      responses:
+        '200':
+          description: Successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  name:
+                    type: string
+                  email:
+                    type: string
+                  stage:
+                    type: string
+                  cnpj:
+                    type: string
+                  description:
+                    type: string
+                  city:
+                    type: string
+                  state:
+                    type: string
+                  created_at:
+                    type: string
+                    format: date-time
+                  updated_at:
+                    type: string
+                    format: date-time
+                  is_active:
+                    type: boolean
+                  website:
+                    type: string
+                required:
+                - id
+                - name
+                - email
+                - stage
+                - cnpj
+                - description
+                - city
+                - state
+                - created_at
+                - updated_at
+                - is_active
+                - website
+              example:
+                id: 01a058ae-057f-73e8-b2a0-50986559767b
+                name: Virada no Cafe
+                email: contact@viradanocafe.com
+                stage: scaling
+                cnpj: '12345678901234'
+                description: Inovacao periferica que transforma
+                city: Olinda
+                state: Pernambuco
+                created_at: '2026-09-14T20:08:02.000Z'
+                updated_at: '2026-09-14T20:08:02.000Z'
+                is_active: true
+                website: https://viradanocafe.com
+        '400':
+          description: Invalid JSON, invalid UUID format or invalid field value
+        '401':
+          description: Not authenticated
+        '403':
+          description: Invalid session
+        '404':
+          description: Startup not found
+        '409':
+          description: Email or CNPJ already in use
+      security:
+      - cookieAuth: []
+    get:
+      tags:
+      - startup
+      summary: Fetch information about a startup.
+      operationId: getApiStartupById
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  name:
+                    type: string
+                  email:
+                    type: string
+                  stage:
+                    type: string
+                  cnpj:
+                    type: string
+                  description:
+                    type: string
+                  city:
+                    type: string
+                  state:
+                    type: string
+                  created_at:
+                    type: string
+                    format: date-time
+                  updated_at:
+                    type: string
+                    format: date-time
+                  is_active:
+                    type: boolean
+                  website:
+                    type: string
+                required:
+                - id
+                - name
+                - email
+                - stage
+                - cnpj
+                - description
+                - city
+                - state
+                - created_at
+                - updated_at
+                - is_active
+                - website
+              example:
+                id: 01a058ae-057f-73e8-b2a0-50986559767b
+                name: Critic Level
+                email: critic@email.dev
+                stage: traction
+                cnpj: '12345678901234'
+                description: startup muito maneira
+                city: Recife
+                state: Pernambuco
+                created_at: '2026-09-14T20:08:02.000Z'
+                updated_at: '2026-09-14T20:08:02.000Z'
+                is_active: true
+                website: criticlevel.dev
+        '400':
+          description: Invalid UUID format
+        '404':
+          description: Startup not found
+  /api/startup/{id}/lgpd:
+    get:
+      tags:
+      - startup
+      summary: Fetch all LGPD (Lei Geral de Proteção de Dados) consent records for a startup, ordered
+        by policy version.
+      operationId: getApiStartupByIdLgpd
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: the startup's ID.
+      responses:
+        '200':
+          description: Successful
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    type:
+                      type: string
+                    subject:
+                      type: object
+                      properties:
+                        type:
+                          type: string
+                        id:
+                          type: string
+                          format: uuid
+                      required:
+                      - type
+                      - id
+                    updated_at:
+                      type: string
+                      format: date-time
+                    version:
+                      type: integer
+                  required:
+                  - type
+                  - subject
+                  - updated_at
+                  - version
+              example:
+              - type: granted
+                subject:
+                  type: startup
+                  id: 01a058ae-057f-73e8-b2a0-50986559767b
+                updated_at: '2026-09-14T20:08:02.000Z'
+                version: 1
+              - type: revoked
+                subject:
+                  type: startup
+                  id: 01a058ae-057f-73e8-b2a0-50986559767b
+                updated_at: '2026-09-14T20:08:02.000Z'
+                version: 2
+        '400':
+          description: Invalid UUID format
+        '500':
+          description: Failed to fetch consent records
+  /api/startup/{id}/lgpd/{version}:
+    post:
+      tags:
+      - startup
+      summary: Grant LGPD (Lei Geral de Proteção de Dados) consent for a startup at a given policy version.
+      description: Grant LGPD (Lei Geral de Proteção de Dados) consent for a startup at a given policy
+        version. Once granted, the startup allows its data to be used as described by that version of
+        the privacy policy. A Startup session is required.
+      operationId: postApiStartupByIdLgpdByVersion
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: the startup's ID.
+      - name: version
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: the accepted policy version. Must be greater than
+      responses:
+        '200':
+          description: Successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  subject:
+                    type: object
+                    properties:
+                      type:
+                        type: string
+                      id:
+                        type: string
+                        format: uuid
+                    required:
+                    - type
+                    - id
+                  updated_at:
+                    type: string
+                    format: date-time
+                  version:
+                    type: integer
+                required:
+                - type
+                - subject
+                - updated_at
+                - version
+              example:
+                type: granted
+                subject:
+                  type: startup
+                  id: 01a058ae-057f-73e8-b2a0-50986559767b
+                updated_at: '2026-09-14T20:08:02.000Z'
+                version: 1
+        '400':
+          description: Invalid UUID format or invalid policy version
+        '401':
+          description: Not authenticated
+        '403':
+          description: Invalid session
+        '404':
+          description: Startup not found
+        '500':
+          description: Failed to update consent
+      security:
+      - cookieAuth: []
+    delete:
+      tags:
+      - startup
+      summary: Revoke LGPD (Lei Geral de Proteção de Dados) consent for a startup at a given policy version.
+      description: Revoke LGPD (Lei Geral de Proteção de Dados) consent for a startup at a given policy
+        version. Once revoked, the startup no longer allows its data to be used as described by that version
+        of the privacy policy. A Startup session is required.
+      operationId: deleteApiStartupByIdLgpdByVersion
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: the startup's ID.
+      - name: version
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: the revoked policy version. Must be greater than
+      responses:
+        '200':
+          description: Successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  subject:
+                    type: object
+                    properties:
+                      type:
+                        type: string
+                      id:
+                        type: string
+                        format: uuid
+                    required:
+                    - type
+                    - id
+                  updated_at:
+                    type: string
+                    format: date-time
+                  version:
+                    type: integer
+                required:
+                - type
+                - subject
+                - updated_at
+                - version
+              example:
+                type: revoked
+                subject:
+                  type: startup
+                  id: 01a058ae-057f-73e8-b2a0-50986559767b
+                updated_at: '2026-09-14T20:08:02.000Z'
+                version: 1
+        '400':
+          description: Invalid UUID format or invalid policy version
+        '401':
+          description: Not authenticated
+        '403':
+          description: Invalid session
+        '404':
+          description: Startup not found
+        '500':
+          description: Failed to update consent
+      security:
+      - cookieAuth: []
+  /api/segment:
+    get:
+      tags:
+      - segment
+      summary: Fetch a list of registered segments.
+      operationId: getApiSegment
+      parameters:
+      - $ref: '#/components/parameters/Limit'
+      - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          description: Successful
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                      format: uuid
+                    name:
+                      type: string
+                    description:
+                      type: string
+                  required:
+                  - id
+                  - name
+                  - description
+              example:
+              - id: 01a058ae-057f-73e8-b2a0-50986559767b
+                name: Tech
+                description: Technology
+              - id: 01a0dbb3-153a-7b84-8c3d-631788972d4a
+                name: Biotech
+                description: Technology, but Bio
+        '400':
+          description: Missing, invalid or incomplete query parameters
+  /api/segment/{id}:
+    get:
+      tags:
+      - segment
+      summary: Fetch information about a segment.
+      operationId: getApiSegmentById
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  name:
+                    type: string
+                  description:
+                    type: string
+                required:
+                - id
+                - name
+                - description
+              example:
+                id: 01a058ae-057f-73e8-b2a0-50986559767b
+                name: Tech
+                description: Modern technology
+        '400':
+          description: Invalid UUID format
+        '404':
+          description: Segment not found
+  /api/technology:
+    get:
+      tags:
+      - technology
+      summary: Fetch a list of registered technologies.
+      operationId: getApiTechnology
+      parameters:
+      - $ref: '#/components/parameters/Limit'
+      - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          description: Successful
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                      format: uuid
+                    name:
+                      type: string
+                    description:
+                      type: string
+                  required:
+                  - id
+                  - name
+                  - description
+              example:
+              - id: 01a058ae-057f-73e8-b2a0-50986559767b
+                name: Gleam
+                description: A friendly language for building type-safe systems
+              - id: 01a0dbb3-153a-7b84-8c3d-631788972d4a
+                name: PostgreSQL
+                description: The world's most advanced open source database
+        '400':
+          description: Missing, invalid or incomplete query parameters
+  /api/technology/{id}:
+    get:
+      tags:
+      - technology
+      summary: Fetch information about a technology.
+      operationId: getApiTechnologyById
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  name:
+                    type: string
+                  description:
+                    type: string
+                required:
+                - id
+                - name
+                - description
+              example:
+                id: 01a058ae-057f-73e8-b2a0-50986559767b
+                name: Gleam
+                description: A friendly language for building type-safe systems
+        '400':
+          description: Invalid UUID format
+        '404':
+          description: Technology not found
+  /api/expertise:
+    get:
+      tags:
+      - expertise
+      summary: Fetch a list of registered expertises.
+      operationId: getApiExpertise
+      parameters:
+      - $ref: '#/components/parameters/Limit'
+      - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          description: Successful
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                      format: uuid
+                    name:
+                      type: string
+                    description:
+                      type: string
+                  required:
+                  - id
+                  - name
+                  - description
+              example:
+              - id: 01a058ae-057f-73e8-b2a0-50986559767b
+                name: Education
+                description: Teaching and learning
+              - id: 01a0dbb3-153a-7b84-8c3d-631788972d4a
+                name: Health
+                description: Medical stuff
+        '400':
+          description: Missing, invalid or incomplete query parameters
+  /api/expertise/{id}:
+    get:
+      tags:
+      - expertise
+      summary: Fetch information about an expertise.
+      operationId: getApiExpertiseById
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  name:
+                    type: string
+                  description:
+                    type: string
+                required:
+                - id
+                - name
+                - description
+              example:
+                id: 01a058ae-057f-73e8-b2a0-50986559767b
+                name: Education
+                description: Teaching and learning
+        '400':
+          description: Invalid UUID format
+        '404':
+          description: Expertise not found
+  /api/service:
+    get:
+      tags:
+      - service
+      summary: Fetch a list of registered services.
+      operationId: getApiService
+      parameters:
+      - $ref: '#/components/parameters/Limit'
+      - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          description: Successful
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                      format: uuid
+                    name:
+                      type: string
+                    description:
+                      type: string
+                  required:
+                  - id
+                  - name
+                  - description
+              example:
+              - id: 01a058ae-057f-73e8-b2a0-50986559767b
+                name: Web development
+                description: Websites and http servers
+              - id: 01a0dbb3-153a-7b84-8c3d-631788972d4a
+                name: UI/UX
+                description: user experience
+        '400':
+          description: Missing, invalid or incomplete query parameters
+  /api/service/{id}:
+    get:
+      tags:
+      - service
+      summary: Fetch information about a service.
+      operationId: getApiServiceById
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  name:
+                    type: string
+                  description:
+                    type: string
+                required:
+                - id
+                - name
+                - description
+              example:
+                id: 01a058ae-057f-73e8-b2a0-50986559767b
+                name: Web development
+                description: Websites and http servers
+        '400':
+          description: Invalid UUID format
+        '404':
+          description: Service not found
+  /api/startup/{id}/canvas:
+    get:
+      tags:
+      - startup
+      summary: Fetch a startup's Business Model Canvas.
+      description: Fetch a startup's Business Model Canvas. Returns a canvas with every block set to an
+        empty string if the startup has not saved one yet. A session is required.
+      operationId: getApiStartupByIdCanvas
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: the startup's ID.
+      responses:
+        '200':
+          description: Successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  customer_segments:
+                    type: string
+                  value_proposition:
+                    type: string
+                  channels:
+                    type: string
+                  customer_relationships:
+                    type: string
+                  revenue_streams:
+                    type: string
+                  key_resources:
+                    type: string
+                  key_activities:
+                    type: string
+                  key_partnerships:
+                    type: string
+                  cost_structure:
+                    type: string
+                required:
+                - customer_segments
+                - value_proposition
+                - channels
+                - customer_relationships
+                - revenue_streams
+                - key_resources
+                - key_activities
+                - key_partnerships
+                - cost_structure
+              example:
+                customer_segments: Pequenas e médias empresas
+                value_proposition: Reduzir custos operacionais com automação
+                channels: Site, vendas diretas e parceiros
+                customer_relationships: Suporte dedicado e onboarding
+                revenue_streams: Assinatura mensal e implantação
+                key_resources: Equipe de engenharia e infraestrutura em nuvem
+                key_activities: Desenvolvimento, suporte e vendas
+                key_partnerships: Provedores de nuvem e consultorias
+                cost_structure: Folha de pagamento, nuvem e marketing
+        '400':
+          description: Invalid UUID format
+        '401':
+          description: Not authenticated
+        '404':
+          description: Startup not found
+      security:
+      - cookieAuth: []
+    put:
+      tags:
+      - startup
+      summary: Create or replace a startup's Business Model Canvas.
+      description: Create or replace a startup's Business Model Canvas. Every block is written as given,
+        so an empty string clears a block instead of keeping its previous value. A Startup session is
+        required, and it must belong to the startup identified by `id`.
+      operationId: putApiStartupByIdCanvas
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: the startup's ID.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                customer_segments:
+                  type: string
+                value_proposition:
+                  type: string
+                channels:
+                  type: string
+                customer_relationships:
+                  type: string
+                revenue_streams:
+                  type: string
+                key_resources:
+                  type: string
+                key_activities:
+                  type: string
+                key_partnerships:
+                  type: string
+                cost_structure:
+                  type: string
+              required:
+              - customer_segments
+              - value_proposition
+              - channels
+              - customer_relationships
+              - revenue_streams
+              - key_resources
+              - key_activities
+              - key_partnerships
+              - cost_structure
+            example:
+              customer_segments: Pequenas e médias empresas
+              value_proposition: Reduzir custos operacionais com automação
+              channels: Site, vendas diretas e parceiros
+              customer_relationships: Suporte dedicado e onboarding
+              revenue_streams: Assinatura mensal e implantação
+              key_resources: Equipe de engenharia e infraestrutura em nuvem
+              key_activities: Desenvolvimento, suporte e vendas
+              key_partnerships: Provedores de nuvem e consultorias
+              cost_structure: Folha de pagamento, nuvem e marketing
+        description: All nine blocks are required.
+      responses:
+        '200':
+          description: Successful. The saved canvas, in the same shape as the request body
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  customer_segments:
+                    type: string
+                  value_proposition:
+                    type: string
+                  channels:
+                    type: string
+                  customer_relationships:
+                    type: string
+                  revenue_streams:
+                    type: string
+                  key_resources:
+                    type: string
+                  key_activities:
+                    type: string
+                  key_partnerships:
+                    type: string
+                  cost_structure:
+                    type: string
+                required:
+                - customer_segments
+                - value_proposition
+                - channels
+                - customer_relationships
+                - revenue_streams
+                - key_resources
+                - key_activities
+                - key_partnerships
+                - cost_structure
+              example:
+                customer_segments: Pequenas e médias empresas
+                value_proposition: Reduzir custos operacionais com automação
+                channels: Site, vendas diretas e parceiros
+                customer_relationships: Suporte dedicado e onboarding
+                revenue_streams: Assinatura mensal e implantação
+                key_resources: Equipe de engenharia e infraestrutura em nuvem
+                key_activities: Desenvolvimento, suporte e vendas
+                key_partnerships: Provedores de nuvem e consultorias
+                cost_structure: Folha de pagamento, nuvem e marketing
+        '400':
+          description: Invalid JSON, invalid UUID format or missing block
+        '401':
+          description: Not authenticated
+        '403':
+          description: Invalid session
+        '404':
+          description: Startup not found
+      security:
+      - cookieAuth: []
+  /api/startup/{id}/application:
+    post:
+      tags:
+      - startup
+      summary: Apply to an open demand.
+      description: Apply to an open demand. A startup can have at most one application per demand. A Startup
+        session is required, and it must belong to the startup identified by `id`.
+      operationId: postApiStartupByIdApplication
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: the startup's ID.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                demand:
+                  type: string
+                  format: uuid
+              required:
+              - demand
+            example:
+              demand: 01a173cb-9533-7ebd-87a0-590965ef3653
+      responses:
+        '201':
+          description: 'Successful. - `status`: one of `"pending"`, `"accepted"` or `"declined"`.'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  demand:
+                    type: string
+                    format: uuid
+                  startup:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                  created_at:
+                    type: string
+                    format: date-time
+                  updated_at:
+                    type: string
+                    format: date-time
+                required:
+                - demand
+                - startup
+                - status
+                - created_at
+                - updated_at
+              example:
+                demand: 01a173cb-9533-7ebd-87a0-590965ef3653
+                startup: 01a173cb-9533-7eb5-9522-9686fef4f2a4
+                status: pending
+                created_at: '2026-09-14T20:08:02.000Z'
+                updated_at: '2026-09-14T20:08:02.000Z'
+        '400':
+          description: Invalid JSON, invalid UUID format, or demand is not open
+        '401':
+          description: Not authenticated
+        '403':
+          description: Invalid session
+        '404':
+          description: Demand not found
+        '409':
+          description: The startup already applied to the demand
+      security:
+      - cookieAuth: []
+  /api/startup/{id}/application/{demand_id}:
+    delete:
+      tags:
+      - startup
+      summary: Withdraw a pending application from a demand.
+      description: Withdraw a pending application from a demand. The application is deleted, so the startup
+        can apply to the same demand again later. A Startup session is required, and it must belong to
+        the startup identified by `id`.
+      operationId: deleteApiStartupByIdApplicationByDemandId
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: the startup's ID.
+      - name: demand_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: the demand's ID.
+      responses:
+        '200':
+          description: Successful. The withdrawn application
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  demand:
+                    type: string
+                    format: uuid
+                  startup:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                  created_at:
+                    type: string
+                    format: date-time
+                  updated_at:
+                    type: string
+                    format: date-time
+                required:
+                - demand
+                - startup
+                - status
+                - created_at
+                - updated_at
+              example:
+                demand: 01a173cb-9533-7ebd-87a0-590965ef3653
+                startup: 01a173cb-9533-7eb5-9522-9686fef4f2a4
+                status: pending
+                created_at: '2026-09-14T20:08:02.000Z'
+                updated_at: '2026-09-14T20:08:02.000Z'
+        '400':
+          description: Invalid UUID format
+        '401':
+          description: Not authenticated
+        '403':
+          description: Invalid session
+        '404':
+          description: No pending application exists for the demand
+      security:
+      - cookieAuth: []
+  /api/startup/{id}/segment:
+    get:
+      tags:
+      - startup
+      summary: Fetch all segments that a startup is assigned to.
+      operationId: getApiStartupByIdSegment
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Successful
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                      format: uuid
+                    name:
+                      type: string
+                    description:
+                      type: string
+                  required:
+                  - id
+                  - name
+                  - description
+              example:
+              - id: 01a058ae-057f-73e8-b2a0-50986559767b
+                name: Tech
+                description: ''
+              - id: 01a0dbb3-153a-7b84-8c3d-631788972d4a
+                name: Biotech
+                description: ''
+        '400':
+          description: Invalid UUID format
+    post:
+      tags:
+      - startup
+      summary: Assign a segment to a startup.
+      operationId: postApiStartupByIdSegment
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                segment:
+                  type: string
+                  format: uuid
+              required:
+              - segment
+            example:
+              segment: 01a058ae-057f-73e8-b2a0-50986559767b
+      responses:
+        '201':
+          description: Successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  name:
+                    type: string
+                  description:
+                    type: string
+                required:
+                - id
+                - name
+                - description
+              example:
+                id: 01a058ae-057f-73e8-b2a0-50986559767b
+                name: Tech
+                description: Technology-related stuff
+        '400':
+          description: Invalid JSON or invalid UUID
+        '404':
+          description: Startup or Segment not found
+        '409':
+          description: Already assigned
+  /api/startup/{id}/segment/{segment_id}:
+    delete:
+      tags:
+      - startup
+      summary: Unassign a segment from a startup.
+      operationId: deleteApiStartupByIdSegmentBySegmentId
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: segment_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  name:
+                    type: string
+                  description:
+                    type: string
+                required:
+                - id
+                - name
+                - description
+              example:
+                id: 01a058ae-057f-73e8-b2a0-50986559767b
+                name: Tech
+                description: Technology-related stuff
+        '400':
+          description: Invalid UUID format
+        '404':
+          description: Segment is not assigned to the startup
+  /api/startup/{id}/service:
+    get:
+      tags:
+      - startup
+      summary: Fetch all services that a startup is assigned to.
+      operationId: getApiStartupByIdService
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Successful
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                      format: uuid
+                    name:
+                      type: string
+                    description:
+                      type: string
+                  required:
+                  - id
+                  - name
+                  - description
+              example:
+              - id: 01a058ae-057f-73e8-b2a0-50986559767b
+                name: UI/UX
+                description: user experience
+              - id: 01a0dbb3-153a-7b84-8c3d-631788972d4a
+                name: Web development
+                description: Websites and http servers
+        '400':
+          description: Invalid UUID format
+    post:
+      tags:
+      - startup
+      summary: Assign a service to a startup.
+      operationId: postApiStartupByIdService
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                service:
+                  type: string
+                  format: uuid
+              required:
+              - service
+            example:
+              service: 01a058ae-057f-73e8-b2a0-50986559767b
+      responses:
+        '201':
+          description: Successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  name:
+                    type: string
+                  description:
+                    type: string
+                required:
+                - id
+                - name
+                - description
+              example:
+                id: 01a058ae-057f-73e8-b2a0-50986559767b
+                name: UI/UX
+                description: user experience
+        '400':
+          description: Invalid JSON or invalid UUID
+        '404':
+          description: Startup or Service not found
+        '409':
+          description: Already assigned
+  /api/startup/{id}/service/{service_id}:
+    delete:
+      tags:
+      - startup
+      summary: Unassign a service from a startup.
+      operationId: deleteApiStartupByIdServiceByServiceId
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: service_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  name:
+                    type: string
+                  description:
+                    type: string
+                required:
+                - id
+                - name
+                - description
+              example:
+                id: 01a058ae-057f-73e8-b2a0-50986559767b
+                name: UI/UX
+                description: user experience
+        '400':
+          description: Invalid UUID format
+        '404':
+          description: Service is not assigned to the startup
+  /api/startup/{id}/expertise:
+    get:
+      tags:
+      - startup
+      summary: Fetch all expertises that a startup is assigned to.
+      operationId: getApiStartupByIdExpertise
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Successful
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                      format: uuid
+                    name:
+                      type: string
+                    description:
+                      type: string
+                  required:
+                  - id
+                  - name
+                  - description
+              example:
+              - id: 01a058ae-057f-73e8-b2a0-50986559767b
+                name: Education
+                description: ''
+              - id: 01a0dbb3-153a-7b84-8c3d-631788972d4a
+                name: Health
+                description: Medical stuff
+        '400':
+          description: Invalid UUID format
+    post:
+      tags:
+      - startup
+      summary: Assign an expertise to a startup.
+      operationId: postApiStartupByIdExpertise
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                expertise:
+                  type: string
+                  format: uuid
+              required:
+              - expertise
+            example:
+              expertise: 01a058ae-057f-73e8-b2a0-50986559767b
+      responses:
+        '201':
+          description: Successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  name:
+                    type: string
+                  description:
+                    type: string
+                required:
+                - id
+                - name
+                - description
+              example:
+                id: 01a058ae-057f-73e8-b2a0-50986559767b
+                name: Education
+                description: May it be free and for everyone
+        '400':
+          description: Invalid JSON or invalid UUID
+        '404':
+          description: Startup or Expertise not found
+        '409':
+          description: Already assigned
+  /api/startup/{id}/expertise/{expertise_id}:
+    delete:
+      tags:
+      - startup
+      summary: Unassign an expertise from a startup.
+      operationId: deleteApiStartupByIdExpertiseByExpertiseId
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: expertise_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  name:
+                    type: string
+                  description:
+                    type: string
+                required:
+                - id
+                - name
+                - description
+              example:
+                id: 01a058ae-057f-73e8-b2a0-50986559767b
+                name: Education
+                description: May it be free and for everyone
+        '400':
+          description: Invalid UUID format
+        '404':
+          description: Expertise is not assigned to the startup
+  /api/startup/{id}/technology:
+    get:
+      tags:
+      - startup
+      summary: Fetch all technologies that a startup is assigned to.
+      operationId: getApiStartupByIdTechnology
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Successful
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                      format: uuid
+                    name:
+                      type: string
+                    description:
+                      type: string
+                  required:
+                  - id
+                  - name
+                  - description
+              example:
+              - id: 01a058ae-057f-73e8-b2a0-50986559767b
+                name: Javascript
+                description: dont
+              - id: 01a0dbb3-153a-7b84-8c3d-631788972d4a
+                name: Python
+                description: Please dont
+        '400':
+          description: Invalid UUID format
+    post:
+      tags:
+      - startup
+      summary: Assign a technology to a startup.
+      operationId: postApiStartupByIdTechnology
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                technology:
+                  type: string
+                  format: uuid
+              required:
+              - technology
+            example:
+              technology: 01a058ae-057f-73e8-b2a0-50986559767b
+      responses:
+        '201':
+          description: Successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  name:
+                    type: string
+                  description:
+                    type: string
+                required:
+                - id
+                - name
+                - description
+              example:
+                id: 01a058ae-057f-73e8-b2a0-50986559767b
+                name: Javascript
+                description: dont
+        '400':
+          description: Invalid JSON or invalid UUID
+        '404':
+          description: Startup or Technology not found
+        '409':
+          description: Already assigned
+  /api/startup/{id}/technology/{technology_id}:
+    delete:
+      tags:
+      - startup
+      summary: Unassign a technology from a startup.
+      operationId: deleteApiStartupByIdTechnologyByTechnologyId
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: technology_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  name:
+                    type: string
+                  description:
+                    type: string
+                required:
+                - id
+                - name
+                - description
+              example:
+                id: 01a058ae-057f-73e8-b2a0-50986559767b
+                name: Javascript
+                description: dont
+        '400':
+          description: Invalid UUID format
+        '404':
+          description: Technology is not assigned to the startup
+  /api/company:
+    post:
+      tags:
+      - company
+      summary: Register a new company.
+      operationId: postApiCompany
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                size:
+                  type: string
+                  enum:
+                  - micro
+                  - small
+                  - medium
+                  - big
+                email:
+                  type: string
+                password:
+                  type: string
+                cnpj:
+                  type: string
+                city:
+                  type: string
+                state:
+                  type: string
+                website:
+                  type: string
+              required:
+              - name
+              - size
+              - email
+              - password
+              - cnpj
+              - city
+              - state
+              - website
+            example:
+              name: Porto Digital
+              size: micro
+              email: porto@email.com
+              password: '12345678'
+              cnpj: '12345678901234'
+              city: Recife
+              state: Pernambuco
+              website: https://portodigital.org
+        description: '`size`: one of `"micro"`, `"small"`, `"medium"` or `"big"`'
+      responses:
+        '201':
+          description: Successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  name:
+                    type: string
+                  email:
+                    type: string
+                  size:
+                    type: string
+                  cnpj:
+                    type: string
+                  city:
+                    type: string
+                  state:
+                    type: string
+                  created_at:
+                    type: string
+                    format: date-time
+                  updated_at:
+                    type: string
+                    format: date-time
+                  is_active:
+                    type: boolean
+                  website:
+                    type: string
+                required:
+                - id
+                - name
+                - email
+                - size
+                - cnpj
+                - city
+                - state
+                - created_at
+                - updated_at
+                - is_active
+                - website
+              example:
+                id: 01a058ae-057f-73e8-b2a0-50986559767b
+                name: Porto Digital
+                email: porto@email.com
+                size: micro
+                cnpj: '12345678901234'
+                city: Recife
+                state: Pernambuco
+                created_at: '2026-09-14T20:08:02.000Z'
+                updated_at: '2026-09-14T20:08:02.000Z'
+                is_active: true
+                website: https://portodigital.org
+        '400':
+          description: Invalid JSON or invalid data
+        '409':
+          description: Duplicated email or CNPJ
+  /api/company/{id}:
+    get:
+      tags:
+      - company
+      summary: Fetch information about a company.
+      operationId: getApiCompanyById
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  name:
+                    type: string
+                  email:
+                    type: string
+                  size:
+                    type: string
+                  cnpj:
+                    type: string
+                  city:
+                    type: string
+                  state:
+                    type: string
+                  created_at:
+                    type: string
+                    format: date-time
+                  updated_at:
+                    type: string
+                    format: date-time
+                  is_active:
+                    type: boolean
+                  website:
+                    type: string
+                required:
+                - id
+                - name
+                - email
+                - size
+                - cnpj
+                - city
+                - state
+                - created_at
+                - updated_at
+                - is_active
+                - website
+              example:
+                id: 01a058ae-057f-73e8-b2a0-50986559767b
+                name: Porto Digital
+                email: porto@email.com
+                size: micro
+                cnpj: '12345678901234'
+                city: Recife
+                state: Pernambuco
+                created_at: '2026-09-14T20:08:02.000Z'
+                updated_at: '2026-09-14T20:08:02.000Z'
+                is_active: true
+                website: https://portodigital.org
+        '400':
+          description: Invalid UUID format
+        '404':
+          description: Company not found
+    patch:
+      tags:
+      - company
+      summary: Update information about a company.
+      description: Update information about a company. Missing fields and empty strings are ignored.
+      operationId: patchApiCompanyById
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                email:
+                  type: string
+                size:
+                  type: string
+                  enum:
+                  - micro
+                  - small
+                  - medium
+                  - big
+                cnpj:
+                  type: string
+                city:
+                  type: string
+                state:
+                  type: string
+                website:
+                  type: string
+            example:
+              name: Porto Digital
+              email: porto@email.com
+              size: medium
+              cnpj: '12345678901234'
+              city: Recife
+              state: Pernambuco
+              website: https://portodigital.org
+        description: 'All fields are optional. `size`: one of `"micro"`, `"small"`, `"medium"` or `"big"`.
+          Empty strings are treated as missing fields.'
+      responses:
+        '200':
+          description: Successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  name:
+                    type: string
+                  email:
+                    type: string
+                  size:
+                    type: string
+                  cnpj:
+                    type: string
+                  city:
+                    type: string
+                  state:
+                    type: string
+                  created_at:
+                    type: string
+                    format: date-time
+                  updated_at:
+                    type: string
+                    format: date-time
+                  is_active:
+                    type: boolean
+                  website:
+                    type: string
+                required:
+                - id
+                - name
+                - email
+                - size
+                - cnpj
+                - city
+                - state
+                - created_at
+                - updated_at
+                - is_active
+                - website
+              example:
+                id: 01a058ae-057f-73e8-b2a0-50986559767b
+                name: Porto Digital
+                email: porto@email.com
+                size: medium
+                cnpj: '12345678901234'
+                city: Recife
+                state: Pernambuco
+                created_at: '2026-09-14T20:08:02.000Z'
+                updated_at: '2026-09-14T20:08:02.000Z'
+                is_active: true
+                website: https://portodigital.org
+        '400':
+          description: Invalid JSON, invalid UUID format or invalid field value
+        '401':
+          description: Not authenticated
+        '403':
+          description: Invalid session
+        '404':
+          description: Company not found
+        '409':
+          description: Email or CNPJ already in use
+      security:
+      - cookieAuth: []
+  /api/company/{id}/lgpd:
+    get:
+      tags:
+      - company
+      summary: Fetch all LGPD (Lei Geral de Proteção de Dados) consent records for a company, ordered
+        by policy version.
+      operationId: getApiCompanyByIdLgpd
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: the company's ID.
+      responses:
+        '200':
+          description: Successful
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    type:
+                      type: string
+                    subject:
+                      type: object
+                      properties:
+                        type:
+                          type: string
+                        id:
+                          type: string
+                          format: uuid
+                      required:
+                      - type
+                      - id
+                    updated_at:
+                      type: string
+                      format: date-time
+                    version:
+                      type: integer
+                  required:
+                  - type
+                  - subject
+                  - updated_at
+                  - version
+              example:
+              - type: granted
+                subject:
+                  type: company
+                  id: 01a058ae-057f-73e8-b2a0-50986559767b
+                updated_at: '2026-09-14T20:08:02.000Z'
+                version: 1
+              - type: revoked
+                subject:
+                  type: company
+                  id: 01a058ae-057f-73e8-b2a0-50986559767b
+                updated_at: '2026-09-14T20:08:02.000Z'
+                version: 2
+        '400':
+          description: Invalid UUID format
+        '500':
+          description: Failed to fetch consent records
+  /api/company/{id}/lgpd/{version}:
+    post:
+      tags:
+      - company
+      summary: Grant LGPD (Lei Geral de Proteção de Dados) consent for a company at a given policy version.
+      description: Grant LGPD (Lei Geral de Proteção de Dados) consent for a company at a given policy
+        version. Once granted, the company allows its data to be used as described by that version of
+        the privacy policy. A Company session is required.
+      operationId: postApiCompanyByIdLgpdByVersion
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: the company's ID.
+      - name: version
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: the accepted policy version. Must be greater than
+      responses:
+        '200':
+          description: Successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  subject:
+                    type: object
+                    properties:
+                      type:
+                        type: string
+                      id:
+                        type: string
+                        format: uuid
+                    required:
+                    - type
+                    - id
+                  updated_at:
+                    type: string
+                    format: date-time
+                  version:
+                    type: integer
+                required:
+                - type
+                - subject
+                - updated_at
+                - version
+              example:
+                type: granted
+                subject:
+                  type: company
+                  id: 01a058ae-057f-73e8-b2a0-50986559767b
+                updated_at: '2026-09-14T20:08:02.000Z'
+                version: 1
+        '400':
+          description: Invalid UUID format or invalid policy version
+        '401':
+          description: Not authenticated
+        '403':
+          description: Invalid session
+        '404':
+          description: Company not found
+        '500':
+          description: Failed to update consent
+      security:
+      - cookieAuth: []
+    delete:
+      tags:
+      - company
+      summary: Revoke LGPD (Lei Geral de Proteção de Dados) consent for a company at a given policy version.
+      description: Revoke LGPD (Lei Geral de Proteção de Dados) consent for a company at a given policy
+        version. Once revoked, the company no longer allows its data to be used as described by that version
+        of the privacy policy. A Company session is required.
+      operationId: deleteApiCompanyByIdLgpdByVersion
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: the company's ID.
+      - name: version
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: the revoked policy version. Must be greater than
+      responses:
+        '200':
+          description: Successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  subject:
+                    type: object
+                    properties:
+                      type:
+                        type: string
+                      id:
+                        type: string
+                        format: uuid
+                    required:
+                    - type
+                    - id
+                  updated_at:
+                    type: string
+                    format: date-time
+                  version:
+                    type: integer
+                required:
+                - type
+                - subject
+                - updated_at
+                - version
+              example:
+                type: revoked
+                subject:
+                  type: company
+                  id: 01a058ae-057f-73e8-b2a0-50986559767b
+                updated_at: '2026-09-14T20:08:02.000Z'
+                version: 1
+        '400':
+          description: Invalid UUID format or invalid policy version
+        '401':
+          description: Not authenticated
+        '403':
+          description: Invalid session
+        '404':
+          description: Company not found
+        '500':
+          description: Failed to update consent
+      security:
+      - cookieAuth: []
+  /api/company/{id}/demand:
+    get:
+      tags:
+      - company
+      summary: Fetch all demands assigned to a company.
+      operationId: getApiCompanyByIdDemand
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/Limit'
+      - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          description: 'Successful. - `status`: one of `"open"`, `"closed"` or `"canceled"`'
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                      format: uuid
+                    company_id:
+                      type: string
+                      format: uuid
+                    title:
+                      type: string
+                    description:
+                      type: string
+                    status:
+                      type: string
+                    created_at:
+                      type: string
+                      format: date-time
+                    updated_at:
+                      type: string
+                      format: date-time
+                  required:
+                  - id
+                  - company_id
+                  - title
+                  - description
+                  - status
+                  - created_at
+                  - updated_at
+              example:
+              - id: 01a173cb-9533-7ebd-87a0-590965ef3653
+                company_id: 01a173cb-9533-7eb5-9522-9686fef4f2a4
+                title: Need more gleam projects
+                description: A lot more of them
+                status: open
+                created_at: '2026-09-14T20:08:02.000Z'
+                updated_at: '2026-09-14T20:08:02.000Z'
+        '400':
+          description: Invalid UUID, or missing, invalid or incomplete query parameters
+    post:
+      tags:
+      - company
+      summary: Register a new demand for a company.
+      description: Register a new demand for a company. Segments, services, expertises and technologies
+        can be assigned to the demand in the same request.
+      operationId: postApiCompanyByIdDemand
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: the company's ID.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                description:
+                  type: string
+                status:
+                  type: string
+                  enum:
+                  - open
+                  - closed
+                  - canceled
+                segments:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+                services:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+                expertises:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+                technologies:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+              required:
+              - title
+              - description
+              - status
+              - segments
+              - services
+              - expertises
+              - technologies
+            example:
+              title: Need more gleam projects
+              description: A lot more of them
+              status: open
+              segments:
+              - 01a058ae-057f-73e8-b2a0-50986559767b
+              services:
+              - 01a0dbb3-153a-7b84-8c3d-631788972d4a
+              expertises:
+              - 01a173cb-9533-7ebd-87a0-590965ef3653
+              technologies:
+              - 01a173cb-9533-7eb5-9522-9686fef4f2a4
+        description: '`status`: one of `"open"`, `"closed"` or `"canceled"` `segments`, `services`, `expertises`
+          and `technologies`: lists of UUIDs. The lists may be empty, but all four fields are required.'
+      responses:
+        '201':
+          description: Successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  demand:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      company_id:
+                        type: string
+                        format: uuid
+                      title:
+                        type: string
+                      description:
+                        type: string
+                      status:
+                        type: string
+                      created_at:
+                        type: string
+                        format: date-time
+                      updated_at:
+                        type: string
+                        format: date-time
+                    required:
+                    - id
+                    - company_id
+                    - title
+                    - description
+                    - status
+                    - created_at
+                    - updated_at
+                  expertises:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        name:
+                          type: string
+                        description:
+                          type: string
+                      required:
+                      - id
+                      - name
+                      - description
+                  segments:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        name:
+                          type: string
+                        description:
+                          type: string
+                      required:
+                      - id
+                      - name
+                      - description
+                  services:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        name:
+                          type: string
+                        description:
+                          type: string
+                      required:
+                      - id
+                      - name
+                      - description
+                  technologies:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        name:
+                          type: string
+                        description:
+                          type: string
+                      required:
+                      - id
+                      - name
+                      - description
+                required:
+                - demand
+                - expertises
+                - segments
+                - services
+                - technologies
+              example:
+                demand:
+                  id: 01a173cb-9533-7ebd-87a0-590965ef3653
+                  company_id: 01a173cb-9533-7eb5-9522-9686fef4f2a4
+                  title: Need more gleam projects
+                  description: A lot more of them
+                  status: open
+                  created_at: '2025-09-14T20:08:02.000Z'
+                  updated_at: '2025-09-14T20:08:02.000Z'
+                expertises:
+                - id: 01a173cb-9533-7ebd-87a0-590965ef3653
+                  name: Education
+                  description: Teaching and learning
+                segments:
+                - id: 01a058ae-057f-73e8-b2a0-50986559767b
+                  name: Tech
+                  description: Technology
+                services:
+                - id: 01a0dbb3-153a-7b84-8c3d-631788972d4a
+                  name: Web development
+                  description: Websites and http servers
+                technologies:
+                - id: 01a173cb-9533-7eb5-9522-9686fef4f2a4
+                  name: Gleam
+                  description: A friendly language for building type-safe systems
+        '400':
+          description: Invalid JSON or invalid UUID
+        '401':
+          description: Not authenticated
+        '403':
+          description: Invalid session
+        '404':
+          description: Company or assigned entity not found
+        '409':
+          description: An entity is already assigned to the demand
+      security:
+      - cookieAuth: []
+  /api/company/demand/browse:
+    get:
+      tags:
+      - company
+      summary: Browse all open demands.
+      description: Browse all open demands. Only demands whose status is `open` are returned, newest first.
+        Closed and canceled demands are never included. This route does not require authentication.
+      operationId: getApiCompanyDemandBrowse
+      parameters:
+      - name: limit
+        in: query
+        required: true
+        schema:
+          type: integer
+        description: the maximum number of demands to return.
+      - name: offset
+        in: query
+        required: true
+        schema:
+          type: integer
+        description: the number of demands to skip.
+      - name: status
+        in: query
+        required: true
+        schema:
+          type: string
+          enum:
+          - open
+        description: must be `"open"`.
+      responses:
+        '200':
+          description: Successful. An empty array is returned when there are no open demands.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                      format: uuid
+                    company_id:
+                      type: string
+                      format: uuid
+                    title:
+                      type: string
+                    description:
+                      type: string
+                    status:
+                      type: string
+                    created_at:
+                      type: string
+                      format: date-time
+                    updated_at:
+                      type: string
+                      format: date-time
+                  required:
+                  - id
+                  - company_id
+                  - title
+                  - description
+                  - status
+                  - created_at
+                  - updated_at
+              example:
+              - id: 01a173cb-9533-7ebd-87a0-590965ef3653
+                company_id: 01a173cb-9533-7eb5-9522-9686fef4f2a4
+                title: Need more gleam projects
+                description: A lot more of them
+                status: open
+                created_at: '2025-09-14T20:08:02.000Z'
+                updated_at: '2025-09-14T20:08:02.000Z'
+        '400':
+          description: Missing, invalid or incomplete query parameters, or `status` is not
+  /api/company/demand/{id}:
+    get:
+      tags:
+      - company
+      summary: Fetch information about a demand.
+      operationId: getApiCompanyDemandById
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: 'Successful. - `status`: one of `"open"`, `"closed"` or `"canceled"`'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  company_id:
+                    type: string
+                    format: uuid
+                  title:
+                    type: string
+                  description:
+                    type: string
+                  status:
+                    type: string
+                  created_at:
+                    type: string
+                    format: date-time
+                  updated_at:
+                    type: string
+                    format: date-time
+                required:
+                - id
+                - company_id
+                - title
+                - description
+                - status
+                - created_at
+                - updated_at
+              example:
+                id: 01a173cb-9533-7ebd-87a0-590965ef3653
+                company_id: 01a173cb-9533-7eb5-9522-9686fef4f2a4
+                title: Need more gleam projects
+                description: A lot more of them
+                status: open
+                created_at: '2025-09-14T20:08:02.000Z'
+                updated_at: '2025-09-14T20:08:02.000Z'
+        '400':
+          description: Invalid UUID format
+        '404':
+          description: Demand not found
+    patch:
+      tags:
+      - company
+      summary: Update information about a demand.
+      description: Update information about a demand. Missing fields and empty strings are ignored.
+      operationId: patchApiCompanyDemandById
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                description:
+                  type: string
+            example:
+              title: new title
+              description: new description
+        description: '`title` and `description` are optional strings.'
+      responses:
+        '200':
+          description: Successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  company_id:
+                    type: string
+                    format: uuid
+                  title:
+                    type: string
+                  description:
+                    type: string
+                  status:
+                    type: string
+                  created_at:
+                    type: string
+                    format: date-time
+                  updated_at:
+                    type: string
+                    format: date-time
+                required:
+                - id
+                - company_id
+                - title
+                - description
+                - status
+                - created_at
+                - updated_at
+              example:
+                id: 01a173cb-9533-7ebd-87a0-590965ef3653
+                company_id: 01a173cb-9533-7eb5-9522-9686fef4f2a4
+                title: new title
+                description: new description
+                status: open
+                created_at: '2025-09-14T20:08:02.000Z'
+                updated_at: '2025-09-14T20:08:02.000Z'
+        '400':
+          description: Invalid JSON or invalid UUID format
+        '401':
+          description: Not authenticated
+        '403':
+          description: Invalid session, or the demand belongs to another company
+        '404':
+          description: Demand not found
+      security:
+      - cookieAuth: []
+    delete:
+      tags:
+      - company
+      summary: Delete a registered demand.
+      operationId: deleteApiCompanyDemandById
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  company_id:
+                    type: string
+                    format: uuid
+                  title:
+                    type: string
+                  description:
+                    type: string
+                  status:
+                    type: string
+                  created_at:
+                    type: string
+                    format: date-time
+                  updated_at:
+                    type: string
+                    format: date-time
+                required:
+                - id
+                - company_id
+                - title
+                - description
+                - status
+                - created_at
+                - updated_at
+              example:
+                id: 01a173cb-9533-7ebd-87a0-590965ef3653
+                company_id: 01a173cb-9533-7eb5-9522-9686fef4f2a4
+                title: Need more gleam projects
+                description: A lot more of them
+                status: open
+                created_at: '2025-09-14T20:08:02.000Z'
+                updated_at: '2025-09-14T20:08:02.000Z'
+        '400':
+          description: Invalid UUID format
+        '404':
+          description: Demand not found
+  /api/company/demand/{id}/application:
+    get:
+      tags:
+      - company
+      summary: Fetch all applications to a demand.
+      description: Fetch all applications to a demand. A Company session is required, and the demand must
+        belong to the company identified by the session. Applications are returned in every status and
+        are not ordered, so clients should not rely on a particular order.
+      operationId: getApiCompanyDemandByIdApplication
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: the demand's ID.
+      responses:
+        '200':
+          description: 'Successful. - `status`: one of `"pending"`, `"accepted"` or `"declined"`. - An
+            empty array is returned when the demand has no applications.'
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    demand:
+                      type: string
+                      format: uuid
+                    startup:
+                      type: string
+                      format: uuid
+                    status:
+                      type: string
+                    created_at:
+                      type: string
+                      format: date-time
+                    updated_at:
+                      type: string
+                      format: date-time
+                  required:
+                  - demand
+                  - startup
+                  - status
+                  - created_at
+                  - updated_at
+              example:
+              - demand: 01a173cb-9533-7ebd-87a0-590965ef3653
+                startup: 01a173cb-9533-7eb5-9522-9686fef4f2a4
+                status: pending
+                created_at: '2026-09-14T20:08:02.000Z'
+                updated_at: '2026-09-14T20:08:02.000Z'
+        '400':
+          description: Invalid UUID format
+        '401':
+          description: Not authenticated
+        '403':
+          description: Invalid session, or the demand belongs to another company
+        '404':
+          description: Demand not found
+      security:
+      - cookieAuth: []
+  /api/company/demand/{id}/application/{startup_id}:
+    patch:
+      tags:
+      - company
+      summary: Accept or decline a startup's application to a demand.
+      description: Accept or decline a startup's application to a demand. A Company session is required,
+        and the demand must belong to the company identified by the session. The application is set to
+        the requested status regardless of its previous status, so a decision can be reversed by sending
+        the opposite status.
+      operationId: patchApiCompanyDemandByIdApplicationByStartupId
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: the demand's ID.
+      - name: startup_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: the startup's ID.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum:
+                  - accepted
+                  - declined
+            example:
+              status: accepted
+        description: '`status`: either `"accepted"` or `"declined"`.'
+      responses:
+        '200':
+          description: Successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  demand:
+                    type: string
+                    format: uuid
+                  startup:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                  created_at:
+                    type: string
+                    format: date-time
+                  updated_at:
+                    type: string
+                    format: date-time
+                required:
+                - demand
+                - startup
+                - status
+                - created_at
+                - updated_at
+              example:
+                demand: 01a173cb-9533-7ebd-87a0-590965ef3653
+                startup: 01a173cb-9533-7eb5-9522-9686fef4f2a4
+                status: accepted
+                created_at: '2026-09-14T20:08:02.000Z'
+                updated_at: '2026-09-15T20:08:02.000Z'
+        '400':
+          description: Invalid JSON, invalid UUID format, or invalid status
+        '401':
+          description: Not authenticated
+        '403':
+          description: Invalid session, or the demand belongs to another company
+        '404':
+          description: Demand or application not found
+      security:
+      - cookieAuth: []
+  /api/company/demand/{id}/segment:
+    get:
+      tags:
+      - company
+      summary: Fetch all segments that a company's demand is assigned to.
+      operationId: getApiCompanyDemandByIdSegment
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Successful
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                      format: uuid
+                    name:
+                      type: string
+                    description:
+                      type: string
+                  required:
+                  - id
+                  - name
+                  - description
+              example:
+              - id: 01a058ae-057f-73e8-b2a0-50986559767b
+                name: Tech
+                description: Technology
+              - id: 01a0dbb3-153a-7b84-8c3d-631788972d4a
+                name: Biotech
+                description: Technology, but Bio
+        '400':
+          description: Invalid UUID format
+    post:
+      tags:
+      - company
+      summary: Assign a segment to a company's demand.
+      operationId: postApiCompanyDemandByIdSegment
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                segment:
+                  type: string
+                  format: uuid
+              required:
+              - segment
+            example:
+              segment: 01a058ae-057f-73e8-b2a0-50986559767b
+      responses:
+        '201':
+          description: Successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  name:
+                    type: string
+                  description:
+                    type: string
+                required:
+                - id
+                - name
+                - description
+              example:
+                id: 01a058ae-057f-73e8-b2a0-50986559767b
+                name: Tech
+                description: Technology-related stuff
+        '400':
+          description: Invalid JSON or invalid UUID
+        '401':
+          description: Not authenticated
+        '403':
+          description: Invalid session, or the demand belongs to another company
+        '404':
+          description: Demand or Segment not found
+        '409':
+          description: Already assigned
+      security:
+      - cookieAuth: []
+  /api/company/demand/{id}/segment/{segment_id}:
+    delete:
+      tags:
+      - company
+      summary: Unassign a segment from a company's demand.
+      operationId: deleteApiCompanyDemandByIdSegmentBySegmentId
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: segment_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  name:
+                    type: string
+                  description:
+                    type: string
+                required:
+                - id
+                - name
+                - description
+              example:
+                id: 01a058ae-057f-73e8-b2a0-50986559767b
+                name: Tech
+                description: Technology-related stuff
+        '400':
+          description: Invalid UUID format
+        '401':
+          description: Not authenticated
+        '403':
+          description: Invalid session, or the demand belongs to another company
+        '404':
+          description: Segment is not assigned to the demand
+      security:
+      - cookieAuth: []
+  /api/company/demand/{id}/service:
+    get:
+      tags:
+      - company
+      summary: Fetch all services that a company's demand is assigned to.
+      operationId: getApiCompanyDemandByIdService
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Successful
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                      format: uuid
+                    name:
+                      type: string
+                    description:
+                      type: string
+                  required:
+                  - id
+                  - name
+                  - description
+              example:
+              - id: 01a058ae-057f-73e8-b2a0-50986559767b
+                name: UI/UX
+                description: user experience
+              - id: 01a0dbb3-153a-7b84-8c3d-631788972d4a
+                name: Web development
+                description: Websites and http servers
+        '400':
+          description: Invalid UUID format
+    post:
+      tags:
+      - company
+      summary: Assign a service to a company's demand.
+      operationId: postApiCompanyDemandByIdService
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                service:
+                  type: string
+                  format: uuid
+              required:
+              - service
+            example:
+              service: 01a058ae-057f-73e8-b2a0-50986559767b
+      responses:
+        '201':
+          description: Successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  name:
+                    type: string
+                  description:
+                    type: string
+                required:
+                - id
+                - name
+                - description
+              example:
+                id: 01a058ae-057f-73e8-b2a0-50986559767b
+                name: UI/UX
+                description: user experience
+        '400':
+          description: Invalid JSON or invalid UUID
+        '401':
+          description: Not authenticated
+        '403':
+          description: Invalid session, or the demand belongs to another company
+        '404':
+          description: Demand or Service not found
+        '409':
+          description: Already assigned
+      security:
+      - cookieAuth: []
+  /api/company/demand/{id}/service/{service_id}:
+    delete:
+      tags:
+      - company
+      summary: Unassign a service from a company's demand.
+      operationId: deleteApiCompanyDemandByIdServiceByServiceId
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: service_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  name:
+                    type: string
+                  description:
+                    type: string
+                required:
+                - id
+                - name
+                - description
+              example:
+                id: 01a058ae-057f-73e8-b2a0-50986559767b
+                name: UI/UX
+                description: user experience
+        '400':
+          description: Invalid UUID format
+        '401':
+          description: Not authenticated
+        '403':
+          description: Invalid session, or the demand belongs to another company
+        '404':
+          description: Service is not assigned to the demand
+      security:
+      - cookieAuth: []
+  /api/company/demand/{id}/technology:
+    get:
+      tags:
+      - company
+      summary: Fetch all technologies that a company's demand is assigned to.
+      operationId: getApiCompanyDemandByIdTechnology
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Successful
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                      format: uuid
+                    name:
+                      type: string
+                    description:
+                      type: string
+                  required:
+                  - id
+                  - name
+                  - description
+              example:
+              - id: 01a058ae-057f-73e8-b2a0-50986559767b
+                name: Gleam
+                description: A friendly language for building type-safe systems
+              - id: 01a0dbb3-153a-7b84-8c3d-631788972d4a
+                name: PostgreSQL
+                description: The world's most advanced open source database
+        '400':
+          description: Invalid UUID format
+    post:
+      tags:
+      - company
+      summary: Assign a technology to a company's demand.
+      operationId: postApiCompanyDemandByIdTechnology
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                technology:
+                  type: string
+                  format: uuid
+              required:
+              - technology
+            example:
+              technology: 01a058ae-057f-73e8-b2a0-50986559767b
+      responses:
+        '201':
+          description: Successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  name:
+                    type: string
+                  description:
+                    type: string
+                required:
+                - id
+                - name
+                - description
+              example:
+                id: 01a058ae-057f-73e8-b2a0-50986559767b
+                name: Gleam
+                description: A friendly language for building type-safe systems
+        '400':
+          description: Invalid JSON or invalid UUID
+        '401':
+          description: Not authenticated
+        '403':
+          description: Invalid session, or the demand belongs to another company
+        '404':
+          description: Demand or Technology not found
+        '409':
+          description: Already assigned
+      security:
+      - cookieAuth: []
+  /api/company/demand/{id}/technology/{technology_id}:
+    delete:
+      tags:
+      - company
+      summary: Unassign a technology from a company's demand.
+      operationId: deleteApiCompanyDemandByIdTechnologyByTechnologyId
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: technology_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  name:
+                    type: string
+                  description:
+                    type: string
+                required:
+                - id
+                - name
+                - description
+              example:
+                id: 01a058ae-057f-73e8-b2a0-50986559767b
+                name: Gleam
+                description: A friendly language for building type-safe systems
+        '400':
+          description: Invalid UUID format
+        '401':
+          description: Not authenticated
+        '403':
+          description: Invalid session, or the demand belongs to another company
+        '404':
+          description: Technology is not assigned to the demand
+      security:
+      - cookieAuth: []
+  /api/company/demand/{id}/expertise:
+    get:
+      tags:
+      - company
+      summary: Fetch all expertises that a company's demand is assigned to.
+      operationId: getApiCompanyDemandByIdExpertise
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Successful
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                      format: uuid
+                    name:
+                      type: string
+                    description:
+                      type: string
+                  required:
+                  - id
+                  - name
+                  - description
+              example:
+              - id: 01a058ae-057f-73e8-b2a0-50986559767b
+                name: Education
+                description: Teaching and learning
+              - id: 01a0dbb3-153a-7b84-8c3d-631788972d4a
+                name: Health
+                description: Medical stuff
+        '400':
+          description: Invalid UUID format
+    post:
+      tags:
+      - company
+      summary: Assign an expertise to a company's demand.
+      operationId: postApiCompanyDemandByIdExpertise
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                expertise:
+                  type: string
+                  format: uuid
+              required:
+              - expertise
+            example:
+              expertise: 01a058ae-057f-73e8-b2a0-50986559767b
+      responses:
+        '201':
+          description: Successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  name:
+                    type: string
+                  description:
+                    type: string
+                required:
+                - id
+                - name
+                - description
+              example:
+                id: 01a058ae-057f-73e8-b2a0-50986559767b
+                name: Education
+                description: May it be free and for everyone
+        '400':
+          description: Invalid JSON or invalid UUID
+        '401':
+          description: Not authenticated
+        '403':
+          description: Invalid session, or the demand belongs to another company
+        '404':
+          description: Demand or Expertise not found
+        '409':
+          description: Already assigned
+      security:
+      - cookieAuth: []
+  /api/company/demand/{id}/expertise/{expertise_id}:
+    delete:
+      tags:
+      - company
+      summary: Unassign an expertise from a company's demand.
+      operationId: deleteApiCompanyDemandByIdExpertiseByExpertiseId
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: expertise_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  name:
+                    type: string
+                  description:
+                    type: string
+                required:
+                - id
+                - name
+                - description
+              example:
+                id: 01a058ae-057f-73e8-b2a0-50986559767b
+                name: Education
+                description: May it be free and for everyone
+        '400':
+          description: Invalid UUID format
+        '401':
+          description: Not authenticated
+        '403':
+          description: Invalid session, or the demand belongs to another company
+        '404':
+          description: Expertise is not assigned to the demand
+      security:
+      - cookieAuth: []
+  /api/company/{id}/connection:
+    post:
+      tags:
+      - company
+      summary: Request a connection with a startup.
+      description: Request a connection with a startup. The connection starts as `pending` until the startup
+        accepts or declines it. A Company session is required, and it must belong to the company identified
+        by `id`.
+      operationId: postApiCompanyByIdConnection
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: the company's ID.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                startup:
+                  type: string
+                  format: uuid
+              required:
+              - startup
+            example:
+              startup: 01a173cb-9533-7ebd-87a0-590965ef3653
+      responses:
+        '201':
+          description: 'Successful. - `status`: one of `"pending"`, `"accepted"` or `"declined"`.'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  company:
+                    type: string
+                    format: uuid
+                  startup:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                  created_at:
+                    type: string
+                    format: date-time
+                  updated_at:
+                    type: string
+                    format: date-time
+                required:
+                - company
+                - startup
+                - status
+                - created_at
+                - updated_at
+              example:
+                company: 01a173cb-9533-7eb5-9522-9686fef4f2a4
+                startup: 01a173cb-9533-7ebd-87a0-590965ef3653
+                status: pending
+                created_at: '2026-09-14T20:08:02.000Z'
+                updated_at: '2026-09-14T20:08:02.000Z'
+        '400':
+          description: Invalid JSON or invalid UUID
+        '401':
+          description: Not authenticated
+        '403':
+          description: Invalid session
+        '404':
+          description: Company or Startup not found
+        '409':
+          description: A connection with the startup was already requested
+      security:
+      - cookieAuth: []
+    get:
+      tags:
+      - company
+      summary: Fetch all connections requested by a company, newest first.
+      operationId: getApiCompanyByIdConnection
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: the company's ID.
+      - $ref: '#/components/parameters/Limit'
+      - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          description: Successful
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    company:
+                      type: string
+                      format: uuid
+                    startup:
+                      type: string
+                      format: uuid
+                    status:
+                      type: string
+                    created_at:
+                      type: string
+                      format: date-time
+                    updated_at:
+                      type: string
+                      format: date-time
+                  required:
+                  - company
+                  - startup
+                  - status
+                  - created_at
+                  - updated_at
+              example:
+              - company: 01a173cb-9533-7eb5-9522-9686fef4f2a4
+                startup: 01a173cb-9533-7ebd-87a0-590965ef3653
+                status: accepted
+                created_at: '2026-09-14T20:08:02.000Z'
+                updated_at: '2026-09-15T20:08:02.000Z'
+        '400':
+          description: Invalid UUID, or missing, invalid or incomplete query parameters
+  /api/startup/{id}/connection:
+    get:
+      tags:
+      - startup
+      summary: Fetch all connections received by a startup, newest first.
+      operationId: getApiStartupByIdConnection
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: the startup's ID.
+      - $ref: '#/components/parameters/Limit'
+      - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          description: Successful
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    company:
+                      type: string
+                      format: uuid
+                    startup:
+                      type: string
+                      format: uuid
+                    status:
+                      type: string
+                    created_at:
+                      type: string
+                      format: date-time
+                    updated_at:
+                      type: string
+                      format: date-time
+                  required:
+                  - company
+                  - startup
+                  - status
+                  - created_at
+                  - updated_at
+              example:
+              - company: 01a173cb-9533-7eb5-9522-9686fef4f2a4
+                startup: 01a173cb-9533-7ebd-87a0-590965ef3653
+                status: pending
+                created_at: '2026-09-14T20:08:02.000Z'
+                updated_at: '2026-09-14T20:08:02.000Z'
+        '400':
+          description: Invalid UUID, or missing, invalid or incomplete query parameters
+  /api/startup/{id}/connection/{company_id}:
+    patch:
+      tags:
+      - startup
+      summary: Accept or decline a pending connection request received by a startup.
+      description: Accept or decline a pending connection request received by a startup. A Startup session
+        is required, and it must belong to the startup identified by `id`.
+      operationId: patchApiStartupByIdConnectionByCompanyId
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: the startup's ID.
+      - name: company_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: the ID of the company that requested the
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum:
+                  - accepted
+                  - declined
+            example:
+              status: accepted
+        description: '`status`: either `"accepted"` or `"declined"`.'
+      responses:
+        '200':
+          description: Successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  company:
+                    type: string
+                    format: uuid
+                  startup:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                  created_at:
+                    type: string
+                    format: date-time
+                  updated_at:
+                    type: string
+                    format: date-time
+                required:
+                - company
+                - startup
+                - status
+                - created_at
+                - updated_at
+              example:
+                company: 01a173cb-9533-7eb5-9522-9686fef4f2a4
+                startup: 01a173cb-9533-7ebd-87a0-590965ef3653
+                status: accepted
+                created_at: '2026-09-14T20:08:02.000Z'
+                updated_at: '2026-09-15T20:08:02.000Z'
+        '400':
+          description: Invalid JSON, invalid UUID, or invalid status
+        '401':
+          description: Not authenticated
+        '403':
+          description: Invalid session
+        '404':
+          description: No pending connection from the company exists
+      security:
+      - cookieAuth: []
+    delete:
+      tags:
+      - startup
+      summary: Delete the connection between a startup and a company.
+      description: Delete the connection between a startup and a company. The startup identified by the
+        path must match the current Startup session.
+      operationId: deleteApiStartupByIdConnectionByCompanyId
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: the startup's ID.
+      - name: company_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: the company's ID.
+      responses:
+        '200':
+          description: Successful. The deleted connection
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  company:
+                    type: string
+                    format: uuid
+                  startup:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                  created_at:
+                    type: string
+                    format: date-time
+                  updated_at:
+                    type: string
+                    format: date-time
+                required:
+                - company
+                - startup
+                - status
+                - created_at
+                - updated_at
+              example:
+                company: 01a173cb-9533-7eb5-9522-9686fef4f2a4
+                startup: 01a173cb-9533-7ebd-87a0-590965ef3653
+                status: accepted
+                created_at: '2026-09-14T20:08:02.000Z'
+                updated_at: '2026-09-15T20:08:02.000Z'
+        '400':
+          description: Invalid UUID format
+        '401':
+          description: Not authenticated
+        '403':
+          description: Invalid session
+        '404':
+          description: Connection not found
+      security:
+      - cookieAuth: []
+  /api/company/{id}/connection/{startup_id}:
+    delete:
+      tags:
+      - company
+      summary: Delete the connection between a company and a startup.
+      description: Delete the connection between a company and a startup. The company identified by the
+        path must match the current Company session.
+      operationId: deleteApiCompanyByIdConnectionByStartupId
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: the company's ID.
+      - name: startup_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: the startup's ID.
+      responses:
+        '200':
+          description: Successful. The deleted connection
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  company:
+                    type: string
+                    format: uuid
+                  startup:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                  created_at:
+                    type: string
+                    format: date-time
+                  updated_at:
+                    type: string
+                    format: date-time
+                required:
+                - company
+                - startup
+                - status
+                - created_at
+                - updated_at
+              example:
+                company: 01a173cb-9533-7eb5-9522-9686fef4f2a4
+                startup: 01a173cb-9533-7ebd-87a0-590965ef3653
+                status: declined
+                created_at: '2026-09-14T20:08:02.000Z'
+                updated_at: '2026-09-15T20:08:02.000Z'
+        '400':
+          description: Invalid UUID format
+        '401':
+          description: Not authenticated
+        '403':
+          description: Invalid session
+        '404':
+          description: Connection not found
+      security:
+      - cookieAuth: []
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: SESSION
+      description: Cookie assinado definido por POST /api/auth/login (validade de 1 hora).
+  parameters:
+    Limit:
+      name: limit
+      in: query
+      required: true
+      schema:
+        type: integer
+    Offset:
+      name: offset
+      in: query
+      required: true
+      schema:
+        type: integer
