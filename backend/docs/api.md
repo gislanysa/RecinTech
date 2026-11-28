@@ -1418,6 +1418,7 @@ Fetch all demands assigned to a company.
     "title": "Need more gleam projects",
     "description": "A lot more of them",
     "status": "open",
+    "budget": 50000.0,
     "created_at": "2026-09-14T20:08:02.000Z",
     "updated_at": "2026-09-14T20:08:02.000Z"
   }
@@ -1425,6 +1426,7 @@ Fetch all demands assigned to a company.
 ```
 
 - `status`: one of `"open"`, `"closed"` or `"canceled"`
+- `budget`: the demand's budget as a number, or `null` if none was set.
 
 ### Status Codes
 
@@ -1447,6 +1449,7 @@ technologies can be assigned to the demand in the same request.
   "title": "Need more gleam projects",
   "description": "A lot more of them",
   "status": "open",
+  "budget": 50000.0,
   "segments": ["01a058ae-057f-73e8-b2a0-50986559767b"],
   "services": ["01a0dbb3-153a-7b84-8c3d-631788972d4a"],
   "expertises": ["01a173cb-9533-7ebd-87a0-590965ef3653"],
@@ -1455,6 +1458,8 @@ technologies can be assigned to the demand in the same request.
 ```
 
 - `status`: one of `"open"`, `"closed"` or `"canceled"`
+- `budget`: the demand's budget as a number, or `null` for no budget. The
+  field is required, but its value may be `null`.
 - `segments`, `services`, `expertises` and `technologies`: lists of UUIDs.
   The lists may be empty, but all four fields are required.
 
@@ -1468,6 +1473,7 @@ technologies can be assigned to the demand in the same request.
     "title": "Need more gleam projects",
     "description": "A lot more of them",
     "status": "open",
+    "budget": 50000.0,
     "created_at": "2025-09-14T20:08:02.000Z",
     "updated_at": "2025-09-14T20:08:02.000Z"
   },
@@ -1534,11 +1540,14 @@ This route does not require authentication.
     "title": "Need more gleam projects",
     "description": "A lot more of them",
     "status": "open",
+    "budget": 50000.0,
     "created_at": "2025-09-14T20:08:02.000Z",
     "updated_at": "2025-09-14T20:08:02.000Z"
   }
 ]
 ```
+
+- `budget`: the demand's budget as a number, or `null` if none was set.
 
 An empty array is returned when there are no open demands.
 
@@ -1565,12 +1574,14 @@ Fetch information about a demand.
   "title": "Need more gleam projects",
   "description": "A lot more of them",
   "status": "open",
+  "budget": 50000.0,
   "created_at": "2025-09-14T20:08:02.000Z",
   "updated_at": "2025-09-14T20:08:02.000Z"
 }
 ```
 
 - `status`: one of `"open"`, `"closed"` or `"canceled"`
+- `budget`: the demand's budget as a number, or `null` if none was set.
 
 ### Status Codes
 
@@ -1592,11 +1603,14 @@ ignored.
 ```json
 {
   "title": "new title",
-  "description": "new description"
+  "description": "new description",
+  "budget": 50000.0
 }
 ```
 
 - `title` and `description` are optional strings.
+- `budget` is an optional number. Omit it, or send `0`, to keep the current
+  budget.
 
 ### Response Body
 
@@ -1607,6 +1621,7 @@ ignored.
   "title": "new title",
   "description": "new description",
   "status": "open",
+  "budget": 50000.0,
   "created_at": "2025-09-14T20:08:02.000Z",
   "updated_at": "2025-09-14T20:08:02.000Z"
 }
@@ -1637,6 +1652,7 @@ Delete a registered demand.
   "title": "Need more gleam projects",
   "description": "A lot more of them",
   "status": "open",
+  "budget": 50000.0,
   "created_at": "2025-09-14T20:08:02.000Z",
   "updated_at": "2025-09-14T20:08:02.000Z"
 }

@@ -215,6 +215,7 @@ CREATE TABLE demand (
     title text NOT NULL,
     description text NOT NULL,
     demand_status demand_status NOT NULL DEFAULT 'open',
+    budget numeric(12, 2) DEFAULT NULL,
     created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id)

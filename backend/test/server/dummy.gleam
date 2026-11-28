@@ -4,6 +4,7 @@ import gleam/http
 import gleam/int
 import gleam/json
 import gleam/list
+import gleam/option
 import gleam/uri
 import pog
 import server/cnpj
@@ -177,6 +178,7 @@ pub fn new_demand(
       title: "wibble_title",
       description: "wibble_description",
       status: demand.Open,
+      budget: option.None,
     )
 
   case result {

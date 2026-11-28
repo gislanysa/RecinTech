@@ -14,6 +14,7 @@ pub fn register_demand_test() -> Nil {
   let title = "dummy"
   let description = "description"
   let status = demand.Open
+  let budget = Some(32_000.0)
 
   let assert Ok(demand) =
     demand.register(
@@ -22,12 +23,14 @@ pub fn register_demand_test() -> Nil {
       title:,
       description:,
       status:,
+      budget:,
     )
 
   assert demand.company_id == company.id
   assert demand.title == title
   assert demand.description == description
   assert demand.status == status
+  assert demand.budget == budget
 
   Nil
 }
@@ -43,6 +46,7 @@ pub fn register_demand_missing_company_test() -> Nil {
       title: "dummy",
       description: "dummy",
       status: demand.Open,
+      budget: None,
     )
 
   assert returned == missing_id
@@ -709,16 +713,19 @@ pub fn update_demand_test() -> Nil {
   let demand = dummy.new_demand(context.database, from: company.id)
 
   let new_title = "This is a new title"
+  let budget = Some(24_000.0)
   let assert Ok(returned) =
     demand.update(
       context.database,
       demand.id,
       new_title: Some(new_title),
       new_description: None,
+      new_budget: budget,
     )
 
   assert returned.id == demand.id
   assert returned.title == new_title
+  assert returned.budget == budget
 
   Nil
 }
@@ -733,6 +740,7 @@ pub fn update_missing_demand_test() -> Nil {
       missing_id,
       new_title: None,
       new_description: None,
+      new_budget: None,
     )
 
   assert returned == missing_id

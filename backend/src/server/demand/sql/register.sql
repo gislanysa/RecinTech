@@ -4,14 +4,16 @@ INSERT INTO
         company_id,
         title,
         description,
-        demand_status
+        demand_status,
+        budget
     )
 VALUES
     (
         $1::uuid,
         $2::text,
         $3::text,
-        $4::demand_status
+        $4::demand_status,
+        nullif($5::numeric, 0)
     )
 RETURNING
     id,
@@ -19,5 +21,6 @@ RETURNING
     title,
     description,
     demand_status,
+    budget,
     created_at,
     updated_at;
