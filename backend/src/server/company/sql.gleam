@@ -5,6 +5,7 @@
 ////
 
 import gleam/dynamic/decode
+import gleam/option.{type Option}
 import gleam/time/timestamp.{type Timestamp}
 import pog
 import youid/uuid.{type Uuid}
@@ -248,6 +249,7 @@ pub type GetDemandsRow {
     title: String,
     description: String,
     demand_status: DemandStatus,
+    budget: Option(Float),
     created_at: Timestamp,
     updated_at: Timestamp,
   )
@@ -270,14 +272,16 @@ pub fn get_demands(
     use title <- decode.field(2, decode.string)
     use description <- decode.field(3, decode.string)
     use demand_status <- decode.field(4, demand_status_decoder())
-    use created_at <- decode.field(5, pog.timestamp_decoder())
-    use updated_at <- decode.field(6, pog.timestamp_decoder())
+    use budget <- decode.field(5, decode.optional(pog.numeric_decoder()))
+    use created_at <- decode.field(6, pog.timestamp_decoder())
+    use updated_at <- decode.field(7, pog.timestamp_decoder())
     decode.success(GetDemandsRow(
       id:,
       company_id:,
       title:,
       description:,
       demand_status:,
+      budget:,
       created_at:,
       updated_at:,
     ))
@@ -290,6 +294,7 @@ SELECT
     demand.title,
     demand.description,
     demand.demand_status,
+    demand.budget,
     demand.created_at,
     demand.updated_at
 FROM

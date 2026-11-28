@@ -5,6 +5,7 @@
 ////
 
 import gleam/dynamic/decode
+import gleam/option.{type Option}
 import gleam/time/timestamp.{type Timestamp}
 import pog
 import youid/uuid.{type Uuid}
@@ -293,6 +294,7 @@ pub type BrowseOpenDemandsRow {
     title: String,
     description: String,
     demand_status: DemandStatus,
+    budget: Option(Float),
     created_at: Timestamp,
     updated_at: Timestamp,
   )
@@ -314,14 +316,16 @@ pub fn browse_open_demands(
     use title <- decode.field(2, decode.string)
     use description <- decode.field(3, decode.string)
     use demand_status <- decode.field(4, demand_status_decoder())
-    use created_at <- decode.field(5, pog.timestamp_decoder())
-    use updated_at <- decode.field(6, pog.timestamp_decoder())
+    use budget <- decode.field(5, decode.optional(pog.numeric_decoder()))
+    use created_at <- decode.field(6, pog.timestamp_decoder())
+    use updated_at <- decode.field(7, pog.timestamp_decoder())
     decode.success(BrowseOpenDemandsRow(
       id:,
       company_id:,
       title:,
       description:,
       demand_status:,
+      budget:,
       created_at:,
       updated_at:,
     ))
@@ -334,6 +338,7 @@ SELECT
     demand.title,
     demand.description,
     demand.demand_status,
+    demand.budget,
     demand.created_at,
     demand.updated_at
 FROM
@@ -432,6 +437,7 @@ pub type DeleteRow {
     title: String,
     description: String,
     demand_status: DemandStatus,
+    budget: Option(Float),
     created_at: Timestamp,
     updated_at: Timestamp,
   )
@@ -452,14 +458,16 @@ pub fn delete(
     use title <- decode.field(2, decode.string)
     use description <- decode.field(3, decode.string)
     use demand_status <- decode.field(4, demand_status_decoder())
-    use created_at <- decode.field(5, pog.timestamp_decoder())
-    use updated_at <- decode.field(6, pog.timestamp_decoder())
+    use budget <- decode.field(5, decode.optional(pog.numeric_decoder()))
+    use created_at <- decode.field(6, pog.timestamp_decoder())
+    use updated_at <- decode.field(7, pog.timestamp_decoder())
     decode.success(DeleteRow(
       id:,
       company_id:,
       title:,
       description:,
       demand_status:,
+      budget:,
       created_at:,
       updated_at:,
     ))
@@ -476,6 +484,7 @@ RETURNING
     demand.title,
     demand.description,
     demand.demand_status,
+    demand.budget,
     demand.created_at,
     demand.updated_at;
 "
@@ -536,6 +545,7 @@ pub type GetRow {
     title: String,
     description: String,
     demand_status: DemandStatus,
+    budget: Option(Float),
     created_at: Timestamp,
     updated_at: Timestamp,
   )
@@ -556,14 +566,16 @@ pub fn get(
     use title <- decode.field(2, decode.string)
     use description <- decode.field(3, decode.string)
     use demand_status <- decode.field(4, demand_status_decoder())
-    use created_at <- decode.field(5, pog.timestamp_decoder())
-    use updated_at <- decode.field(6, pog.timestamp_decoder())
+    use budget <- decode.field(5, decode.optional(pog.numeric_decoder()))
+    use created_at <- decode.field(6, pog.timestamp_decoder())
+    use updated_at <- decode.field(7, pog.timestamp_decoder())
     decode.success(GetRow(
       id:,
       company_id:,
       title:,
       description:,
       demand_status:,
+      budget:,
       created_at:,
       updated_at:,
     ))
@@ -576,6 +588,7 @@ SELECT
     demand.title,
     demand.description,
     demand.demand_status,
+    demand.budget,
     demand.created_at,
     demand.updated_at
 FROM
@@ -843,6 +856,7 @@ pub type RegisterRow {
     title: String,
     description: String,
     demand_status: DemandStatus,
+    budget: Option(Float),
     created_at: Timestamp,
     updated_at: Timestamp,
   )
@@ -859,6 +873,7 @@ pub fn register(
   arg_2: String,
   arg_3: String,
   arg_4: DemandStatus,
+  arg_5: Float,
 ) -> Result(pog.Returned(RegisterRow), pog.QueryError) {
   let decoder = {
     use id <- decode.field(0, uuid_decoder())
@@ -866,14 +881,16 @@ pub fn register(
     use title <- decode.field(2, decode.string)
     use description <- decode.field(3, decode.string)
     use demand_status <- decode.field(4, demand_status_decoder())
-    use created_at <- decode.field(5, pog.timestamp_decoder())
-    use updated_at <- decode.field(6, pog.timestamp_decoder())
+    use budget <- decode.field(5, decode.optional(pog.numeric_decoder()))
+    use created_at <- decode.field(6, pog.timestamp_decoder())
+    use updated_at <- decode.field(7, pog.timestamp_decoder())
     decode.success(RegisterRow(
       id:,
       company_id:,
       title:,
       description:,
       demand_status:,
+      budget:,
       created_at:,
       updated_at:,
     ))
@@ -885,14 +902,16 @@ INSERT INTO
         company_id,
         title,
         description,
-        demand_status
+        demand_status,
+        budget
     )
 VALUES
     (
         $1::uuid,
         $2::text,
         $3::text,
-        $4::demand_status
+        $4::demand_status,
+        nullif($5::numeric, 0)
     )
 RETURNING
     id,
@@ -900,6 +919,7 @@ RETURNING
     title,
     description,
     demand_status,
+    budget,
     created_at,
     updated_at;
 "
@@ -908,6 +928,7 @@ RETURNING
   |> pog.parameter(pog.text(arg_2))
   |> pog.parameter(pog.text(arg_3))
   |> pog.parameter(demand_status_encoder(arg_4))
+  |> pog.parameter(pog.float(arg_5))
   |> pog.returning(decoder)
   |> pog.execute(db)
 }
@@ -1133,6 +1154,7 @@ pub type UpdateRow {
     title: String,
     description: String,
     demand_status: DemandStatus,
+    budget: Option(Float),
     created_at: Timestamp,
     updated_at: Timestamp,
   )
@@ -1148,6 +1170,7 @@ pub fn update(
   demand_id: Uuid,
   arg_2: String,
   arg_3: String,
+  arg_4: Float,
 ) -> Result(pog.Returned(UpdateRow), pog.QueryError) {
   let decoder = {
     use id <- decode.field(0, uuid_decoder())
@@ -1155,14 +1178,16 @@ pub fn update(
     use title <- decode.field(2, decode.string)
     use description <- decode.field(3, decode.string)
     use demand_status <- decode.field(4, demand_status_decoder())
-    use created_at <- decode.field(5, pog.timestamp_decoder())
-    use updated_at <- decode.field(6, pog.timestamp_decoder())
+    use budget <- decode.field(5, decode.optional(pog.numeric_decoder()))
+    use created_at <- decode.field(6, pog.timestamp_decoder())
+    use updated_at <- decode.field(7, pog.timestamp_decoder())
     decode.success(UpdateRow(
       id:,
       company_id:,
       title:,
       description:,
       demand_status:,
+      budget:,
       created_at:,
       updated_at:,
     ))
@@ -1174,6 +1199,7 @@ UPDATE
 SET
     title = coalesce(nullif($2::text, ''), title),
     description = coalesce(nullif($3::text, ''), description),
+    budget = coalesce(nullif($4::numeric, 0), budget),
     updated_at = CURRENT_TIMESTAMP
 WHERE
     demand.id = $1
@@ -1183,6 +1209,7 @@ RETURNING
     demand.title,
     demand.description,
     demand.demand_status,
+    demand.budget,
     demand.created_at,
     demand.updated_at
 "
@@ -1190,6 +1217,7 @@ RETURNING
   |> pog.parameter(pog.text(uuid.to_string(demand_id)))
   |> pog.parameter(pog.text(arg_2))
   |> pog.parameter(pog.text(arg_3))
+  |> pog.parameter(pog.float(arg_4))
   |> pog.returning(decoder)
   |> pog.execute(db)
 }
@@ -1207,6 +1235,7 @@ pub type UpdateStatusRow {
     title: String,
     description: String,
     demand_status: DemandStatus,
+    budget: Option(Float),
     created_at: Timestamp,
     updated_at: Timestamp,
   )
@@ -1228,14 +1257,16 @@ pub fn update_status(
     use title <- decode.field(2, decode.string)
     use description <- decode.field(3, decode.string)
     use demand_status <- decode.field(4, demand_status_decoder())
-    use created_at <- decode.field(5, pog.timestamp_decoder())
-    use updated_at <- decode.field(6, pog.timestamp_decoder())
+    use budget <- decode.field(5, decode.optional(pog.numeric_decoder()))
+    use created_at <- decode.field(6, pog.timestamp_decoder())
+    use updated_at <- decode.field(7, pog.timestamp_decoder())
     decode.success(UpdateStatusRow(
       id:,
       company_id:,
       title:,
       description:,
       demand_status:,
+      budget:,
       created_at:,
       updated_at:,
     ))
@@ -1255,6 +1286,7 @@ RETURNING
     demand.title,
     demand.description,
     demand.demand_status,
+    demand.budget,
     demand.created_at,
     demand.updated_at;
 "

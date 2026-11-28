@@ -167,6 +167,8 @@ pub type Demand {
     description: String,
     /// Current lifecycle state of the demand.
     status: Status,
+    /// Budget for the demand, or `None` when no budget was set.
+    budget: option.Option(Float),
     /// Timestamp of when the demand was created.
     created_at: timestamp.Timestamp,
     /// Timestamp of when the demand was last updated.
@@ -181,6 +183,7 @@ pub fn decoder() -> decode.Decoder(Demand) {
   use title <- decode.field("title", decode.string)
   use description <- decode.field("description", decode.string)
   use status <- decode.field("status", status_decoder())
+  use budget <- decode.field("budget", decode.optional(decode.float))
   use created_at <- decode.field("created_at", internal.timestamp_decoder())
   use updated_at <- decode.field("updated_at", internal.timestamp_decoder())
 
@@ -190,6 +193,7 @@ pub fn decoder() -> decode.Decoder(Demand) {
     title:,
     description:,
     status:,
+    budget:,
     created_at:,
     updated_at:,
   ))
@@ -203,6 +207,7 @@ pub fn to_json(demand: Demand) -> json.Json {
     title:,
     description:,
     status:,
+    budget:,
     created_at:,
     updated_at:,
   ) = demand
@@ -213,6 +218,7 @@ pub fn to_json(demand: Demand) -> json.Json {
     #("title", json.string(title)),
     #("description", json.string(description)),
     #("status", status_to_json(status)),
+    #("budget", json.nullable(budget, json.float)),
     #("created_at", internal.timestamp_to_json(created_at)),
     #("updated_at", internal.timestamp_to_json(updated_at)),
   ])
@@ -251,6 +257,7 @@ pub fn get(
     title: row.title,
     description: row.description,
     status: status_from_enum(row.demand_status),
+    budget: row.budget,
     created_at: row.created_at,
     updated_at: row.updated_at,
   )
@@ -381,6 +388,8 @@ fn status_to_enum(status: Status) -> sql.DemandStatus {
 
 /// Register a new demand in the Database
 ///
+/// Pass `option.None` as `budget` to register the demand without a budget.
+///
 /// ## Examples
 ///
 /// ```gleam
@@ -390,6 +399,7 @@ fn status_to_enum(status: Status) -> sql.DemandStatus {
 ///   title: "Need more gleam developers",
 ///   description: "A lot more of them",
 ///   status: demand.Open,
+///   budget: option.Some(50_000.0),
 /// )
 ///
 /// case result {
@@ -405,6 +415,7 @@ pub fn register(
   title title: String,
   description description: String,
   status status: Status,
+  budget budget: option.Option(Float),
 ) -> Result(Demand, DemandError) {
   let register_result =
     sql.register(
@@ -413,6 +424,7 @@ pub fn register(
       title,
       description,
       status_to_enum(status),
+      option.unwrap(budget, 0.0),
     )
 
   use returned <- result.try(case register_result {
@@ -434,6 +446,7 @@ pub fn register(
     title: row.title,
     description: row.description,
     status: status_from_enum(row.demand_status),
+    budget: row.budget,
     created_at: row.created_at,
     updated_at: row.updated_at,
   )
@@ -664,6 +677,7 @@ fn do_update_status(
     title: row.title,
     description: row.description,
     status: status_from_enum(row.demand_status),
+    budget: row.budget,
     created_at: row.created_at,
     updated_at: row.updated_at,
   )
@@ -721,7 +735,7 @@ pub fn cancel(
 }
 
 /// Updates a Demand's information.
-/// Passing `option.None` leaves a field unchanged.
+/// Passing `option.None` leaves a field unchanged, including `new_budget`.
 ///
 /// ## Examples
 ///
@@ -731,6 +745,7 @@ pub fn cancel(
 ///   id,
 ///   new_title: option.Some("Need more Odin developers"),
 ///   new_description: option.None,
+///   new_budget: option.None,
 /// )
 ///
 /// case result {
@@ -744,12 +759,19 @@ pub fn update(
   id: uuid.Uuid,
   new_title title: Option(String),
   new_description description: Option(String),
+  new_budget budget: option.Option(Float),
 ) -> Result(Demand, DemandError) {
-  let title = option.unwrap(title, or: "")
-  let description = option.unwrap(description, or: "")
+  let query_result =
+    sql.update(
+      database,
+      id,
+      option.unwrap(title, or: ""),
+      option.unwrap(description, or: ""),
+      option.unwrap(budget, or: 0.0),
+    )
 
   use returned <- result.try(
-    sql.update(database, id, title, description)
+    query_result
     |> result.map_error(DatabaseError),
   )
 
@@ -764,6 +786,7 @@ pub fn update(
     title: row.title,
     description: row.description,
     status: status_from_enum(row.demand_status),
+    budget: row.budget,
     created_at: row.created_at,
     updated_at: row.updated_at,
   )
@@ -802,6 +825,7 @@ pub fn delete(
     title: row.title,
     description: row.description,
     status: status_from_enum(row.demand_status),
+    budget: row.budget,
     created_at: row.created_at,
     updated_at: row.updated_at,
   )
@@ -997,6 +1021,7 @@ pub fn browse_open_demands(
       title: row.title,
       description: row.description,
       status: status_from_enum(row.demand_status),
+      budget: row.budget,
       created_at: row.created_at,
       updated_at: row.updated_at,
     )

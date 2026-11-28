@@ -45,6 +45,7 @@ pub type RegisterDemand {
     title: String,
     description: String,
     status: demand.Status,
+    budget: option.Option(Float),
     expertises: List(uuid.Uuid),
     segments: List(uuid.Uuid),
     services: List(uuid.Uuid),
@@ -53,7 +54,7 @@ pub type RegisterDemand {
 }
 
 pub type UpdateDemand {
-  UpdateDemand(title: String, description: String)
+  UpdateDemand(title: String, description: String, budget: Float)
 }
 
 pub type UpdateStartup {

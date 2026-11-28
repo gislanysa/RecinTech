@@ -420,11 +420,14 @@ fn healthcheck(database: pog.Connection) -> Response {
 ///     "title": "Need more gleam projects",
 ///     "description": "A lot more of them",
 ///     "status": "open",
+///     "budget": 50000.0,
 ///     "created_at": "2025-09-14T20:08:02.000Z",
 ///     "updated_at": "2025-09-14T20:08:02.000Z"
 ///   }
 /// ]
 /// ```
+///
+/// - `budget`: the Demand's budget as a number, or `null` if none was set.
 ///
 /// An empty list is returned when there are no open Demands.
 ///
@@ -1386,6 +1389,7 @@ fn update_startup(
 ///   "title": "Need more gleam projects",
 ///   "description": "A lot more of them",
 ///   "status": "open",
+///   "budget": 50000.0,
 ///   "created_at": "2025-09-14T20:08:02.000Z",
 ///   "updated_at": "2025-09-14T20:08:02.000Z"
 /// }
@@ -1596,6 +1600,7 @@ fn require_demand_owner(
 ///   "title": "Need more gleam projects",
 ///   "description": "A lot more of them",
 ///   "status": "open",
+///   "budget": 50000.0,
 ///   "segments": ["01a058ae-057f-73e8-b2a0-50986559767b"],
 ///   "services": ["01a0dbb3-153a-7b84-8c3d-631788972d4a"],
 ///   "expertises": ["01a173cb-9533-7ebd-87a0-590965ef3653"],
@@ -1604,6 +1609,8 @@ fn require_demand_owner(
 /// ```
 ///
 /// - `status`: one of `"open"`, `"closed"` or `"canceled"`.
+/// - `budget`: the Demand's budget as a number, or `null` for no budget. The
+///   field is required, but its value may be `null`.
 /// - `segments`, `services`, `expertises` and `technologies`: lists of UUIDs.
 ///   The lists may be empty, but all four fields are required.
 ///
@@ -1617,6 +1624,7 @@ fn require_demand_owner(
 ///     "title": "Need more gleam projects",
 ///     "description": "A lot more of them",
 ///     "status": "open",
+///     "budget": 50000.0,
 ///     "created_at": "2025-09-14T20:08:02.000Z",
 ///     "updated_at": "2025-09-14T20:08:02.000Z"
 ///   },
@@ -1675,6 +1683,7 @@ fn register_demand(
     use title <- decode.field("title", decode.string)
     use description <- decode.field("description", decode.string)
     use status <- decode.field("status", demand.status_decoder())
+    use budget <- decode.field("budget", decode.optional(decode.float))
 
     use segments <- decode.field(
       "segments",
@@ -1700,6 +1709,7 @@ fn register_demand(
       title:,
       description:,
       status:,
+      budget:,
       expertises:,
       segments:,
       services:,
@@ -1718,6 +1728,7 @@ fn register_demand(
             title: payload.title,
             description: payload.description,
             status: payload.status,
+            budget: payload.budget,
           )
           |> result.map_error(DemandError),
         )
@@ -1798,12 +1809,15 @@ fn register_demand(
 /// ```json
 /// {
 ///   "title": "new title",
-///   "description": "new description"
+///   "description": "new description",
+///   "budget": 50000.0
 /// }
 /// ```
 ///
-/// - Both fields are optional.
+/// - All fields are optional.
 /// - Empty strings are treated as missing fields.
+/// - `budget`: the Demand's new budget as a number. Omit it, or send `0`, to
+///   keep the current budget.
 ///
 /// ## Response Body
 ///
@@ -1814,6 +1828,7 @@ fn register_demand(
 ///   "title": "new title",
 ///   "description": "new description",
 ///   "status": "open",
+///   "budget": 50000.0,
 ///   "created_at": "2025-09-14T20:08:02.000Z",
 ///   "updated_at": "2025-09-14T20:08:02.000Z"
 /// }
@@ -1841,15 +1856,27 @@ fn update_demand(
   let decoder = {
     use title <- decode.optional_field("title", "", decode.string)
     use description <- decode.optional_field("description", "", decode.string)
-    decode.success(payload.UpdateDemand(title:, description:))
+    use budget <- decode.optional_field("budget", 0.0, decode.float)
+    decode.success(payload.UpdateDemand(title:, description:, budget:))
   }
 
   case decode.run(body, decoder) {
     Ok(payload) if session.id == owner -> {
-      let new_title = string.to_option(payload.title)
-      let new_description = string.to_option(payload.description)
+      let budget = case payload.budget {
+        0.0 -> None
+        other -> Some(other)
+      }
 
-      case demand.update(database, demand_id, new_title:, new_description:) {
+      let result =
+        demand.update(
+          database,
+          demand_id,
+          new_title: string.to_option(payload.title),
+          new_description: string.to_option(payload.description),
+          new_budget: budget,
+        )
+
+      case result {
         Error(error) -> handle_demand_error(error)
 
         Ok(demand) ->
@@ -1881,10 +1908,13 @@ fn update_demand(
 ///   "title": "Need more gleam projects",
 ///   "description": "A lot more of them",
 ///   "status": "open",
+///   "budget": 50000.0,
 ///   "created_at": "2025-09-14T20:08:02.000Z",
 ///   "updated_at": "2025-09-14T20:08:02.000Z"
 /// }
 /// ```
+///
+/// - `budget`: the Demand's budget as a number, or `null` if none was set.
 ///
 /// ## Status Codes
 ///
@@ -1928,6 +1958,7 @@ fn get_demand_by_id(database: pog.Connection, id: String) -> Response {
 ///     "title": "Need more gleam projects",
 ///     "description": "A lot more of them",
 ///     "status": "open",
+///     "budget": 50000.0,
 ///     "created_at": "2025-09-14T20:08:02.000Z",
 ///     "updated_at": "2025-09-14T20:08:02.000Z"
 ///   },
@@ -1937,11 +1968,14 @@ fn get_demand_by_id(database: pog.Connection, id: String) -> Response {
 ///     "title": "Need more Zig projects",
 ///     "description": "",
 ///     "status": "open",
+///     "budget": null,
 ///     "created_at": "2026-09-19T20:08:02.000Z",
 ///     "updated_at": "2026-09-19T20:08:02.000Z"
 ///   }
 /// ]
 /// ```
+///
+/// - `budget`: the Demand's budget as a number, or `null` if none was set.
 ///
 /// ## Status Codes
 ///

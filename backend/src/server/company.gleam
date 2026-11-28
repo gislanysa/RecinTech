@@ -545,6 +545,7 @@ pub fn get_demands(
       title: row.title,
       description: row.description,
       status:,
+      budget: row.budget,
       created_at: row.created_at,
       updated_at: row.updated_at,
     )

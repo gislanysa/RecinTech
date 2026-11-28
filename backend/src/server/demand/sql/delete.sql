@@ -9,5 +9,6 @@ RETURNING
     demand.title,
     demand.description,
     demand.demand_status,
+    demand.budget,
     demand.created_at,
     demand.updated_at;
